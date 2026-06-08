@@ -15,6 +15,7 @@ const FIELD_LABELS: Record<string, string> = {
   comments: 'Comentarios',
   beforePhotos: 'Fotos Antes',
   afterPhotos: 'Fotos Después',
+  workOrder: 'Orden de Trabajo',
 }
 
 function formatValue(val: unknown): string {
@@ -53,7 +54,7 @@ async function logHistory(taskId: string, action: string, field: string | null, 
 export async function GET() {
   try {
     const tasks = await db.task.findMany({
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ workOrder: 'asc' }, { createdAt: 'desc' }],
     })
     return NextResponse.json(tasks)
   } catch (error) {
@@ -65,6 +66,10 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    // Auto-assign workOrder if not provided
+    const maxWorkOrder = await db.task.aggregate({ _max: { workOrder: true } })
+    const nextWorkOrder = (maxWorkOrder._max.workOrder || 0) + 1
+
     const task = await db.task.create({
       data: {
         description: body.description,
@@ -80,6 +85,7 @@ export async function POST(request: NextRequest) {
         comments: body.comments || null,
         beforePhotos: body.beforePhotos || '[]',
         afterPhotos: body.afterPhotos || '[]',
+        workOrder: body.workOrder !== undefined ? parseInt(body.workOrder) : nextWorkOrder,
       },
     })
 
@@ -117,9 +123,12 @@ export async function PUT(request: NextRequest) {
     if (data.endDate !== undefined) {
       updateData.endDate = data.endDate ? new Date(data.endDate) : null
     }
+    if (data.workOrder !== undefined) {
+      updateData.workOrder = parseInt(data.workOrder) || 0
+    }
 
     // Track field changes
-    const trackableFields = ['description', 'sector', 'repairType', 'priority', 'status', 'responsible', 'estimatedTime', 'amount', 'startDate', 'endDate', 'comments', 'beforePhotos', 'afterPhotos']
+    const trackableFields = ['description', 'sector', 'repairType', 'priority', 'status', 'responsible', 'estimatedTime', 'amount', 'startDate', 'endDate', 'comments', 'beforePhotos', 'afterPhotos', 'workOrder']
     const changes: { field: string; oldValue: unknown; newValue: unknown }[] = []
 
     for (const field of trackableFields) {

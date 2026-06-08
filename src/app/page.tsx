@@ -93,6 +93,7 @@ interface Task {
   comments: string | null
   beforePhotos: string
   afterPhotos: string
+  workOrder: number
   createdAt: string
   updatedAt: string
 }
@@ -112,6 +113,18 @@ interface Priority {
   name: string
   color: string
   order: number
+}
+
+interface StatusItem {
+  id: string
+  name: string
+  color: string
+  order: number
+}
+
+interface ResponsibleItem {
+  id: string
+  name: string
 }
 
 interface TaskHistoryEntry {
@@ -139,20 +152,13 @@ interface Material {
   updatedAt: string
 }
 
-const statusOptions = ['Pendiente', 'En Proceso', 'Completada', 'Cancelada']
-
-const statusColors: Record<string, string> = {
-  Pendiente: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-  'En Proceso': 'bg-blue-100 text-blue-800 border-blue-300',
-  Completada: 'bg-green-100 text-green-800 border-green-300',
-  Cancelada: 'bg-red-100 text-red-800 border-red-300',
-}
-
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [sectors, setSectors] = useState<Sector[]>([])
   const [repairTypes, setRepairTypes] = useState<RepairType[]>([])
   const [priorities, setPriorities] = useState<Priority[]>([])
+  const [statuses, setStatuses] = useState<StatusItem[]>([])
+  const [responsibles, setResponsibles] = useState<ResponsibleItem[]>([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<'dashboard' | 'table' | 'cards' | 'gantt' | 'materials'>('dashboard')
   const [filterSector, setFilterSector] = useState('all')
@@ -211,7 +217,7 @@ export default function Home() {
     repairType: '',
     priority: '',
     status: 'Pendiente',
-    responsible: '',
+    responsible: 'none',
     estimatedTime: '',
     amount: '',
     startDate: '',
@@ -219,10 +225,11 @@ export default function Home() {
     comments: '',
     beforePhotos: [] as string[],
     afterPhotos: [] as string[],
+    inlineMaterials: [] as Array<{name: string; quantity: string; unit: string; unitPrice: string; totalPrice: string; category: string; notes: string}>,
   })
 
   // Config form
-  const [configTab, setConfigTab] = useState<'sectors' | 'repairTypes' | 'priorities'>('sectors')
+  const [configTab, setConfigTab] = useState<'sectors' | 'repairTypes' | 'priorities' | 'statuses' | 'responsibles'>('sectors')
   const [newSectorName, setNewSectorName] = useState('')
   const [newRepairTypeName, setNewRepairTypeName] = useState('')
   const [newPriorityName, setNewPriorityName] = useState('')
@@ -234,6 +241,14 @@ export default function Home() {
   const [editRepairTypeName, setEditRepairTypeName] = useState('')
   const [editPriorityName, setEditPriorityName] = useState('')
   const [editPriorityColor, setEditPriorityColor] = useState('')
+  const [newStatusName, setNewStatusName] = useState('')
+  const [newStatusColor, setNewStatusColor] = useState('#6b7280')
+  const [editingStatusId, setEditingStatusId] = useState<string | null>(null)
+  const [editStatusName, setEditStatusName] = useState('')
+  const [editStatusColor, setEditStatusColor] = useState('')
+  const [newResponsibleName, setNewResponsibleName] = useState('')
+  const [editingResponsibleId, setEditingResponsibleId] = useState<string | null>(null)
+  const [editResponsibleName, setEditResponsibleName] = useState('')
 
   // Fetch functions
   const fetchTasks = useCallback(async () => {
@@ -275,6 +290,24 @@ export default function Home() {
     }
   }, [])
 
+  const fetchStatuses = useCallback(async () => {
+    try {
+      const res = await fetch('/api/status')
+      if (res.ok) setStatuses(await res.json())
+    } catch (err) {
+      console.error('Error fetching statuses:', err)
+    }
+  }, [])
+
+  const fetchResponsibles = useCallback(async () => {
+    try {
+      const res = await fetch('/api/responsibles')
+      if (res.ok) setResponsibles(await res.json())
+    } catch (err) {
+      console.error('Error fetching responsibles:', err)
+    }
+  }, [])
+
   const fetchMaterials = useCallback(async () => {
     try {
       const res = await fetch('/api/materials')
@@ -287,11 +320,11 @@ export default function Home() {
   useEffect(() => {
     const loadAll = async () => {
       setLoading(true)
-      await Promise.all([fetchTasks(), fetchSectors(), fetchRepairTypes(), fetchPriorities(), fetchMaterials()])
+      await Promise.all([fetchTasks(), fetchSectors(), fetchRepairTypes(), fetchPriorities(), fetchStatuses(), fetchResponsibles(), fetchMaterials()])
       setLoading(false)
     }
     loadAll()
-  }, [fetchTasks, fetchSectors, fetchRepairTypes, fetchPriorities, fetchMaterials])
+  }, [fetchTasks, fetchSectors, fetchRepairTypes, fetchPriorities, fetchStatuses, fetchResponsibles, fetchMaterials])
 
   // Task CRUD
   const [savingTask, setSavingTask] = useState(false)
@@ -302,9 +335,11 @@ export default function Home() {
       setSavingTask(true)
       const body = {
         ...formData,
+        responsible: formData.responsible === 'none' ? '' : formData.responsible,
         beforePhotos: JSON.stringify(formData.beforePhotos),
         afterPhotos: JSON.stringify(formData.afterPhotos),
       }
+      delete (body as Record<string, unknown>).inlineMaterials
 
       if (editingTask) {
         const res = await fetch('/api/tasks', {
@@ -323,6 +358,32 @@ export default function Home() {
         })
         if (!res.ok) {
           console.error('Error creating task:', await res.text())
+        } else {
+          // Save inline materials for new task
+          const newTask = await res.json()
+          if (formData.inlineMaterials.length > 0 && newTask.id) {
+            for (const mat of formData.inlineMaterials) {
+              try {
+                await fetch('/api/materials', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    taskId: newTask.id,
+                    name: mat.name,
+                    quantity: mat.quantity || null,
+                    unit: mat.unit || null,
+                    unitPrice: mat.unitPrice ? parseFloat(mat.unitPrice) : null,
+                    totalPrice: mat.totalPrice ? parseFloat(mat.totalPrice) : null,
+                    category: mat.category || null,
+                    notes: mat.notes || null,
+                  }),
+                })
+              } catch (matErr) {
+                console.error('Error saving inline material:', matErr)
+              }
+            }
+            fetchMaterials()
+          }
         }
       }
 
@@ -349,6 +410,20 @@ export default function Home() {
     }
   }
 
+  // Update work order inline
+  const handleUpdateWorkOrder = async (taskId: string, newOrder: number) => {
+    try {
+      await fetch('/api/tasks', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: taskId, workOrder: newOrder }),
+      })
+      fetchTasks()
+    } catch (err) {
+      console.error('Error updating work order:', err)
+    }
+  }
+
   const openEditTask = (task: Task) => {
     setEditingTask(task)
     setFormData({
@@ -357,7 +432,7 @@ export default function Home() {
       repairType: task.repairType,
       priority: task.priority,
       status: task.status,
-      responsible: task.responsible || '',
+      responsible: task.responsible || 'none',
       estimatedTime: task.estimatedTime || '',
       amount: task.amount?.toString() || '',
       startDate: task.startDate ? task.startDate.split('T')[0] : '',
@@ -365,6 +440,7 @@ export default function Home() {
       comments: task.comments || '',
       beforePhotos: JSON.parse(task.beforePhotos || '[]'),
       afterPhotos: JSON.parse(task.afterPhotos || '[]'),
+      inlineMaterials: [],
     })
     setTaskDialogOpen(true)
   }
@@ -381,8 +457,8 @@ export default function Home() {
       sector: sectors[0]?.name || '',
       repairType: repairTypes[0]?.name || '',
       priority: priorities[0]?.name || '',
-      status: 'Pendiente',
-      responsible: '',
+      status: statuses[0]?.name || 'Pendiente',
+      responsible: 'none',
       estimatedTime: '',
       amount: '',
       startDate: '',
@@ -390,6 +466,7 @@ export default function Home() {
       comments: '',
       beforePhotos: [],
       afterPhotos: [],
+      inlineMaterials: [],
     })
   }
 
@@ -544,6 +621,61 @@ export default function Home() {
     fetchPriorities()
   }
 
+  const handleAddStatus = async () => {
+    if (!newStatusName.trim()) return
+    await fetch('/api/status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newStatusName.trim(), color: newStatusColor, order: statuses.length + 1 }),
+    })
+    setNewStatusName('')
+    setNewStatusColor('#6b7280')
+    fetchStatuses()
+  }
+
+  const handleUpdateStatus = async (id: string) => {
+    if (!editStatusName.trim()) return
+    await fetch('/api/status', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name: editStatusName.trim(), color: editStatusColor }),
+    })
+    setEditingStatusId(null)
+    fetchStatuses()
+  }
+
+  const handleDeleteStatus = async (id: string) => {
+    await fetch(`/api/status?id=${id}`, { method: 'DELETE' })
+    fetchStatuses()
+  }
+
+  const handleAddResponsible = async () => {
+    if (!newResponsibleName.trim()) return
+    await fetch('/api/responsibles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newResponsibleName.trim() }),
+    })
+    setNewResponsibleName('')
+    fetchResponsibles()
+  }
+
+  const handleUpdateResponsible = async (id: string) => {
+    if (!editResponsibleName.trim()) return
+    await fetch('/api/responsibles', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name: editResponsibleName.trim() }),
+    })
+    setEditingResponsibleId(null)
+    fetchResponsibles()
+  }
+
+  const handleDeleteResponsible = async (id: string) => {
+    await fetch(`/api/responsibles?id=${id}`, { method: 'DELETE' })
+    fetchResponsibles()
+  }
+
   // Material CRUD
   const handleSaveMaterial = async () => {
     if (!materialTaskId || !materialFormData.name.trim()) return
@@ -647,6 +779,13 @@ export default function Home() {
     if (filterStatus !== 'all' && t.status !== filterStatus) return false
     if (filterRepairType !== 'all' && t.repairType !== filterRepairType) return false
     return true
+  }).sort((a, b) => {
+    // Sort by workOrder: tasks with workOrder > 0 come first (sorted ascending)
+    // Tasks with workOrder === 0 go to the end, sorted by createdAt
+    if (a.workOrder > 0 && b.workOrder > 0) return a.workOrder - b.workOrder
+    if (a.workOrder > 0) return -1
+    if (b.workOrder > 0) return 1
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   })
 
   // Stats
@@ -663,20 +802,48 @@ export default function Home() {
     return p?.color || '#6b7280'
   }
 
+  const getStatusColor = (name: string) => {
+    const s = statuses.find(st => st.name === name)
+    return s?.color || '#6b7280'
+  }
+
+  const getStatusBadgeClass = (name: string) => {
+    const fallbackMap: Record<string, string> = {
+      Pendiente: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+      'En Proceso': 'bg-blue-100 text-blue-800 border-blue-300',
+      Completada: 'bg-green-100 text-green-800 border-green-300',
+      Cancelada: 'bg-red-100 text-red-800 border-red-300',
+    }
+    return fallbackMap[name] || 'bg-gray-100 text-gray-800 border-gray-300'
+  }
+
   // Gantt chart helpers
+  // All filtered tasks sorted by workOrder for Gantt display
+  const ganttTasks = [...filteredTasks].sort((a, b) => {
+    if (a.workOrder > 0 && b.workOrder > 0) return a.workOrder - b.workOrder
+    if (a.workOrder > 0) return -1
+    if (b.workOrder > 0) return 1
+    return 0
+  })
+  // Only tasks with dates (for calculating date range)
   const tasksWithDates = filteredTasks.filter(t => t.startDate && t.endDate)
   const ganttStartDate = tasksWithDates.length > 0
     ? new Date(Math.min(...tasksWithDates.map(t => new Date(t.startDate!).getTime())))
-    : new Date()
+    : new Date() // When no tasks have dates, start from today
   const ganttEndDate = tasksWithDates.length > 0
     ? new Date(Math.max(...tasksWithDates.map(t => new Date(t.endDate!).getTime())))
-    : new Date()
+    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // Default 30-day range when no dates
 
   // Extend gantt range slightly
   const ganttRangeStart = new Date(ganttStartDate)
   ganttRangeStart.setDate(ganttRangeStart.getDate() - 2)
   const ganttRangeEnd = new Date(ganttEndDate)
   ganttRangeEnd.setDate(ganttRangeEnd.getDate() + 2)
+
+  // Minimum range of 7 days to ensure visible timeline
+  if (ganttRangeEnd.getTime() - ganttRangeStart.getTime() < 7 * 24 * 60 * 60 * 1000) {
+    ganttRangeEnd.setTime(ganttRangeStart.getTime() + 30 * 24 * 60 * 60 * 1000)
+  }
 
   const totalGanttDays = Math.max(1, Math.ceil((ganttRangeEnd.getTime() - ganttRangeStart.getTime()) / (1000 * 60 * 60 * 24)))
 
@@ -721,39 +888,41 @@ export default function Home() {
     setHistoryLoading(false)
   }
 
-  // Gantt download as PDF - Professional A3 landscape with pagination
+  // Gantt download as PDF - Captures exact on-screen Gantt format via html2canvas
   const downloadGanttPDF = async () => {
     setDownloadingGantt(true)
     try {
-      const sortedTasks = [...tasksWithDates].sort((a, b) => {
-        const dateA = a.startDate ? new Date(a.startDate).getTime() : 0
-        const dateB = b.startDate ? new Date(b.startDate).getTime() : 0
-        return dateA - dateB
+      const element = document.getElementById('gantt-chart-content')
+      if (!element) return
+
+      // Dynamic import to avoid SSR issues
+      const html2canvasModule = await import('html2canvas-pro')
+      const html2canvas = html2canvasModule.default
+
+      // Temporarily expand for full capture
+      const originalOverflow = element.style.overflow
+      const originalWidth = element.style.width
+      element.style.overflow = 'visible'
+      element.style.width = 'max-content'
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        windowWidth: element.scrollWidth,
       })
 
-      if (sortedTasks.length === 0) return
+      element.style.overflow = originalOverflow
+      element.style.width = originalWidth
 
       // A3 Landscape dimensions (mm)
-      const pageWidth = 420
-      const pageHeight = 297
-      const margin = 10
-      const labelColWidth = 85
-      const rowHeight = 9
-      const headerHeight = 16
-      const titleBlockHeight = 18
-      const footerHeight = 12
+      const pageWidthMM = 420
+      const pageHeightMM = 297
+      const marginMM = 8
 
-      // Calculate day column width to fit available space
-      const availableGanttWidth = pageWidth - 2 * margin - labelColWidth
-      const dayColWidth = availableGanttWidth / ganttDays.length
-
-      const ganttAreaX = margin + labelColWidth
-      const ganttAreaWidth = ganttDays.length * dayColWidth
-
-      // Rows per page
-      const usablePageHeight = pageHeight - margin - titleBlockHeight - headerHeight - footerHeight
-      const rowsPerPage = Math.floor(usablePageHeight / rowHeight)
-      const totalPages = Math.ceil(sortedTasks.length / rowsPerPage)
+      const imgWidth = pageWidthMM - 2 * marginMM
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
 
       const pdf = new jsPDF({
         orientation: 'landscape',
@@ -761,276 +930,38 @@ export default function Home() {
         format: 'a3',
       })
 
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
+      // If the image fits on one page
+      if (imgHeight <= pageHeightMM - 2 * marginMM) {
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', marginMM, marginMM, imgWidth, imgHeight)
+      } else {
+        // Multi-page: split the canvas image vertically
+        const usableHeightMM = pageHeightMM - 2 * marginMM
+        const pxPerMM = canvas.width / imgWidth
+        const pageHeightPx = usableHeightMM * pxPerMM
+        const totalPages = Math.ceil(canvas.height / pageHeightPx)
 
-      // Helper: draw chart header on a page
-      const drawChartHeader = (startY: number) => {
-        // Month header row
-        let currentMonth = ''
-        let monthStartIdx = 0
-        pdf.setFontSize(7)
-        pdf.setFont('helvetica', 'bold')
+        for (let page = 0; page < totalPages; page++) {
+          if (page > 0) pdf.addPage('a3', 'landscape')
 
-        for (let i = 0; i < ganttDays.length; i++) {
-          const monthLabel = ganttDays[i].toLocaleDateString('es-CL', { month: 'short', year: '2-digit' })
-          const isLast = i === ganttDays.length - 1
+          const srcY = page * pageHeightPx
+          const srcH = Math.min(pageHeightPx, canvas.height - srcY)
 
-          if (monthLabel !== currentMonth) {
-            if (currentMonth !== '') {
-              const x1 = ganttAreaX + monthStartIdx * dayColWidth
-              const span = (i - monthStartIdx) * dayColWidth
-              pdf.setFillColor(30, 41, 59)
-              pdf.rect(x1, startY, span, headerHeight / 2, 'F')
-              pdf.setTextColor(255, 255, 255)
-              pdf.text(currentMonth, x1 + span / 2, startY + headerHeight / 4 + 1.2, { align: 'center' })
-            }
-            monthStartIdx = i
-            currentMonth = monthLabel
-          }
+          // Create a sub-canvas for this page
+          const pageCanvas = document.createElement('canvas')
+          pageCanvas.width = canvas.width
+          pageCanvas.height = srcH
+          const ctx = pageCanvas.getContext('2d')!
+          ctx.fillStyle = '#ffffff'
+          ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height)
+          ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH)
 
-          if (isLast) {
-            const x1 = ganttAreaX + monthStartIdx * dayColWidth
-            const span = (i - monthStartIdx + 1) * dayColWidth
-            pdf.setFillColor(30, 41, 59)
-            pdf.rect(x1, startY, span, headerHeight / 2, 'F')
-            pdf.setTextColor(255, 255, 255)
-            pdf.text(currentMonth, x1 + span / 2, startY + headerHeight / 4 + 1.2, { align: 'center' })
-          }
-        }
+          const pageImgHeight = (srcH * imgWidth) / canvas.width
+          pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', marginMM, marginMM, imgWidth, pageImgHeight)
 
-        // Day numbers row
-        const dayRowY = startY + headerHeight / 2
-        pdf.setFontSize(5.5)
-        pdf.setFont('helvetica', 'normal')
-
-        for (let i = 0; i < ganttDays.length; i++) {
-          const day = ganttDays[i]
-          const x = ganttAreaX + i * dayColWidth
-          const isWeekend = day.getDay() === 0 || day.getDay() === 6
-          const isToday = day.getTime() === today.getTime()
-
-          if (isToday) {
-            pdf.setFillColor(220, 38, 38)
-            pdf.rect(x, dayRowY, dayColWidth, headerHeight / 2, 'F')
-            pdf.setTextColor(255, 255, 255)
-            pdf.setFont('helvetica', 'bold')
-            pdf.setFontSize(6)
-          } else if (isWeekend) {
-            pdf.setFillColor(209, 213, 219)
-            pdf.rect(x, dayRowY, dayColWidth, headerHeight / 2, 'F')
-            pdf.setTextColor(55, 65, 81)
-            pdf.setFont('helvetica', 'normal')
-            pdf.setFontSize(5.5)
-          } else {
-            pdf.setFillColor(226, 232, 240)
-            pdf.rect(x, dayRowY, dayColWidth, headerHeight / 2, 'F')
-            pdf.setTextColor(55, 65, 81)
-            pdf.setFont('helvetica', 'normal')
-            pdf.setFontSize(5.5)
-          }
-
-          pdf.text(String(day.getDate()), x + dayColWidth / 2, dayRowY + headerHeight / 4 + 0.5, { align: 'center' })
-        }
-
-        // Label column header
-        pdf.setFillColor(30, 41, 59)
-        pdf.rect(margin, startY, labelColWidth, headerHeight, 'F')
-        pdf.setTextColor(255, 255, 255)
-        pdf.setFontSize(9)
-        pdf.setFont('helvetica', 'bold')
-        pdf.text('Tarea', margin + 5, startY + headerHeight / 2 + 1.5)
-
-        return startY + headerHeight
-      }
-
-      // Helper: draw a single data row
-      const drawDataRow = (task: Task, rowY: number, rowIndex: number) => {
-        const isOdd = rowIndex % 2 === 1
-
-        // Row background
-        if (isOdd) {
-          pdf.setFillColor(248, 250, 252)
-          pdf.rect(margin, rowY, labelColWidth + ganttAreaWidth, rowHeight, 'F')
-        }
-
-        // Weekend/today shading in gantt area
-        for (let i = 0; i < ganttDays.length; i++) {
-          const day = ganttDays[i]
-          const isWeekend = day.getDay() === 0 || day.getDay() === 6
-          const isDayToday = day.getTime() === today.getTime()
-          if (isDayToday) {
-            const x = ganttAreaX + i * dayColWidth
-            pdf.setFillColor(254, 226, 226)
-            pdf.rect(x, rowY, dayColWidth, rowHeight, 'F')
-          } else if (isWeekend) {
-            const x = ganttAreaX + i * dayColWidth
-            pdf.setFillColor(241, 245, 249)
-            pdf.rect(x, rowY, dayColWidth, rowHeight, 'F')
-          }
-        }
-
-        // Today line
-        if (today >= ganttRangeStart && today <= ganttRangeEnd) {
-          const todayPercent = (today.getTime() - ganttRangeStart.getTime()) / (ganttRangeEnd.getTime() - ganttRangeStart.getTime())
-          const todayX = ganttAreaX + todayPercent * ganttAreaWidth
-          pdf.setDrawColor(220, 38, 38)
-          pdf.setLineWidth(0.4)
-          pdf.line(todayX, rowY, todayX, rowY + rowHeight)
-        }
-
-        // Gantt bar
-        const taskStart = new Date(task.startDate!)
-        const taskEnd = new Date(task.endDate!)
-        const leftPercent = (taskStart.getTime() - ganttRangeStart.getTime()) / (ganttRangeEnd.getTime() - ganttRangeStart.getTime())
-        const widthPercent = (taskEnd.getTime() - taskStart.getTime()) / (ganttRangeEnd.getTime() - ganttRangeStart.getTime())
-        const barX = ganttAreaX + leftPercent * ganttAreaWidth
-        const barWidth = Math.max(widthPercent * ganttAreaWidth, 3)
-        const barY = rowY + 1.5
-        const barHeight = rowHeight - 3
-
-        // Bar color based on status
-        const statusColorMap: Record<string, [number, number, number]> = {
-          Pendiente: (() => {
-            const hex = getPriorityColor(task.priority)
-            const r = parseInt(hex.slice(1, 3), 16)
-            const g = parseInt(hex.slice(3, 5), 16)
-            const b = parseInt(hex.slice(5, 7), 16)
-            return [r, g, b] as [number, number, number]
-          })(),
-          'En Proceso': [37, 99, 235],
-          Completada: [22, 163, 74],
-          Cancelada: [220, 38, 38],
-        }
-        const [br, bg, bb] = statusColorMap[task.status] || [107, 114, 128]
-        pdf.setFillColor(br, bg, bb)
-        pdf.roundedRect(barX, barY, barWidth, barHeight, 1.5, 1.5, 'F')
-
-        // Bar text
-        if (barWidth > 25 && task.responsible) {
-          pdf.setTextColor(255, 255, 255)
-          pdf.setFontSize(5.5)
-          pdf.setFont('helvetica', 'bold')
-          pdf.text(task.responsible, barX + 2, barY + barHeight / 2 + 1, { maxWidth: barWidth - 4 })
-        }
-
-        // Task label with priority dot
-        pdf.setTextColor(31, 41, 55)
-        pdf.setFontSize(7)
-        pdf.setFont('helvetica', 'normal')
-        const priorityDotX = margin + 4
-        const priorityDotY = rowY + rowHeight / 2
-        const pColor = getPriorityColor(task.priority)
-        const pr = parseInt(pColor.slice(1, 3), 16)
-        const pg = parseInt(pColor.slice(3, 5), 16)
-        const pb = parseInt(pColor.slice(5, 7), 16)
-        pdf.setFillColor(pr, pg, pb)
-        pdf.circle(priorityDotX, priorityDotY, 1.2, 'F')
-        pdf.text(task.description.substring(0, 40), margin + 7, rowY + rowHeight / 2 - 0.3)
-
-        // Sub-info line
-        pdf.setFontSize(5)
-        pdf.setTextColor(107, 114, 128)
-        pdf.text(
-          `${task.sector} | ${formatDate(task.startDate)} - ${formatDate(task.endDate)}`,
-          margin + 7, rowY + rowHeight / 2 + 3
-        )
-
-        // Row border
-        pdf.setDrawColor(226, 232, 240)
-        pdf.setLineWidth(0.1)
-        pdf.line(margin, rowY + rowHeight, margin + labelColWidth + ganttAreaWidth, rowY + rowHeight)
-      }
-
-      // Draw pages
-      for (let page = 0; page < totalPages; page++) {
-        if (page > 0) pdf.addPage('a3', 'landscape')
-
-        let y = margin
-
-        // Title block
-        pdf.setFillColor(15, 23, 42)
-        pdf.rect(0, 0, pageWidth, titleBlockHeight + margin, 'F')
-        pdf.setTextColor(255, 255, 255)
-        pdf.setFontSize(16)
-        pdf.setFont('helvetica', 'bold')
-        pdf.text('Planificación de Mantención - Diagrama de Gantt', margin, y + 8)
-        pdf.setFontSize(8)
-        pdf.setFont('helvetica', 'normal')
-        pdf.setTextColor(148, 163, 184)
-        pdf.text(
-          `Generado: ${new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })} | ${sortedTasks.length} tareas | Página ${page + 1} de ${totalPages}`,
-          margin, y + 13
-        )
-        y = titleBlockHeight + margin
-
-        // Chart header
-        const dataStartY = drawChartHeader(y)
-
-        // Data rows for this page
-        const startIdx = page * rowsPerPage
-        const endIdx = Math.min(startIdx + rowsPerPage, sortedTasks.length)
-
-        for (let r = startIdx; r < endIdx; r++) {
-          const rowY = dataStartY + (r - startIdx) * rowHeight
-          drawDataRow(sortedTasks[r], rowY, r)
-        }
-
-        // Outer border
-        const chartBottomY = dataStartY + (endIdx - startIdx) * rowHeight
-        pdf.setDrawColor(148, 163, 184)
-        pdf.setLineWidth(0.3)
-        pdf.rect(margin, y, labelColWidth + ganttAreaWidth, chartBottomY - y)
-        pdf.line(ganttAreaX, y, ganttAreaX, chartBottomY)
-
-        // Footer - Legend
-        let footerY = pageHeight - footerHeight
-        pdf.setFillColor(248, 250, 252)
-        pdf.rect(0, footerY - 2, pageWidth, footerHeight + 2, 'F')
-        pdf.setDrawColor(226, 232, 240)
-        pdf.setLineWidth(0.2)
-        pdf.line(0, footerY - 2, pageWidth, footerY - 2)
-
-        pdf.setFontSize(7)
-        pdf.setFont('helvetica', 'bold')
-        pdf.setTextColor(75, 85, 99)
-        pdf.text('Leyenda:', margin, footerY + 3)
-
-        pdf.setFont('helvetica', 'normal')
-        pdf.setFontSize(6)
-        let lx = margin + 18
-
-        pdf.setFillColor(220, 38, 38)
-        pdf.rect(lx, footerY + 0.5, 4, 4, 'F')
-        pdf.setTextColor(75, 85, 99)
-        pdf.text('Hoy', lx + 6, footerY + 3.5)
-        lx += 25
-
-        pdf.setFillColor(209, 213, 219)
-        pdf.rect(lx, footerY + 0.5, 4, 4, 'F')
-        pdf.text('Fin de semana', lx + 6, footerY + 3.5)
-        lx += 40
-
-        for (const p of priorities) {
-          const pr2 = parseInt(p.color.slice(1, 3), 16)
-          const pg2 = parseInt(p.color.slice(3, 5), 16)
-          const pb2 = parseInt(p.color.slice(5, 7), 16)
-          pdf.setFillColor(pr2, pg2, pb2)
-          pdf.rect(lx, footerY + 0.5, 4, 4, 'F')
-          pdf.text(p.name, lx + 6, footerY + 3.5)
-          lx += 6 + pdf.getTextWidth(p.name) + 8
-        }
-
-        const statusLegends: [string, [number, number, number]][] = [
-          ['En Proceso', [37, 99, 235]],
-          ['Completada', [22, 163, 74]],
-          ['Cancelada', [220, 38, 38]],
-        ]
-        for (const [label, [sr, sg, sb]] of statusLegends) {
-          pdf.setFillColor(sr, sg, sb)
-          pdf.rect(lx, footerY + 0.5, 4, 4, 'F')
-          pdf.text(label, lx + 6, footerY + 3.5)
-          lx += 6 + pdf.getTextWidth(label) + 8
+          // Add page number footer
+          pdf.setFontSize(8)
+          pdf.setTextColor(148, 163, 184)
+          pdf.text(`Página ${page + 1} de ${totalPages}`, pageWidthMM - marginMM - 40, pageHeightMM - marginMM / 2)
         }
       }
 
@@ -1046,11 +977,7 @@ export default function Home() {
   const downloadGanttExcel = async () => {
     setDownloadingGantt(true)
     try {
-      const sortedTasks = [...tasksWithDates].sort((a, b) => {
-        const dateA = a.startDate ? new Date(a.startDate).getTime() : 0
-        const dateB = b.startDate ? new Date(b.startDate).getTime() : 0
-        return dateA - dateB
-      })
+      const sortedTasks = [...ganttTasks]
 
       const wb = new ExcelJS.Workbook()
       const today = new Date()
@@ -1061,7 +988,7 @@ export default function Home() {
         properties: { defaultColWidth: 4 },
       })
 
-      const fixedHeaders = ['Descripción', 'Sector', 'Tipo', 'Prioridad', 'Estado', 'Responsable', 'Fecha Inicio', 'Fecha Término']
+      const fixedHeaders = ['N° Orden', 'Descripción', 'Sector', 'Tipo', 'Prioridad', 'Estado', 'Responsable', 'Fecha Inicio', 'Fecha Término']
       const allHeaders = [...fixedHeaders, ...ganttDays.map(d => String(d.getDate())), 'Total Mat.']
 
       // Title row
@@ -1163,27 +1090,29 @@ export default function Home() {
       for (const task of sortedTasks) {
         const taskStart = task.startDate ? new Date(task.startDate) : null
         const taskEnd = task.endDate ? new Date(task.endDate) : null
+        const hasDates = !!(taskStart && taskEnd)
         const materialsTotal = getMaterialsTotal(task.id)
         const matCount = getMaterialsCount(task.id)
 
         const row = [
-          task.description,
+          task.workOrder > 0 ? task.workOrder : '',
+          task.description + (!hasDates ? ' ⚠' : ''),
           task.sector,
           task.repairType,
           task.priority,
           task.status,
           task.responsible || '',
-          task.startDate ? new Date(task.startDate).toLocaleDateString('es-CL') : '',
-          task.endDate ? new Date(task.endDate).toLocaleDateString('es-CL') : '',
+          task.startDate ? new Date(task.startDate).toLocaleDateString('es-CL') : 'Sin fecha',
+          task.endDate ? new Date(task.endDate).toLocaleDateString('es-CL') : 'Sin fecha',
         ]
 
         ganttDays.forEach((dayDate) => {
           const dayTime = dayDate.getTime()
           const inRange = taskStart && taskEnd && dayTime >= taskStart.getTime() && dayTime <= taskEnd.getTime()
-          row.push(inRange ? '\u2588' : '')
+          row.push(inRange ? ' ' : '')
         })
 
-        row.push(matCount > 0 ? materialsTotal : '')
+        row.push(matCount > 0 ? String(materialsTotal) : '')
 
         const excelRow = ws.addRow(row)
         excelRow.height = 18
@@ -1199,16 +1128,25 @@ export default function Home() {
 
         // Style fixed columns
         excelRow.getCell(1).font = { size: 10, bold: true }
-        excelRow.getCell(2).font = { size: 9 }
+        excelRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' }
+        excelRow.getCell(2).font = { size: 10, bold: true }
         excelRow.getCell(3).font = { size: 9 }
+        excelRow.getCell(4).font = { size: 9 }
 
-        // Priority column
+        // Dim rows without dates
+        if (!hasDates) {
+          excelRow.getCell(2).font = { size: 10, bold: true, color: { argb: 'FF9CA3AF' } }
+          excelRow.getCell(8).font = { size: 9, color: { argb: 'FFF97316' } }
+          excelRow.getCell(9).font = { size: 9, color: { argb: 'FFF97316' } }
+        }
+
+        // Priority column (column 5)
         const pColor = getPriorityColor(task.priority)
-        excelRow.getCell(4).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${pColor.replace('#', '')}` } }
-        excelRow.getCell(4).font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
-        excelRow.getCell(4).alignment = { horizontal: 'center' }
+        excelRow.getCell(5).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${pColor.replace('#', '')}` } }
+        excelRow.getCell(5).font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
+        excelRow.getCell(5).alignment = { horizontal: 'center' }
 
-        // Status column with color
+        // Status column with color (column 6)
         const statusStyleMap: Record<string, string> = {
           'Pendiente': 'FFF59E0B',
           'En Proceso': 'FF2563EB',
@@ -1217,9 +1155,9 @@ export default function Home() {
         }
         const statusColor = statusStyleMap[task.status]
         if (statusColor) {
-          excelRow.getCell(5).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: statusColor } }
-          excelRow.getCell(5).font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
-          excelRow.getCell(5).alignment = { horizontal: 'center' }
+          excelRow.getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: statusColor } }
+          excelRow.getCell(6).font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
+          excelRow.getCell(6).alignment = { horizontal: 'center' }
         }
 
         // Style day columns - gantt bars
@@ -1229,11 +1167,14 @@ export default function Home() {
           const dayDate = ganttDays[dayIdx]
           const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6
           const isDayToday = dayDate.getTime() === today.getTime()
+          const isBar = cell.value === ' '
 
-          if (cell.value && String(cell.value).trim() !== '') {
+          if (isBar) {
+            // Gantt bar cell - fill with the bar color
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${barColorHex}` } }
             cell.font = { color: { argb: `FF${barColorHex}` }, size: 10 }
             cell.alignment = { horizontal: 'center' }
+            cell.value = '' // Clear the space, fill provides the visual
           } else if (isDayToday) {
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }
           } else if (isWeekend) {
@@ -1408,6 +1349,845 @@ export default function Home() {
     setDownloadingGantt(false)
   }
 
+  // Gantt download as PNG image - Captures exact on-screen format
+  const downloadGanttPNG = async () => {
+    setDownloadingGantt(true)
+    try {
+      const element = document.getElementById('gantt-chart-content')
+      if (!element) return
+
+      // Dynamic import to avoid SSR issues
+      const html2canvasModule = await import('html2canvas-pro')
+      const html2canvas = html2canvasModule.default
+
+      // Temporarily make the element fully visible for capture
+      const originalOverflow = element.style.overflow
+      const originalWidth = element.style.width
+      element.style.overflow = 'visible'
+      element.style.width = 'max-content'
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        windowWidth: element.scrollWidth,
+      })
+
+      element.style.overflow = originalOverflow
+      element.style.width = originalWidth
+
+      const link = document.createElement('a')
+      link.download = `gantt-planificacion-${new Date().toISOString().split('T')[0]}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch (err) {
+      console.error('Error downloading Gantt as PNG:', err)
+    }
+    setDownloadingGantt(false)
+  }
+
+  // Helper to convert hex color to RGB
+  const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16),
+    } : null
+  }
+
+  // Helper: fetch image as base64 data URL
+  const fetchImageAsBase64 = async (url: string): Promise<string | null> => {
+    try {
+      const res = await fetch(url)
+      if (!res.ok) return null
+      const blob = await res.blob()
+      return new Promise((resolve) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result as string)
+        reader.onerror = () => resolve(null)
+        reader.readAsDataURL(blob)
+      })
+    } catch {
+      return null
+    }
+  }
+
+  // Export individual task as PDF - Professional Template
+  const exportTaskPDF = async (task: Task) => {
+    const doc = new jsPDF()
+    const taskMaterials = getMaterialsForTask(task.id)
+    const materialsTotal = getMaterialsTotal(task.id)
+    const beforePhotos = JSON.parse(task.beforePhotos || '[]') as string[]
+    const afterPhotos = JSON.parse(task.afterPhotos || '[]') as string[]
+
+    const margin = 15
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const contentWidth = pageWidth - 2 * margin
+
+    // Helper to load image
+    const loadImage = (url: string): Promise<HTMLImageElement> => {
+      return new Promise((resolve) => {
+        const img = new Image()
+        img.crossOrigin = 'anonymous'
+        img.onload = () => resolve(img)
+        img.onerror = () => resolve(img)
+        img.src = url
+      })
+    }
+
+    // Fetch logo as base64 for reliable embedding
+    const logoBase64 = await fetchImageAsBase64('/logo-laguna-norte.jpg')
+
+    // Helper to add footer to current page
+    const addFooter = () => {
+      doc.setFontSize(7)
+      doc.setTextColor(120, 120, 120)
+      doc.text('Documento generado automáticamente por Sistema de Gestión Laguna Norte', margin, pageHeight - 10)
+      doc.text('Administración - Asesorías Integrales CyJ', margin, pageHeight - 6)
+      const pageCount = doc.getNumberOfPages()
+      doc.text(`Página ${doc.getCurrentPageInfo().pageNumber} de ${pageCount}`, pageWidth - margin - 20, pageHeight - 6)
+    }
+
+    let y = 15
+
+    // ===== HEADER =====
+    // Logo
+    if (logoBase64) {
+      doc.addImage(logoBase64, 'JPEG', margin, y, 24, 24)
+    }
+
+    // Company title - centered on the page
+    const centerX = pageWidth / 2
+    doc.setFontSize(18)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(15, 23, 42)
+    doc.text('CONDOMINIO & PARQUE', centerX, y + 8, { align: 'center' })
+
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(71, 85, 105)
+    doc.text('REPORTE DE OPERACIÓN', centerX, y + 15, { align: 'center' })
+
+    // Date on the right
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(100, 116, 139)
+    const dateStr = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
+    doc.text(dateStr, pageWidth - margin, y + 8, { align: 'right' })
+    const createdStr = `Creada: ${formatDate(task.createdAt)}`
+    doc.text(createdStr, pageWidth - margin, y + 14, { align: 'right' })
+
+    y += 28
+
+    // Separator line
+    doc.setDrawColor(30, 41, 59)
+    doc.setLineWidth(0.8)
+    doc.line(margin, y, pageWidth - margin, y)
+    y += 8
+
+    // ===== INFORMACIÓN DE LA ORDEN =====
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(15, 23, 42)
+    doc.text('INFORMACIÓN DE LA ORDEN', margin, y)
+    y += 7
+
+    // Activity name - FULL WIDTH on its own line
+    doc.setFillColor(241, 245, 249)
+    doc.roundedRect(margin, y - 4, contentWidth, 9, 1.5, 1.5, 'F')
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(71, 85, 105)
+    doc.text('Actividad:', margin + 3, y)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(15, 23, 42)
+    doc.setFontSize(10)
+    const orderPrefix = task.workOrder > 0 ? `${task.workOrder}. ` : ''
+    doc.text(orderPrefix + task.description, margin + 3 + doc.getTextWidth('Actividad: '), y)
+    y += 12
+
+    // Two-column layout for short fields
+    const shortFields = [
+      ['Área / Sector', task.sector, 'Tipo Reparación', task.repairType],
+      ['Prioridad', task.priority, 'Estado', task.status],
+      ['Responsable', task.responsible || 'Sin asignar', 'Tiempo Estimado', task.estimatedTime || '-'],
+      ['Fecha Inicio', formatDate(task.startDate), 'Fecha Término', formatDate(task.endDate)],
+      ['Monto', task.amount ? formatCurrency(task.amount) : '-', '', ''],
+    ]
+
+    const labelColW = 38
+    const halfW = contentWidth / 2
+    const rowH = 8
+
+    shortFields.forEach((row, rowIdx) => {
+      if (y > pageHeight - 25) { addFooter(); doc.addPage(); y = 20 }
+
+      // Alternating row background
+      if (rowIdx % 2 === 0) {
+        doc.setFillColor(248, 250, 252)
+        doc.rect(margin, y - 4, contentWidth, rowH, 'F')
+      }
+
+      // Left column
+      if (row[0]) {
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(71, 85, 105)
+        doc.text(`${row[0]}:`, margin + 2, y)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(30, 41, 59)
+        doc.setFontSize(9)
+        const leftLabelW = doc.getTextWidth(`${row[0]}: `)
+        const leftMaxW = halfW - labelColW
+        const leftVal = row[1]
+        const leftLines = doc.splitTextToSize(leftVal, leftMaxW)
+        doc.text(leftLines[0], margin + 2 + leftLabelW, y)
+      }
+
+      // Right column
+      if (row[2]) {
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(71, 85, 105)
+        doc.text(`${row[2]}:`, margin + halfW + 2, y)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(30, 41, 59)
+        doc.setFontSize(9)
+        const rightLabelW = doc.getTextWidth(`${row[2]}: `)
+        const rightMaxW = halfW - labelColW
+        const rightVal = row[3]
+        const rightLines = doc.splitTextToSize(rightVal, rightMaxW)
+        doc.text(rightLines[0], margin + halfW + 2 + rightLabelW, y)
+      }
+
+      y += rowH
+    })
+
+    y += 4
+
+    // ===== DESCRIPCIÓN DEL TRABAJO =====
+    if (y > pageHeight - 40) { addFooter(); doc.addPage(); y = 20 }
+
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(15, 23, 42)
+    doc.text('DESCRIPCIÓN DEL TRABAJO', margin, y)
+    y += 5
+
+    // Description box
+    doc.setDrawColor(203, 213, 225)
+    doc.setFillColor(252, 252, 253)
+    const descLines = doc.splitTextToSize(task.comments || task.description, contentWidth - 8)
+    const descBoxH = Math.max(15, descLines.length * 5 + 6)
+    doc.roundedRect(margin, y - 2, contentWidth, descBoxH, 2, 2, 'FD')
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(51, 65, 85)
+    descLines.forEach((line: string, i: number) => {
+      doc.text(line, margin + 4, y + 3 + i * 5)
+    })
+    y += descBoxH + 6
+
+    // ===== MATERIALES =====
+    if (taskMaterials.length > 0) {
+      if (y > pageHeight - 50) { addFooter(); doc.addPage(); y = 20 }
+
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(15, 23, 42)
+      doc.text('MATERIALES', margin, y)
+      y += 5
+
+      // Table header
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'bold')
+      const matColWidths = [50, 25, 18, 18, 25, 25]
+      let matColX = margin
+      const matColPositions: number[] = []
+      matColWidths.forEach(w => { matColPositions.push(matColX); matColX += w })
+
+      doc.setFillColor(30, 41, 59)
+      doc.setTextColor(255, 255, 255)
+      doc.rect(margin, y - 4, contentWidth, 7, 'F')
+      doc.text('Nombre', matColPositions[0] + 2, y)
+      doc.text('Categoría', matColPositions[1] + 2, y)
+      doc.text('Cantidad', matColPositions[2] + 2, y)
+      doc.text('Unidad', matColPositions[3] + 2, y)
+      doc.text('P. Unitario', matColPositions[4] + 2, y)
+      doc.text('P. Total', matColPositions[5] + 2, y)
+      y += 7
+
+      doc.setTextColor(30, 41, 59)
+      doc.setFont('helvetica', 'normal')
+      taskMaterials.forEach((mat, idx) => {
+        if (y > pageHeight - 25) { addFooter(); doc.addPage(); y = 20 }
+        if (idx % 2 === 0) {
+          doc.setFillColor(248, 250, 252)
+          doc.rect(margin, y - 4, contentWidth, 6, 'F')
+        }
+        doc.text(mat.name.substring(0, 28), matColPositions[0] + 2, y)
+        doc.text((mat.category || '-').substring(0, 14), matColPositions[1] + 2, y)
+        doc.text(mat.quantity || '-', matColPositions[2] + 2, y)
+        doc.text(mat.unit || '-', matColPositions[3] + 2, y)
+        doc.text(mat.unitPrice ? formatCurrency(mat.unitPrice) : '-', matColPositions[4] + 2, y)
+        doc.setFont('helvetica', 'bold')
+        doc.text(mat.totalPrice ? formatCurrency(mat.totalPrice) : '-', matColPositions[5] + 2, y)
+        doc.setFont('helvetica', 'normal')
+        y += 6
+      })
+
+      // Total row
+      doc.setFillColor(226, 232, 240)
+      doc.rect(margin, y - 4, contentWidth, 7, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(71, 85, 105)
+      doc.text('Total Materiales:', matColPositions[4] + 2, y)
+      doc.setTextColor(5, 150, 105)
+      doc.setFontSize(10)
+      doc.text(formatCurrency(materialsTotal), matColPositions[5] + 2, y)
+      y += 12
+    }
+
+    // ===== EVIDENCIA FOTOGRÁFICA =====
+    if (beforePhotos.length > 0 || afterPhotos.length > 0) {
+      if (y > pageHeight - 60) { addFooter(); doc.addPage(); y = 20 }
+
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(15, 23, 42)
+      doc.text('EVIDENCIA FOTOGRÁFICA', margin, y)
+      y += 7
+
+      const photoWidth = (contentWidth - 10) / 2
+      const photoHeight = 55
+
+      // ANTES column
+      const colStartX1 = margin
+      const colStartX2 = margin + photoWidth + 10
+
+      // Column headers
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(71, 85, 105)
+      doc.text('ANTES', colStartX1, y)
+      doc.text('DESPUÉS', colStartX2, y)
+      y += 4
+
+      // Draw photos in ANTES and DESPUÉS columns
+      const maxRows = Math.max(beforePhotos.length, afterPhotos.length)
+
+      for (let row = 0; row < maxRows; row++) {
+        if (y + photoHeight > pageHeight - 20) { addFooter(); doc.addPage(); y = 20 }
+
+        // Before photo
+        if (row < beforePhotos.length) {
+          try {
+            const img = await loadImage(beforePhotos[row])
+            if (img.complete && img.naturalWidth > 0) {
+              doc.addImage(img, 'JPEG', colStartX1, y, photoWidth, photoHeight)
+            }
+          } catch {
+            doc.setDrawColor(203, 213, 225)
+            doc.setFillColor(248, 250, 252)
+            doc.rect(colStartX1, y, photoWidth, photoHeight, 'FD')
+            doc.setFontSize(8)
+            doc.setTextColor(148, 163, 184)
+            doc.text('Foto no disponible', colStartX1 + photoWidth / 2 - 20, y + photoHeight / 2)
+          }
+          doc.setDrawColor(203, 213, 225)
+          doc.rect(colStartX1, y, photoWidth, photoHeight)
+        }
+
+        // After photo
+        if (row < afterPhotos.length) {
+          try {
+            const img = await loadImage(afterPhotos[row])
+            if (img.complete && img.naturalWidth > 0) {
+              doc.addImage(img, 'JPEG', colStartX2, y, photoWidth, photoHeight)
+            }
+          } catch {
+            doc.setDrawColor(203, 213, 225)
+            doc.setFillColor(248, 250, 252)
+            doc.rect(colStartX2, y, photoWidth, photoHeight, 'FD')
+            doc.setFontSize(8)
+            doc.setTextColor(148, 163, 184)
+            doc.text('Foto no disponible', colStartX2 + photoWidth / 2 - 20, y + photoHeight / 2)
+          }
+          doc.setDrawColor(203, 213, 225)
+          doc.rect(colStartX2, y, photoWidth, photoHeight)
+        }
+
+        y += photoHeight + 5
+      }
+    }
+
+    // Add footer to all pages
+    const totalPageCount = doc.getNumberOfPages()
+    for (let i = 1; i <= totalPageCount; i++) {
+      doc.setPage(i)
+      doc.setFontSize(7)
+      doc.setTextColor(120, 120, 120)
+      doc.text('Documento generado automáticamente por Sistema de Gestión Laguna Norte', margin, pageHeight - 10)
+      doc.text('Administración - Asesorías Integrales CyJ', margin, pageHeight - 6)
+      doc.text(`Página ${i} de ${totalPageCount}`, pageWidth - margin - 20, pageHeight - 6)
+    }
+
+    const slug = task.description.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/g, '').substring(0, 30)
+    doc.save(`tarea-${slug}-${new Date().toISOString().split('T')[0]}.pdf`)
+  }
+
+  // Export individual task as Excel
+  const exportTaskExcel = async (task: Task) => {
+    const taskMaterials = getMaterialsForTask(task.id)
+    const materialsTotal = getMaterialsTotal(task.id)
+
+    const wb = new ExcelJS.Workbook()
+    const ws = wb.addWorksheet('Detalle')
+
+    // Set column widths
+    ws.getColumn(1).width = 22
+    ws.getColumn(2).width = 45
+
+    // Title
+    const titleRow = ws.addRow(['CONDOMINIO & PARQUE - Laguna Norte'])
+    titleRow.getCell(1).font = { bold: true, size: 16, color: { argb: 'FF0F172A' } }
+    ws.mergeCells(1, 1, 1, 2)
+    titleRow.height = 30
+
+    // Subtitle
+    const subtitleRow = ws.addRow(['REPORTE DE OPERACION'])
+    subtitleRow.getCell(1).font = { bold: true, size: 12, color: { argb: 'FF475569' } }
+    ws.mergeCells(2, 1, 2, 2)
+    subtitleRow.height = 22
+
+    // Date row
+    const codeRow = ws.addRow(['', `Generado: ${new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}`])
+    codeRow.getCell(2).font = { size: 10, color: { argb: 'FF64748B' } }
+    codeRow.getCell(2).alignment = { horizontal: 'right' }
+    codeRow.height = 20
+
+    ws.addRow([])
+
+    // Task info
+    const addInfoRow = (label: string, value: string) => {
+      const row = ws.addRow([label, value])
+      row.getCell(1).font = { bold: true, size: 10, color: { argb: 'FF475569' } }
+      row.getCell(2).font = { size: 10, color: { argb: 'FF1E293B' } }
+      row.getCell(1).alignment = { vertical: 'middle' }
+      row.getCell(2).alignment = { vertical: 'middle', wrapText: true }
+    }
+
+    addInfoRow('N° Orden', task.workOrder > 0 ? String(task.workOrder) : 'Sin asignar')
+    addInfoRow('Descripción', task.description)
+    addInfoRow('Área / Sector', task.sector)
+    addInfoRow('Tipo Reparación', task.repairType)
+    addInfoRow('Prioridad', task.priority)
+    addInfoRow('Estado', task.status)
+    addInfoRow('Responsable', task.responsible || 'Sin asignar')
+    addInfoRow('Fecha Inicio', formatDate(task.startDate))
+    addInfoRow('Fecha Término', formatDate(task.endDate))
+    addInfoRow('Tiempo Estimado', task.estimatedTime || '-')
+    addInfoRow('Monto', task.amount ? formatCurrency(task.amount) : '-')
+    addInfoRow('Comentarios', task.comments || '-')
+
+    ws.addRow([])
+
+    // Materials section
+    if (taskMaterials.length > 0) {
+      const matTitleRow = ws.addRow(['Materiales'])
+      matTitleRow.getCell(1).font = { bold: true, size: 14, color: { argb: 'FF0F172A' } }
+      ws.mergeCells(matTitleRow.number, 1, matTitleRow.number, 6)
+      matTitleRow.height = 25
+
+      ws.addRow([])
+
+      // Adjust column widths for materials table
+      ws.getColumn(1).width = 30
+      ws.getColumn(2).width = 15
+      ws.getColumn(3).width = 12
+      ws.getColumn(4).width = 10
+      ws.getColumn(5).width = 14
+      ws.getColumn(6).width = 14
+
+      // Header row
+      const headerRow = ws.addRow(['Nombre', 'Categoría', 'Cantidad', 'Unidad', 'P. Unitario', 'P. Total'])
+      headerRow.height = 22
+      for (let c = 1; c <= 6; c++) {
+        const cell = headerRow.getCell(c)
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 }
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }
+        cell.alignment = { horizontal: 'center', vertical: 'middle' }
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF334155' } },
+          bottom: { style: 'thin', color: { argb: 'FF334155' } },
+          left: { style: 'thin', color: { argb: 'FF334155' } },
+          right: { style: 'thin', color: { argb: 'FF334155' } },
+        }
+      }
+
+      // Material rows
+      taskMaterials.forEach((mat, idx) => {
+        const row = ws.addRow([
+          mat.name,
+          mat.category || '',
+          mat.quantity || '',
+          mat.unit || '',
+          mat.unitPrice || '',
+          mat.totalPrice || '',
+        ])
+        row.getCell(5).numFmt = '$#,##0'
+        row.getCell(6).numFmt = '$#,##0'
+        row.getCell(6).font = { bold: true, color: { argb: 'FF059669' } }
+
+        // Alternating row background
+        if (idx % 2 === 0) {
+          for (let c = 1; c <= 6; c++) {
+            row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } }
+          }
+        }
+
+        // Borders for all cells
+        for (let c = 1; c <= 6; c++) {
+          row.getCell(c).border = {
+            top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          }
+        }
+      })
+
+      // Total row
+      const totalRow = ws.addRow(['', '', '', '', 'Total:', materialsTotal])
+      totalRow.getCell(5).font = { bold: true, size: 11, color: { argb: 'FF475569' } }
+      totalRow.getCell(6).font = { bold: true, size: 12, color: { argb: 'FF059669' } }
+      totalRow.getCell(6).numFmt = '$#,##0'
+      for (let c = 1; c <= 6; c++) {
+        totalRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } }
+        totalRow.getCell(c).border = {
+          top: { style: 'thin', color: { argb: 'FF94A3B8' } },
+          bottom: { style: 'thin', color: { argb: 'FF94A3B8' } },
+          left: { style: 'thin', color: { argb: 'FF94A3B8' } },
+          right: { style: 'thin', color: { argb: 'FF94A3B8' } },
+        }
+      }
+    }
+
+    // Download
+    const buffer = await wb.xlsx.writeBuffer()
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const slug = task.description.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/g, '').substring(0, 30)
+    a.download = `tarea-${slug}-${new Date().toISOString().split('T')[0]}.xlsx`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // Export full table as PDF with colors matching on-screen view
+  const [downloadingTable, setDownloadingTable] = useState(false)
+
+  const downloadTablePDF = async () => {
+    setDownloadingTable(true)
+    try {
+      // Landscape A3 for wide table
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' })
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const margin = 10
+      const contentWidth = pageWidth - 2 * margin
+
+      // Fetch logo
+      const logoBase64 = await fetchImageAsBase64('/logo-laguna-norte.jpg')
+
+      let y = 12
+
+      // ===== HEADER =====
+      if (logoBase64) {
+        doc.addImage(logoBase64, 'JPEG', margin, y, 18, 18)
+      }
+
+      const centerX = pageWidth / 2
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(15, 23, 42)
+      doc.text('CONDOMINIO & PARQUE', centerX, y + 6, { align: 'center' })
+
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(71, 85, 105)
+      doc.text('Planificación de Mantención - Tabla de Tareas', centerX, y + 12, { align: 'center' })
+
+      // Date right
+      doc.setFontSize(7)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(100, 116, 139)
+      const genDate = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
+      doc.text(genDate, pageWidth - margin, y + 6, { align: 'right' })
+      doc.text(`${filteredTasks.length} tareas`, pageWidth - margin, y + 10, { align: 'right' })
+
+      y += 22
+
+      // Separator
+      doc.setDrawColor(30, 41, 59)
+      doc.setLineWidth(0.6)
+      doc.line(margin, y, pageWidth - margin, y)
+      y += 5
+
+      // ===== TABLE HEADER =====
+      const cols = [
+        { header: 'N°', width: 14 },
+        { header: 'Descripción', width: 65 },
+        { header: 'Sector', width: 28 },
+        { header: 'Tipo', width: 30 },
+        { header: 'Prioridad', width: 26 },
+        { header: 'Estado', width: 26 },
+        { header: 'Responsable', width: 40 },
+        { header: 'Tiempo Est.', width: 22 },
+        { header: 'Monto', width: 28 },
+        { header: 'Inicio', width: 22 },
+        { header: 'Término', width: 22 },
+        { header: 'Fotos', width: 14 },
+      ]
+      if (showMaterials) {
+        cols.push({ header: 'Materiales', width: 24 })
+      }
+
+      const headerH = 8
+      // Header background
+      doc.setFillColor(30, 41, 59)
+      doc.rect(margin, y - 1, contentWidth, headerH, 'F')
+
+      // Header text
+      doc.setFontSize(7)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(255, 255, 255)
+      let colX = margin
+      cols.forEach(col => {
+        doc.text(col.header, colX + 2, y + 4)
+        colX += col.width
+      })
+      y += headerH + 1
+
+      // ===== TABLE ROWS =====
+      const rowH = 7
+      const statusColorMap: Record<string, { bg: string; text: string }> = {
+        'Pendiente': { bg: 'FEF3C7', text: '92400E' },
+        'En Proceso': { bg: 'DBEAFE', text: '1E40AF' },
+        'Completada': { bg: 'DCFCE7', text: '166534' },
+        'Cancelada': { bg: 'FEE2E2', text: '991B1B' },
+      }
+
+      filteredTasks.forEach((task, idx) => {
+        if (y + rowH > pageHeight - 15) {
+          // Footer
+          doc.setFontSize(6)
+          doc.setTextColor(148, 163, 184)
+          doc.text(`Página ${doc.getNumberOfPages()}`, pageWidth - margin - 15, pageHeight - 6)
+
+          doc.addPage()
+          y = 15
+
+          // Repeat header on new page
+          doc.setFillColor(30, 41, 59)
+          doc.rect(margin, y - 1, contentWidth, headerH, 'F')
+          doc.setFontSize(7)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(255, 255, 255)
+          colX = margin
+          cols.forEach(col => {
+            doc.text(col.header, colX + 2, y + 4)
+            colX += col.width
+          })
+          y += headerH + 1
+        }
+
+        // Alternating row background
+        if (idx % 2 === 0) {
+          doc.setFillColor(248, 250, 252)
+          doc.rect(margin, y - 1, contentWidth, rowH, 'F')
+        }
+
+        // Row border
+        doc.setDrawColor(226, 232, 240)
+        doc.setLineWidth(0.2)
+        doc.line(margin, y + rowH - 1, pageWidth - margin, y + rowH - 1)
+
+        colX = margin
+
+        // N° Orden
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(15, 23, 42)
+        if (task.workOrder > 0) {
+          const orderText = String(task.workOrder)
+          const orderW = doc.getTextWidth(orderText) + 6
+          doc.setFillColor(30, 41, 59)
+          doc.roundedRect(colX + (cols[0].width - orderW) / 2, y + 0.5, orderW, 5, 1.5, 1.5, 'F')
+          doc.setTextColor(255, 255, 255)
+          doc.text(orderText, colX + cols[0].width / 2, y + 4, { align: 'center' })
+        }
+        colX += cols[0].width
+
+        // Descripción
+        doc.setFontSize(7)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(15, 23, 42)
+        const descText = task.description.length > 38 ? task.description.substring(0, 35) + '...' : task.description
+        doc.text(descText, colX + 2, y + 4)
+        colX += cols[1].width
+
+        // Sector
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(51, 65, 85)
+        doc.setFontSize(7)
+        // Sector badge background
+        const sectorW = doc.getTextWidth(task.sector) + 4
+        doc.setFillColor(241, 245, 249)
+        doc.roundedRect(colX + 1, y + 0.5, Math.min(sectorW, cols[2].width - 4), 5, 1, 1, 'F')
+        doc.text(task.sector, colX + 3, y + 4)
+        colX += cols[2].width
+
+        // Tipo
+        doc.setTextColor(51, 65, 85)
+        doc.text(task.repairType, colX + 2, y + 4)
+        colX += cols[3].width
+
+        // Prioridad with colored dot
+        const pColor = getPriorityColor(task.priority)
+        const pRgb = hexToRgb(pColor)
+        if (pRgb) {
+          doc.setFillColor(pRgb.r, pRgb.g, pRgb.b)
+          doc.circle(colX + 4, y + 3.2, 1.8, 'F')
+        }
+        doc.setTextColor(30, 41, 59)
+        doc.setFontSize(7)
+        doc.text(task.priority, colX + 8, y + 4)
+        colX += cols[4].width
+
+        // Estado with colored badge
+        const sColors = statusColorMap[task.status]
+        if (sColors) {
+          const statusW = doc.getTextWidth(task.status) + 6
+          doc.setFillColor(parseInt(sColors.bg.substring(0, 2), 16), parseInt(sColors.bg.substring(2, 4), 16), parseInt(sColors.bg.substring(4, 6), 16))
+          doc.roundedRect(colX + 1, y + 0.5, Math.min(statusW, cols[5].width - 4), 5, 1, 1, 'F')
+          doc.setTextColor(parseInt(sColors.text.substring(0, 2), 16), parseInt(sColors.text.substring(2, 4), 16), parseInt(sColors.text.substring(4, 6), 16))
+          doc.setFontSize(7)
+          doc.setFont('helvetica', 'bold')
+          doc.text(task.status, colX + 4, y + 4)
+          doc.setFont('helvetica', 'normal')
+        } else {
+          // Custom status - use status color from config
+          const stColor = getStatusColor(task.status)
+          const stRgb = hexToRgb(stColor)
+          if (stRgb) {
+            const statusW = doc.getTextWidth(task.status) + 6
+            doc.setFillColor(Math.min(255, stRgb.r + 150), Math.min(255, stRgb.g + 150), Math.min(255, stRgb.b + 150))
+            doc.roundedRect(colX + 1, y + 0.5, Math.min(statusW, cols[5].width - 4), 5, 1, 1, 'F')
+            doc.setTextColor(stRgb.r, stRgb.g, stRgb.b)
+            doc.setFontSize(7)
+            doc.setFont('helvetica', 'bold')
+            doc.text(task.status, colX + 4, y + 4)
+            doc.setFont('helvetica', 'normal')
+          } else {
+            doc.setTextColor(30, 41, 59)
+            doc.text(task.status, colX + 2, y + 4)
+          }
+        }
+        colX += cols[5].width
+
+        // Responsable
+        doc.setTextColor(51, 65, 85)
+        doc.setFontSize(7)
+        doc.text(task.responsible || '-', colX + 2, y + 4)
+        colX += cols[6].width
+
+        // Tiempo Est.
+        doc.text(task.estimatedTime || '-', colX + 2, y + 4)
+        colX += cols[7].width
+
+        // Monto
+        doc.setTextColor(15, 23, 42)
+        doc.setFont('helvetica', 'bold')
+        doc.text(task.amount ? formatCurrency(task.amount) : '-', colX + 2, y + 4)
+        doc.setFont('helvetica', 'normal')
+        colX += cols[8].width
+
+        // Inicio
+        doc.setTextColor(51, 65, 85)
+        doc.text(formatDate(task.startDate), colX + 2, y + 4)
+        colX += cols[9].width
+
+        // Término
+        doc.text(formatDate(task.endDate), colX + 2, y + 4)
+        colX += cols[10].width
+
+        // Fotos
+        const beforePhotos = JSON.parse(task.beforePhotos || '[]') as string[]
+        const afterPhotos = JSON.parse(task.afterPhotos || '[]') as string[]
+        const totalPhotos = beforePhotos.length + afterPhotos.length
+        doc.setTextColor(100, 116, 139)
+        doc.text(totalPhotos > 0 ? String(totalPhotos) : '-', colX + 2, y + 4)
+        colX += cols[11].width
+
+        // Materiales
+        if (showMaterials) {
+          const matCount = getMaterialsCount(task.id)
+          if (matCount > 0) {
+            const matTotal = getMaterialsTotal(task.id)
+            doc.setTextColor(5, 150, 105)
+            doc.setFont('helvetica', 'bold')
+            doc.text(`${matCount} / ${formatCurrency(matTotal)}`, colX + 2, y + 4)
+            doc.setFont('helvetica', 'normal')
+          } else {
+            doc.setTextColor(100, 116, 139)
+            doc.text('-', colX + 2, y + 4)
+          }
+        }
+
+        y += rowH
+      })
+
+      // Summary row
+      y += 2
+      doc.setDrawColor(30, 41, 59)
+      doc.setLineWidth(0.5)
+      doc.line(margin, y, pageWidth - margin, y)
+      y += 5
+
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(71, 85, 105)
+      doc.text(`Total tareas: ${filteredTasks.length}`, margin + 2, y)
+
+      const totalAmount = filteredTasks.reduce((sum, t) => sum + (t.amount || 0), 0)
+      doc.text(`Monto total: ${formatCurrency(totalAmount)}`, margin + 60, y)
+
+      const pendingCount = filteredTasks.filter(t => t.status === 'Pendiente').length
+      const inProgressCount = filteredTasks.filter(t => t.status === 'En Proceso').length
+      const completedCount = filteredTasks.filter(t => t.status === 'Completada').length
+      doc.text(`Pendientes: ${pendingCount} | En Proceso: ${inProgressCount} | Completadas: ${completedCount}`, margin + 140, y)
+
+      // Footer on all pages
+      const totalPages = doc.getNumberOfPages()
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i)
+        doc.setFontSize(6)
+        doc.setTextColor(148, 163, 184)
+        doc.text('Documento generado automáticamente por Sistema de Gestión Laguna Norte', margin, pageHeight - 6)
+        doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin - 20, pageHeight - 6)
+      }
+
+      doc.save(`tabla-tareas-${new Date().toISOString().split('T')[0]}.pdf`)
+    } catch (err) {
+      console.error('Error downloading table as PDF:', err)
+    }
+    setDownloadingTable(false)
+  }
 
   const getActionLabel = (action: string) => {
     const labels: Record<string, string> = {
@@ -1450,9 +2230,12 @@ export default function Home() {
       <header className="bg-white border-b shadow-sm sticky top-0 z-40">
         <div className="max-w-[1600px] mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">Planificación de Mantención</h1>
-              <p className="text-sm text-gray-500">Residencial - Club House y Áreas Comunes</p>
+            <div className="flex items-center gap-3">
+              <img src="/logo-laguna-norte.jpg" alt="Laguna Norte" className="h-10 w-auto rounded" />
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">Planificación de Mantención</h1>
+                <p className="text-sm text-gray-500">Condominio & Parque - Laguna Norte</p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Button onClick={openCreateTask} size="sm" className="gap-1">
@@ -1545,8 +2328,8 @@ export default function Home() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
-                {statusOptions.map(s => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                {statuses.map(s => (
+                  <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -1710,9 +2493,26 @@ export default function Home() {
                         <div className="text-xs text-gray-500 mt-1">{task.sector} · {task.repairType}</div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={statusColors[task.status] || ''}>
+                        <Badge variant="outline" className={getStatusBadgeClass(task.status) || ''}>
                           {task.status}
                         </Badge>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity" title="Exportar">
+                              <Download className="h-3.5 w-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => exportTaskPDF(task)}>
+                              <FileText className="h-4 w-4 mr-2" />
+                              Exportar PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => exportTaskExcel(task)}>
+                              <FileSpreadsheet className="h-4 w-4 mr-2" />
+                              Exportar Excel
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => openEditTask(task)} title="Editar">
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
@@ -1728,11 +2528,21 @@ export default function Home() {
         {/* Table View */}
         {view === 'table' && (
           <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Tabla de Tareas</CardTitle>
+                <Button variant="outline" size="sm" onClick={downloadTablePDF} disabled={downloadingTable} className="gap-1">
+                  <FileText className="h-4 w-4" />
+                  {downloadingTable ? 'Generando PDF...' : 'Exportar PDF'}
+                </Button>
+              </div>
+            </CardHeader>
             <CardContent className="p-0">
               <ScrollArea className="w-full">
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-[70px] text-center">N° Orden</TableHead>
                       <TableHead className="min-w-[200px]">Descripción</TableHead>
                       <TableHead>Sector</TableHead>
                       <TableHead>Tipo</TableHead>
@@ -1757,7 +2567,7 @@ export default function Home() {
                   <TableBody>
                     {filteredTasks.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={showMaterials ? 13 : 12} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={showMaterials ? 14 : 13} className="text-center py-8 text-gray-500">
                           No hay tareas que coincidan con los filtros
                         </TableCell>
                       </TableRow>
@@ -1768,6 +2578,21 @@ export default function Home() {
                         const matCount = getMaterialsCount(task.id)
                         return (
                           <TableRow key={task.id}>
+                            <TableCell className="text-center">
+                              <input
+                                type="number"
+                                min={0}
+                                value={task.workOrder || ''}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value)
+                                  if (!isNaN(val) && val >= 0) {
+                                    handleUpdateWorkOrder(task.id, val)
+                                  }
+                                }}
+                                className="w-[50px] text-center text-sm font-semibold border border-gray-200 rounded px-1 py-0.5 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200 transition-colors"
+                                title="Orden de trabajo - modifique para cambiar el orden"
+                              />
+                            </TableCell>
                             <TableCell className="font-medium max-w-[250px]">
                               <div className="truncate" title={task.description}>{task.description}</div>
                               {task.comments && (
@@ -1783,7 +2608,7 @@ export default function Home() {
                               </span>
                             </TableCell>
                             <TableCell>
-                              <Badge variant="outline" className={statusColors[task.status] || ''}>
+                              <Badge variant="outline" className={getStatusBadgeClass(task.status) || ''}>
                                 {task.status}
                               </Badge>
                             </TableCell>
@@ -1853,6 +2678,23 @@ export default function Home() {
                             )}
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-1">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Exportar">
+                                      <Download className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => exportTaskPDF(task)}>
+                                      <FileText className="h-4 w-4 mr-2" />
+                                      Exportar PDF
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => exportTaskExcel(task)}>
+                                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                                      Exportar Excel
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openHistory(task.id)} title="Historial">
                                   <History className="h-4 w-4" />
                                 </Button>
@@ -1892,7 +2734,7 @@ export default function Home() {
                     <CardHeader className="pb-2">
                       <div className="flex items-start justify-between">
                         <CardTitle className="text-sm font-semibold leading-tight flex-1">{task.description}</CardTitle>
-                        <Badge variant="outline" className={`${statusColors[task.status] || ''} ml-2 shrink-0`}>
+                        <Badge variant="outline" className={`${getStatusBadgeClass(task.status) || ''} ml-2 shrink-0`}>
                           {task.status}
                         </Badge>
                       </div>
@@ -1982,6 +2824,23 @@ export default function Home() {
                         </div>
                       )}
                       <div className="flex justify-end gap-1 pt-2 border-t">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs">
+                              <Download className="h-3.5 w-3.5" /> Exportar
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => exportTaskPDF(task)}>
+                              <FileText className="h-4 w-4 mr-2" />
+                              Exportar PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => exportTaskExcel(task)}>
+                              <FileSpreadsheet className="h-4 w-4 mr-2" />
+                              Exportar Excel
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                         <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs" onClick={() => openHistory(task.id)}>
                           <History className="h-3.5 w-3.5" /> Historial
                         </Button>
@@ -2010,7 +2869,7 @@ export default function Home() {
                     <GanttChart className="h-5 w-5" /> Diagrama de Gantt
                   </CardTitle>
                   <p className="text-sm text-gray-500">
-                    {tasksWithDates.length} de {filteredTasks.length} tareas tienen fechas asignadas
+                    {filteredTasks.length} tareas · {tasksWithDates.length} con fechas asignadas
                   </p>
                 </div>
                 <DropdownMenu>
@@ -2018,7 +2877,7 @@ export default function Home() {
                     <Button
                       variant="outline"
                       size="sm"
-                      disabled={downloadingGantt || tasksWithDates.length === 0}
+                      disabled={downloadingGantt || filteredTasks.length === 0}
                       className="gap-1"
                     >
                       <Download className="h-4 w-4" />
@@ -2035,16 +2894,20 @@ export default function Home() {
                       <FileSpreadsheet className="h-4 w-4 mr-2" />
                       Descargar Excel
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={downloadGanttPNG} disabled={downloadingGantt}>
+                      <ImageIcon className="h-4 w-4 mr-2" />
+                      Descargar Imagen (PNG)
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
             </CardHeader>
             <CardContent>
-              {tasksWithDates.length === 0 ? (
+              {filteredTasks.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   <GanttChart className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p>No hay tareas con fechas de inicio y término asignadas.</p>
-                  <p className="text-sm mt-1">Edite las tareas para agregar fechas y generar el diagrama.</p>
+                  <p>No hay tareas para mostrar.</p>
+                  <p className="text-sm mt-1">Cree tareas y asígneles fechas para generar el diagrama.</p>
                 </div>
               ) : (
                 <ScrollArea className="w-full">
@@ -2052,11 +2915,11 @@ export default function Home() {
                     {/* Title for exported image */}
                     <div className="mb-4 pb-3 border-b">
                       <h2 className="text-lg font-bold text-gray-900">Planificación de Mantención - Diagrama de Gantt</h2>
-                      <p className="text-xs text-gray-500">Generado: {new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })} | {tasksWithDates.length} tareas</p>
+                      <p className="text-xs text-gray-500">Generado: {new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })} | {filteredTasks.length} tareas · {tasksWithDates.length} con fechas</p>
                     </div>
                     {/* Gantt Header - Month labels */}
                     <div className="flex border-b">
-                      <div className="w-[250px] shrink-0 p-2 text-xs font-semibold text-gray-500 bg-gray-50">
+                      <div className="w-[280px] shrink-0 p-2 text-xs font-semibold text-gray-500 bg-gray-50">
                         Tarea
                       </div>
                       <div className="flex-1 flex">
@@ -2084,8 +2947,8 @@ export default function Home() {
                     </div>
 
                     {/* Gantt Rows */}
-                    {tasksWithDates.map(task => {
-                      const { left, width } = getBarPosition(task.startDate!, task.endDate!)
+                    {ganttTasks.map(task => {
+                      const hasDates = task.startDate && task.endDate
                       const priorityColor = getPriorityColor(task.priority)
                       const statusColorMap: Record<string, string> = {
                         Pendiente: priorityColor,
@@ -2095,59 +2958,76 @@ export default function Home() {
                       }
                       const barColor = statusColorMap[task.status] || priorityColor
                       return (
-                        <div key={task.id} className="flex border-b hover:bg-gray-50 transition-colors group">
-                          <div className="w-[250px] shrink-0 p-2 text-xs">
+                        <div key={task.id} className={`flex border-b hover:bg-gray-50 transition-colors group ${!hasDates ? 'bg-gray-50/50' : ''}`}>
+                          <div className="w-[280px] shrink-0 p-2 text-xs">
                             <div className="flex items-center gap-1.5">
+                              {task.workOrder > 0 && (
+                                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-700 text-white text-[9px] font-bold shrink-0">{task.workOrder}</span>
+                              )}
                               <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: priorityColor }}></span>
                               <span className="truncate font-medium" title={task.description}>{task.description}</span>
                             </div>
                             <div className="text-[10px] text-gray-400 mt-0.5 ml-3.5">
-                              {task.sector} · {formatDate(task.startDate)} - {formatDate(task.endDate)}
+                              {task.sector} · {hasDates ? `${formatDate(task.startDate)} - ${formatDate(task.endDate)}` : <span className="italic text-orange-400">Sin fechas</span>}
                             </div>
                           </div>
                           <div className="flex-1 relative py-2">
-                            {/* Weekend shading */}
-                            {ganttDays.map((day, i) => {
-                              const isWeekend = day.getDay() === 0 || day.getDay() === 6
-                              return isWeekend ? (
-                                <div
-                                  key={i}
-                                  className="absolute top-0 bottom-0 bg-gray-50"
-                                  style={{
-                                    left: `${(i / ganttDays.length) * 100}%`,
-                                    width: `${100 / ganttDays.length}%`,
-                                  }}
-                                />
-                              ) : null
-                            })}
-                            {/* Today line */}
-                            {(() => {
-                              const today = new Date()
-                              if (today >= ganttRangeStart && today <= ganttRangeEnd) {
-                                const todayPercent = ((today.getTime() - ganttRangeStart.getTime()) / (ganttRangeEnd.getTime() - ganttRangeStart.getTime())) * 100
-                                return (
-                                  <div
-                                    className="absolute top-0 bottom-0 w-0.5 bg-red-400 z-10"
-                                    style={{ left: `${todayPercent}%` }}
-                                  />
-                                )
-                              }
-                              return null
-                            })()}
-                            {/* Bar */}
-                            <div
-                              className="absolute h-7 rounded-md flex items-center px-2 text-white text-[10px] font-medium shadow-sm cursor-pointer transition-opacity hover:opacity-90 z-20"
-                              style={{
-                                left: `${left}%`,
-                                width: `${Math.max(width, 1)}%`,
-                                backgroundColor: barColor,
-                              }}
-                              title={`${task.description}\n${formatDate(task.startDate)} - ${formatDate(task.endDate)}\nEstado: ${task.status}\nPrioridad: ${task.priority}`}
-                            >
-                              {width > 5 && task.responsible && (
-                                <span className="truncate">{task.responsible}</span>
-                              )}
-                            </div>
+                            {hasDates ? (
+                              <>
+                                {/* Weekend shading */}
+                                {ganttDays.map((day, i) => {
+                                  const isWeekend = day.getDay() === 0 || day.getDay() === 6
+                                  return isWeekend ? (
+                                    <div
+                                      key={i}
+                                      className="absolute top-0 bottom-0 bg-gray-50"
+                                      style={{
+                                        left: `${(i / ganttDays.length) * 100}%`,
+                                        width: `${100 / ganttDays.length}%`,
+                                      }}
+                                    />
+                                  ) : null
+                                })}
+                                {/* Today line */}
+                                {(() => {
+                                  const today = new Date()
+                                  if (today >= ganttRangeStart && today <= ganttRangeEnd) {
+                                    const todayPercent = ((today.getTime() - ganttRangeStart.getTime()) / (ganttRangeEnd.getTime() - ganttRangeStart.getTime())) * 100
+                                    return (
+                                      <div
+                                        className="absolute top-0 bottom-0 w-0.5 bg-red-400 z-10"
+                                        style={{ left: `${todayPercent}%` }}
+                                      />
+                                    )
+                                  }
+                                  return null
+                                })()}
+                                {/* Bar */}
+                                {(() => {
+                                  const { left, width } = getBarPosition(task.startDate!, task.endDate!)
+                                  return (
+                                    <div
+                                      className="absolute h-7 rounded-md flex items-center px-2 text-white text-[10px] font-medium shadow-sm cursor-pointer transition-opacity hover:opacity-90 z-20"
+                                      style={{
+                                        left: `${left}%`,
+                                        width: `${Math.max(width, 1)}%`,
+                                        backgroundColor: barColor,
+                                      }}
+                                      title={`${task.description}\n${formatDate(task.startDate)} - ${formatDate(task.endDate)}\nEstado: ${task.status}\nPrioridad: ${task.priority}`}
+                                    >
+                                      {width > 5 && task.responsible && (
+                                        <span className="truncate">{task.responsible}</span>
+                                      )}
+                                    </div>
+                                  )
+                                })()}
+                              </>
+                            ) : (
+                              /* No dates - show dashed placeholder bar */
+                              <div className="flex items-center h-7 px-2">
+                                <div className="w-full border-t-2 border-dashed border-gray-200 rounded"></div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )
@@ -2162,6 +3042,10 @@ export default function Home() {
                       <div className="flex items-center gap-1">
                         <div className="w-3 h-3 rounded-sm bg-gray-100 border"></div>
                         Fin de semana
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-6 h-3 border-t-2 border-dashed border-gray-300"></div>
+                        Sin fechas
                       </div>
                       {priorities.map(p => (
                         <div key={p.id} className="flex items-center gap-1">
@@ -2250,7 +3134,7 @@ export default function Home() {
                                     <span className="w-2 h-2 rounded-full" style={{ backgroundColor: getPriorityColor(task.priority) }}></span>
                                     {task.description}
                                     <Badge variant="secondary">{task.sector}</Badge>
-                                    <Badge variant="outline" className={statusColors[task.status] || ''}>{task.status}</Badge>
+                                    <Badge variant="outline" className={getStatusBadgeClass(task.status) || ''}>{task.status}</Badge>
                                   </CardTitle>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -2358,7 +3242,7 @@ export default function Home() {
 
       {/* Task Create/Edit Dialog */}
       <Dialog open={taskDialogOpen} onOpenChange={(open) => { setTaskDialogOpen(open); if (!open) cleanupAriaHidden() }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingTask ? 'Editar Tarea' : 'Nueva Tarea'}</DialogTitle>
             <DialogDescription className="sr-only">
@@ -2429,8 +3313,8 @@ export default function Home() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {statusOptions.map(s => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    {statuses.map(s => (
+                      <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -2438,12 +3322,18 @@ export default function Home() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="responsible">Responsable</Label>
-                <Input
-                  id="responsible"
-                  value={formData.responsible}
-                  onChange={e => setFormData(prev => ({ ...prev, responsible: e.target.value }))}
-                />
+                <Label>Responsable</Label>
+                <Select value={formData.responsible} onValueChange={v => setFormData(prev => ({ ...prev, responsible: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar responsable" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin asignar</SelectItem>
+                    {responsibles.map(r => (
+                      <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="estimatedTime">Tiempo Estimado</Label>
@@ -2615,6 +3505,185 @@ export default function Home() {
                 </div>
               </div>
             </div>
+
+            {/* Materials Section */}
+            <div className="space-y-3 pt-4 border-t">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2 text-base font-semibold">
+                  <Package className="h-4 w-4 text-green-600" />
+                  Materiales {editingTask ? `(${getMaterialsCount(editingTask.id)})` : ''}
+                </Label>
+                {editingTask && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 h-7 text-xs"
+                    onClick={() => {
+                      setMaterialTaskId(editingTask.id)
+                      setEditingMaterial(null)
+                      setMaterialFormData({ name: '', quantity: '', unit: '', unitPrice: '', totalPrice: '', category: '', notes: '' })
+                      setMaterialDialogOpen(true)
+                    }}
+                  >
+                    <Plus className="h-3 w-3" /> Agregar Material
+                  </Button>
+                )}
+              </div>
+              {!editingTask ? (
+                <div className="space-y-3">
+                  {/* Add inline material form */}
+                  <div className="flex gap-2 items-end flex-wrap">
+                    <div className="flex-1 min-w-[120px]">
+                      <Label className="text-xs">Nombre</Label>
+                      <Input placeholder="Material..." className="h-8 text-sm" id="inline-mat-name" />
+                    </div>
+                    <div className="w-[70px]">
+                      <Label className="text-xs">Cant.</Label>
+                      <Input placeholder="0" type="number" className="h-8 text-sm" id="inline-mat-qty" />
+                    </div>
+                    <div className="w-[60px]">
+                      <Label className="text-xs">Unidad</Label>
+                      <Input placeholder="un" className="h-8 text-sm" id="inline-mat-unit" />
+                    </div>
+                    <div className="w-[90px]">
+                      <Label className="text-xs">P. Unit.</Label>
+                      <Input placeholder="$" type="number" className="h-8 text-sm" id="inline-mat-unitprice" />
+                    </div>
+                    <div className="w-[90px]">
+                      <Label className="text-xs">Categoría</Label>
+                      <Input placeholder="Cat." className="h-8 text-sm" id="inline-mat-cat" />
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1 shrink-0"
+                      onClick={() => {
+                        const nameEl = document.getElementById('inline-mat-name') as HTMLInputElement
+                        const qtyEl = document.getElementById('inline-mat-qty') as HTMLInputElement
+                        const unitEl = document.getElementById('inline-mat-unit') as HTMLInputElement
+                        const priceEl = document.getElementById('inline-mat-unitprice') as HTMLInputElement
+                        const catEl = document.getElementById('inline-mat-cat') as HTMLInputElement
+                        const name = nameEl?.value || ''
+                        if (!name.trim()) return
+                        const qty = qtyEl?.value || ''
+                        const unit = unitEl?.value || ''
+                        const unitPrice = priceEl?.value || ''
+                        const qtyNum = parseFloat(qty) || 0
+                        const priceNum = parseFloat(unitPrice) || 0
+                        const totalPrice = (qtyNum * priceNum) > 0 ? (qtyNum * priceNum).toString() : ''
+                        const category = catEl?.value || ''
+                        setFormData(prev => ({
+                          ...prev,
+                          inlineMaterials: [...prev.inlineMaterials, { name: name.trim(), quantity: qty, unit, unitPrice, totalPrice, category, notes: '' }],
+                        }))
+                        if (nameEl) nameEl.value = ''
+                        if (qtyEl) qtyEl.value = ''
+                        if (unitEl) unitEl.value = ''
+                        if (priceEl) priceEl.value = ''
+                        if (catEl) catEl.value = ''
+                      }}
+                    >
+                      <Plus className="h-3 w-3" /> Agregar
+                    </Button>
+                  </div>
+                  {/* Inline materials list */}
+                  {formData.inlineMaterials.length > 0 && (
+                    <div className="border rounded-lg overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Nombre</TableHead>
+                            <TableHead className="text-xs text-center">Cant.</TableHead>
+                            <TableHead className="text-xs">Unidad</TableHead>
+                            <TableHead className="text-xs text-right">P.Unit.</TableHead>
+                            <TableHead className="text-xs text-right">P.Total</TableHead>
+                            <TableHead className="text-xs w-[50px]"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {formData.inlineMaterials.map((mat, idx) => (
+                            <TableRow key={idx}>
+                              <TableCell className="text-xs font-medium">{mat.name}</TableCell>
+                              <TableCell className="text-xs text-center">{mat.quantity || '-'}</TableCell>
+                              <TableCell className="text-xs">{mat.unit || '-'}</TableCell>
+                              <TableCell className="text-xs text-right">{mat.unitPrice ? formatCurrency(parseFloat(mat.unitPrice)) : '-'}</TableCell>
+                              <TableCell className="text-xs text-right font-medium">{mat.totalPrice ? formatCurrency(parseFloat(mat.totalPrice)) : '-'}</TableCell>
+                              <TableCell className="text-right">
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500" onClick={() => {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    inlineMaterials: prev.inlineMaterials.filter((_, i) => i !== idx),
+                                  }))
+                                }}>
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                  {formData.inlineMaterials.length === 0 && (
+                    <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg text-sm text-gray-500">
+                      <Package className="h-4 w-4 text-gray-300" />
+                      Agregue materiales que se guardarán junto con la tarea
+                    </div>
+                  )}
+                </div>
+              ) : getMaterialsForTask(editingTask.id).length === 0 ? (
+                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg text-sm text-gray-400">
+                  <Package className="h-4 w-4 text-gray-300" />
+                  Sin materiales registrados
+                </div>
+              ) : (
+                <>
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs">Nombre</TableHead>
+                          <TableHead className="text-xs">Categoría</TableHead>
+                          <TableHead className="text-xs text-center">Cant.</TableHead>
+                          <TableHead className="text-xs">Unidad</TableHead>
+                          <TableHead className="text-xs text-right">P.Unit.</TableHead>
+                          <TableHead className="text-xs text-right">P.Total</TableHead>
+                          <TableHead className="text-xs text-right w-[70px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {getMaterialsForTask(editingTask.id).map(mat => (
+                          <TableRow key={mat.id}>
+                            <TableCell className="text-xs font-medium">{mat.name}</TableCell>
+                            <TableCell className="text-xs">{mat.category ? <Badge variant="outline" className="text-[10px]">{mat.category}</Badge> : '-'}</TableCell>
+                            <TableCell className="text-xs text-center">{mat.quantity || '-'}</TableCell>
+                            <TableCell className="text-xs">{mat.unit || '-'}</TableCell>
+                            <TableCell className="text-xs text-right">{mat.unitPrice ? formatCurrency(mat.unitPrice) : '-'}</TableCell>
+                            <TableCell className="text-xs text-right font-medium">{mat.totalPrice ? formatCurrency(mat.totalPrice) : '-'}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-0.5">
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => openEditMaterial(mat)}>
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500 hover:text-red-700" onClick={() => confirmDeleteMaterial(mat)}>
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="flex justify-end items-center gap-2 text-sm">
+                    <span className="text-gray-500">Total Materiales:</span>
+                    <span className="font-bold text-green-600">{formatCurrency(getMaterialsTotal(editingTask.id))}</span>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTaskDialogOpen(false)} disabled={savingTask}>Cancelar</Button>
@@ -2630,13 +3699,15 @@ export default function Home() {
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Configuración</DialogTitle>
-            <DialogDescription className="sr-only">Administrar sectores, tipos de reparación y prioridades</DialogDescription>
+            <DialogDescription className="sr-only">Administrar sectores, tipos de reparación, prioridades, estados y responsables</DialogDescription>
           </DialogHeader>
-          <Tabs value={configTab} onValueChange={v => setConfigTab(v as 'sectors' | 'repairTypes' | 'priorities')}>
-            <TabsList className="w-full">
+          <Tabs value={configTab} onValueChange={v => setConfigTab(v as 'sectors' | 'repairTypes' | 'priorities' | 'statuses' | 'responsibles')}>
+            <TabsList className="w-full flex-wrap h-auto gap-1">
               <TabsTrigger value="sectors" className="flex-1">Sectores</TabsTrigger>
-              <TabsTrigger value="repairTypes" className="flex-1">Tipos Reparación</TabsTrigger>
-              <TabsTrigger value="priorities" className="flex-1">Prioridades</TabsTrigger>
+              <TabsTrigger value="repairTypes" className="flex-1">Tipos Rep.</TabsTrigger>
+              <TabsTrigger value="priorities" className="flex-1">Priorid.</TabsTrigger>
+              <TabsTrigger value="statuses" className="flex-1">Estados</TabsTrigger>
+              <TabsTrigger value="responsibles" className="flex-1">Respons.</TabsTrigger>
             </TabsList>
 
             {/* Sectors Tab */}
@@ -2783,6 +3854,115 @@ export default function Home() {
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
                           <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500" onClick={() => handleDeletePriority(p.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+
+            {/* Statuses Tab */}
+            <TabsContent value="statuses" className="space-y-3">
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <Label className="text-xs">Nombre</Label>
+                  <Input
+                    placeholder="Nuevo estado..."
+                    value={newStatusName}
+                    onChange={e => setNewStatusName(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleAddStatus()}
+                  />
+                </div>
+                <div className="w-16">
+                  <Label className="text-xs">Color</Label>
+                  <Input
+                    type="color"
+                    value={newStatusColor}
+                    onChange={e => setNewStatusColor(e.target.value)}
+                    className="h-9 p-1"
+                  />
+                </div>
+                <Button onClick={handleAddStatus} size="sm" className="gap-1 shrink-0">
+                  <Plus className="h-4 w-4" /> Agregar
+                </Button>
+              </div>
+              <ScrollArea className="max-h-[300px]">
+                <div className="space-y-1">
+                  {statuses.map(s => (
+                    <div key={s.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                      {editingStatusId === s.id ? (
+                        <>
+                          <Input
+                            value={editStatusName}
+                            onChange={e => setEditStatusName(e.target.value)}
+                            className="h-8 text-sm flex-1"
+                            onKeyDown={e => e.key === 'Enter' && handleUpdateStatus(s.id)}
+                          />
+                          <Input
+                            type="color"
+                            value={editStatusColor}
+                            onChange={e => setEditStatusColor(e.target.value)}
+                            className="h-8 w-10 p-1"
+                          />
+                          <Button size="sm" variant="ghost" className="h-7 shrink-0" onClick={() => handleUpdateStatus(s.id)}>OK</Button>
+                          <Button size="sm" variant="ghost" className="h-7 shrink-0" onClick={() => setEditingStatusId(null)}>X</Button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: s.color }}></span>
+                          <span className="flex-1 text-sm">{s.name}</span>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setEditingStatusId(s.id); setEditStatusName(s.name); setEditStatusColor(s.color) }}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500" onClick={() => handleDeleteStatus(s.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+
+            {/* Responsibles Tab */}
+            <TabsContent value="responsibles" className="space-y-3">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Nuevo responsable..."
+                  value={newResponsibleName}
+                  onChange={e => setNewResponsibleName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddResponsible()}
+                />
+                <Button onClick={handleAddResponsible} size="sm" className="gap-1 shrink-0">
+                  <Plus className="h-4 w-4" /> Agregar
+                </Button>
+              </div>
+              <ScrollArea className="max-h-[300px]">
+                <div className="space-y-1">
+                  {responsibles.map(r => (
+                    <div key={r.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                      {editingResponsibleId === r.id ? (
+                        <>
+                          <Input
+                            value={editResponsibleName}
+                            onChange={e => setEditResponsibleName(e.target.value)}
+                            className="h-8 text-sm"
+                            onKeyDown={e => e.key === 'Enter' && handleUpdateResponsible(r.id)}
+                          />
+                          <Button size="sm" variant="ghost" className="h-7 shrink-0" onClick={() => handleUpdateResponsible(r.id)}>OK</Button>
+                          <Button size="sm" variant="ghost" className="h-7 shrink-0" onClick={() => setEditingResponsibleId(null)}>X</Button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="flex-1 text-sm">{r.name}</span>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setEditingResponsibleId(r.id); setEditResponsibleName(r.name) }}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500" onClick={() => handleDeleteResponsible(r.id)}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </>

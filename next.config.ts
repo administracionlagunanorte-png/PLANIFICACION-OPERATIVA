@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  turbopack: {
+    root: "/home/z/my-project",
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
