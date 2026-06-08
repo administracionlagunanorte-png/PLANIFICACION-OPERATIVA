@@ -49,6 +49,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Switch } from '@/components/ui/switch'
 import {
   Plus,
   Pencil,
@@ -70,6 +71,8 @@ import {
   ChevronDown,
   FileText,
   FileSpreadsheet,
+  Package,
+  DollarSign,
 } from 'lucide-react'
 import html2canvas from 'html2canvas-pro'
 import { jsPDF } from 'jspdf'
@@ -123,6 +126,20 @@ interface TaskHistoryEntry {
   createdAt: string
 }
 
+interface Material {
+  id: string
+  taskId: string
+  name: string
+  quantity: string | null
+  unit: string | null
+  unitPrice: number | null
+  totalPrice: number | null
+  category: string | null
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 const statusOptions = ['Pendiente', 'En Proceso', 'Completada', 'Cancelada']
 
 const statusColors: Record<string, string> = {
@@ -138,7 +155,7 @@ export default function Home() {
   const [repairTypes, setRepairTypes] = useState<RepairType[]>([])
   const [priorities, setPriorities] = useState<Priority[]>([])
   const [loading, setLoading] = useState(true)
-  const [view, setView] = useState<'dashboard' | 'table' | 'cards' | 'gantt'>('dashboard')
+  const [view, setView] = useState<'dashboard' | 'table' | 'cards' | 'gantt' | 'materials'>('dashboard')
   const [filterSector, setFilterSector] = useState('all')
   const [filterPriority, setFilterPriority] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
@@ -161,6 +178,16 @@ export default function Home() {
   const [historyEntries, setHistoryEntries] = useState<TaskHistoryEntry[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [downloadingGantt, setDownloadingGantt] = useState(false)
+
+  // Materials states
+  const [materials, setMaterials] = useState<Material[]>([])
+  const [materialDialogOpen, setMaterialDialogOpen] = useState(false)
+  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null)
+  const [materialTaskId, setMaterialTaskId] = useState<string | null>(null)
+  const [showMaterials, setShowMaterials] = useState(false)
+  const [materialFormData, setMaterialFormData] = useState({
+    name: '', quantity: '', unit: '', unitPrice: '', totalPrice: '', category: '', notes: ''
+  })
 
   // Task form
   const [editingTask, setEditingTask] = useState<Task | null>(null)
@@ -234,14 +261,23 @@ export default function Home() {
     }
   }, [])
 
+  const fetchMaterials = useCallback(async () => {
+    try {
+      const res = await fetch('/api/materials')
+      if (res.ok) setMaterials(await res.json())
+    } catch (err) {
+      console.error('Error fetching materials:', err)
+    }
+  }, [])
+
   useEffect(() => {
     const loadAll = async () => {
       setLoading(true)
-      await Promise.all([fetchTasks(), fetchSectors(), fetchRepairTypes(), fetchPriorities()])
+      await Promise.all([fetchTasks(), fetchSectors(), fetchRepairTypes(), fetchPriorities(), fetchMaterials()])
       setLoading(false)
     }
     loadAll()
-  }, [fetchTasks, fetchSectors, fetchRepairTypes, fetchPriorities])
+  }, [fetchTasks, fetchSectors, fetchRepairTypes, fetchPriorities, fetchMaterials])
 
   // Task CRUD
   const handleSaveTask = async () => {
@@ -447,6 +483,65 @@ export default function Home() {
     fetchPriorities()
   }
 
+  // Material CRUD
+  const handleSaveMaterial = async () => {
+    if (!materialTaskId || !materialFormData.name.trim()) return
+    try {
+      const body = { ...materialFormData, taskId: materialTaskId }
+      if (editingMaterial) {
+        await fetch('/api/materials', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingMaterial.id, ...body }),
+        })
+      } else {
+        await fetch('/api/materials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+      }
+      setMaterialDialogOpen(false)
+      setEditingMaterial(null)
+      setMaterialFormData({ name: '', quantity: '', unit: '', unitPrice: '', totalPrice: '', category: '', notes: '' })
+      fetchMaterials()
+    } catch (err) {
+      console.error('Error saving material:', err)
+    }
+  }
+
+  const handleDeleteMaterial = async (id: string) => {
+    await fetch(`/api/materials?id=${id}`, { method: 'DELETE' })
+    fetchMaterials()
+  }
+
+  const openAddMaterial = (taskId: string) => {
+    setMaterialTaskId(taskId)
+    setEditingMaterial(null)
+    setMaterialFormData({ name: '', quantity: '', unit: '', unitPrice: '', totalPrice: '', category: '', notes: '' })
+    setMaterialDialogOpen(true)
+  }
+
+  const openEditMaterial = (material: Material) => {
+    setMaterialTaskId(material.taskId)
+    setEditingMaterial(material)
+    setMaterialFormData({
+      name: material.name,
+      quantity: material.quantity || '',
+      unit: material.unit || '',
+      unitPrice: material.unitPrice?.toString() || '',
+      totalPrice: material.totalPrice?.toString() || '',
+      category: material.category || '',
+      notes: material.notes || '',
+    })
+    setMaterialDialogOpen(true)
+  }
+
+  // Material helpers
+  const getMaterialsForTask = (taskId: string) => materials.filter(m => m.taskId === taskId)
+  const getMaterialsCount = (taskId: string) => materials.filter(m => m.taskId === taskId).length
+  const getMaterialsTotal = (taskId: string) => materials.filter(m => m.taskId === taskId).reduce((sum, m) => sum + (m.totalPrice || 0), 0)
+
   // Filtered tasks
   const filteredTasks = tasks.filter(t => {
     if (filterSector !== 'all' && t.sector !== filterSector) return false
@@ -528,7 +623,7 @@ export default function Home() {
     setHistoryLoading(false)
   }
 
-  // Gantt download as PDF
+  // Gantt download as PDF - Fixed: A3 landscape with proper scaling and margins
   const downloadGanttPDF = async () => {
     setDownloadingGantt(true)
     try {
@@ -541,43 +636,139 @@ export default function Home() {
         logging: false,
       })
       const imgData = canvas.toDataURL('image/png')
-      const imgWidth = canvas.width
-      const imgHeight = canvas.height
-      // Use landscape orientation since Gantt charts are wide
+
+      // Use A3 landscape format
+      // A3 in mm: 420 x 297
       const pdf = new jsPDF({
         orientation: 'landscape',
-        unit: 'px',
-        format: [imgWidth, imgHeight],
+        unit: 'mm',
+        format: 'a3',
       })
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight)
-      pdf.save(`gantt-planificacion-${new Date().toISOString().split('T')[0]}.pdf`)
+
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      const margin = 10 // mm margin on each side
+      const availableWidth = pageWidth - 2 * margin
+      const availableHeight = pageHeight - 2 * margin
+
+      const canvasAspect = canvas.width / canvas.height
+      const availableAspect = availableWidth / availableHeight
+
+      let imgDrawWidth: number
+      let imgDrawHeight: number
+      let offsetX: number
+      let offsetY: number
+
+      if (canvasAspect > availableAspect) {
+        // Image is wider than available area - fit to width
+        imgDrawWidth = availableWidth
+        imgDrawHeight = availableWidth / canvasAspect
+        offsetX = margin
+        offsetY = margin + (availableHeight - imgDrawHeight) / 2
+      } else {
+        // Image is taller than available area - fit to height
+        imgDrawHeight = availableHeight
+        imgDrawWidth = availableHeight * canvasAspect
+        offsetX = margin + (availableWidth - imgDrawWidth) / 2
+        offsetY = margin
+      }
+
+      // If the image is very wide, we might need multiple pages
+      // For most Gantt charts, fit to width and allow it to span pages if needed
+      if (canvasAspect > 3.5) {
+        // Very wide Gantt - use a custom very wide page format instead
+        // Calculate how wide the page needs to be to maintain readability
+        const scaleFactor = availableHeight / canvas.height * 2 // scale factor in px->mm
+        const customWidth = (canvas.width / 2) * (25.4 / 96) + 2 * margin // convert px to mm
+        const customHeight = (canvas.height / 2) * (25.4 / 96) + 2 * margin
+
+        const widePdf = new jsPDF({
+          orientation: 'landscape',
+          unit: 'mm',
+          format: [Math.max(customWidth, 420), Math.min(customHeight, 297)],
+        })
+
+        const widePageWidth = widePdf.internal.pageSize.getWidth()
+        const widePageHeight = widePdf.internal.pageSize.getHeight()
+        const wideAvailWidth = widePageWidth - 2 * margin
+        const wideAvailHeight = widePageHeight - 2 * margin
+
+        // Fit image to the page height and let it take full width
+        const fitHeight = wideAvailHeight
+        const fitWidth = fitHeight * canvasAspect
+
+        if (fitWidth <= wideAvailWidth) {
+          const xOff = margin + (wideAvailWidth - fitWidth) / 2
+          const yOff = margin + (wideAvailHeight - fitHeight) / 2
+          widePdf.addImage(imgData, 'PNG', xOff, yOff, fitWidth, fitHeight)
+        } else {
+          // Fit to width
+          const scaledW = wideAvailWidth
+          const scaledH = scaledW / canvasAspect
+          const yOff = margin + (wideAvailHeight - scaledH) / 2
+          widePdf.addImage(imgData, 'PNG', margin, yOff, scaledW, scaledH)
+        }
+
+        widePdf.save(`gantt-planificacion-${new Date().toISOString().split('T')[0]}.pdf`)
+      } else {
+        pdf.addImage(imgData, 'PNG', offsetX, offsetY, imgDrawWidth, imgDrawHeight)
+        pdf.save(`gantt-planificacion-${new Date().toISOString().split('T')[0]}.pdf`)
+      }
     } catch (err) {
       console.error('Error downloading Gantt as PDF:', err)
     }
     setDownloadingGantt(false)
   }
 
-  // Gantt download as Excel
+  // Gantt download as Excel - Fixed with weekend shading, today marker, sort, status colors, etc.
   const downloadGanttExcel = () => {
     setDownloadingGantt(true)
     try {
       const wb = XLSX.utils.book_new()
 
-      // Build header row: fixed columns + day columns
-      const fixedHeaders = ['Descripción', 'Sector', 'Prioridad', 'Estado', 'Responsable', 'Fecha Inicio', 'Fecha Término']
-      const dayHeaders = ganttDays.map(d =>
-        d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' })
-      )
-      const headers = [...fixedHeaders, ...dayHeaders]
+      // Sort tasks by start date chronologically
+      const sortedTasks = [...tasksWithDates].sort((a, b) => {
+        const dateA = a.startDate ? new Date(a.startDate).getTime() : 0
+        const dateB = b.startDate ? new Date(b.startDate).getTime() : 0
+        return dateA - dateB
+      })
 
-      // Title row
+      // Month header row: group days by month
+      const monthHeaders = ganttDays.map(d =>
+        d.toLocaleDateString('es-CL', { month: 'short', year: '2-digit' })
+      )
+
+      // Build header rows: month row on top, day numbers below
+      const fixedHeaders = ['Descripción', 'Sector', 'Prioridad', 'Estado', 'Responsable', 'Fecha Inicio', 'Fecha Término']
+      const dayNumbers = ganttDays.map(d => d.getDate())
+
+      // Title rows
       const titleRow = ['Planificación de Mantención - Diagrama de Gantt']
-      const dateRow = [`Generado: ${new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })} | ${tasksWithDates.length} tareas`]
+      const dateRow = [`Generado: ${new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })} | ${sortedTasks.length} tareas`]
+
+      // Month row - merge cells for same months
+      const monthRow = [...fixedHeaders.map((_, i) => i === 0 ? '' : '')]
+      // We'll add month labels at the start of each month group
+      let currentMonth = ''
+      ganttDays.forEach((day, idx) => {
+        const monthLabel = day.toLocaleDateString('es-CL', { month: 'short', year: '2-digit' })
+        if (monthLabel !== currentMonth) {
+          monthRow.push(monthLabel)
+          currentMonth = monthLabel
+        } else {
+          monthRow.push('')
+        }
+      })
+
+      // Day number row
+      const dayRow = [...fixedHeaders, ...dayNumbers.map(String)]
 
       // Build data rows
-      const dataRows = tasksWithDates.map(task => {
+      const dataRows = sortedTasks.map(task => {
         const taskStart = task.startDate ? new Date(task.startDate) : null
         const taskEnd = task.endDate ? new Date(task.endDate) : null
+        const materialsTotal = getMaterialsTotal(task.id)
+
         const row = [
           task.description,
           task.sector,
@@ -587,25 +778,55 @@ export default function Home() {
           task.startDate ? new Date(task.startDate).toLocaleDateString('es-CL') : '',
           task.endDate ? new Date(task.endDate).toLocaleDateString('es-CL') : '',
         ]
+
+        // Determine bar color based on status
+        const statusBarColorMap: Record<string, string> = {
+          'Pendiente': getPriorityColor(task.priority).replace('#', ''),
+          'En Proceso': '3B82F6',
+          'Completada': '22C55E',
+          'Cancelada': 'EF4444',
+        }
+        const barColorHex = statusBarColorMap[task.status] || getPriorityColor(task.priority).replace('#', '')
+
         // For each day column, mark if the day falls within the task's date range
-        dayHeaders.forEach((_, idx) => {
-          const dayDate = ganttDays[idx]
+        ganttDays.forEach((dayDate, idx) => {
           const dayTime = dayDate.getTime()
           const inRange = taskStart && taskEnd && dayTime >= taskStart.getTime() && dayTime <= taskEnd.getTime()
-          row.push(inRange ? task.priority : '')
+          row.push(inRange ? task.status : '')
         })
-        return row
+        // Add Total Materiales column
+        row.push(materialsTotal > 0 ? materialsTotal : '')
+        return { row, barColorHex, task }
       })
 
-      // Combine all rows
-      const wsData = [titleRow, dateRow, [], headers, ...dataRows]
+      // Combine all rows: title, date, blank, month header, day header, data
+      const allFixedHeaders = [...fixedHeaders, 'Total Materiales']
+      const totalCols = allFixedHeaders.length + ganttDays.length
+      const wsData = [titleRow, dateRow, [], monthRow, dayRow, ...dataRows.map(d => d.row)]
       const ws = XLSX.utils.aoa_to_sheet(wsData)
 
       // Merge title row across all columns
-      ws['!merges'] = [
-        { s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } },
-        { s: { r: 1, c: 0 }, e: { r: 1, c: headers.length - 1 } },
+      const merges: XLSX.Range[] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: totalCols - 1 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: totalCols - 1 } },
       ]
+
+      // Merge month header cells for consecutive same-month days
+      let mergeStart = fixedHeaders.length
+      for (let i = fixedHeaders.length + 1; i < monthRow.length; i++) {
+        if (monthRow[i] !== '') {
+          if (i - 1 > mergeStart) {
+            merges.push({ s: { r: 3, c: mergeStart }, e: { r: 3, c: i - 1 } })
+          }
+          mergeStart = i
+        }
+      }
+      // Handle last group
+      if (monthRow.length - 1 > mergeStart) {
+        merges.push({ s: { r: 3, c: mergeStart }, e: { r: 3, c: monthRow.length - 1 } })
+      }
+
+      ws['!merges'] = merges
 
       // Set column widths
       const colWidths = [
@@ -616,44 +837,100 @@ export default function Home() {
         { wch: 15 }, // Responsible
         { wch: 12 }, // Start Date
         { wch: 12 }, // End Date
-        ...dayHeaders.map(() => ({ wch: 4 })), // Day columns
+        ...ganttDays.map(() => ({ wch: 3.5 })), // Day columns (narrower)
+        { wch: 14 }, // Total Materiales
       ]
       ws['!cols'] = colWidths
 
-      // Apply cell styling - fill colors for Gantt bars
-      const priorityColorMap: Record<string, string> = {}
-      priorities.forEach(p => {
-        // Convert hex color to FFRRGGBB format for xlsx
-        const hex = p.color.replace('#', '')
-        priorityColorMap[p.name] = `FF${hex}`
-      })
+      // Style the title row
+      const titleCellRef = XLSX.utils.encode_cell({ r: 0, c: 0 })
+      if (ws[titleCellRef]) {
+        ws[titleCellRef].s = {
+          font: { bold: true, sz: 14, color: { rgb: 'FF1F2937' } },
+          alignment: { horizontal: 'left' },
+        }
+      }
 
-      // Style the header row (row index 3)
-      for (let c = 0; c < headers.length; c++) {
+      // Style month header row (row index 3)
+      for (let c = fixedHeaders.length; c < allFixedHeaders.length + ganttDays.length; c++) {
         const cellRef = XLSX.utils.encode_cell({ r: 3, c })
-        if (ws[cellRef]) {
+        if (ws[cellRef] && ws[cellRef].v) {
           ws[cellRef].s = {
-            font: { bold: true, color: { rgb: 'FFFFFFFF' } },
-            fill: { fgColor: { rgb: 'FF4B5563' } },
+            font: { bold: true, color: { rgb: 'FFFFFFFF' }, sz: 9 },
+            fill: { fgColor: { rgb: 'FF6B7280' } },
             alignment: { horizontal: 'center' },
           }
         }
       }
 
+      // Style day header row (row index 4)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      for (let c = 0; c < allFixedHeaders.length + ganttDays.length; c++) {
+        const cellRef = XLSX.utils.encode_cell({ r: 4, c })
+        if (ws[cellRef]) {
+          let style: Record<string, unknown> = {
+            font: { bold: true, color: { rgb: 'FFFFFFFF' }, sz: 8 },
+            fill: { fgColor: { rgb: 'FF4B5563' } },
+            alignment: { horizontal: 'center' },
+          }
+
+          // Weekend shading for day columns
+          if (c >= fixedHeaders.length && c < fixedHeaders.length + ganttDays.length) {
+            const dayIdx = c - fixedHeaders.length
+            const dayDate = ganttDays[dayIdx]
+            const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6
+            const isToday = dayDate.getTime() === today.getTime()
+
+            if (isToday) {
+              style = {
+                font: { bold: true, color: { rgb: 'FFFFFFFF' }, sz: 8 },
+                fill: { fgColor: { rgb: 'FFEF4444' } },
+                alignment: { horizontal: 'center' },
+              }
+            } else if (isWeekend) {
+              style = {
+                font: { bold: true, color: { rgb: 'FF374151' }, sz: 8 },
+                fill: { fgColor: { rgb: 'FFE5E7EB' } },
+                alignment: { horizontal: 'center' },
+              }
+            }
+          }
+
+          ws[cellRef].s = style
+        }
+      }
+
       // Style data rows with Gantt bar colors
       for (let r = 0; r < dataRows.length; r++) {
-        const excelRow = r + 4 // Data starts at row 4
-        const task = tasksWithDates[r]
-        const colorHex = getPriorityColor(task.priority).replace('#', '')
+        const excelRow = r + 5 // Data starts at row 5 (after title, date, blank, month, day headers)
+        const { barColorHex, task } = dataRows[r]
 
-        // Apply color to day columns that have the priority marker
-        for (let c = fixedHeaders.length; c < headers.length; c++) {
+        // Apply color to day columns that have the status marker
+        for (let c = fixedHeaders.length; c < fixedHeaders.length + ganttDays.length; c++) {
           const cellRef = XLSX.utils.encode_cell({ r: excelRow, c })
           if (ws[cellRef] && ws[cellRef].v) {
             ws[cellRef].s = {
-              fill: { fgColor: { rgb: `FF${colorHex}` } },
+              fill: { fgColor: { rgb: `FF${barColorHex}` } },
               alignment: { horizontal: 'center' },
-              font: { color: { rgb: 'FFFFFFFF' }, size: 8 },
+              font: { color: { rgb: 'FFFFFFFF' }, size: 7 },
+            }
+          } else {
+            // Weekend shading for empty cells
+            const dayIdx = c - fixedHeaders.length
+            const dayDate = ganttDays[dayIdx]
+            const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6
+            const isToday = dayDate.getTime() === today.getTime()
+            if (isToday) {
+              ws[cellRef] = { t: 's', v: '' }
+              ws[cellRef].s = {
+                fill: { fgColor: { rgb: 'FFFEE2E2' } },
+              }
+            } else if (isWeekend) {
+              ws[cellRef] = { t: 's', v: '' }
+              ws[cellRef].s = {
+                fill: { fgColor: { rgb: 'FFF3F4F6' } },
+              }
             }
           }
         }
@@ -677,6 +954,17 @@ export default function Home() {
             }
           }
         }
+
+        // Style Total Materiales column
+        const totalMatCol = fixedHeaders.length + ganttDays.length
+        const totalMatCellRef = XLSX.utils.encode_cell({ r: excelRow, c: totalMatCol })
+        if (ws[totalMatCellRef] && ws[totalMatCellRef].v !== '') {
+          ws[totalMatCellRef].s = {
+            font: { bold: true, color: { rgb: 'FF059669' } },
+            alignment: { horizontal: 'right' },
+            numFmt: '$#,##0',
+          }
+        }
       }
 
       XLSX.utils.book_append_sheet(wb, ws, 'Gantt')
@@ -689,13 +977,17 @@ export default function Home() {
         [],
         ['Leyenda de Estados'],
         ['Estado', 'Color'],
-        ['Pendiente', 'Amarillo'],
-        ['En Proceso', 'Azul'],
-        ['Completada', 'Verde'],
-        ['Cancelada', 'Rojo'],
+        ['Pendiente', 'Prioridad del color asignado'],
+        ['En Proceso', 'Azul (#3B82F6)'],
+        ['Completada', 'Verde (#22C55E)'],
+        ['Cancelada', 'Rojo (#EF4444)'],
+        [],
+        ['Convenciones'],
+        ['Columna roja', 'Día actual (hoy)'],
+        ['Columna gris', 'Fin de semana'],
       ]
       const wsLegend = XLSX.utils.aoa_to_sheet(legendData)
-      wsLegend['!cols'] = [{ wch: 20 }, { wch: 15 }]
+      wsLegend['!cols'] = [{ wch: 25 }, { wch: 25 }]
       // Style legend header
       const legendHeaderCell = XLSX.utils.encode_cell({ r: 0, c: 0 })
       if (wsLegend[legendHeaderCell]) {
@@ -808,6 +1100,14 @@ export default function Home() {
             >
               <GanttChart className="h-4 w-4" /> Gantt
             </Button>
+            <Button
+              variant={view === 'materials' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setView('materials')}
+              className="gap-1"
+            >
+              <Package className="h-4 w-4" /> Materiales
+            </Button>
           </div>
 
           {/* Filters */}
@@ -856,6 +1156,17 @@ export default function Home() {
                 ))}
               </SelectContent>
             </Select>
+            {/* Materials toggle for table/card views */}
+            {(view === 'table' || view === 'cards') && (
+              <div className="flex items-center gap-1.5 ml-2 pl-2 border-l">
+                <Label htmlFor="show-materials" className="text-xs text-gray-500 cursor-pointer">Materiales</Label>
+                <Switch
+                  id="show-materials"
+                  checked={showMaterials}
+                  onCheckedChange={setShowMaterials}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1023,13 +1334,20 @@ export default function Home() {
                       <TableHead>Inicio</TableHead>
                       <TableHead>Término</TableHead>
                       <TableHead>Fotos</TableHead>
+                      {showMaterials && (
+                        <TableHead className="text-center">
+                          <span className="flex items-center gap-1 justify-center">
+                            <Package className="h-3.5 w-3.5" /> Materiales
+                          </span>
+                        </TableHead>
+                      )}
                       <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredTasks.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={12} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={showMaterials ? 13 : 12} className="text-center py-8 text-gray-500">
                           No hay tareas que coincidan con los filtros
                         </TableCell>
                       </TableRow>
@@ -1037,6 +1355,7 @@ export default function Home() {
                       filteredTasks.map(task => {
                         const beforePhotos = JSON.parse(task.beforePhotos || '[]') as string[]
                         const afterPhotos = JSON.parse(task.afterPhotos || '[]') as string[]
+                        const matCount = getMaterialsCount(task.id)
                         return (
                           <TableRow key={task.id}>
                             <TableCell className="font-medium max-w-[250px]">
@@ -1102,6 +1421,26 @@ export default function Home() {
                                 )}
                               </div>
                             </TableCell>
+                            {showMaterials && (
+                              <TableCell className="text-center">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 gap-1"
+                                  onClick={() => openAddMaterial(task.id)}
+                                  title={matCount > 0 ? `${matCount} materiales - Total: ${formatCurrency(getMaterialsTotal(task.id))}` : 'Sin materiales'}
+                                >
+                                  {matCount > 0 ? (
+                                    <Badge variant="secondary" className="gap-1 cursor-pointer">
+                                      <Package className="h-3 w-3" />
+                                      {matCount}
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-xs text-gray-300">-</span>
+                                  )}
+                                </Button>
+                              </TableCell>
+                            )}
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-1">
                                 <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openHistory(task.id)} title="Historial">
@@ -1137,6 +1476,7 @@ export default function Home() {
               filteredTasks.map(task => {
                 const beforePhotos = JSON.parse(task.beforePhotos || '[]') as string[]
                 const afterPhotos = JSON.parse(task.afterPhotos || '[]') as string[]
+                const matCount = getMaterialsCount(task.id)
                 return (
                   <Card key={task.id} className="hover:shadow-md transition-shadow">
                     <CardHeader className="pb-2">
@@ -1167,6 +1507,16 @@ export default function Home() {
                         <span>Inicio: {formatDate(task.startDate)}</span>
                         <span>Término: {formatDate(task.endDate)}</span>
                       </div>
+                      {showMaterials && matCount > 0 && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="flex items-center gap-1 text-gray-500">
+                            <Package className="h-3 w-3" /> Materiales: {matCount}
+                          </span>
+                          <span className="font-medium text-green-600 flex items-center gap-1">
+                            <DollarSign className="h-3 w-3" />{formatCurrency(getMaterialsTotal(task.id))}
+                          </span>
+                        </div>
+                      )}
                       {(beforePhotos.length > 0 || afterPhotos.length > 0) && (
                         <div className="flex gap-2">
                           {beforePhotos.length > 0 && (
@@ -1423,6 +1773,176 @@ export default function Home() {
               )}
             </CardContent>
           </Card>
+        )}
+
+        {/* Materials View */}
+        {view === 'materials' && (
+          <div className="space-y-6">
+            {/* Materials Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-500">Total Materiales</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">{materials.length}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-500">Tareas con Materiales</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">
+                    {new Set(materials.map(m => m.taskId)).size}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-green-600 flex items-center gap-1">
+                    <DollarSign className="h-4 w-4" /> Costo Total Materiales
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-green-600">
+                    {formatCurrency(materials.reduce((sum, m) => sum + (m.totalPrice || 0), 0))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Tasks with materials */}
+            {(() => {
+              const tasksWithMaterials = filteredTasks.filter(t => getMaterialsCount(t.id) > 0)
+              const tasksWithoutMaterials = filteredTasks.filter(t => getMaterialsCount(t.id) === 0)
+
+              return (
+                <>
+                  {tasksWithMaterials.length === 0 && tasksWithoutMaterials.length === 0 ? (
+                    <Card>
+                      <CardContent className="py-12 text-center text-gray-500">
+                        <Package className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                        <p>No hay tareas que coincidan con los filtros</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <>
+                      {tasksWithMaterials.map(task => {
+                        const taskMaterials = getMaterialsForTask(task.id)
+                        const taskTotal = getMaterialsTotal(task.id)
+                        return (
+                          <Card key={task.id}>
+                            <CardHeader className="pb-2">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: getPriorityColor(task.priority) }}></span>
+                                    {task.description}
+                                    <Badge variant="secondary">{task.sector}</Badge>
+                                    <Badge variant="outline" className={statusColors[task.status] || ''}>{task.status}</Badge>
+                                  </CardTitle>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-green-600 flex items-center gap-1">
+                                    <DollarSign className="h-3.5 w-3.5" />{formatCurrency(taskTotal)}
+                                  </span>
+                                  <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" onClick={() => openAddMaterial(task.id)}>
+                                    <Plus className="h-3 w-3" /> Agregar Material
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                              <ScrollArea className="w-full">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead className="min-w-[150px]">Nombre</TableHead>
+                                      <TableHead>Categoría</TableHead>
+                                      <TableHead className="text-center">Cantidad</TableHead>
+                                      <TableHead>Unidad</TableHead>
+                                      <TableHead className="text-right">P.Unitario</TableHead>
+                                      <TableHead className="text-right">P.Total</TableHead>
+                                      <TableHead className="min-w-[120px]">Notas</TableHead>
+                                      <TableHead className="text-right">Acciones</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {taskMaterials.length === 0 ? (
+                                      <TableRow>
+                                        <TableCell colSpan={8} className="text-center py-4 text-gray-400 text-sm">
+                                          Sin materiales registrados
+                                        </TableCell>
+                                      </TableRow>
+                                    ) : (
+                                      taskMaterials.map(mat => (
+                                        <TableRow key={mat.id}>
+                                          <TableCell className="font-medium text-sm">{mat.name}</TableCell>
+                                          <TableCell className="text-sm">
+                                            {mat.category ? <Badge variant="outline">{mat.category}</Badge> : '-'}
+                                          </TableCell>
+                                          <TableCell className="text-center text-sm">{mat.quantity || '-'}</TableCell>
+                                          <TableCell className="text-sm">{mat.unit || '-'}</TableCell>
+                                          <TableCell className="text-right text-sm">{mat.unitPrice ? formatCurrency(mat.unitPrice) : '-'}</TableCell>
+                                          <TableCell className="text-right text-sm font-medium">{mat.totalPrice ? formatCurrency(mat.totalPrice) : '-'}</TableCell>
+                                          <TableCell className="text-sm text-gray-500 max-w-[150px]">
+                                            <div className="truncate" title={mat.notes || ''}>{mat.notes || '-'}</div>
+                                          </TableCell>
+                                          <TableCell className="text-right">
+                                            <div className="flex justify-end gap-1">
+                                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEditMaterial(mat)}>
+                                                <Pencil className="h-3.5 w-3.5" />
+                                              </Button>
+                                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700" onClick={() => handleDeleteMaterial(mat.id)}>
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                              </Button>
+                                            </div>
+                                          </TableCell>
+                                        </TableRow>
+                                      ))
+                                    )}
+                                  </TableBody>
+                                </Table>
+                              </ScrollArea>
+                            </CardContent>
+                          </Card>
+                        )
+                      })}
+
+                      {/* Tasks without materials - option to add */}
+                      {tasksWithoutMaterials.length > 0 && (
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium text-gray-500">
+                              Tareas sin materiales ({tasksWithoutMaterials.length})
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="flex flex-wrap gap-2">
+                              {tasksWithoutMaterials.map(task => (
+                                <Button
+                                  key={task.id}
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-1 text-xs h-8"
+                                  onClick={() => openAddMaterial(task.id)}
+                                >
+                                  <Plus className="h-3 w-3" />
+                                  <span className="max-w-[150px] truncate">{task.description}</span>
+                                  <Badge variant="secondary" className="ml-1 text-[10px]">{task.sector}</Badge>
+                                </Button>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </>
+                  )}
+                </>
+              )
+            })()}
+          </div>
         )}
       </main>
 
@@ -1813,6 +2333,99 @@ export default function Home() {
               </ScrollArea>
             </TabsContent>
           </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* Material Create/Edit Dialog */}
+      <Dialog open={materialDialogOpen} onOpenChange={setMaterialDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              {editingMaterial ? 'Editar Material' : 'Agregar Material'}
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              {editingMaterial ? 'Modifique los datos del material' : 'Complete los datos para agregar un nuevo material'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label htmlFor="mat-name">Nombre *</Label>
+              <Input
+                id="mat-name"
+                value={materialFormData.name}
+                onChange={e => setMaterialFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Nombre del material"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="mat-category">Categoría</Label>
+                <Input
+                  id="mat-category"
+                  value={materialFormData.category}
+                  onChange={e => setMaterialFormData(prev => ({ ...prev, category: e.target.value }))}
+                  placeholder="Ej: Eléctrico, Plomería..."
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="mat-quantity">Cantidad</Label>
+                <Input
+                  id="mat-quantity"
+                  value={materialFormData.quantity}
+                  onChange={e => setMaterialFormData(prev => ({ ...prev, quantity: e.target.value }))}
+                  placeholder="Ej: 10"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="mat-unit">Unidad</Label>
+                <Input
+                  id="mat-unit"
+                  value={materialFormData.unit}
+                  onChange={e => setMaterialFormData(prev => ({ ...prev, unit: e.target.value }))}
+                  placeholder="Ej: un, kg, m2"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="mat-unitprice">P. Unitario</Label>
+                <Input
+                  id="mat-unitprice"
+                  type="number"
+                  value={materialFormData.unitPrice}
+                  onChange={e => setMaterialFormData(prev => ({ ...prev, unitPrice: e.target.value }))}
+                  placeholder="$"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="mat-totalprice">P. Total</Label>
+                <Input
+                  id="mat-totalprice"
+                  type="number"
+                  value={materialFormData.totalPrice}
+                  onChange={e => setMaterialFormData(prev => ({ ...prev, totalPrice: e.target.value }))}
+                  placeholder="$"
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="mat-notes">Notas</Label>
+              <Textarea
+                id="mat-notes"
+                value={materialFormData.notes}
+                onChange={e => setMaterialFormData(prev => ({ ...prev, notes: e.target.value }))}
+                rows={2}
+                placeholder="Observaciones adicionales..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMaterialDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveMaterial} disabled={!materialFormData.name.trim()}>
+              {editingMaterial ? 'Guardar Cambios' : 'Agregar Material'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
