@@ -58,7 +58,11 @@ import {
   ChevronRight,
   Upload,
   Image as ImageIcon,
+  Download,
+  History,
+  Clock,
 } from 'lucide-react'
+import html2canvas from 'html2canvas-pro'
 
 // Types
 interface Task {
@@ -97,6 +101,17 @@ interface Priority {
   order: number
 }
 
+interface TaskHistoryEntry {
+  id: string
+  taskId: string
+  action: string
+  field: string | null
+  oldValue: string | null
+  newValue: string | null
+  changedBy: string | null
+  createdAt: string
+}
+
 const statusOptions = ['Pendiente', 'En Proceso', 'Completada', 'Cancelada']
 
 const statusColors: Record<string, string> = {
@@ -128,6 +143,13 @@ export default function Home() {
   // Photo viewer
   const [fullscreenPhotos, setFullscreenPhotos] = useState<string[]>([])
   const [fullscreenIndex, setFullscreenIndex] = useState(0)
+
+  // History viewer
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false)
+  const [historyTaskId, setHistoryTaskId] = useState<string | null>(null)
+  const [historyEntries, setHistoryEntries] = useState<TaskHistoryEntry[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [downloadingGantt, setDownloadingGantt] = useState(false)
 
   // Task form
   const [editingTask, setEditingTask] = useState<Task | null>(null)
@@ -479,6 +501,71 @@ export default function Home() {
     return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(amount)
   }
 
+  // History functions
+  const openHistory = async (taskId: string) => {
+    setHistoryTaskId(taskId)
+    setHistoryDialogOpen(true)
+    setHistoryLoading(true)
+    try {
+      const res = await fetch(`/api/task-history?taskId=${taskId}`)
+      if (res.ok) {
+        setHistoryEntries(await res.json())
+      }
+    } catch (err) {
+      console.error('Error fetching history:', err)
+    }
+    setHistoryLoading(false)
+  }
+
+  // Gantt download
+  const downloadGantt = async () => {
+    setDownloadingGantt(true)
+    try {
+      const ganttEl = document.getElementById('gantt-chart-content')
+      if (!ganttEl) return
+      const canvas = await html2canvas(ganttEl, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        logging: false,
+      })
+      const link = document.createElement('a')
+      link.download = `gantt-planificacion-${new Date().toISOString().split('T')[0]}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch (err) {
+      console.error('Error downloading Gantt:', err)
+    }
+    setDownloadingGantt(false)
+  }
+
+  const getActionLabel = (action: string) => {
+    const labels: Record<string, string> = {
+      creada: 'Tarea creada',
+      actualizada: 'Campo actualizado',
+      eliminada: 'Tarea eliminada',
+      cambio_estado: 'Cambio de estado',
+    }
+    return labels[action] || action
+  }
+
+  const getActionColor = (action: string) => {
+    const colors: Record<string, string> = {
+      creada: 'bg-green-100 text-green-700 border-green-200',
+      actualizada: 'bg-blue-100 text-blue-700 border-blue-200',
+      eliminada: 'bg-red-100 text-red-700 border-red-200',
+      cambio_estado: 'bg-purple-100 text-purple-700 border-purple-200',
+    }
+    return colors[action] || 'bg-gray-100 text-gray-700 border-gray-200'
+  }
+
+  const getActionIcon = (action: string) => {
+    if (action === 'creada') return '✓'
+    if (action === 'eliminada') return '✗'
+    if (action === 'cambio_estado') return '⟳'
+    return '✎'
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -503,6 +590,9 @@ export default function Home() {
               </Button>
               <Button variant="outline" size="sm" onClick={() => setConfigDialogOpen(true)} className="gap-1">
                 <Settings className="h-4 w-4" /> Configurar
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => openHistory('all')} className="gap-1">
+                <History className="h-4 w-4" /> Historial
               </Button>
             </div>
           </div>
@@ -841,6 +931,9 @@ export default function Home() {
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-1">
+                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openHistory(task.id)} title="Historial">
+                                  <History className="h-3.5 w-3.5" />
+                                </Button>
                                 <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEditTask(task)}>
                                   <Pencil className="h-3.5 w-3.5" />
                                 </Button>
@@ -956,6 +1049,9 @@ export default function Home() {
                         </div>
                       )}
                       <div className="flex justify-end gap-1 pt-2 border-t">
+                        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => openHistory(task.id)}>
+                          <History className="h-3 w-3" /> Historial
+                        </Button>
                         <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => openEditTask(task)}>
                           <Pencil className="h-3 w-3" /> Editar
                         </Button>
@@ -975,12 +1071,25 @@ export default function Home() {
         {view === 'gantt' && (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <GanttChart className="h-5 w-5" /> Diagrama de Gantt
-              </CardTitle>
-              <p className="text-sm text-gray-500">
-                {tasksWithDates.length} de {filteredTasks.length} tareas tienen fechas asignadas
-              </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <GanttChart className="h-5 w-5" /> Diagrama de Gantt
+                  </CardTitle>
+                  <p className="text-sm text-gray-500">
+                    {tasksWithDates.length} de {filteredTasks.length} tareas tienen fechas asignadas
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadGantt}
+                  disabled={downloadingGantt || tasksWithDates.length === 0}
+                  className="gap-1"
+                >
+                  <Download className="h-4 w-4" /> {downloadingGantt ? 'Generando...' : 'Descargar PNG'}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {tasksWithDates.length === 0 ? (
@@ -991,7 +1100,12 @@ export default function Home() {
                 </div>
               ) : (
                 <ScrollArea className="w-full">
-                  <div className="min-w-[900px]">
+                  <div id="gantt-chart-content" className="min-w-[900px] p-4 bg-white">
+                    {/* Title for exported image */}
+                    <div className="mb-4 pb-3 border-b">
+                      <h2 className="text-lg font-bold text-gray-900">Planificación de Mantención - Diagrama de Gantt</h2>
+                      <p className="text-xs text-gray-500">Generado: {new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })} | {tasksWithDates.length} tareas</p>
+                    </div>
                     {/* Gantt Header - Month labels */}
                     <div className="flex border-b">
                       <div className="w-[250px] shrink-0 p-2 text-xs font-semibold text-gray-500 bg-gray-50">
@@ -1570,6 +1684,101 @@ export default function Home() {
               </>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* History Dialog */}
+      <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              {historyTaskId === 'all' ? 'Historial de Modificaciones' : 'Historial de Tarea'}
+            </DialogTitle>
+            <DialogDescription className="sr-only">Registro de cambios realizados en las tareas</DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh]">
+            {historyLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : historyEntries.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <History className="h-10 w-10 mx-auto mb-2 text-gray-300" />
+                <p>No hay registros de modificaciones</p>
+                <p className="text-xs mt-1">Los cambios se registrarán automáticamente al editar tareas</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {historyEntries.map((entry, idx) => {
+                  const task = historyTaskId === 'all' ? tasks.find(t => t.id === entry.taskId) : null
+                  return (
+                    <div key={entry.id} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
+                      {/* Timeline dot */}
+                      <div className="flex flex-col items-center">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${getActionColor(entry.action)}`}>
+                          {getActionIcon(entry.action)}
+                        </div>
+                        {idx < historyEntries.length - 1 && (
+                          <div className="w-0.5 flex-1 bg-gray-200 mt-1"></div>
+                        )}
+                      </div>
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline" className={getActionColor(entry.action)}>
+                            {getActionLabel(entry.action)}
+                          </Badge>
+                          {task && (
+                            <span className="text-xs text-gray-500 truncate max-w-[200px]">{task.description}</span>
+                          )}
+                        </div>
+                        {entry.field && (
+                          <div className="mt-1.5 text-sm">
+                            <span className="font-medium text-gray-700">{entry.field}</span>
+                            {entry.oldValue && entry.newValue ? (
+                              <div className="flex items-center gap-2 mt-1 text-xs">
+                                <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded border border-red-200 line-through max-w-[200px] truncate">
+                                  {entry.oldValue}
+                                </span>
+                                <span className="text-gray-400">→</span>
+                                <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-200 max-w-[200px] truncate">
+                                  {entry.newValue}
+                                </span>
+                              </div>
+                            ) : entry.newValue && !entry.oldValue ? (
+                              <div className="mt-1 text-xs">
+                                <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-200">
+                                  {entry.newValue}
+                                </span>
+                              </div>
+                            ) : null}
+                          </div>
+                        )}
+                        {!entry.field && entry.action === 'creada' && entry.newValue && (
+                          <div className="mt-1 text-xs text-gray-500 truncate">
+                            &quot;{entry.newValue}&quot;
+                          </div>
+                        )}
+                        <div className="mt-1 text-[10px] text-gray-400">
+                          {new Date(entry.createdAt).toLocaleString('es-CL', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                          {entry.changedBy && (
+                            <span className="ml-2">por {entry.changedBy}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>

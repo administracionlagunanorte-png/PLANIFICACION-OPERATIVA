@@ -48,3 +48,14 @@ model Priority {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model TaskHistory {
+  id        String   @id @default(cuid())
+  taskId    String
+  action    String   // "creada", "actualizada", "eliminada", "cambio_estado"
+  field     String?  // which field changed
+  oldValue  String?  // previous value
+  newValue  String?  // new value
+  changedBy String?  // who made the change
+  createdAt DateTime @default(now())
+}
