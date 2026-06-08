@@ -187,6 +187,21 @@ export default function Home() {
   const [materialFormData, setMaterialFormData] = useState({
     name: '', quantity: '', unit: '', unitPrice: '', totalPrice: '', category: '', notes: ''
   })
+  const [deleteMaterialDialogOpen, setDeleteMaterialDialogOpen] = useState(false)
+  const [deleteMaterialId, setDeleteMaterialId] = useState<string | null>(null)
+  const [deleteMaterialName, setDeleteMaterialName] = useState('')
+
+  // Helper to clean up aria-hidden after dialog close
+  const cleanupAriaHidden = useCallback(() => {
+    setTimeout(() => {
+      document.querySelectorAll('[aria-hidden="true"]').forEach(el => {
+        if (el.getAttribute('data-radix-popper-content-wrapper') === null && !el.closest('[role="dialog"]')) {
+          el.removeAttribute('aria-hidden')
+        }
+      })
+      document.body.removeAttribute('aria-hidden')
+    }, 100)
+  }, [])
 
   // Task form
   const [editingTask, setEditingTask] = useState<Task | null>(null)
@@ -509,9 +524,46 @@ export default function Home() {
     }
   }
 
-  const handleDeleteMaterial = async (id: string) => {
-    await fetch(`/api/materials?id=${id}`, { method: 'DELETE' })
-    fetchMaterials()
+  const handleDeleteMaterial = async () => {
+    if (!deleteMaterialId) return
+    try {
+      await fetch(`/api/materials?id=${deleteMaterialId}`, { method: 'DELETE' })
+      setDeleteMaterialDialogOpen(false)
+      setDeleteMaterialId(null)
+      setDeleteMaterialName('')
+      fetchMaterials()
+    } catch (err) {
+      console.error('Error deleting material:', err)
+    }
+  }
+
+  const confirmDeleteMaterial = (material: Material) => {
+    setDeleteMaterialId(material.id)
+    setDeleteMaterialName(material.name)
+    setDeleteMaterialDialogOpen(true)
+  }
+
+  // Auto-calculate total price when quantity or unitPrice changes
+  const handleMaterialQuantityChange = (value: string) => {
+    const qty = parseFloat(value) || 0
+    const price = parseFloat(materialFormData.unitPrice) || 0
+    const total = qty * price
+    setMaterialFormData(prev => ({
+      ...prev,
+      quantity: value,
+      totalPrice: total > 0 ? total.toString() : ''
+    }))
+  }
+
+  const handleMaterialUnitPriceChange = (value: string) => {
+    const price = parseFloat(value) || 0
+    const qty = parseFloat(materialFormData.quantity) || 0
+    const total = qty * price
+    setMaterialFormData(prev => ({
+      ...prev,
+      unitPrice: value,
+      totalPrice: total > 0 ? total.toString() : ''
+    }))
   }
 
   const openAddMaterial = (taskId: string) => {
@@ -1749,14 +1801,14 @@ export default function Home() {
                             )}
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-1">
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openHistory(task.id)} title="Historial">
-                                  <History className="h-3.5 w-3.5" />
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openHistory(task.id)} title="Historial">
+                                  <History className="h-4 w-4" />
                                 </Button>
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEditTask(task)}>
-                                  <Pencil className="h-3.5 w-3.5" />
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openEditTask(task)} title="Editar tarea">
+                                  <Pencil className="h-4 w-4" />
                                 </Button>
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700" onClick={() => { setDeleteId(task.id); setDeleteDialogOpen(true) }}>
-                                  <Trash2 className="h-3.5 w-3.5" />
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:text-red-700" onClick={() => { setDeleteId(task.id); setDeleteDialogOpen(true) }} title="Eliminar">
+                                  <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
                             </TableCell>
@@ -1878,14 +1930,14 @@ export default function Home() {
                         </div>
                       )}
                       <div className="flex justify-end gap-1 pt-2 border-t">
-                        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => openHistory(task.id)}>
-                          <History className="h-3 w-3" /> Historial
+                        <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs" onClick={() => openHistory(task.id)}>
+                          <History className="h-3.5 w-3.5" /> Historial
                         </Button>
-                        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => openEditTask(task)}>
-                          <Pencil className="h-3 w-3" /> Editar
+                        <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs" onClick={() => openEditTask(task)}>
+                          <Pencil className="h-3.5 w-3.5" /> Editar
                         </Button>
-                        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs text-red-500" onClick={() => { setDeleteId(task.id); setDeleteDialogOpen(true) }}>
-                          <Trash2 className="h-3 w-3" /> Eliminar
+                        <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs text-red-500" onClick={() => { setDeleteId(task.id); setDeleteDialogOpen(true) }}>
+                          <Trash2 className="h-3.5 w-3.5" /> Eliminar
                         </Button>
                       </div>
                     </CardContent>
@@ -2200,7 +2252,7 @@ export default function Home() {
                                               <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEditMaterial(mat)}>
                                                 <Pencil className="h-3.5 w-3.5" />
                                               </Button>
-                                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700" onClick={() => handleDeleteMaterial(mat.id)}>
+                                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700" onClick={() => confirmDeleteMaterial(mat)}>
                                                 <Trash2 className="h-3.5 w-3.5" />
                                               </Button>
                                             </div>
@@ -2253,7 +2305,7 @@ export default function Home() {
       </main>
 
       {/* Task Create/Edit Dialog */}
-      <Dialog open={taskDialogOpen} onOpenChange={setTaskDialogOpen}>
+      <Dialog open={taskDialogOpen} onOpenChange={(open) => { setTaskDialogOpen(open); if (!open) cleanupAriaHidden() }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingTask ? 'Editar Tarea' : 'Nueva Tarea'}</DialogTitle>
@@ -2472,7 +2524,7 @@ export default function Home() {
       </Dialog>
 
       {/* Config Dialog */}
-      <Dialog open={configDialogOpen} onOpenChange={setConfigDialogOpen}>
+      <Dialog open={configDialogOpen} onOpenChange={(open) => { setConfigDialogOpen(open); if (!open) cleanupAriaHidden() }}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Configuración</DialogTitle>
@@ -2643,7 +2695,7 @@ export default function Home() {
       </Dialog>
 
       {/* Material Create/Edit Dialog */}
-      <Dialog open={materialDialogOpen} onOpenChange={setMaterialDialogOpen}>
+      <Dialog open={materialDialogOpen} onOpenChange={(open) => { setMaterialDialogOpen(open); if (!open) cleanupAriaHidden() }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -2678,9 +2730,11 @@ export default function Home() {
                 <Label htmlFor="mat-quantity">Cantidad</Label>
                 <Input
                   id="mat-quantity"
+                  type="number"
                   value={materialFormData.quantity}
-                  onChange={e => setMaterialFormData(prev => ({ ...prev, quantity: e.target.value }))}
+                  onChange={e => handleMaterialQuantityChange(e.target.value)}
                   placeholder="Ej: 10"
+                  min="0"
                 />
               </div>
             </div>
@@ -2700,8 +2754,9 @@ export default function Home() {
                   id="mat-unitprice"
                   type="number"
                   value={materialFormData.unitPrice}
-                  onChange={e => setMaterialFormData(prev => ({ ...prev, unitPrice: e.target.value }))}
+                  onChange={e => handleMaterialUnitPriceChange(e.target.value)}
                   placeholder="$"
+                  min="0"
                 />
               </div>
               <div className="grid gap-2">
@@ -2712,7 +2767,11 @@ export default function Home() {
                   value={materialFormData.totalPrice}
                   onChange={e => setMaterialFormData(prev => ({ ...prev, totalPrice: e.target.value }))}
                   placeholder="$"
+                  min="0"
                 />
+                {materialFormData.quantity && materialFormData.unitPrice && (
+                  <span className="text-[10px] text-gray-400">Auto-calculado: qty x p.unit</span>
+                )}
               </div>
             </div>
             <div className="grid gap-2">
@@ -2753,8 +2812,26 @@ export default function Home() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Delete Material Confirmation Dialog */}
+      <AlertDialog open={deleteMaterialDialogOpen} onOpenChange={setDeleteMaterialDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar Material</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Está seguro que desea eliminar el material "{deleteMaterialName}"? Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteMaterial} className="bg-red-500 hover:bg-red-600">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Fullscreen Photo Viewer */}
-      <Dialog open={photoDialogOpen} onOpenChange={setPhotoDialogOpen}>
+      <Dialog open={photoDialogOpen} onOpenChange={(open) => { setPhotoDialogOpen(open); if (!open) cleanupAriaHidden() }}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black">
           <DialogDescription className="sr-only">Visor de fotografías</DialogDescription>
           <div className="relative">
@@ -2795,7 +2872,7 @@ export default function Home() {
       </Dialog>
 
       {/* History Dialog */}
-      <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
+      <Dialog open={historyDialogOpen} onOpenChange={(open) => { setHistoryDialogOpen(open); if (!open) cleanupAriaHidden() }}>
         <DialogContent className="max-w-2xl max-h-[80vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
