@@ -74,9 +74,8 @@ import {
   Package,
   DollarSign,
 } from 'lucide-react'
-import html2canvas from 'html2canvas-pro'
 import { jsPDF } from 'jspdf'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 
 // Types
 interface Task {
@@ -623,148 +622,400 @@ export default function Home() {
     setHistoryLoading(false)
   }
 
-  // Gantt download as PDF - Fixed: A3 landscape with proper scaling and margins
+  // Gantt download as PDF - Direct rendering with jsPDF for perfect format
   const downloadGanttPDF = async () => {
     setDownloadingGantt(true)
     try {
-      const ganttEl = document.getElementById('gantt-chart-content')
-      if (!ganttEl) return
-      const canvas = await html2canvas(ganttEl, {
-        scale: 2,
-        backgroundColor: '#ffffff',
-        useCORS: true,
-        logging: false,
-      })
-      const imgData = canvas.toDataURL('image/png')
-
-      // Use A3 landscape format
-      // A3 in mm: 420 x 297
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a3',
-      })
-
-      const pageWidth = pdf.internal.pageSize.getWidth()
-      const pageHeight = pdf.internal.pageSize.getHeight()
-      const margin = 10 // mm margin on each side
-      const availableWidth = pageWidth - 2 * margin
-      const availableHeight = pageHeight - 2 * margin
-
-      const canvasAspect = canvas.width / canvas.height
-      const availableAspect = availableWidth / availableHeight
-
-      let imgDrawWidth: number
-      let imgDrawHeight: number
-      let offsetX: number
-      let offsetY: number
-
-      if (canvasAspect > availableAspect) {
-        // Image is wider than available area - fit to width
-        imgDrawWidth = availableWidth
-        imgDrawHeight = availableWidth / canvasAspect
-        offsetX = margin
-        offsetY = margin + (availableHeight - imgDrawHeight) / 2
-      } else {
-        // Image is taller than available area - fit to height
-        imgDrawHeight = availableHeight
-        imgDrawWidth = availableHeight * canvasAspect
-        offsetX = margin + (availableWidth - imgDrawWidth) / 2
-        offsetY = margin
-      }
-
-      // If the image is very wide, we might need multiple pages
-      // For most Gantt charts, fit to width and allow it to span pages if needed
-      if (canvasAspect > 3.5) {
-        // Very wide Gantt - use a custom very wide page format instead
-        // Calculate how wide the page needs to be to maintain readability
-        const scaleFactor = availableHeight / canvas.height * 2 // scale factor in px->mm
-        const customWidth = (canvas.width / 2) * (25.4 / 96) + 2 * margin // convert px to mm
-        const customHeight = (canvas.height / 2) * (25.4 / 96) + 2 * margin
-
-        const widePdf = new jsPDF({
-          orientation: 'landscape',
-          unit: 'mm',
-          format: [Math.max(customWidth, 420), Math.min(customHeight, 297)],
-        })
-
-        const widePageWidth = widePdf.internal.pageSize.getWidth()
-        const widePageHeight = widePdf.internal.pageSize.getHeight()
-        const wideAvailWidth = widePageWidth - 2 * margin
-        const wideAvailHeight = widePageHeight - 2 * margin
-
-        // Fit image to the page height and let it take full width
-        const fitHeight = wideAvailHeight
-        const fitWidth = fitHeight * canvasAspect
-
-        if (fitWidth <= wideAvailWidth) {
-          const xOff = margin + (wideAvailWidth - fitWidth) / 2
-          const yOff = margin + (wideAvailHeight - fitHeight) / 2
-          widePdf.addImage(imgData, 'PNG', xOff, yOff, fitWidth, fitHeight)
-        } else {
-          // Fit to width
-          const scaledW = wideAvailWidth
-          const scaledH = scaledW / canvasAspect
-          const yOff = margin + (wideAvailHeight - scaledH) / 2
-          widePdf.addImage(imgData, 'PNG', margin, yOff, scaledW, scaledH)
-        }
-
-        widePdf.save(`gantt-planificacion-${new Date().toISOString().split('T')[0]}.pdf`)
-      } else {
-        pdf.addImage(imgData, 'PNG', offsetX, offsetY, imgDrawWidth, imgDrawHeight)
-        pdf.save(`gantt-planificacion-${new Date().toISOString().split('T')[0]}.pdf`)
-      }
-    } catch (err) {
-      console.error('Error downloading Gantt as PDF:', err)
-    }
-    setDownloadingGantt(false)
-  }
-
-  // Gantt download as Excel - Fixed with weekend shading, today marker, sort, status colors, etc.
-  const downloadGanttExcel = () => {
-    setDownloadingGantt(true)
-    try {
-      const wb = XLSX.utils.book_new()
-
-      // Sort tasks by start date chronologically
       const sortedTasks = [...tasksWithDates].sort((a, b) => {
         const dateA = a.startDate ? new Date(a.startDate).getTime() : 0
         const dateB = b.startDate ? new Date(b.startDate).getTime() : 0
         return dateA - dateB
       })
 
-      // Month header row: group days by month
-      const monthHeaders = ganttDays.map(d =>
-        d.toLocaleDateString('es-CL', { month: 'short', year: '2-digit' })
-      )
+      if (sortedTasks.length === 0) return
 
-      // Build header rows: month row on top, day numbers below
-      const fixedHeaders = ['Descripción', 'Sector', 'Prioridad', 'Estado', 'Responsable', 'Fecha Inicio', 'Fecha Término']
-      const dayNumbers = ganttDays.map(d => d.getDate())
+      // Layout dimensions (mm)
+      const margin = 8
+      const labelColWidth = 75
+      const rowHeight = 8
+      const headerHeight = 14
+      const dayColWidth = Math.max(3, Math.min(6, 250 / ganttDays.length))
 
-      // Title rows
-      const titleRow = ['Planificación de Mantención - Diagrama de Gantt']
-      const dateRow = [`Generado: ${new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })} | ${sortedTasks.length} tareas`]
+      // Calculate total chart width
+      const chartWidth = labelColWidth + ganttDays.length * dayColWidth
+      const totalHeight = headerHeight + sortedTasks.length * rowHeight + 20
 
-      // Month row - merge cells for same months
-      const monthRow = [...fixedHeaders.map((_, i) => i === 0 ? '' : '')]
-      // We'll add month labels at the start of each month group
-      let currentMonth = ''
-      ganttDays.forEach((day, idx) => {
-        const monthLabel = day.toLocaleDateString('es-CL', { month: 'short', year: '2-digit' })
-        if (monthLabel !== currentMonth) {
-          monthRow.push(monthLabel)
-          currentMonth = monthLabel
-        } else {
-          monthRow.push('')
-        }
+      // Determine page format - use custom wide format if needed
+      const pageWidth = Math.max(chartWidth + 2 * margin, 420)
+      const pageHeight = Math.max(totalHeight + 2 * margin + 20, 297)
+
+      const pdf = new jsPDF({
+        orientation: pageWidth > pageHeight ? 'landscape' : 'portrait',
+        unit: 'mm',
+        format: [pageWidth, pageHeight],
       })
 
-      // Day number row
-      const dayRow = [...fixedHeaders, ...dayNumbers.map(String)]
+      let y = margin
 
-      // Build data rows
-      const dataRows = sortedTasks.map(task => {
+      // Title
+      pdf.setFontSize(14)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('Planificación de Mantención - Diagrama de Gantt', margin, y + 4)
+      y += 6
+      pdf.setFontSize(8)
+      pdf.setFont('helvetica', 'normal')
+      pdf.setTextColor(100)
+      pdf.text(
+        `Generado: ${new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })} | ${sortedTasks.length} tareas`,
+        margin, y + 3
+      )
+      y += 7
+
+      const chartStartX = margin
+      const chartStartY = y
+      const ganttAreaX = chartStartX + labelColWidth
+      const ganttAreaWidth = ganttDays.length * dayColWidth
+
+      // Month header row
+      let currentMonth = ''
+      let monthStartIdx = 0
+      pdf.setFontSize(7)
+      pdf.setFont('helvetica', 'bold')
+
+      for (let i = 0; i < ganttDays.length; i++) {
+        const monthLabel = ganttDays[i].toLocaleDateString('es-CL', { month: 'short', year: '2-digit' })
+        const isLast = i === ganttDays.length - 1
+        const nextMonth = isLast ? '' : ganttDays[i + 1].toLocaleDateString('es-CL', { month: 'short', year: '2-digit' })
+
+        if (monthLabel !== currentMonth) {
+          if (currentMonth !== '') {
+            // Draw previous month header
+            const x1 = ganttAreaX + monthStartIdx * dayColWidth
+            const span = (i - monthStartIdx) * dayColWidth
+            pdf.setFillColor(75, 85, 99)
+            pdf.rect(x1, chartStartY, span, headerHeight / 2, 'F')
+            pdf.setTextColor(255, 255, 255)
+            pdf.text(currentMonth, x1 + span / 2, chartStartY + headerHeight / 4 + 1, { align: 'center' })
+          }
+          monthStartIdx = i
+          currentMonth = monthLabel
+        }
+
+        if (isLast) {
+          const x1 = ganttAreaX + monthStartIdx * dayColWidth
+          const span = (i - monthStartIdx + 1) * dayColWidth
+          pdf.setFillColor(75, 85, 99)
+          pdf.rect(x1, chartStartY, span, headerHeight / 2, 'F')
+          pdf.setTextColor(255, 255, 255)
+          pdf.text(currentMonth, x1 + span / 2, chartStartY + headerHeight / 4 + 1, { align: 'center' })
+        }
+      }
+
+      // Day numbers row
+      const dayRowY = chartStartY + headerHeight / 2
+      pdf.setFontSize(5)
+      pdf.setFont('helvetica', 'normal')
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      for (let i = 0; i < ganttDays.length; i++) {
+        const day = ganttDays[i]
+        const x = ganttAreaX + i * dayColWidth
+        const isWeekend = day.getDay() === 0 || day.getDay() === 6
+        const isToday = day.getTime() === today.getTime()
+
+        if (isToday) {
+          pdf.setFillColor(239, 68, 68)
+          pdf.rect(x, dayRowY, dayColWidth, headerHeight / 2, 'F')
+          pdf.setTextColor(255, 255, 255)
+          pdf.setFont('helvetica', 'bold')
+        } else if (isWeekend) {
+          pdf.setFillColor(229, 231, 235)
+          pdf.rect(x, dayRowY, dayColWidth, headerHeight / 2, 'F')
+          pdf.setTextColor(55, 65, 81)
+          pdf.setFont('helvetica', 'normal')
+        } else {
+          pdf.setFillColor(243, 244, 246)
+          pdf.rect(x, dayRowY, dayColWidth, headerHeight / 2, 'F')
+          pdf.setTextColor(55, 65, 81)
+          pdf.setFont('helvetica', 'normal')
+        }
+
+        pdf.text(String(day.getDate()), x + dayColWidth / 2, dayRowY + headerHeight / 4 + 0.5, { align: 'center' })
+      }
+
+      // Label column header
+      pdf.setFillColor(75, 85, 99)
+      pdf.rect(chartStartX, chartStartY, labelColWidth, headerHeight, 'F')
+      pdf.setTextColor(255, 255, 255)
+      pdf.setFontSize(8)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('Tarea', chartStartX + 4, chartStartY + headerHeight / 2 + 1)
+
+      // Data rows
+      const dataStartY = chartStartY + headerHeight
+      pdf.setFontSize(6)
+      pdf.setFont('helvetica', 'normal')
+
+      for (let r = 0; r < sortedTasks.length; r++) {
+        const task = sortedTasks[r]
+        const rowY = dataStartY + r * rowHeight
+        const isOdd = r % 2 === 1
+
+        // Row background
+        if (isOdd) {
+          pdf.setFillColor(249, 250, 251)
+          pdf.rect(chartStartX, rowY, labelColWidth + ganttAreaWidth, rowHeight, 'F')
+        }
+
+        // Weekend shading in gantt area
+        for (let i = 0; i < ganttDays.length; i++) {
+          const day = ganttDays[i]
+          const isWeekend = day.getDay() === 0 || day.getDay() === 6
+          const isDayToday = day.getTime() === today.getTime()
+          if (isDayToday) {
+            const x = ganttAreaX + i * dayColWidth
+            pdf.setFillColor(254, 226, 226)
+            pdf.rect(x, rowY, dayColWidth, rowHeight, 'F')
+          } else if (isWeekend) {
+            const x = ganttAreaX + i * dayColWidth
+            pdf.setFillColor(243, 244, 246)
+            pdf.rect(x, rowY, dayColWidth, rowHeight, 'F')
+          }
+        }
+
+        // Today line
+        if (today >= ganttRangeStart && today <= ganttRangeEnd) {
+          const todayPercent = (today.getTime() - ganttRangeStart.getTime()) / (ganttRangeEnd.getTime() - ganttRangeStart.getTime())
+          const todayX = ganttAreaX + todayPercent * ganttAreaWidth
+          pdf.setDrawColor(239, 68, 68)
+          pdf.setLineWidth(0.3)
+          pdf.line(todayX, rowY, todayX, rowY + rowHeight)
+        }
+
+        // Gantt bar
+        const taskStart = new Date(task.startDate!)
+        const taskEnd = new Date(task.endDate!)
+        const leftPercent = (taskStart.getTime() - ganttRangeStart.getTime()) / (ganttRangeEnd.getTime() - ganttRangeStart.getTime())
+        const widthPercent = (taskEnd.getTime() - taskStart.getTime()) / (ganttRangeEnd.getTime() - ganttRangeStart.getTime())
+        const barX = ganttAreaX + leftPercent * ganttAreaWidth
+        const barWidth = Math.max(widthPercent * ganttAreaWidth, 2)
+        const barY = rowY + 1.5
+        const barHeight = rowHeight - 3
+
+        // Bar color based on status
+        const statusColorMap: Record<string, [number, number, number]> = {
+          Pendiente: (() => {
+            const hex = getPriorityColor(task.priority)
+            const r = parseInt(hex.slice(1, 3), 16)
+            const g = parseInt(hex.slice(3, 5), 16)
+            const b = parseInt(hex.slice(5, 7), 16)
+            return [r, g, b] as [number, number, number]
+          })(),
+          'En Proceso': [59, 130, 246],
+          Completada: [34, 197, 94],
+          Cancelada: [239, 68, 68],
+        }
+        const [br, bg, bb] = statusColorMap[task.status] || [107, 114, 128]
+        pdf.setFillColor(br, bg, bb)
+        pdf.roundedRect(barX, barY, barWidth, barHeight, 1, 1, 'F')
+
+        // Bar text (responsible name if bar is wide enough)
+        if (barWidth > 20 && task.responsible) {
+          pdf.setTextColor(255, 255, 255)
+          pdf.setFontSize(5)
+          pdf.setFont('helvetica', 'bold')
+          pdf.text(task.responsible, barX + 2, barY + barHeight / 2 + 1, { maxWidth: barWidth - 4 })
+        }
+
+        // Task label
+        pdf.setTextColor(31, 41, 55)
+        pdf.setFontSize(6)
+        pdf.setFont('helvetica', 'normal')
+        const priorityDotX = chartStartX + 3
+        const priorityDotY = rowY + rowHeight / 2
+        const pColor = getPriorityColor(task.priority)
+        const pr = parseInt(pColor.slice(1, 3), 16)
+        const pg = parseInt(pColor.slice(3, 5), 16)
+        const pb = parseInt(pColor.slice(5, 7), 16)
+        pdf.setFillColor(pr, pg, pb)
+        pdf.circle(priorityDotX, priorityDotY, 1, 'F')
+        pdf.text(task.description.substring(0, 45), chartStartX + 6, rowY + rowHeight / 2 + 1)
+
+        // Row border
+        pdf.setDrawColor(229, 231, 235)
+        pdf.setLineWidth(0.1)
+        pdf.line(chartStartX, rowY + rowHeight, chartStartX + labelColWidth + ganttAreaWidth, rowY + rowHeight)
+      }
+
+      // Outer border
+      pdf.setDrawColor(156, 163, 175)
+      pdf.setLineWidth(0.3)
+      pdf.rect(chartStartX, chartStartY, labelColWidth + ganttAreaWidth, headerHeight + sortedTasks.length * rowHeight)
+
+      // Label column separator
+      pdf.line(ganttAreaX, chartStartY, ganttAreaX, dataStartY + sortedTasks.length * rowHeight)
+
+      // Legend
+      let legendY = dataStartY + sortedTasks.length * rowHeight + 8
+      pdf.setFontSize(7)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(75, 85, 99)
+      pdf.text('Leyenda:', chartStartX, legendY)
+
+      legendY += 5
+      pdf.setFont('helvetica', 'normal')
+      pdf.setFontSize(6)
+
+      // Today
+      pdf.setFillColor(239, 68, 68)
+      pdf.rect(chartStartX, legendY - 1.5, 4, 4, 'F')
+      pdf.setTextColor(75, 85, 99)
+      pdf.text('Hoy', chartStartX + 6, legendY + 1)
+
+      // Weekend
+      pdf.setFillColor(243, 244, 246)
+      pdf.rect(chartStartX + 25, legendY - 1.5, 4, 4, 'F')
+      pdf.text('Fin de semana', chartStartX + 31, legendY + 1)
+
+      // Priority colors
+      let legendX = chartStartX + 70
+      for (const p of priorities) {
+        const pr2 = parseInt(p.color.slice(1, 3), 16)
+        const pg2 = parseInt(p.color.slice(3, 5), 16)
+        const pb2 = parseInt(p.color.slice(5, 7), 16)
+        pdf.setFillColor(pr2, pg2, pb2)
+        pdf.rect(legendX, legendY - 1.5, 4, 4, 'F')
+        pdf.text(p.name, legendX + 6, legendY + 1)
+        legendX += 6 + pdf.getTextWidth(p.name) + 6
+      }
+
+      // Status colors
+      const statusLegends: [string, [number, number, number]][] = [
+        ['En Proceso', [59, 130, 246]],
+        ['Completada', [34, 197, 94]],
+        ['Cancelada', [239, 68, 68]],
+      ]
+      for (const [label, [sr, sg, sb]] of statusLegends) {
+        pdf.setFillColor(sr, sg, sb)
+        pdf.rect(legendX, legendY - 1.5, 4, 4, 'F')
+        pdf.text(label, legendX + 6, legendY + 1)
+        legendX += 6 + pdf.getTextWidth(label) + 6
+      }
+
+      pdf.save(`gantt-planificacion-${new Date().toISOString().split('T')[0]}.pdf`)
+    } catch (err) {
+      console.error('Error downloading Gantt as PDF:', err)
+    }
+    setDownloadingGantt(false)
+  }
+
+  // Gantt download as Excel - Using ExcelJS for proper cell styling
+  const downloadGanttExcel = async () => {
+    setDownloadingGantt(true)
+    try {
+      const sortedTasks = [...tasksWithDates].sort((a, b) => {
+        const dateA = a.startDate ? new Date(a.startDate).getTime() : 0
+        const dateB = b.startDate ? new Date(b.startDate).getTime() : 0
+        return dateA - dateB
+      })
+
+      const wb = new ExcelJS.Workbook()
+      const ws = wb.addWorksheet('Gantt', {
+        properties: { defaultColWidth: 4 },
+      })
+
+      const fixedHeaders = ['Descripción', 'Sector', 'Prioridad', 'Estado', 'Responsable', 'Fecha Inicio', 'Fecha Término']
+      const allHeaders = [...fixedHeaders, ...ganttDays.map(d => String(d.getDate())), 'Total Materiales']
+
+      // Title row
+      const titleRow = ws.addRow(['Planificación de Mantención - Diagrama de Gantt'])
+      titleRow.getCell(1).font = { bold: true, size: 14, color: { argb: 'FF1F2937' } }
+      titleRow.getCell(1).alignment = { horizontal: 'left' }
+      ws.mergeCells(1, 1, 1, allHeaders.length)
+
+      // Date row
+      const dateRow = ws.addRow([
+        `Generado: ${new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })} | ${sortedTasks.length} tareas`
+      ])
+      dateRow.getCell(1).font = { size: 10, color: { argb: 'FF6B7280' } }
+      ws.mergeCells(2, 1, 2, allHeaders.length)
+
+      // Blank row
+      ws.addRow([])
+
+      // Month header row
+      const monthRowNum = 4
+      const monthRow = ws.addRow([])
+      let currentMonth = ''
+      let monthStartCol = fixedHeaders.length + 1
+      for (let i = 0; i < ganttDays.length; i++) {
+        const monthLabel = ganttDays[i].toLocaleDateString('es-CL', { month: 'short', year: '2-digit' })
+        const col = fixedHeaders.length + 1 + i
+        if (monthLabel !== currentMonth) {
+          if (currentMonth !== '') {
+            if (col - 1 > monthStartCol) {
+              ws.mergeCells(monthRowNum, monthStartCol, monthRowNum, col - 1)
+            }
+            const cell = ws.getCell(monthRowNum, monthStartCol)
+            cell.value = currentMonth
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6B7280' } }
+            cell.alignment = { horizontal: 'center' }
+          }
+          monthStartCol = col
+          currentMonth = monthLabel
+        }
+        if (i === ganttDays.length - 1) {
+          if (col > monthStartCol) {
+            ws.mergeCells(monthRowNum, monthStartCol, monthRowNum, col)
+          }
+          const cell = ws.getCell(monthRowNum, monthStartCol)
+          cell.value = currentMonth
+          cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6B7280' } }
+          cell.alignment = { horizontal: 'center' }
+        }
+      }
+
+      // Day header row
+      const dayHeaderRow = ws.addRow(allHeaders)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      for (let c = 1; c <= allHeaders.length; c++) {
+        const cell = dayHeaderRow.getCell(c)
+        if (c <= fixedHeaders.length) {
+          cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4B5563' } }
+          cell.alignment = { horizontal: 'center', vertical: 'middle' }
+        } else if (c <= fixedHeaders.length + ganttDays.length) {
+          const dayIdx = c - fixedHeaders.length - 1
+          const dayDate = ganttDays[dayIdx]
+          const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6
+          const isToday = dayDate.getTime() === today.getTime()
+
+          if (isToday) {
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 8 }
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEF4444' } }
+          } else if (isWeekend) {
+            cell.font = { bold: true, color: { argb: 'FF374151' }, size: 8 }
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } }
+          } else {
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 8 }
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4B5563' } }
+          }
+          cell.alignment = { horizontal: 'center', vertical: 'middle' }
+        } else {
+          // Total Materiales header
+          cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4B5563' } }
+          cell.alignment = { horizontal: 'center', vertical: 'middle' }
+        }
+      }
+
+      // Data rows
+      for (const task of sortedTasks) {
         const taskStart = task.startDate ? new Date(task.startDate) : null
         const taskEnd = task.endDate ? new Date(task.endDate) : null
         const materialsTotal = getMaterialsTotal(task.id)
@@ -779,7 +1030,19 @@ export default function Home() {
           task.endDate ? new Date(task.endDate).toLocaleDateString('es-CL') : '',
         ]
 
-        // Determine bar color based on status
+        // Day columns
+        ganttDays.forEach((dayDate) => {
+          const dayTime = dayDate.getTime()
+          const inRange = taskStart && taskEnd && dayTime >= taskStart.getTime() && dayTime <= taskEnd.getTime()
+          row.push(inRange ? task.status : '')
+        })
+
+        // Total Materiales
+        row.push(materialsTotal > 0 ? materialsTotal : '')
+
+        const excelRow = ws.addRow(row)
+
+        // Determine bar color
         const statusBarColorMap: Record<string, string> = {
           'Pendiente': getPriorityColor(task.priority).replace('#', ''),
           'En Proceso': '3B82F6',
@@ -788,216 +1051,118 @@ export default function Home() {
         }
         const barColorHex = statusBarColorMap[task.status] || getPriorityColor(task.priority).replace('#', '')
 
-        // For each day column, mark if the day falls within the task's date range
-        ganttDays.forEach((dayDate, idx) => {
-          const dayTime = dayDate.getTime()
-          const inRange = taskStart && taskEnd && dayTime >= taskStart.getTime() && dayTime <= taskEnd.getTime()
-          row.push(inRange ? task.status : '')
-        })
-        // Add Total Materiales column
-        row.push(materialsTotal > 0 ? materialsTotal : '')
-        return { row, barColorHex, task }
-      })
+        // Style fixed columns
+        excelRow.getCell(1).font = { size: 10 }
+        excelRow.getCell(2).font = { size: 9 }
+        excelRow.getCell(3).font = { size: 9 }
 
-      // Combine all rows: title, date, blank, month header, day header, data
-      const allFixedHeaders = [...fixedHeaders, 'Total Materiales']
-      const totalCols = allFixedHeaders.length + ganttDays.length
-      const wsData = [titleRow, dateRow, [], monthRow, dayRow, ...dataRows.map(d => d.row)]
-      const ws = XLSX.utils.aoa_to_sheet(wsData)
+        // Status column with color
+        const statusStyleMap: Record<string, string> = {
+          'Pendiente': 'FFEAB308',
+          'En Proceso': 'FF3B82F6',
+          'Completada': 'FF22C55E',
+          'Cancelada': 'FFEF4444',
+        }
+        const statusColor = statusStyleMap[task.status]
+        if (statusColor) {
+          excelRow.getCell(4).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: statusColor } }
+          excelRow.getCell(4).font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
+          excelRow.getCell(4).alignment = { horizontal: 'center' }
+        }
 
-      // Merge title row across all columns
-      const merges: XLSX.Range[] = [
-        { s: { r: 0, c: 0 }, e: { r: 0, c: totalCols - 1 } },
-        { s: { r: 1, c: 0 }, e: { r: 1, c: totalCols - 1 } },
-      ]
+        // Style day columns
+        for (let c = fixedHeaders.length + 1; c <= fixedHeaders.length + ganttDays.length; c++) {
+          const cell = excelRow.getCell(c)
+          const dayIdx = c - fixedHeaders.length - 1
+          const dayDate = ganttDays[dayIdx]
+          const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6
+          const isDayToday = dayDate.getTime() === today.getTime()
 
-      // Merge month header cells for consecutive same-month days
-      let mergeStart = fixedHeaders.length
-      for (let i = fixedHeaders.length + 1; i < monthRow.length; i++) {
-        if (monthRow[i] !== '') {
-          if (i - 1 > mergeStart) {
-            merges.push({ s: { r: 3, c: mergeStart }, e: { r: 3, c: i - 1 } })
+          if (cell.value && String(cell.value).trim() !== '') {
+            // This day is within the task range - color it
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${barColorHex}` } }
+            cell.font = { color: { argb: 'FFFFFFFF' }, size: 7 }
+            cell.alignment = { horizontal: 'center' }
+          } else if (isDayToday) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }
+          } else if (isWeekend) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }
           }
-          mergeStart = i
+        }
+
+        // Total Materiales column
+        const totalMatCol = fixedHeaders.length + ganttDays.length + 1
+        const totalMatCell = excelRow.getCell(totalMatCol)
+        if (totalMatCell.value && Number(totalMatCell.value) > 0) {
+          totalMatCell.font = { bold: true, color: { argb: 'FF059669' }, size: 10 }
+          totalMatCell.numFmt = '$#,##0'
+          totalMatCell.alignment = { horizontal: 'right' }
         }
       }
-      // Handle last group
-      if (monthRow.length - 1 > mergeStart) {
-        merges.push({ s: { r: 3, c: mergeStart }, e: { r: 3, c: monthRow.length - 1 } })
-      }
-
-      ws['!merges'] = merges
 
       // Set column widths
-      const colWidths = [
-        { wch: 30 }, // Description
-        { wch: 12 }, // Sector
-        { wch: 12 }, // Priority
-        { wch: 12 }, // Status
-        { wch: 15 }, // Responsible
-        { wch: 12 }, // Start Date
-        { wch: 12 }, // End Date
-        ...ganttDays.map(() => ({ wch: 3.5 })), // Day columns (narrower)
-        { wch: 14 }, // Total Materiales
-      ]
-      ws['!cols'] = colWidths
+      ws.getColumn(1).width = 35
+      ws.getColumn(2).width = 12
+      ws.getColumn(3).width = 12
+      ws.getColumn(4).width = 12
+      ws.getColumn(5).width = 15
+      ws.getColumn(6).width = 14
+      ws.getColumn(7).width = 14
+      for (let i = 1; i <= ganttDays.length; i++) {
+        ws.getColumn(fixedHeaders.length + i).width = 3.5
+      }
+      ws.getColumn(fixedHeaders.length + ganttDays.length + 1).width = 16
 
-      // Style the title row
-      const titleCellRef = XLSX.utils.encode_cell({ r: 0, c: 0 })
-      if (ws[titleCellRef]) {
-        ws[titleCellRef].s = {
-          font: { bold: true, sz: 14, color: { rgb: 'FF1F2937' } },
-          alignment: { horizontal: 'left' },
-        }
+      // Legend sheet
+      const wsLegend = wb.addWorksheet('Leyenda')
+      wsLegend.getColumn(1).width = 25
+      wsLegend.getColumn(2).width = 25
+
+      const legendTitle = wsLegend.addRow(['Leyenda de Prioridades'])
+      legendTitle.getCell(1).font = { bold: true, size: 14 }
+
+      wsLegend.addRow(['Prioridad', 'Color'])
+      for (const p of priorities) {
+        const row = wsLegend.addRow([p.name, p.color])
+        row.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${p.color.replace('#', '')}` } }
       }
 
-      // Style month header row (row index 3)
-      for (let c = fixedHeaders.length; c < allFixedHeaders.length + ganttDays.length; c++) {
-        const cellRef = XLSX.utils.encode_cell({ r: 3, c })
-        if (ws[cellRef] && ws[cellRef].v) {
-          ws[cellRef].s = {
-            font: { bold: true, color: { rgb: 'FFFFFFFF' }, sz: 9 },
-            fill: { fgColor: { rgb: 'FF6B7280' } },
-            alignment: { horizontal: 'center' },
-          }
-        }
-      }
-
-      // Style day header row (row index 4)
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      for (let c = 0; c < allFixedHeaders.length + ganttDays.length; c++) {
-        const cellRef = XLSX.utils.encode_cell({ r: 4, c })
-        if (ws[cellRef]) {
-          let style: Record<string, unknown> = {
-            font: { bold: true, color: { rgb: 'FFFFFFFF' }, sz: 8 },
-            fill: { fgColor: { rgb: 'FF4B5563' } },
-            alignment: { horizontal: 'center' },
-          }
-
-          // Weekend shading for day columns
-          if (c >= fixedHeaders.length && c < fixedHeaders.length + ganttDays.length) {
-            const dayIdx = c - fixedHeaders.length
-            const dayDate = ganttDays[dayIdx]
-            const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6
-            const isToday = dayDate.getTime() === today.getTime()
-
-            if (isToday) {
-              style = {
-                font: { bold: true, color: { rgb: 'FFFFFFFF' }, sz: 8 },
-                fill: { fgColor: { rgb: 'FFEF4444' } },
-                alignment: { horizontal: 'center' },
-              }
-            } else if (isWeekend) {
-              style = {
-                font: { bold: true, color: { rgb: 'FF374151' }, sz: 8 },
-                fill: { fgColor: { rgb: 'FFE5E7EB' } },
-                alignment: { horizontal: 'center' },
-              }
-            }
-          }
-
-          ws[cellRef].s = style
-        }
-      }
-
-      // Style data rows with Gantt bar colors
-      for (let r = 0; r < dataRows.length; r++) {
-        const excelRow = r + 5 // Data starts at row 5 (after title, date, blank, month, day headers)
-        const { barColorHex, task } = dataRows[r]
-
-        // Apply color to day columns that have the status marker
-        for (let c = fixedHeaders.length; c < fixedHeaders.length + ganttDays.length; c++) {
-          const cellRef = XLSX.utils.encode_cell({ r: excelRow, c })
-          if (ws[cellRef] && ws[cellRef].v) {
-            ws[cellRef].s = {
-              fill: { fgColor: { rgb: `FF${barColorHex}` } },
-              alignment: { horizontal: 'center' },
-              font: { color: { rgb: 'FFFFFFFF' }, size: 7 },
-            }
-          } else {
-            // Weekend shading for empty cells
-            const dayIdx = c - fixedHeaders.length
-            const dayDate = ganttDays[dayIdx]
-            const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6
-            const isToday = dayDate.getTime() === today.getTime()
-            if (isToday) {
-              ws[cellRef] = { t: 's', v: '' }
-              ws[cellRef].s = {
-                fill: { fgColor: { rgb: 'FFFEE2E2' } },
-              }
-            } else if (isWeekend) {
-              ws[cellRef] = { t: 's', v: '' }
-              ws[cellRef].s = {
-                fill: { fgColor: { rgb: 'FFF3F4F6' } },
-              }
-            }
-          }
-        }
-
-        // Style status column with color
-        const statusCol = 3
-        const statusCellRef = XLSX.utils.encode_cell({ r: excelRow, c: statusCol })
-        if (ws[statusCellRef]) {
-          const statusStyleMap: Record<string, string> = {
-            'Pendiente': 'FFEAB308',
-            'En Proceso': 'FF3B82F6',
-            'Completada': 'FF22C55E',
-            'Cancelada': 'FFEF4444',
-          }
-          const statusColor = statusStyleMap[task.status]
-          if (statusColor) {
-            ws[statusCellRef].s = {
-              fill: { fgColor: { rgb: statusColor } },
-              font: { bold: true, color: { rgb: 'FFFFFFFF' } },
-              alignment: { horizontal: 'center' },
-            }
-          }
-        }
-
-        // Style Total Materiales column
-        const totalMatCol = fixedHeaders.length + ganttDays.length
-        const totalMatCellRef = XLSX.utils.encode_cell({ r: excelRow, c: totalMatCol })
-        if (ws[totalMatCellRef] && ws[totalMatCellRef].v !== '') {
-          ws[totalMatCellRef].s = {
-            font: { bold: true, color: { rgb: 'FF059669' } },
-            alignment: { horizontal: 'right' },
-            numFmt: '$#,##0',
-          }
-        }
-      }
-
-      XLSX.utils.book_append_sheet(wb, ws, 'Gantt')
-
-      // Add a legend sheet
-      const legendData = [
-        ['Leyenda de Prioridades'],
-        ['Prioridad', 'Color'],
-        ...priorities.map(p => [p.name, p.color]),
-        [],
-        ['Leyenda de Estados'],
-        ['Estado', 'Color'],
-        ['Pendiente', 'Prioridad del color asignado'],
+      wsLegend.addRow([])
+      wsLegend.addRow(['Leyenda de Estados'])
+      const statusLegendData = [
+        ['Pendiente', 'Color de la prioridad asignada'],
         ['En Proceso', 'Azul (#3B82F6)'],
         ['Completada', 'Verde (#22C55E)'],
         ['Cancelada', 'Rojo (#EF4444)'],
-        [],
-        ['Convenciones'],
-        ['Columna roja', 'Día actual (hoy)'],
-        ['Columna gris', 'Fin de semana'],
       ]
-      const wsLegend = XLSX.utils.aoa_to_sheet(legendData)
-      wsLegend['!cols'] = [{ wch: 25 }, { wch: 25 }]
-      // Style legend header
-      const legendHeaderCell = XLSX.utils.encode_cell({ r: 0, c: 0 })
-      if (wsLegend[legendHeaderCell]) {
-        wsLegend[legendHeaderCell].s = {
-          font: { bold: true, sz: 14 },
+      for (const [status, colorDesc] of statusLegendData) {
+        const row = wsLegend.addRow([status, colorDesc])
+        const statusFillMap: Record<string, string> = {
+          'Pendiente': 'FFEAB308',
+          'En Proceso': 'FF3B82F6',
+          'Completada': 'FF22C55E',
+          'Cancelada': 'FFEF4444',
+        }
+        if (statusFillMap[status]) {
+          row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: statusFillMap[status] } }
+          row.getCell(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
         }
       }
-      XLSX.utils.book_append_sheet(wb, wsLegend, 'Leyenda')
 
-      XLSX.writeFile(wb, `gantt-planificacion-${new Date().toISOString().split('T')[0]}.xlsx`)
+      wsLegend.addRow([])
+      wsLegend.addRow(['Convenciones'])
+      wsLegend.addRow(['Columna roja', 'Día actual (hoy)'])
+      wsLegend.addRow(['Columna gris', 'Fin de semana'])
+
+      // Generate and download
+      const buffer = await wb.xlsx.writeBuffer()
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `gantt-planificacion-${new Date().toISOString().split('T')[0]}.xlsx`
+      a.click()
+      URL.revokeObjectURL(url)
     } catch (err) {
       console.error('Error downloading Gantt as Excel:', err)
     }
