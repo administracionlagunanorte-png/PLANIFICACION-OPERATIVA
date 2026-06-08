@@ -1,28 +1,24 @@
 ---
 Task ID: 1
-Agent: Main Agent
-Task: Fix editing and add materials list functionality
+Agent: main-agent
+Task: Fix image upload not saving and add ability to upload more images
 
 Work Log:
-- Verified Prisma schema includes Material model with all necessary fields
-- Verified materials API route exists with full CRUD (GET, POST, PUT, DELETE)
-- Verified materials tab UI exists with table display and CRUD dialogs
-- Added cleanupAriaHidden callback to fix Radix UI Dialog aria-hidden bug
-- Applied cleanupAriaHidden to all Dialog onOpenChange handlers
-- Increased button sizes from h-7 w-7 to h-8 w-8 for better click targets on edit/delete buttons
-- Added auto-calculation of totalPrice from quantity × unitPrice in material form
-- Added material delete confirmation dialog (AlertDialog)
-- Replaced direct handleDeleteMaterial call with confirmDeleteMaterial flow
-- Changed quantity input to type="number" with min="0"
-- Added helper text for auto-calculated total price
-- Applied Prisma db push to sync database
-- Built production version successfully
-- Started standalone production server
+- Identified root cause: `/api/upload/route.ts` was missing (the endpoint didn't exist)
+- Created `/api/upload/route.ts` with proper file upload handling (validates file type, size, generates unique filenames)
+- Created `uploads/` directory for file storage
+- Fixed `serve-upload/[path]/route.ts` to use absolute project root path (works in both dev and standalone mode)
+- Added `uploadingPhotos` state for upload progress feedback
+- Added `handleMultiplePhotoUpload` function for batch file uploads
+- Updated photo upload UI: supports `multiple` file selection, shows upload progress indicator, larger image thumbnails (20x20 instead of 16x16), clickable image previews, upload button with text label
+- Added saving state (`savingTask`) to task save with loading indicator
+- Added edit button to Dashboard's "Recent Tasks" section
+- Save button now disabled during upload to prevent data loss
+- Reset file input after upload to allow re-uploading same file
 
 Stage Summary:
-- All code changes compile successfully (next build passes)
-- Materials feature is fully implemented: CRUD, toggle visibility, separate tab, auto-calculation
-- Task editing feature works with improved button sizes
-- Dialog aria-hidden cleanup prevents page becoming inaccessible
-- Material deletion now requires confirmation
-- Production server runs on port 3000
+- Image uploads now work via POST /api/upload endpoint
+- Multiple files can be uploaded at once
+- Upload progress is shown to user
+- Task editing has better UX with loading states
+- All changes build successfully

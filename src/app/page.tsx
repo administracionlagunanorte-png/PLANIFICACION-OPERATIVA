@@ -294,8 +294,12 @@ export default function Home() {
   }, [fetchTasks, fetchSectors, fetchRepairTypes, fetchPriorities, fetchMaterials])
 
   // Task CRUD
+  const [savingTask, setSavingTask] = useState(false)
+
   const handleSaveTask = async () => {
+    if (!formData.description || !formData.sector) return
     try {
+      setSavingTask(true)
       const body = {
         ...formData,
         beforePhotos: JSON.stringify(formData.beforePhotos),
@@ -303,17 +307,23 @@ export default function Home() {
       }
 
       if (editingTask) {
-        await fetch('/api/tasks', {
+        const res = await fetch('/api/tasks', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: editingTask.id, ...body }),
         })
+        if (!res.ok) {
+          console.error('Error updating task:', await res.text())
+        }
       } else {
-        await fetch('/api/tasks', {
+        const res = await fetch('/api/tasks', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         })
+        if (!res.ok) {
+          console.error('Error creating task:', await res.text())
+        }
       }
 
       setTaskDialogOpen(false)
@@ -322,6 +332,8 @@ export default function Home() {
       fetchTasks()
     } catch (err) {
       console.error('Error saving task:', err)
+    } finally {
+      setSavingTask(false)
     }
   }
 
@@ -382,10 +394,13 @@ export default function Home() {
   }
 
   // Photo upload
+  const [uploadingPhotos, setUploadingPhotos] = useState(false)
+
   const handlePhotoUpload = async (file: File, type: 'before' | 'after') => {
     const formDataUpload = new FormData()
     formDataUpload.append('file', file)
     try {
+      setUploadingPhotos(true)
       const res = await fetch('/api/upload', { method: 'POST', body: formDataUpload })
       if (res.ok) {
         const data = await res.json()
@@ -394,10 +409,42 @@ export default function Home() {
         } else {
           setFormData(prev => ({ ...prev, afterPhotos: [...prev.afterPhotos, data.url] }))
         }
+      } else {
+        console.error('Upload failed:', res.status, await res.text())
       }
     } catch (err) {
       console.error('Error uploading photo:', err)
+    } finally {
+      setUploadingPhotos(false)
     }
+  }
+
+  const handleMultiplePhotoUpload = async (files: FileList, type: 'before' | 'after') => {
+    setUploadingPhotos(true)
+    const newUrls: string[] = []
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      if (!file.type.startsWith('image/')) continue
+      const formDataUpload = new FormData()
+      formDataUpload.append('file', file)
+      try {
+        const res = await fetch('/api/upload', { method: 'POST', body: formDataUpload })
+        if (res.ok) {
+          const data = await res.json()
+          newUrls.push(data.url)
+        }
+      } catch (err) {
+        console.error('Error uploading photo:', err)
+      }
+    }
+    if (newUrls.length > 0) {
+      if (type === 'before') {
+        setFormData(prev => ({ ...prev, beforePhotos: [...prev.beforePhotos, ...newUrls] }))
+      } else {
+        setFormData(prev => ({ ...prev, afterPhotos: [...prev.afterPhotos, ...newUrls] }))
+      }
+    }
+    setUploadingPhotos(false)
   }
 
   const removePhoto = (index: number, type: 'before' | 'after') => {
@@ -1654,7 +1701,7 @@ export default function Home() {
               <CardContent>
                 <div className="space-y-2">
                   {tasks.slice(0, 5).map(task => (
-                    <div key={task.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div key={task.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg group">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full" style={{ backgroundColor: getPriorityColor(task.priority) }}></span>
@@ -1662,9 +1709,14 @@ export default function Home() {
                         </div>
                         <div className="text-xs text-gray-500 mt-1">{task.sector} · {task.repairType}</div>
                       </div>
-                      <Badge variant="outline" className={statusColors[task.status] || ''}>
-                        {task.status}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={statusColors[task.status] || ''}>
+                          {task.status}
+                        </Badge>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => openEditTask(task)} title="Editar">
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -2446,78 +2498,128 @@ export default function Home() {
             </div>
 
             {/* Photo Upload Sections */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* Before Photos */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Camera className="h-4 w-4 text-orange-500" />
-                  Fotos Antes
-                </Label>
-                <div className="flex gap-2 flex-wrap">
-                  {formData.beforePhotos.map((url, i) => (
-                    <div key={i} className="relative group">
-                      <img src={url} alt={`Antes ${i + 1}`} className="w-16 h-16 object-cover rounded border" />
-                      <button
-                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => removePhoto(i, 'before')}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
+            <div className="space-y-4">
+              {uploadingPhotos && (
+                <div className="flex items-center gap-2 p-2 bg-blue-50 rounded text-sm text-blue-700">
+                  <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                  Subiendo imágenes...
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Before Photos */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Camera className="h-4 w-4 text-orange-500" />
+                    Fotos Antes ({formData.beforePhotos.length})
+                  </Label>
+                  {formData.beforePhotos.length > 0 && (
+                    <div className="flex gap-2 flex-wrap">
+                      {formData.beforePhotos.map((url, i) => (
+                        <div key={i} className="relative group">
+                          <img
+                            src={url}
+                            alt={`Antes ${i + 1}`}
+                            className="w-20 h-20 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => {
+                              setFullscreenPhotos(formData.beforePhotos)
+                              setFullscreenIndex(i)
+                              setPhotoDialogOpen(true)
+                            }}
+                          />
+                          <button
+                            className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => removePhoto(i, 'before')}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                  <label className="w-16 h-16 border-2 border-dashed border-gray-300 rounded flex items-center justify-center cursor-pointer hover:border-orange-400 hover:bg-orange-50 transition-colors">
+                  )}
+                  <label className={`flex items-center gap-2 px-3 py-2 border-2 border-dashed rounded cursor-pointer transition-colors ${uploadingPhotos ? 'border-gray-200 bg-gray-50 cursor-not-allowed' : 'border-orange-300 hover:border-orange-400 hover:bg-orange-50'}`}>
                     <input
                       type="file"
                       accept="image/*"
+                      multiple
                       className="hidden"
+                      disabled={uploadingPhotos}
                       onChange={e => {
-                        const file = e.target.files?.[0]
-                        if (file) handlePhotoUpload(file, 'before')
+                        const files = e.target.files
+                        if (files && files.length > 0) {
+                          if (files.length === 1) {
+                            handlePhotoUpload(files[0], 'before')
+                          } else {
+                            handleMultiplePhotoUpload(files, 'before')
+                          }
+                        }
+                        e.target.value = ''
                       }}
                     />
-                    <Upload className="h-5 w-5 text-gray-400" />
+                    <Upload className="h-4 w-4 text-orange-500" />
+                    <span className="text-sm text-gray-600">Agregar fotos antes</span>
                   </label>
                 </div>
-              </div>
 
-              {/* After Photos */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <ImageIcon className="h-4 w-4 text-green-500" />
-                  Fotos Después
-                </Label>
-                <div className="flex gap-2 flex-wrap">
-                  {formData.afterPhotos.map((url, i) => (
-                    <div key={i} className="relative group">
-                      <img src={url} alt={`Después ${i + 1}`} className="w-16 h-16 object-cover rounded border" />
-                      <button
-                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => removePhoto(i, 'after')}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
+                {/* After Photos */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4 text-green-500" />
+                    Fotos Después ({formData.afterPhotos.length})
+                  </Label>
+                  {formData.afterPhotos.length > 0 && (
+                    <div className="flex gap-2 flex-wrap">
+                      {formData.afterPhotos.map((url, i) => (
+                        <div key={i} className="relative group">
+                          <img
+                            src={url}
+                            alt={`Después ${i + 1}`}
+                            className="w-20 h-20 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => {
+                              setFullscreenPhotos(formData.afterPhotos)
+                              setFullscreenIndex(i)
+                              setPhotoDialogOpen(true)
+                            }}
+                          />
+                          <button
+                            className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => removePhoto(i, 'after')}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                  <label className="w-16 h-16 border-2 border-dashed border-gray-300 rounded flex items-center justify-center cursor-pointer hover:border-green-400 hover:bg-green-50 transition-colors">
+                  )}
+                  <label className={`flex items-center gap-2 px-3 py-2 border-2 border-dashed rounded cursor-pointer transition-colors ${uploadingPhotos ? 'border-gray-200 bg-gray-50 cursor-not-allowed' : 'border-green-300 hover:border-green-400 hover:bg-green-50'}`}>
                     <input
                       type="file"
                       accept="image/*"
+                      multiple
                       className="hidden"
+                      disabled={uploadingPhotos}
                       onChange={e => {
-                        const file = e.target.files?.[0]
-                        if (file) handlePhotoUpload(file, 'after')
+                        const files = e.target.files
+                        if (files && files.length > 0) {
+                          if (files.length === 1) {
+                            handlePhotoUpload(files[0], 'after')
+                          } else {
+                            handleMultiplePhotoUpload(files, 'after')
+                          }
+                        }
+                        e.target.value = ''
                       }}
                     />
-                    <Upload className="h-5 w-5 text-gray-400" />
+                    <Upload className="h-4 w-4 text-green-500" />
+                    <span className="text-sm text-gray-600">Agregar fotos después</span>
                   </label>
                 </div>
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setTaskDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSaveTask} disabled={!formData.description || !formData.sector}>
-              {editingTask ? 'Guardar Cambios' : 'Crear Tarea'}
+            <Button variant="outline" onClick={() => setTaskDialogOpen(false)} disabled={savingTask}>Cancelar</Button>
+            <Button onClick={handleSaveTask} disabled={!formData.description || !formData.sector || savingTask || uploadingPhotos}>
+              {savingTask ? 'Guardando...' : editingTask ? 'Guardar Cambios' : 'Crear Tarea'}
             </Button>
           </DialogFooter>
         </DialogContent>

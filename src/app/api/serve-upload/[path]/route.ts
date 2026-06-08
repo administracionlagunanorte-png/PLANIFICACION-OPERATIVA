@@ -2,13 +2,22 @@ import { NextRequest, NextResponse } from 'next/server'
 import { readFile, stat } from 'fs/promises'
 import path from 'path'
 
+// Resolve the project root directory - works in both dev and standalone mode
+function getProjectRoot() {
+  const cwd = process.cwd()
+  if (cwd.includes('.next/standalone') || cwd.includes('.next\\standalone')) {
+    return path.resolve(cwd, '../..')
+  }
+  return cwd
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
     const { path: pathParts } = await params
-    const filePath = path.join(process.cwd(), 'uploads', ...pathParts)
+    const filePath = path.join(getProjectRoot(), 'uploads', ...pathParts)
 
     const fileStats = await stat(filePath)
     if (!fileStats.isFile()) {
