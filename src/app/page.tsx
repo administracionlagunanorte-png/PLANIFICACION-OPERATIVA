@@ -622,7 +622,7 @@ export default function Home() {
     setHistoryLoading(false)
   }
 
-  // Gantt download as PDF - Direct rendering with jsPDF for perfect format
+  // Gantt download as PDF - Professional A3 landscape with pagination
   const downloadGanttPDF = async () => {
     setDownloadingGantt(true)
     try {
@@ -634,141 +634,128 @@ export default function Home() {
 
       if (sortedTasks.length === 0) return
 
-      // Layout dimensions (mm)
-      const margin = 8
-      const labelColWidth = 75
-      const rowHeight = 8
-      const headerHeight = 14
-      const dayColWidth = Math.max(3, Math.min(6, 250 / ganttDays.length))
+      // A3 Landscape dimensions (mm)
+      const pageWidth = 420
+      const pageHeight = 297
+      const margin = 10
+      const labelColWidth = 85
+      const rowHeight = 9
+      const headerHeight = 16
+      const titleBlockHeight = 18
+      const footerHeight = 12
 
-      // Calculate total chart width
-      const chartWidth = labelColWidth + ganttDays.length * dayColWidth
-      const totalHeight = headerHeight + sortedTasks.length * rowHeight + 20
+      // Calculate day column width to fit available space
+      const availableGanttWidth = pageWidth - 2 * margin - labelColWidth
+      const dayColWidth = availableGanttWidth / ganttDays.length
 
-      // Determine page format - use custom wide format if needed
-      const pageWidth = Math.max(chartWidth + 2 * margin, 420)
-      const pageHeight = Math.max(totalHeight + 2 * margin + 20, 297)
-
-      const pdf = new jsPDF({
-        orientation: pageWidth > pageHeight ? 'landscape' : 'portrait',
-        unit: 'mm',
-        format: [pageWidth, pageHeight],
-      })
-
-      let y = margin
-
-      // Title
-      pdf.setFontSize(14)
-      pdf.setFont('helvetica', 'bold')
-      pdf.text('Planificación de Mantención - Diagrama de Gantt', margin, y + 4)
-      y += 6
-      pdf.setFontSize(8)
-      pdf.setFont('helvetica', 'normal')
-      pdf.setTextColor(100)
-      pdf.text(
-        `Generado: ${new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })} | ${sortedTasks.length} tareas`,
-        margin, y + 3
-      )
-      y += 7
-
-      const chartStartX = margin
-      const chartStartY = y
-      const ganttAreaX = chartStartX + labelColWidth
+      const ganttAreaX = margin + labelColWidth
       const ganttAreaWidth = ganttDays.length * dayColWidth
 
-      // Month header row
-      let currentMonth = ''
-      let monthStartIdx = 0
-      pdf.setFontSize(7)
-      pdf.setFont('helvetica', 'bold')
+      // Rows per page
+      const usablePageHeight = pageHeight - margin - titleBlockHeight - headerHeight - footerHeight
+      const rowsPerPage = Math.floor(usablePageHeight / rowHeight)
+      const totalPages = Math.ceil(sortedTasks.length / rowsPerPage)
 
-      for (let i = 0; i < ganttDays.length; i++) {
-        const monthLabel = ganttDays[i].toLocaleDateString('es-CL', { month: 'short', year: '2-digit' })
-        const isLast = i === ganttDays.length - 1
-        const nextMonth = isLast ? '' : ganttDays[i + 1].toLocaleDateString('es-CL', { month: 'short', year: '2-digit' })
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a3',
+      })
 
-        if (monthLabel !== currentMonth) {
-          if (currentMonth !== '') {
-            // Draw previous month header
-            const x1 = ganttAreaX + monthStartIdx * dayColWidth
-            const span = (i - monthStartIdx) * dayColWidth
-            pdf.setFillColor(75, 85, 99)
-            pdf.rect(x1, chartStartY, span, headerHeight / 2, 'F')
-            pdf.setTextColor(255, 255, 255)
-            pdf.text(currentMonth, x1 + span / 2, chartStartY + headerHeight / 4 + 1, { align: 'center' })
-          }
-          monthStartIdx = i
-          currentMonth = monthLabel
-        }
-
-        if (isLast) {
-          const x1 = ganttAreaX + monthStartIdx * dayColWidth
-          const span = (i - monthStartIdx + 1) * dayColWidth
-          pdf.setFillColor(75, 85, 99)
-          pdf.rect(x1, chartStartY, span, headerHeight / 2, 'F')
-          pdf.setTextColor(255, 255, 255)
-          pdf.text(currentMonth, x1 + span / 2, chartStartY + headerHeight / 4 + 1, { align: 'center' })
-        }
-      }
-
-      // Day numbers row
-      const dayRowY = chartStartY + headerHeight / 2
-      pdf.setFontSize(5)
-      pdf.setFont('helvetica', 'normal')
       const today = new Date()
       today.setHours(0, 0, 0, 0)
 
-      for (let i = 0; i < ganttDays.length; i++) {
-        const day = ganttDays[i]
-        const x = ganttAreaX + i * dayColWidth
-        const isWeekend = day.getDay() === 0 || day.getDay() === 6
-        const isToday = day.getTime() === today.getTime()
+      // Helper: draw chart header on a page
+      const drawChartHeader = (startY: number) => {
+        // Month header row
+        let currentMonth = ''
+        let monthStartIdx = 0
+        pdf.setFontSize(7)
+        pdf.setFont('helvetica', 'bold')
 
-        if (isToday) {
-          pdf.setFillColor(239, 68, 68)
-          pdf.rect(x, dayRowY, dayColWidth, headerHeight / 2, 'F')
-          pdf.setTextColor(255, 255, 255)
-          pdf.setFont('helvetica', 'bold')
-        } else if (isWeekend) {
-          pdf.setFillColor(229, 231, 235)
-          pdf.rect(x, dayRowY, dayColWidth, headerHeight / 2, 'F')
-          pdf.setTextColor(55, 65, 81)
-          pdf.setFont('helvetica', 'normal')
-        } else {
-          pdf.setFillColor(243, 244, 246)
-          pdf.rect(x, dayRowY, dayColWidth, headerHeight / 2, 'F')
-          pdf.setTextColor(55, 65, 81)
-          pdf.setFont('helvetica', 'normal')
+        for (let i = 0; i < ganttDays.length; i++) {
+          const monthLabel = ganttDays[i].toLocaleDateString('es-CL', { month: 'short', year: '2-digit' })
+          const isLast = i === ganttDays.length - 1
+
+          if (monthLabel !== currentMonth) {
+            if (currentMonth !== '') {
+              const x1 = ganttAreaX + monthStartIdx * dayColWidth
+              const span = (i - monthStartIdx) * dayColWidth
+              pdf.setFillColor(30, 41, 59)
+              pdf.rect(x1, startY, span, headerHeight / 2, 'F')
+              pdf.setTextColor(255, 255, 255)
+              pdf.text(currentMonth, x1 + span / 2, startY + headerHeight / 4 + 1.2, { align: 'center' })
+            }
+            monthStartIdx = i
+            currentMonth = monthLabel
+          }
+
+          if (isLast) {
+            const x1 = ganttAreaX + monthStartIdx * dayColWidth
+            const span = (i - monthStartIdx + 1) * dayColWidth
+            pdf.setFillColor(30, 41, 59)
+            pdf.rect(x1, startY, span, headerHeight / 2, 'F')
+            pdf.setTextColor(255, 255, 255)
+            pdf.text(currentMonth, x1 + span / 2, startY + headerHeight / 4 + 1.2, { align: 'center' })
+          }
         }
 
-        pdf.text(String(day.getDate()), x + dayColWidth / 2, dayRowY + headerHeight / 4 + 0.5, { align: 'center' })
+        // Day numbers row
+        const dayRowY = startY + headerHeight / 2
+        pdf.setFontSize(5.5)
+        pdf.setFont('helvetica', 'normal')
+
+        for (let i = 0; i < ganttDays.length; i++) {
+          const day = ganttDays[i]
+          const x = ganttAreaX + i * dayColWidth
+          const isWeekend = day.getDay() === 0 || day.getDay() === 6
+          const isToday = day.getTime() === today.getTime()
+
+          if (isToday) {
+            pdf.setFillColor(220, 38, 38)
+            pdf.rect(x, dayRowY, dayColWidth, headerHeight / 2, 'F')
+            pdf.setTextColor(255, 255, 255)
+            pdf.setFont('helvetica', 'bold')
+            pdf.setFontSize(6)
+          } else if (isWeekend) {
+            pdf.setFillColor(209, 213, 219)
+            pdf.rect(x, dayRowY, dayColWidth, headerHeight / 2, 'F')
+            pdf.setTextColor(55, 65, 81)
+            pdf.setFont('helvetica', 'normal')
+            pdf.setFontSize(5.5)
+          } else {
+            pdf.setFillColor(226, 232, 240)
+            pdf.rect(x, dayRowY, dayColWidth, headerHeight / 2, 'F')
+            pdf.setTextColor(55, 65, 81)
+            pdf.setFont('helvetica', 'normal')
+            pdf.setFontSize(5.5)
+          }
+
+          pdf.text(String(day.getDate()), x + dayColWidth / 2, dayRowY + headerHeight / 4 + 0.5, { align: 'center' })
+        }
+
+        // Label column header
+        pdf.setFillColor(30, 41, 59)
+        pdf.rect(margin, startY, labelColWidth, headerHeight, 'F')
+        pdf.setTextColor(255, 255, 255)
+        pdf.setFontSize(9)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text('Tarea', margin + 5, startY + headerHeight / 2 + 1.5)
+
+        return startY + headerHeight
       }
 
-      // Label column header
-      pdf.setFillColor(75, 85, 99)
-      pdf.rect(chartStartX, chartStartY, labelColWidth, headerHeight, 'F')
-      pdf.setTextColor(255, 255, 255)
-      pdf.setFontSize(8)
-      pdf.setFont('helvetica', 'bold')
-      pdf.text('Tarea', chartStartX + 4, chartStartY + headerHeight / 2 + 1)
-
-      // Data rows
-      const dataStartY = chartStartY + headerHeight
-      pdf.setFontSize(6)
-      pdf.setFont('helvetica', 'normal')
-
-      for (let r = 0; r < sortedTasks.length; r++) {
-        const task = sortedTasks[r]
-        const rowY = dataStartY + r * rowHeight
-        const isOdd = r % 2 === 1
+      // Helper: draw a single data row
+      const drawDataRow = (task: Task, rowY: number, rowIndex: number) => {
+        const isOdd = rowIndex % 2 === 1
 
         // Row background
         if (isOdd) {
-          pdf.setFillColor(249, 250, 251)
-          pdf.rect(chartStartX, rowY, labelColWidth + ganttAreaWidth, rowHeight, 'F')
+          pdf.setFillColor(248, 250, 252)
+          pdf.rect(margin, rowY, labelColWidth + ganttAreaWidth, rowHeight, 'F')
         }
 
-        // Weekend shading in gantt area
+        // Weekend/today shading in gantt area
         for (let i = 0; i < ganttDays.length; i++) {
           const day = ganttDays[i]
           const isWeekend = day.getDay() === 0 || day.getDay() === 6
@@ -779,7 +766,7 @@ export default function Home() {
             pdf.rect(x, rowY, dayColWidth, rowHeight, 'F')
           } else if (isWeekend) {
             const x = ganttAreaX + i * dayColWidth
-            pdf.setFillColor(243, 244, 246)
+            pdf.setFillColor(241, 245, 249)
             pdf.rect(x, rowY, dayColWidth, rowHeight, 'F')
           }
         }
@@ -788,8 +775,8 @@ export default function Home() {
         if (today >= ganttRangeStart && today <= ganttRangeEnd) {
           const todayPercent = (today.getTime() - ganttRangeStart.getTime()) / (ganttRangeEnd.getTime() - ganttRangeStart.getTime())
           const todayX = ganttAreaX + todayPercent * ganttAreaWidth
-          pdf.setDrawColor(239, 68, 68)
-          pdf.setLineWidth(0.3)
+          pdf.setDrawColor(220, 38, 38)
+          pdf.setLineWidth(0.4)
           pdf.line(todayX, rowY, todayX, rowY + rowHeight)
         }
 
@@ -799,7 +786,7 @@ export default function Home() {
         const leftPercent = (taskStart.getTime() - ganttRangeStart.getTime()) / (ganttRangeEnd.getTime() - ganttRangeStart.getTime())
         const widthPercent = (taskEnd.getTime() - taskStart.getTime()) / (ganttRangeEnd.getTime() - ganttRangeStart.getTime())
         const barX = ganttAreaX + leftPercent * ganttAreaWidth
-        const barWidth = Math.max(widthPercent * ganttAreaWidth, 2)
+        const barWidth = Math.max(widthPercent * ganttAreaWidth, 3)
         const barY = rowY + 1.5
         const barHeight = rowHeight - 3
 
@@ -812,95 +799,140 @@ export default function Home() {
             const b = parseInt(hex.slice(5, 7), 16)
             return [r, g, b] as [number, number, number]
           })(),
-          'En Proceso': [59, 130, 246],
-          Completada: [34, 197, 94],
-          Cancelada: [239, 68, 68],
+          'En Proceso': [37, 99, 235],
+          Completada: [22, 163, 74],
+          Cancelada: [220, 38, 38],
         }
         const [br, bg, bb] = statusColorMap[task.status] || [107, 114, 128]
         pdf.setFillColor(br, bg, bb)
-        pdf.roundedRect(barX, barY, barWidth, barHeight, 1, 1, 'F')
+        pdf.roundedRect(barX, barY, barWidth, barHeight, 1.5, 1.5, 'F')
 
-        // Bar text (responsible name if bar is wide enough)
-        if (barWidth > 20 && task.responsible) {
+        // Bar text
+        if (barWidth > 25 && task.responsible) {
           pdf.setTextColor(255, 255, 255)
-          pdf.setFontSize(5)
+          pdf.setFontSize(5.5)
           pdf.setFont('helvetica', 'bold')
           pdf.text(task.responsible, barX + 2, barY + barHeight / 2 + 1, { maxWidth: barWidth - 4 })
         }
 
-        // Task label
+        // Task label with priority dot
         pdf.setTextColor(31, 41, 55)
-        pdf.setFontSize(6)
+        pdf.setFontSize(7)
         pdf.setFont('helvetica', 'normal')
-        const priorityDotX = chartStartX + 3
+        const priorityDotX = margin + 4
         const priorityDotY = rowY + rowHeight / 2
         const pColor = getPriorityColor(task.priority)
         const pr = parseInt(pColor.slice(1, 3), 16)
         const pg = parseInt(pColor.slice(3, 5), 16)
         const pb = parseInt(pColor.slice(5, 7), 16)
         pdf.setFillColor(pr, pg, pb)
-        pdf.circle(priorityDotX, priorityDotY, 1, 'F')
-        pdf.text(task.description.substring(0, 45), chartStartX + 6, rowY + rowHeight / 2 + 1)
+        pdf.circle(priorityDotX, priorityDotY, 1.2, 'F')
+        pdf.text(task.description.substring(0, 40), margin + 7, rowY + rowHeight / 2 - 0.3)
+
+        // Sub-info line
+        pdf.setFontSize(5)
+        pdf.setTextColor(107, 114, 128)
+        pdf.text(
+          `${task.sector} | ${formatDate(task.startDate)} - ${formatDate(task.endDate)}`,
+          margin + 7, rowY + rowHeight / 2 + 3
+        )
 
         // Row border
-        pdf.setDrawColor(229, 231, 235)
+        pdf.setDrawColor(226, 232, 240)
         pdf.setLineWidth(0.1)
-        pdf.line(chartStartX, rowY + rowHeight, chartStartX + labelColWidth + ganttAreaWidth, rowY + rowHeight)
+        pdf.line(margin, rowY + rowHeight, margin + labelColWidth + ganttAreaWidth, rowY + rowHeight)
       }
 
-      // Outer border
-      pdf.setDrawColor(156, 163, 175)
-      pdf.setLineWidth(0.3)
-      pdf.rect(chartStartX, chartStartY, labelColWidth + ganttAreaWidth, headerHeight + sortedTasks.length * rowHeight)
+      // Draw pages
+      for (let page = 0; page < totalPages; page++) {
+        if (page > 0) pdf.addPage('a3', 'landscape')
 
-      // Label column separator
-      pdf.line(ganttAreaX, chartStartY, ganttAreaX, dataStartY + sortedTasks.length * rowHeight)
+        let y = margin
 
-      // Legend
-      let legendY = dataStartY + sortedTasks.length * rowHeight + 8
-      pdf.setFontSize(7)
-      pdf.setFont('helvetica', 'bold')
-      pdf.setTextColor(75, 85, 99)
-      pdf.text('Leyenda:', chartStartX, legendY)
+        // Title block
+        pdf.setFillColor(15, 23, 42)
+        pdf.rect(0, 0, pageWidth, titleBlockHeight + margin, 'F')
+        pdf.setTextColor(255, 255, 255)
+        pdf.setFontSize(16)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text('Planificación de Mantención - Diagrama de Gantt', margin, y + 8)
+        pdf.setFontSize(8)
+        pdf.setFont('helvetica', 'normal')
+        pdf.setTextColor(148, 163, 184)
+        pdf.text(
+          `Generado: ${new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })} | ${sortedTasks.length} tareas | Página ${page + 1} de ${totalPages}`,
+          margin, y + 13
+        )
+        y = titleBlockHeight + margin
 
-      legendY += 5
-      pdf.setFont('helvetica', 'normal')
-      pdf.setFontSize(6)
+        // Chart header
+        const dataStartY = drawChartHeader(y)
 
-      // Today
-      pdf.setFillColor(239, 68, 68)
-      pdf.rect(chartStartX, legendY - 1.5, 4, 4, 'F')
-      pdf.setTextColor(75, 85, 99)
-      pdf.text('Hoy', chartStartX + 6, legendY + 1)
+        // Data rows for this page
+        const startIdx = page * rowsPerPage
+        const endIdx = Math.min(startIdx + rowsPerPage, sortedTasks.length)
 
-      // Weekend
-      pdf.setFillColor(243, 244, 246)
-      pdf.rect(chartStartX + 25, legendY - 1.5, 4, 4, 'F')
-      pdf.text('Fin de semana', chartStartX + 31, legendY + 1)
+        for (let r = startIdx; r < endIdx; r++) {
+          const rowY = dataStartY + (r - startIdx) * rowHeight
+          drawDataRow(sortedTasks[r], rowY, r)
+        }
 
-      // Priority colors
-      let legendX = chartStartX + 70
-      for (const p of priorities) {
-        const pr2 = parseInt(p.color.slice(1, 3), 16)
-        const pg2 = parseInt(p.color.slice(3, 5), 16)
-        const pb2 = parseInt(p.color.slice(5, 7), 16)
-        pdf.setFillColor(pr2, pg2, pb2)
-        pdf.rect(legendX, legendY - 1.5, 4, 4, 'F')
-        pdf.text(p.name, legendX + 6, legendY + 1)
-        legendX += 6 + pdf.getTextWidth(p.name) + 6
-      }
+        // Outer border
+        const chartBottomY = dataStartY + (endIdx - startIdx) * rowHeight
+        pdf.setDrawColor(148, 163, 184)
+        pdf.setLineWidth(0.3)
+        pdf.rect(margin, y, labelColWidth + ganttAreaWidth, chartBottomY - y)
+        pdf.line(ganttAreaX, y, ganttAreaX, chartBottomY)
 
-      // Status colors
-      const statusLegends: [string, [number, number, number]][] = [
-        ['En Proceso', [59, 130, 246]],
-        ['Completada', [34, 197, 94]],
-        ['Cancelada', [239, 68, 68]],
-      ]
-      for (const [label, [sr, sg, sb]] of statusLegends) {
-        pdf.setFillColor(sr, sg, sb)
-        pdf.rect(legendX, legendY - 1.5, 4, 4, 'F')
-        pdf.text(label, legendX + 6, legendY + 1)
-        legendX += 6 + pdf.getTextWidth(label) + 6
+        // Footer - Legend
+        let footerY = pageHeight - footerHeight
+        pdf.setFillColor(248, 250, 252)
+        pdf.rect(0, footerY - 2, pageWidth, footerHeight + 2, 'F')
+        pdf.setDrawColor(226, 232, 240)
+        pdf.setLineWidth(0.2)
+        pdf.line(0, footerY - 2, pageWidth, footerY - 2)
+
+        pdf.setFontSize(7)
+        pdf.setFont('helvetica', 'bold')
+        pdf.setTextColor(75, 85, 99)
+        pdf.text('Leyenda:', margin, footerY + 3)
+
+        pdf.setFont('helvetica', 'normal')
+        pdf.setFontSize(6)
+        let lx = margin + 18
+
+        pdf.setFillColor(220, 38, 38)
+        pdf.rect(lx, footerY + 0.5, 4, 4, 'F')
+        pdf.setTextColor(75, 85, 99)
+        pdf.text('Hoy', lx + 6, footerY + 3.5)
+        lx += 25
+
+        pdf.setFillColor(209, 213, 219)
+        pdf.rect(lx, footerY + 0.5, 4, 4, 'F')
+        pdf.text('Fin de semana', lx + 6, footerY + 3.5)
+        lx += 40
+
+        for (const p of priorities) {
+          const pr2 = parseInt(p.color.slice(1, 3), 16)
+          const pg2 = parseInt(p.color.slice(3, 5), 16)
+          const pb2 = parseInt(p.color.slice(5, 7), 16)
+          pdf.setFillColor(pr2, pg2, pb2)
+          pdf.rect(lx, footerY + 0.5, 4, 4, 'F')
+          pdf.text(p.name, lx + 6, footerY + 3.5)
+          lx += 6 + pdf.getTextWidth(p.name) + 8
+        }
+
+        const statusLegends: [string, [number, number, number]][] = [
+          ['En Proceso', [37, 99, 235]],
+          ['Completada', [22, 163, 74]],
+          ['Cancelada', [220, 38, 38]],
+        ]
+        for (const [label, [sr, sg, sb]] of statusLegends) {
+          pdf.setFillColor(sr, sg, sb)
+          pdf.rect(lx, footerY + 0.5, 4, 4, 'F')
+          pdf.text(label, lx + 6, footerY + 3.5)
+          lx += 6 + pdf.getTextWidth(label) + 8
+        }
       }
 
       pdf.save(`gantt-planificacion-${new Date().toISOString().split('T')[0]}.pdf`)
@@ -910,7 +942,8 @@ export default function Home() {
     setDownloadingGantt(false)
   }
 
-  // Gantt download as Excel - Using ExcelJS for proper cell styling
+
+  // Gantt download as Excel - Professional format with materials sheet
   const downloadGanttExcel = async () => {
     setDownloadingGantt(true)
     try {
@@ -921,25 +954,31 @@ export default function Home() {
       })
 
       const wb = new ExcelJS.Workbook()
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      // ===== GANTT SHEET =====
       const ws = wb.addWorksheet('Gantt', {
         properties: { defaultColWidth: 4 },
       })
 
-      const fixedHeaders = ['Descripción', 'Sector', 'Prioridad', 'Estado', 'Responsable', 'Fecha Inicio', 'Fecha Término']
-      const allHeaders = [...fixedHeaders, ...ganttDays.map(d => String(d.getDate())), 'Total Materiales']
+      const fixedHeaders = ['Descripción', 'Sector', 'Tipo', 'Prioridad', 'Estado', 'Responsable', 'Fecha Inicio', 'Fecha Término']
+      const allHeaders = [...fixedHeaders, ...ganttDays.map(d => String(d.getDate())), 'Total Mat.']
 
       // Title row
       const titleRow = ws.addRow(['Planificación de Mantención - Diagrama de Gantt'])
-      titleRow.getCell(1).font = { bold: true, size: 14, color: { argb: 'FF1F2937' } }
+      titleRow.getCell(1).font = { bold: true, size: 16, color: { argb: 'FF0F172A' } }
       titleRow.getCell(1).alignment = { horizontal: 'left' }
       ws.mergeCells(1, 1, 1, allHeaders.length)
+      titleRow.height = 30
 
-      // Date row
+      // Subtitle row
       const dateRow = ws.addRow([
         `Generado: ${new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })} | ${sortedTasks.length} tareas`
       ])
-      dateRow.getCell(1).font = { size: 10, color: { argb: 'FF6B7280' } }
+      dateRow.getCell(1).font = { size: 10, color: { argb: 'FF64748B' } }
       ws.mergeCells(2, 1, 2, allHeaders.length)
+      dateRow.height = 20
 
       // Blank row
       ws.addRow([])
@@ -959,9 +998,10 @@ export default function Home() {
             }
             const cell = ws.getCell(monthRowNum, monthStartCol)
             cell.value = currentMonth
-            cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6B7280' } }
-            cell.alignment = { horizontal: 'center' }
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 }
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }
+            cell.alignment = { horizontal: 'center', vertical: 'middle' }
+            cell.border = { bottom: { style: 'thin', color: { argb: 'FF334155' } } }
           }
           monthStartCol = col
           currentMonth = monthLabel
@@ -972,22 +1012,29 @@ export default function Home() {
           }
           const cell = ws.getCell(monthRowNum, monthStartCol)
           cell.value = currentMonth
-          cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6B7280' } }
-          cell.alignment = { horizontal: 'center' }
+          cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 }
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }
+          cell.alignment = { horizontal: 'center', vertical: 'middle' }
         }
       }
+      // Fill fixed header cells in month row
+      for (let c = 1; c <= fixedHeaders.length; c++) {
+        const cell = ws.getCell(monthRowNum, c)
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }
+      }
+      // Total Mat header in month row
+      const totalMatHeaderCell = ws.getCell(monthRowNum, fixedHeaders.length + ganttDays.length + 1)
+      totalMatHeaderCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }
 
       // Day header row
       const dayHeaderRow = ws.addRow(allHeaders)
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
+      dayHeaderRow.height = 22
 
       for (let c = 1; c <= allHeaders.length; c++) {
         const cell = dayHeaderRow.getCell(c)
         if (c <= fixedHeaders.length) {
           cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4B5563' } }
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } }
           cell.alignment = { horizontal: 'center', vertical: 'middle' }
         } else if (c <= fixedHeaders.length + ganttDays.length) {
           const dayIdx = c - fixedHeaders.length - 1
@@ -997,19 +1044,18 @@ export default function Home() {
 
           if (isToday) {
             cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 8 }
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEF4444' } }
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDC2626' } }
           } else if (isWeekend) {
-            cell.font = { bold: true, color: { argb: 'FF374151' }, size: 8 }
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } }
+            cell.font = { bold: true, color: { argb: 'FF475569' }, size: 8 }
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1D5DB' } }
           } else {
             cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 8 }
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4B5563' } }
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF475569' } }
           }
           cell.alignment = { horizontal: 'center', vertical: 'middle' }
         } else {
-          // Total Materiales header
           cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4B5563' } }
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } }
           cell.alignment = { horizontal: 'center', vertical: 'middle' }
         }
       }
@@ -1019,10 +1065,12 @@ export default function Home() {
         const taskStart = task.startDate ? new Date(task.startDate) : null
         const taskEnd = task.endDate ? new Date(task.endDate) : null
         const materialsTotal = getMaterialsTotal(task.id)
+        const matCount = getMaterialsCount(task.id)
 
         const row = [
           task.description,
           task.sector,
+          task.repairType,
           task.priority,
           task.status,
           task.responsible || '',
@@ -1030,47 +1078,52 @@ export default function Home() {
           task.endDate ? new Date(task.endDate).toLocaleDateString('es-CL') : '',
         ]
 
-        // Day columns
         ganttDays.forEach((dayDate) => {
           const dayTime = dayDate.getTime()
           const inRange = taskStart && taskEnd && dayTime >= taskStart.getTime() && dayTime <= taskEnd.getTime()
-          row.push(inRange ? task.status : '')
+          row.push(inRange ? '\u2588' : '')
         })
 
-        // Total Materiales
-        row.push(materialsTotal > 0 ? materialsTotal : '')
+        row.push(matCount > 0 ? materialsTotal : '')
 
         const excelRow = ws.addRow(row)
+        excelRow.height = 18
 
-        // Determine bar color
+        // Bar color
         const statusBarColorMap: Record<string, string> = {
           'Pendiente': getPriorityColor(task.priority).replace('#', ''),
-          'En Proceso': '3B82F6',
-          'Completada': '22C55E',
-          'Cancelada': 'EF4444',
+          'En Proceso': '2563EB',
+          'Completada': '16A34A',
+          'Cancelada': 'DC2626',
         }
         const barColorHex = statusBarColorMap[task.status] || getPriorityColor(task.priority).replace('#', '')
 
         // Style fixed columns
-        excelRow.getCell(1).font = { size: 10 }
+        excelRow.getCell(1).font = { size: 10, bold: true }
         excelRow.getCell(2).font = { size: 9 }
         excelRow.getCell(3).font = { size: 9 }
 
+        // Priority column
+        const pColor = getPriorityColor(task.priority)
+        excelRow.getCell(4).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${pColor.replace('#', '')}` } }
+        excelRow.getCell(4).font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
+        excelRow.getCell(4).alignment = { horizontal: 'center' }
+
         // Status column with color
         const statusStyleMap: Record<string, string> = {
-          'Pendiente': 'FFEAB308',
-          'En Proceso': 'FF3B82F6',
-          'Completada': 'FF22C55E',
-          'Cancelada': 'FFEF4444',
+          'Pendiente': 'FFF59E0B',
+          'En Proceso': 'FF2563EB',
+          'Completada': 'FF16A34A',
+          'Cancelada': 'FFDC2626',
         }
         const statusColor = statusStyleMap[task.status]
         if (statusColor) {
-          excelRow.getCell(4).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: statusColor } }
-          excelRow.getCell(4).font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
-          excelRow.getCell(4).alignment = { horizontal: 'center' }
+          excelRow.getCell(5).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: statusColor } }
+          excelRow.getCell(5).font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
+          excelRow.getCell(5).alignment = { horizontal: 'center' }
         }
 
-        // Style day columns
+        // Style day columns - gantt bars
         for (let c = fixedHeaders.length + 1; c <= fixedHeaders.length + ganttDays.length; c++) {
           const cell = excelRow.getCell(c)
           const dayIdx = c - fixedHeaders.length - 1
@@ -1079,14 +1132,13 @@ export default function Home() {
           const isDayToday = dayDate.getTime() === today.getTime()
 
           if (cell.value && String(cell.value).trim() !== '') {
-            // This day is within the task range - color it
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${barColorHex}` } }
-            cell.font = { color: { argb: 'FFFFFFFF' }, size: 7 }
+            cell.font = { color: { argb: `FF${barColorHex}` }, size: 10 }
             cell.alignment = { horizontal: 'center' }
           } else if (isDayToday) {
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }
           } else if (isWeekend) {
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }
           }
         }
 
@@ -1101,47 +1153,134 @@ export default function Home() {
       }
 
       // Set column widths
-      ws.getColumn(1).width = 35
-      ws.getColumn(2).width = 12
-      ws.getColumn(3).width = 12
+      ws.getColumn(1).width = 40
+      ws.getColumn(2).width = 14
+      ws.getColumn(3).width = 14
       ws.getColumn(4).width = 12
-      ws.getColumn(5).width = 15
-      ws.getColumn(6).width = 14
+      ws.getColumn(5).width = 12
+      ws.getColumn(6).width = 16
       ws.getColumn(7).width = 14
+      ws.getColumn(8).width = 14
       for (let i = 1; i <= ganttDays.length; i++) {
         ws.getColumn(fixedHeaders.length + i).width = 3.5
       }
       ws.getColumn(fixedHeaders.length + ganttDays.length + 1).width = 16
 
-      // Legend sheet
+      // Freeze panes
+      ws.views = [{ state: 'frozen', xSplit: fixedHeaders.length, ySplit: 6 }]
+
+      // ===== MATERIALES SHEET =====
+      const wsMat = wb.addWorksheet('Materiales')
+      wsMat.getColumn(1).width = 35
+      wsMat.getColumn(2).width = 15
+      wsMat.getColumn(3).width = 12
+      wsMat.getColumn(4).width = 10
+      wsMat.getColumn(5).width = 12
+      wsMat.getColumn(6).width = 14
+      wsMat.getColumn(7).width = 14
+      wsMat.getColumn(8).width = 20
+
+      const matTitleRow = wsMat.addRow(['Listado de Materiales por Tarea'])
+      matTitleRow.getCell(1).font = { bold: true, size: 16, color: { argb: 'FF0F172A' } }
+      wsMat.mergeCells(1, 1, 1, 8)
+      matTitleRow.height = 30
+
+      wsMat.addRow([])
+
+      // Header row
+      const matHeaderRow = wsMat.addRow(['Tarea', 'Sector', 'Material', 'Categoría', 'Cantidad', 'Unidad', 'P. Unitario', 'P. Total'])
+      matHeaderRow.height = 22
+      for (let c = 1; c <= 8; c++) {
+        const cell = matHeaderRow.getCell(c)
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 }
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }
+        cell.alignment = { horizontal: 'center', vertical: 'middle' }
+      }
+
+      let grandTotal = 0
+      for (const task of filteredTasks) {
+        const taskMaterials = getMaterialsForTask(task.id)
+        if (taskMaterials.length === 0) continue
+        const taskTotal = getMaterialsTotal(task.id)
+        grandTotal += taskTotal
+
+        for (let mi = 0; mi < taskMaterials.length; mi++) {
+          const mat = taskMaterials[mi]
+          const row = wsMat.addRow([
+            mi === 0 ? task.description : '',
+            mi === 0 ? task.sector : '',
+            mat.name,
+            mat.category || '',
+            mat.quantity || '',
+            mat.unit || '',
+            mat.unitPrice || '',
+            mat.totalPrice || '',
+          ])
+
+          // Style material rows
+          row.getCell(7).numFmt = '$#,##0'
+          row.getCell(8).numFmt = '$#,##0'
+          row.getCell(8).font = { bold: true, color: { argb: 'FF059669' } }
+
+          // Alternate row background
+          if (mi % 2 === 0) {
+            for (let c = 1; c <= 8; c++) {
+              row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } }
+            }
+          }
+        }
+
+        // Subtotal row for task
+        const subtotalRow = wsMat.addRow(['', '', '', '', '', 'Subtotal:', '', taskTotal])
+        subtotalRow.getCell(7).font = { bold: true, size: 10, color: { argb: 'FF475569' } }
+        subtotalRow.getCell(8).font = { bold: true, size: 11, color: { argb: 'FF059669' } }
+        subtotalRow.getCell(8).numFmt = '$#,##0'
+        for (let c = 1; c <= 8; c++) {
+          subtotalRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } }
+          subtotalRow.getCell(c).border = { top: { style: 'thin', color: { argb: 'FF94A3B8' } }, bottom: { style: 'thin', color: { argb: 'FF94A3B8' } } }
+        }
+      }
+
+      // Grand total
+      wsMat.addRow([])
+      const grandTotalRow = wsMat.addRow(['', '', '', '', '', 'TOTAL GENERAL:', '', grandTotal])
+      grandTotalRow.getCell(7).font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } }
+      grandTotalRow.getCell(8).font = { bold: true, size: 14, color: { argb: 'FF22C55E' } }
+      grandTotalRow.getCell(8).numFmt = '$#,##0'
+      for (let c = 1; c <= 8; c++) {
+        grandTotalRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }
+      }
+
+      // ===== LEYENDA SHEET =====
       const wsLegend = wb.addWorksheet('Leyenda')
       wsLegend.getColumn(1).width = 25
-      wsLegend.getColumn(2).width = 25
+      wsLegend.getColumn(2).width = 30
 
       const legendTitle = wsLegend.addRow(['Leyenda de Prioridades'])
-      legendTitle.getCell(1).font = { bold: true, size: 14 }
+      legendTitle.getCell(1).font = { bold: true, size: 14, color: { argb: 'FF0F172A' } }
 
       wsLegend.addRow(['Prioridad', 'Color'])
       for (const p of priorities) {
         const row = wsLegend.addRow([p.name, p.color])
-        row.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${p.color.replace('#', '')}` } }
+        row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${p.color.replace('#', '')}` } }
+        row.getCell(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
       }
 
       wsLegend.addRow([])
       wsLegend.addRow(['Leyenda de Estados'])
       const statusLegendData = [
         ['Pendiente', 'Color de la prioridad asignada'],
-        ['En Proceso', 'Azul (#3B82F6)'],
-        ['Completada', 'Verde (#22C55E)'],
-        ['Cancelada', 'Rojo (#EF4444)'],
+        ['En Proceso', 'Azul (#2563EB)'],
+        ['Completada', 'Verde (#16A34A)'],
+        ['Cancelada', 'Rojo (#DC2626)'],
       ]
       for (const [status, colorDesc] of statusLegendData) {
         const row = wsLegend.addRow([status, colorDesc])
         const statusFillMap: Record<string, string> = {
-          'Pendiente': 'FFEAB308',
-          'En Proceso': 'FF3B82F6',
-          'Completada': 'FF22C55E',
-          'Cancelada': 'FFEF4444',
+          'Pendiente': 'FFF59E0B',
+          'En Proceso': 'FF2563EB',
+          'Completada': 'FF16A34A',
+          'Cancelada': 'FFDC2626',
         }
         if (statusFillMap[status]) {
           row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: statusFillMap[status] } }
@@ -1152,7 +1291,8 @@ export default function Home() {
       wsLegend.addRow([])
       wsLegend.addRow(['Convenciones'])
       wsLegend.addRow(['Columna roja', 'Día actual (hoy)'])
-      wsLegend.addRow(['Columna gris', 'Fin de semana'])
+      wsLegend.addRow(['Columna gris clara', 'Fin de semana'])
+      wsLegend.addRow(['Bloque colorido', 'Rango de la tarea (color por estado)'])
 
       // Generate and download
       const buffer = await wb.xlsx.writeBuffer()
@@ -1168,6 +1308,7 @@ export default function Home() {
     }
     setDownloadingGantt(false)
   }
+
 
   const getActionLabel = (action: string) => {
     const labels: Record<string, string> = {
