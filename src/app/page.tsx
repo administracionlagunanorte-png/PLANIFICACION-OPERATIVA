@@ -44,6 +44,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   Plus,
   Pencil,
   Trash2,
@@ -61,8 +67,13 @@ import {
   Download,
   History,
   Clock,
+  ChevronDown,
+  FileText,
+  FileSpreadsheet,
 } from 'lucide-react'
 import html2canvas from 'html2canvas-pro'
+import { jsPDF } from 'jspdf'
+import * as XLSX from 'xlsx'
 
 // Types
 interface Task {
@@ -517,8 +528,8 @@ export default function Home() {
     setHistoryLoading(false)
   }
 
-  // Gantt download
-  const downloadGantt = async () => {
+  // Gantt download as PDF
+  const downloadGanttPDF = async () => {
     setDownloadingGantt(true)
     try {
       const ganttEl = document.getElementById('gantt-chart-content')
@@ -529,12 +540,174 @@ export default function Home() {
         useCORS: true,
         logging: false,
       })
-      const link = document.createElement('a')
-      link.download = `gantt-planificacion-${new Date().toISOString().split('T')[0]}.png`
-      link.href = canvas.toDataURL('image/png')
-      link.click()
+      const imgData = canvas.toDataURL('image/png')
+      const imgWidth = canvas.width
+      const imgHeight = canvas.height
+      // Use landscape orientation since Gantt charts are wide
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'px',
+        format: [imgWidth, imgHeight],
+      })
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight)
+      pdf.save(`gantt-planificacion-${new Date().toISOString().split('T')[0]}.pdf`)
     } catch (err) {
-      console.error('Error downloading Gantt:', err)
+      console.error('Error downloading Gantt as PDF:', err)
+    }
+    setDownloadingGantt(false)
+  }
+
+  // Gantt download as Excel
+  const downloadGanttExcel = () => {
+    setDownloadingGantt(true)
+    try {
+      const wb = XLSX.utils.book_new()
+
+      // Build header row: fixed columns + day columns
+      const fixedHeaders = ['Descripción', 'Sector', 'Prioridad', 'Estado', 'Responsable', 'Fecha Inicio', 'Fecha Término']
+      const dayHeaders = ganttDays.map(d =>
+        d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' })
+      )
+      const headers = [...fixedHeaders, ...dayHeaders]
+
+      // Title row
+      const titleRow = ['Planificación de Mantención - Diagrama de Gantt']
+      const dateRow = [`Generado: ${new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })} | ${tasksWithDates.length} tareas`]
+
+      // Build data rows
+      const dataRows = tasksWithDates.map(task => {
+        const taskStart = task.startDate ? new Date(task.startDate) : null
+        const taskEnd = task.endDate ? new Date(task.endDate) : null
+        const row = [
+          task.description,
+          task.sector,
+          task.priority,
+          task.status,
+          task.responsible || '',
+          task.startDate ? new Date(task.startDate).toLocaleDateString('es-CL') : '',
+          task.endDate ? new Date(task.endDate).toLocaleDateString('es-CL') : '',
+        ]
+        // For each day column, mark if the day falls within the task's date range
+        dayHeaders.forEach((_, idx) => {
+          const dayDate = ganttDays[idx]
+          const dayTime = dayDate.getTime()
+          const inRange = taskStart && taskEnd && dayTime >= taskStart.getTime() && dayTime <= taskEnd.getTime()
+          row.push(inRange ? task.priority : '')
+        })
+        return row
+      })
+
+      // Combine all rows
+      const wsData = [titleRow, dateRow, [], headers, ...dataRows]
+      const ws = XLSX.utils.aoa_to_sheet(wsData)
+
+      // Merge title row across all columns
+      ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: headers.length - 1 } },
+      ]
+
+      // Set column widths
+      const colWidths = [
+        { wch: 30 }, // Description
+        { wch: 12 }, // Sector
+        { wch: 12 }, // Priority
+        { wch: 12 }, // Status
+        { wch: 15 }, // Responsible
+        { wch: 12 }, // Start Date
+        { wch: 12 }, // End Date
+        ...dayHeaders.map(() => ({ wch: 4 })), // Day columns
+      ]
+      ws['!cols'] = colWidths
+
+      // Apply cell styling - fill colors for Gantt bars
+      const priorityColorMap: Record<string, string> = {}
+      priorities.forEach(p => {
+        // Convert hex color to FFRRGGBB format for xlsx
+        const hex = p.color.replace('#', '')
+        priorityColorMap[p.name] = `FF${hex}`
+      })
+
+      // Style the header row (row index 3)
+      for (let c = 0; c < headers.length; c++) {
+        const cellRef = XLSX.utils.encode_cell({ r: 3, c })
+        if (ws[cellRef]) {
+          ws[cellRef].s = {
+            font: { bold: true, color: { rgb: 'FFFFFFFF' } },
+            fill: { fgColor: { rgb: 'FF4B5563' } },
+            alignment: { horizontal: 'center' },
+          }
+        }
+      }
+
+      // Style data rows with Gantt bar colors
+      for (let r = 0; r < dataRows.length; r++) {
+        const excelRow = r + 4 // Data starts at row 4
+        const task = tasksWithDates[r]
+        const colorHex = getPriorityColor(task.priority).replace('#', '')
+
+        // Apply color to day columns that have the priority marker
+        for (let c = fixedHeaders.length; c < headers.length; c++) {
+          const cellRef = XLSX.utils.encode_cell({ r: excelRow, c })
+          if (ws[cellRef] && ws[cellRef].v) {
+            ws[cellRef].s = {
+              fill: { fgColor: { rgb: `FF${colorHex}` } },
+              alignment: { horizontal: 'center' },
+              font: { color: { rgb: 'FFFFFFFF' }, size: 8 },
+            }
+          }
+        }
+
+        // Style status column with color
+        const statusCol = 3
+        const statusCellRef = XLSX.utils.encode_cell({ r: excelRow, c: statusCol })
+        if (ws[statusCellRef]) {
+          const statusStyleMap: Record<string, string> = {
+            'Pendiente': 'FFEAB308',
+            'En Proceso': 'FF3B82F6',
+            'Completada': 'FF22C55E',
+            'Cancelada': 'FFEF4444',
+          }
+          const statusColor = statusStyleMap[task.status]
+          if (statusColor) {
+            ws[statusCellRef].s = {
+              fill: { fgColor: { rgb: statusColor } },
+              font: { bold: true, color: { rgb: 'FFFFFFFF' } },
+              alignment: { horizontal: 'center' },
+            }
+          }
+        }
+      }
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Gantt')
+
+      // Add a legend sheet
+      const legendData = [
+        ['Leyenda de Prioridades'],
+        ['Prioridad', 'Color'],
+        ...priorities.map(p => [p.name, p.color]),
+        [],
+        ['Leyenda de Estados'],
+        ['Estado', 'Color'],
+        ['Pendiente', 'Amarillo'],
+        ['En Proceso', 'Azul'],
+        ['Completada', 'Verde'],
+        ['Cancelada', 'Rojo'],
+      ]
+      const wsLegend = XLSX.utils.aoa_to_sheet(legendData)
+      wsLegend['!cols'] = [{ wch: 20 }, { wch: 15 }]
+      // Style legend header
+      const legendHeaderCell = XLSX.utils.encode_cell({ r: 0, c: 0 })
+      if (wsLegend[legendHeaderCell]) {
+        wsLegend[legendHeaderCell].s = {
+          font: { bold: true, sz: 14 },
+        }
+      }
+      XLSX.utils.book_append_sheet(wb, wsLegend, 'Leyenda')
+
+      XLSX.writeFile(wb, `gantt-planificacion-${new Date().toISOString().split('T')[0]}.xlsx`)
+    } catch (err) {
+      console.error('Error downloading Gantt as Excel:', err)
     }
     setDownloadingGantt(false)
   }
@@ -1080,15 +1253,30 @@ export default function Home() {
                     {tasksWithDates.length} de {filteredTasks.length} tareas tienen fechas asignadas
                   </p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={downloadGantt}
-                  disabled={downloadingGantt || tasksWithDates.length === 0}
-                  className="gap-1"
-                >
-                  <Download className="h-4 w-4" /> {downloadingGantt ? 'Generando...' : 'Descargar PNG'}
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={downloadingGantt || tasksWithDates.length === 0}
+                      className="gap-1"
+                    >
+                      <Download className="h-4 w-4" />
+                      {downloadingGantt ? 'Generando...' : 'Descargar'}
+                      <ChevronDown className="h-3 w-3 ml-0.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={downloadGanttPDF} disabled={downloadingGantt}>
+                      <FileText className="h-4 w-4 mr-2" />
+                      Descargar PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={downloadGanttExcel} disabled={downloadingGantt}>
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      Descargar Excel
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </CardHeader>
             <CardContent>
@@ -1693,7 +1881,10 @@ export default function Home() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5" />
-              {historyTaskId === 'all' ? 'Historial de Modificaciones' : 'Historial de Tarea'}
+              {historyTaskId === 'all' ? 'Historial de Modificaciones' : (() => {
+                const t = tasks.find(tk => tk.id === historyTaskId)
+                return t ? `Historial: ${t.description}` : 'Historial de Tarea'
+              })()}
             </DialogTitle>
             <DialogDescription className="sr-only">Registro de cambios realizados en las tareas</DialogDescription>
           </DialogHeader>
@@ -1711,7 +1902,7 @@ export default function Home() {
             ) : (
               <div className="space-y-3">
                 {historyEntries.map((entry, idx) => {
-                  const task = historyTaskId === 'all' ? tasks.find(t => t.id === entry.taskId) : null
+                  const task = tasks.find(t => t.id === entry.taskId)
                   return (
                     <div key={entry.id} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
                       {/* Timeline dot */}
@@ -1729,8 +1920,10 @@ export default function Home() {
                           <Badge variant="outline" className={getActionColor(entry.action)}>
                             {getActionLabel(entry.action)}
                           </Badge>
-                          {task && (
-                            <span className="text-xs text-gray-500 truncate max-w-[200px]">{task.description}</span>
+                          {historyTaskId === 'all' && task && (
+                            <Badge variant="secondary" className="text-xs max-w-[220px] truncate font-normal">
+                              {task.description}
+                            </Badge>
                           )}
                         </div>
                         {entry.field && (
