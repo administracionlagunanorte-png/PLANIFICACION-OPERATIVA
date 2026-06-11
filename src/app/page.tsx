@@ -391,6 +391,7 @@ export default function Home() {
       setEditingTask(null)
       resetForm()
       fetchTasks()
+      fetchPriorities()
     } catch (err) {
       console.error('Error saving task:', err)
     } finally {
@@ -421,6 +422,19 @@ export default function Home() {
       fetchTasks()
     } catch (err) {
       console.error('Error updating work order:', err)
+    }
+  }
+
+  const handleUpdateTaskPriority = async (taskId: string, newPriority: string) => {
+    try {
+      await fetch('/api/tasks', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: taskId, priority: newPriority }),
+      })
+      fetchTasks()
+    } catch (err) {
+      console.error('Error updating task priority:', err)
     }
   }
 
@@ -2616,10 +2630,18 @@ export default function Home() {
                             <TableCell><Badge variant="secondary">{task.sector}</Badge></TableCell>
                             <TableCell className="text-sm">{task.repairType}</TableCell>
                             <TableCell>
-                              <span className="flex items-center gap-1.5">
-                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: getPriorityColor(task.priority) }}></span>
-                                {task.priority}
-                              </span>
+                              <select
+                                value={task.priority}
+                                onChange={e => handleUpdateTaskPriority(task.id, e.target.value)}
+                                className="text-sm border rounded px-1.5 py-0.5 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
+                                style={{ color: getPriorityColor(task.priority) }}
+                              >
+                                {priorities.map(p => (
+                                  <option key={p.id} value={p.name} style={{ color: p.color }}>
+                                    {p.name}
+                                  </option>
+                                ))}
+                              </select>
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline" className={getStatusBadgeClass(task.status) || ''}>

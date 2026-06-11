@@ -87,3 +87,25 @@ Stage Summary:
 - Server running on port 3000 via start-stop-daemon (PID file: /tmp/run/next-server.pid)
 - Accessible via Caddy reverse proxy on port 81
 - Application renders correctly with "Planificación de Mantención" title
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Make table sorting automatic by priority (Alta → Media → Baja) and add inline priority change
+
+Work Log:
+- Added `getPriorityOrder()` helper function to resolve priority name to sort order
+- Updated `filteredTasks.sort()` to sort by priority order first, then workOrder
+- Updated `ganttTasks.sort()` with same priority-first logic
+- Added `handleUpdateTaskPriority()` function for inline priority changes
+- Replaced static priority cell with inline `<select>` dropdown in the task table
+- Added `fetchPriorities()` call after saving a task to keep priorities in sync
+- Priority dropdown shows colored options matching each priority's color
+- Rebuilt and restarted server via start-stop-daemon
+
+Stage Summary:
+- Table now sorts automatically: Alta (order 1) → Media (order 2) → Baja (order 3) → En Presupuesto (order 4)
+- Within each priority group, tasks are sorted by workOrder ascending
+- Priority can be changed directly from the table via inline dropdown — no need to open edit dialog
+- Changing priority immediately re-sorts the table automatically
+- Gantt chart also reflects priority-first ordering
