@@ -84,6 +84,7 @@ interface Task {
   sector: string
   repairType: string
   priority: string
+  etapa: string
   status: string
   responsible: string | null
   estimatedTime: string | null
@@ -127,6 +128,13 @@ interface ResponsibleItem {
   name: string
 }
 
+interface EtapaItem {
+  id: string
+  name: string
+  color: string
+  order: number
+}
+
 interface TaskHistoryEntry {
   id: string
   taskId: string
@@ -157,6 +165,7 @@ export default function Home() {
   const [sectors, setSectors] = useState<Sector[]>([])
   const [repairTypes, setRepairTypes] = useState<RepairType[]>([])
   const [priorities, setPriorities] = useState<Priority[]>([])
+  const [etapas, setEtapas] = useState<EtapaItem[]>([])
   const [statuses, setStatuses] = useState<StatusItem[]>([])
   const [responsibles, setResponsibles] = useState<ResponsibleItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -216,6 +225,7 @@ export default function Home() {
     sector: '',
     repairType: '',
     priority: '',
+    etapa: '',
     status: 'Pendiente',
     responsible: 'none',
     estimatedTime: '',
@@ -229,7 +239,7 @@ export default function Home() {
   })
 
   // Config form
-  const [configTab, setConfigTab] = useState<'sectors' | 'repairTypes' | 'priorities' | 'statuses' | 'responsibles'>('sectors')
+  const [configTab, setConfigTab] = useState<'sectors' | 'repairTypes' | 'priorities' | 'etapas' | 'statuses' | 'responsibles'>('sectors')
   const [newSectorName, setNewSectorName] = useState('')
   const [newRepairTypeName, setNewRepairTypeName] = useState('')
   const [newPriorityName, setNewPriorityName] = useState('')
@@ -249,6 +259,12 @@ export default function Home() {
   const [newResponsibleName, setNewResponsibleName] = useState('')
   const [editingResponsibleId, setEditingResponsibleId] = useState<string | null>(null)
   const [editResponsibleName, setEditResponsibleName] = useState('')
+  // Etapa config states
+  const [newEtapaName, setNewEtapaName] = useState('')
+  const [newEtapaColor, setNewEtapaColor] = useState('#6b7280')
+  const [editingEtapaId, setEditingEtapaId] = useState<string | null>(null)
+  const [editEtapaName, setEditEtapaName] = useState('')
+  const [editEtapaColor, setEditEtapaColor] = useState('')
 
   // Fetch functions
   const fetchTasks = useCallback(async () => {
@@ -290,6 +306,15 @@ export default function Home() {
     }
   }, [])
 
+  const fetchEtapas = useCallback(async () => {
+    try {
+      const res = await fetch('/api/etapas')
+      if (res.ok) setEtapas(await res.json())
+    } catch (err) {
+      console.error('Error fetching etapas:', err)
+    }
+  }, [])
+
   const fetchStatuses = useCallback(async () => {
     try {
       const res = await fetch('/api/status')
@@ -320,11 +345,11 @@ export default function Home() {
   useEffect(() => {
     const loadAll = async () => {
       setLoading(true)
-      await Promise.all([fetchTasks(), fetchSectors(), fetchRepairTypes(), fetchPriorities(), fetchStatuses(), fetchResponsibles(), fetchMaterials()])
+      await Promise.all([fetchTasks(), fetchSectors(), fetchRepairTypes(), fetchPriorities(), fetchEtapas(), fetchStatuses(), fetchResponsibles(), fetchMaterials()])
       setLoading(false)
     }
     loadAll()
-  }, [fetchTasks, fetchSectors, fetchRepairTypes, fetchPriorities, fetchStatuses, fetchResponsibles, fetchMaterials])
+  }, [fetchTasks, fetchSectors, fetchRepairTypes, fetchPriorities, fetchEtapas, fetchStatuses, fetchResponsibles, fetchMaterials])
 
   // Task CRUD
   const [savingTask, setSavingTask] = useState(false)
@@ -438,6 +463,19 @@ export default function Home() {
     }
   }
 
+  const handleUpdateTaskEtapa = async (taskId: string, newEtapa: string) => {
+    try {
+      await fetch('/api/tasks', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: taskId, etapa: newEtapa }),
+      })
+      fetchTasks()
+    } catch (err) {
+      console.error('Error updating task etapa:', err)
+    }
+  }
+
   const openEditTask = (task: Task) => {
     setEditingTask(task)
     setFormData({
@@ -445,6 +483,7 @@ export default function Home() {
       sector: task.sector,
       repairType: task.repairType,
       priority: task.priority,
+      etapa: task.etapa || '',
       status: task.status,
       responsible: task.responsible || 'none',
       estimatedTime: task.estimatedTime || '',
@@ -635,6 +674,34 @@ export default function Home() {
     fetchPriorities()
   }
 
+  const handleAddEtapa = async () => {
+    if (!newEtapaName.trim()) return
+    await fetch('/api/etapas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newEtapaName.trim(), color: newEtapaColor, order: etapas.length + 1 }),
+    })
+    setNewEtapaName('')
+    setNewEtapaColor('#6b7280')
+    fetchEtapas()
+  }
+
+  const handleUpdateEtapa = async (id: string) => {
+    if (!editEtapaName.trim()) return
+    await fetch('/api/etapas', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name: editEtapaName.trim(), color: editEtapaColor }),
+    })
+    setEditingEtapaId(null)
+    fetchEtapas()
+  }
+
+  const handleDeleteEtapa = async (id: string) => {
+    await fetch(`/api/etapas?id=${id}`, { method: 'DELETE' })
+    fetchEtapas()
+  }
+
   const handleAddStatus = async () => {
     if (!newStatusName.trim()) return
     await fetch('/api/status', {
@@ -793,6 +860,17 @@ export default function Home() {
     return p?.order ?? 999
   }
 
+  // Helper: get etapa order for sorting
+  const getEtapaOrder = (etapaName: string): number => {
+    const e = etapas.find(et => et.name === etapaName)
+    return e?.order ?? 999
+  }
+
+  const getEtapaColor = (name: string) => {
+    const e = etapas.find(et => et.name === name)
+    return e?.color || '#6b7280'
+  }
+
   const filteredTasks = tasks.filter(t => {
     if (filterSector !== 'all' && t.sector !== filterSector) return false
     if (filterPriority !== 'all' && t.priority !== filterPriority) return false
@@ -804,7 +882,11 @@ export default function Home() {
     const priorityA = getPriorityOrder(a.priority)
     const priorityB = getPriorityOrder(b.priority)
     if (priorityA !== priorityB) return priorityA - priorityB
-    // Within same priority, sort by workOrder (ascending, tasks with workOrder > 0 first)
+    // Within same priority, sort by etapa order
+    const etapaA = getEtapaOrder(a.etapa)
+    const etapaB = getEtapaOrder(b.etapa)
+    if (etapaA !== etapaB) return etapaA - etapaB
+    // Within same priority+etapa, sort by workOrder (ascending, tasks with workOrder > 0 first)
     if (a.workOrder > 0 && b.workOrder > 0) return a.workOrder - b.workOrder
     if (a.workOrder > 0) return -1
     if (b.workOrder > 0) return 1
@@ -841,13 +923,17 @@ export default function Home() {
   }
 
   // Gantt chart helpers
-  // All filtered tasks sorted by priority then workOrder for Gantt display
+  // All filtered tasks sorted by priority, then etapa, then workOrder for Gantt display
   const ganttTasks = [...filteredTasks].sort((a, b) => {
     // First sort by priority order (Alta first, then Media, then Baja)
     const priorityA = getPriorityOrder(a.priority)
     const priorityB = getPriorityOrder(b.priority)
     if (priorityA !== priorityB) return priorityA - priorityB
-    // Within same priority, sort by workOrder
+    // Within same priority, sort by etapa order
+    const etapaA = getEtapaOrder(a.etapa)
+    const etapaB = getEtapaOrder(b.etapa)
+    if (etapaA !== etapaB) return etapaA - etapaB
+    // Within same priority+etapa, sort by workOrder
     if (a.workOrder > 0 && b.workOrder > 0) return a.workOrder - b.workOrder
     if (a.workOrder > 0) return -1
     if (b.workOrder > 0) return 1
@@ -2575,6 +2661,7 @@ export default function Home() {
                       <TableHead>Sector</TableHead>
                       <TableHead>Tipo</TableHead>
                       <TableHead>Prioridad</TableHead>
+                      <TableHead>Etapa</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead>Responsable</TableHead>
                       <TableHead>Tiempo Est.</TableHead>
@@ -2595,7 +2682,7 @@ export default function Home() {
                   <TableBody>
                     {filteredTasks.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={showMaterials ? 14 : 13} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={showMaterials ? 15 : 14} className="text-center py-8 text-gray-500">
                           No hay tareas que coincidan con los filtros
                         </TableCell>
                       </TableRow>
@@ -2639,6 +2726,21 @@ export default function Home() {
                                 {priorities.map(p => (
                                   <option key={p.id} value={p.name} style={{ color: p.color }}>
                                     {p.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </TableCell>
+                            <TableCell>
+                              <select
+                                value={task.etapa || ''}
+                                onChange={e => handleUpdateTaskEtapa(task.id, e.target.value)}
+                                className="text-sm border rounded px-1.5 py-0.5 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
+                                style={{ color: getEtapaColor(task.etapa) }}
+                              >
+                                <option value="" style={{ color: '#6b7280' }}>Sin etapa</option>
+                                {etapas.map(et => (
+                                  <option key={et.id} value={et.name} style={{ color: et.color }}>
+                                    {et.name}
                                   </option>
                                 ))}
                               </select>
@@ -3343,6 +3445,25 @@ export default function Home() {
                 </Select>
               </div>
               <div className="grid gap-2">
+                <Label>Etapa</Label>
+                <Select value={formData.etapa || ''} onValueChange={v => setFormData(prev => ({ ...prev, etapa: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar etapa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Sin etapa</SelectItem>
+                    {etapas.map(et => (
+                      <SelectItem key={et.id} value={et.name}>
+                        <span className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: et.color }}></span>
+                          {et.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
                 <Label>Estado</Label>
                 <Select value={formData.status} onValueChange={v => setFormData(prev => ({ ...prev, status: v }))}>
                   <SelectTrigger>
@@ -3737,11 +3858,12 @@ export default function Home() {
             <DialogTitle>Configuración</DialogTitle>
             <DialogDescription className="sr-only">Administrar sectores, tipos de reparación, prioridades, estados y responsables</DialogDescription>
           </DialogHeader>
-          <Tabs value={configTab} onValueChange={v => setConfigTab(v as 'sectors' | 'repairTypes' | 'priorities' | 'statuses' | 'responsibles')}>
+          <Tabs value={configTab} onValueChange={v => setConfigTab(v as 'sectors' | 'repairTypes' | 'priorities' | 'etapas' | 'statuses' | 'responsibles')}>
             <TabsList className="w-full flex-wrap h-auto gap-1">
               <TabsTrigger value="sectors" className="flex-1">Sectores</TabsTrigger>
               <TabsTrigger value="repairTypes" className="flex-1">Tipos Rep.</TabsTrigger>
               <TabsTrigger value="priorities" className="flex-1">Priorid.</TabsTrigger>
+              <TabsTrigger value="etapas" className="flex-1">Etapas</TabsTrigger>
               <TabsTrigger value="statuses" className="flex-1">Estados</TabsTrigger>
               <TabsTrigger value="responsibles" className="flex-1">Respons.</TabsTrigger>
             </TabsList>
@@ -3890,6 +4012,70 @@ export default function Home() {
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
                           <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500" onClick={() => handleDeletePriority(p.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+
+            {/* Etapas Tab */}
+            <TabsContent value="etapas" className="space-y-3">
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <Label className="text-xs">Nombre</Label>
+                  <Input
+                    placeholder="Nueva etapa..."
+                    value={newEtapaName}
+                    onChange={e => setNewEtapaName(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleAddEtapa()}
+                  />
+                </div>
+                <div className="w-16">
+                  <Label className="text-xs">Color</Label>
+                  <Input
+                    type="color"
+                    value={newEtapaColor}
+                    onChange={e => setNewEtapaColor(e.target.value)}
+                    className="h-9 p-1"
+                  />
+                </div>
+                <Button onClick={handleAddEtapa} size="sm" className="gap-1 shrink-0">
+                  <Plus className="h-4 w-4" /> Agregar
+                </Button>
+              </div>
+              <ScrollArea className="max-h-[300px]">
+                <div className="space-y-1">
+                  {etapas.map(et => (
+                    <div key={et.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                      {editingEtapaId === et.id ? (
+                        <>
+                          <Input
+                            value={editEtapaName}
+                            onChange={e => setEditEtapaName(e.target.value)}
+                            className="h-8 text-sm flex-1"
+                            onKeyDown={e => e.key === 'Enter' && handleUpdateEtapa(et.id)}
+                          />
+                          <Input
+                            type="color"
+                            value={editEtapaColor}
+                            onChange={e => setEditEtapaColor(e.target.value)}
+                            className="h-8 w-10 p-1"
+                          />
+                          <Button size="sm" variant="ghost" className="h-7 shrink-0" onClick={() => handleUpdateEtapa(et.id)}>OK</Button>
+                          <Button size="sm" variant="ghost" className="h-7 shrink-0" onClick={() => setEditingEtapaId(null)}>X</Button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: et.color }}></span>
+                          <span className="flex-1 text-sm">{et.name}</span>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setEditingEtapaId(et.id); setEditEtapaName(et.name); setEditEtapaColor(et.color) }}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500" onClick={() => handleDeleteEtapa(et.id)}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </>
