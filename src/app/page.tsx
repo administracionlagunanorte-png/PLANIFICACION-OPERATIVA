@@ -69,6 +69,7 @@ import {
   History,
   Clock,
   ChevronDown,
+  ChevronUp,
   FileText,
   FileSpreadsheet,
   Package,
@@ -174,6 +175,7 @@ export default function Home() {
   const [filterPriority, setFilterPriority] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterRepairType, setFilterRepairType] = useState('all')
+  const [filterEtapa, setFilterEtapa] = useState('all')
 
   // Dialog states
   const [taskDialogOpen, setTaskDialogOpen] = useState(false)
@@ -510,6 +512,7 @@ export default function Home() {
       sector: sectors[0]?.name || '',
       repairType: repairTypes[0]?.name || '',
       priority: priorities[0]?.name || '',
+      etapa: '',
       status: statuses[0]?.name || 'Pendiente',
       responsible: 'none',
       estimatedTime: '',
@@ -651,7 +654,7 @@ export default function Home() {
     await fetch('/api/priorities', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newPriorityName.trim(), color: newPriorityColor, order: priorities.length + 1 }),
+      body: JSON.stringify({ name: newPriorityName.trim(), color: newPriorityColor, order: Math.max(...priorities.map(p => p.order), 0) + 1 }),
     })
     setNewPriorityName('')
     setNewPriorityColor('#6b7280')
@@ -667,11 +670,24 @@ export default function Home() {
     })
     setEditingPriorityId(null)
     fetchPriorities()
+    fetchTasks()
   }
 
   const handleDeletePriority = async (id: string) => {
     await fetch(`/api/priorities?id=${id}`, { method: 'DELETE' })
+    // Re-fetch and recalculate orders
+    const res = await fetch('/api/priorities')
+    if (res.ok) {
+      const updated = await res.json()
+      // Re-index orders sequentially
+      for (let i = 0; i < updated.length; i++) {
+        if (updated[i].order !== i + 1) {
+          await fetch('/api/priorities', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: updated[i].id, order: i + 1 }) })
+        }
+      }
+    }
     fetchPriorities()
+    fetchTasks()
   }
 
   const handleAddEtapa = async () => {
@@ -679,7 +695,7 @@ export default function Home() {
     await fetch('/api/etapas', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newEtapaName.trim(), color: newEtapaColor, order: etapas.length + 1 }),
+      body: JSON.stringify({ name: newEtapaName.trim(), color: newEtapaColor, order: Math.max(...etapas.map(e => e.order), 0) + 1 }),
     })
     setNewEtapaName('')
     setNewEtapaColor('#6b7280')
@@ -695,11 +711,56 @@ export default function Home() {
     })
     setEditingEtapaId(null)
     fetchEtapas()
+    fetchTasks()
   }
 
   const handleDeleteEtapa = async (id: string) => {
     await fetch(`/api/etapas?id=${id}`, { method: 'DELETE' })
+    // Re-fetch and recalculate orders
+    const res = await fetch('/api/etapas')
+    if (res.ok) {
+      const updated = await res.json()
+      for (let i = 0; i < updated.length; i++) {
+        if (updated[i].order !== i + 1) {
+          await fetch('/api/etapas', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: updated[i].id, order: i + 1 }) })
+        }
+      }
+    }
     fetchEtapas()
+    fetchTasks()
+  }
+
+  const handleMovePriority = async (id: string, direction: 'up' | 'down') => {
+    const sorted = [...priorities].sort((a, b) => a.order - b.order)
+    const idx = sorted.findIndex(p => p.id === id)
+    if (direction === 'up' && idx <= 0) return
+    if (direction === 'down' && idx >= sorted.length - 1) return
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    const item = sorted[idx]
+    const swapItem = sorted[swapIdx]
+    // Swap orders
+    await Promise.all([
+      fetch('/api/priorities', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: item.id, order: swapItem.order }) }),
+      fetch('/api/priorities', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: swapItem.id, order: item.order }) }),
+    ])
+    fetchPriorities()
+    fetchTasks()
+  }
+
+  const handleMoveEtapa = async (id: string, direction: 'up' | 'down') => {
+    const sorted = [...etapas].sort((a, b) => a.order - b.order)
+    const idx = sorted.findIndex(e => e.id === id)
+    if (direction === 'up' && idx <= 0) return
+    if (direction === 'down' && idx >= sorted.length - 1) return
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    const item = sorted[idx]
+    const swapItem = sorted[swapIdx]
+    await Promise.all([
+      fetch('/api/etapas', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: item.id, order: swapItem.order }) }),
+      fetch('/api/etapas', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: swapItem.id, order: item.order }) }),
+    ])
+    fetchEtapas()
+    fetchTasks()
   }
 
   const handleAddStatus = async () => {
@@ -707,7 +768,7 @@ export default function Home() {
     await fetch('/api/status', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newStatusName.trim(), color: newStatusColor, order: statuses.length + 1 }),
+      body: JSON.stringify({ name: newStatusName.trim(), color: newStatusColor, order: Math.max(...statuses.map(s => s.order), 0) + 1 }),
     })
     setNewStatusName('')
     setNewStatusColor('#6b7280')
@@ -876,6 +937,7 @@ export default function Home() {
     if (filterPriority !== 'all' && t.priority !== filterPriority) return false
     if (filterStatus !== 'all' && t.status !== filterStatus) return false
     if (filterRepairType !== 'all' && t.repairType !== filterRepairType) return false
+    if (filterEtapa !== 'all' && t.etapa !== filterEtapa) return false
     return true
   }).sort((a, b) => {
     // First sort by priority order (Alta first, then Media, then Baja)
@@ -2458,6 +2520,17 @@ export default function Home() {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={filterEtapa} onValueChange={setFilterEtapa}>
+              <SelectTrigger className="w-[130px] h-8 text-xs">
+                <SelectValue placeholder="Etapa" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las Etapas</SelectItem>
+                {etapas.map(et => (
+                  <SelectItem key={et.id} value={et.name}>{et.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {/* Materials toggle for table/card views */}
             {(view === 'table' || view === 'cards') && (
               <div className="flex items-center gap-1.5 ml-2 pl-2 border-l">
@@ -2656,7 +2729,7 @@ export default function Home() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[70px] text-center">N° Orden</TableHead>
+                      
                       <TableHead className="min-w-[200px]">Descripción</TableHead>
                       <TableHead>Sector</TableHead>
                       <TableHead>Tipo</TableHead>
@@ -2682,7 +2755,7 @@ export default function Home() {
                   <TableBody>
                     {filteredTasks.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={showMaterials ? 15 : 14} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={showMaterials ? 14 : 13} className="text-center py-8 text-gray-500">
                           No hay tareas que coincidan con los filtros
                         </TableCell>
                       </TableRow>
@@ -2693,21 +2766,7 @@ export default function Home() {
                         const matCount = getMaterialsCount(task.id)
                         return (
                           <TableRow key={task.id}>
-                            <TableCell className="text-center">
-                              <input
-                                type="number"
-                                min={0}
-                                value={task.workOrder || ''}
-                                onChange={(e) => {
-                                  const val = parseInt(e.target.value)
-                                  if (!isNaN(val) && val >= 0) {
-                                    handleUpdateWorkOrder(task.id, val)
-                                  }
-                                }}
-                                className="w-[50px] text-center text-sm font-semibold border border-gray-200 rounded px-1 py-0.5 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200 transition-colors"
-                                title="Orden de trabajo - modifique para cambiar el orden"
-                              />
-                            </TableCell>
+                            
                             <TableCell className="font-medium max-w-[250px]">
                               <div className="truncate" title={task.description}>{task.description}</div>
                               {task.comments && (
@@ -2885,6 +2944,11 @@ export default function Home() {
                           <span className="w-2 h-2 rounded-full" style={{ backgroundColor: getPriorityColor(task.priority) }}></span>
                           {task.priority}
                         </Badge>
+                        {task.etapa && (
+                          <Badge variant="outline" className="flex items-center gap-1" style={{ borderColor: getEtapaColor(task.etapa), color: getEtapaColor(task.etapa) }}>
+                            {task.etapa}
+                          </Badge>
+                        )}
                       </div>
                       {task.responsible && (
                         <div className="text-xs text-gray-500">Responsable: {task.responsible}</div>
@@ -4008,6 +4072,14 @@ export default function Home() {
                         <>
                           <span className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: p.color }}></span>
                           <span className="flex-1 text-sm">{p.name}</span>
+                          <div className="flex items-center gap-0.5">
+                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => handleMovePriority(p.id, 'up')} disabled={priorities.sort((a,b) => a.order - b.order).findIndex(x => x.id === p.id) === 0} title="Subir">
+                              <ChevronUp className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => handleMovePriority(p.id, 'down')} disabled={priorities.sort((a,b) => a.order - b.order).findIndex(x => x.id === p.id) === priorities.length - 1} title="Bajar">
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                           <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setEditingPriorityId(p.id); setEditPriorityName(p.name); setEditPriorityColor(p.color) }}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
@@ -4072,6 +4144,14 @@ export default function Home() {
                         <>
                           <span className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: et.color }}></span>
                           <span className="flex-1 text-sm">{et.name}</span>
+                          <div className="flex items-center gap-0.5">
+                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => handleMoveEtapa(et.id, 'up')} disabled={etapas.sort((a,b) => a.order - b.order).findIndex(x => x.id === et.id) === 0} title="Subir">
+                              <ChevronUp className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => handleMoveEtapa(et.id, 'down')} disabled={etapas.sort((a,b) => a.order - b.order).findIndex(x => x.id === et.id) === etapas.length - 1} title="Bajar">
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                           <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setEditingEtapaId(et.id); setEditEtapaName(et.name); setEditEtapaColor(et.color) }}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>

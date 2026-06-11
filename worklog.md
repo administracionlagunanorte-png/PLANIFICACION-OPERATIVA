@@ -109,3 +109,30 @@ Stage Summary:
 - Priority can be changed directly from the table via inline dropdown — no need to open edit dialog
 - Changing priority immediately re-sorts the table automatically
 - Gantt chart also reflects priority-first ordering
+---
+Task ID: 1
+Agent: main
+Task: Fix table not updating by priority, remove priority by number, update table ordering
+
+Work Log:
+- Analyzed current page.tsx and Prisma schema to understand priority/etapa sorting
+- Added handleMovePriority and handleMoveEtapa functions for reordering priorities/etapas with up/down buttons
+- Fixed handleDeletePriority and handleDeleteEtapa to recalculate orders after deletion
+- Added ChevronUp import for the new buttons
+- Removed N° Orden column from table header and body
+- Updated colSpan for empty state message
+- Added filterEtapa state and filter dropdown for etapa filtering
+- Added etapa badge to card view
+- Fixed resetForm to include etapa field
+- Added fetchTasks() calls after priority/etapa update, move, and delete operations
+- Fixed order calculation in handleAddPriority/handleAddEtapa/handleAddStatus to use Math.max instead of length+1
+- Rebuilt project and verified all APIs work correctly
+
+Stage Summary:
+- Table now sorts by priority order (which can be changed via up/down buttons)
+- N° Orden column removed from table view
+- Etapa filter dropdown added
+- Etapa shown in card view
+- Priority/etapa ordering can be changed with up/down buttons in settings
+- Orders are recalculated after deletions to prevent gaps
+- fetchTasks() is called after all priority/etapa changes to refresh the table
