@@ -63,3 +63,27 @@ Stage Summary:
 - Tasks with dates will show colored bars as before
 - Production server running on port 3000, accessible via Caddy on port 81
 - The issue was a stale/offline server, not a code problem
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix 404 page not found - rebuild and restart production server
+
+Work Log:
+- Diagnosed that the production server was down (no process on port 3000)
+- Initial `npm run build` failed with Bus error due to corrupted SWC binary (@next/swc-linux-x64-gnu)
+- Reinstalled @next/swc-linux-x64-gnu package which fixed the corrupted binary
+- Rebuilt the Next.js application successfully with `npm run build`
+- Discovered that background processes spawned by the agent get killed by the container runtime after ~60-90 seconds
+- Tested multiple approaches: nohup, setsid, persistent-server.js, watchdog scripts - all failed
+- Found that `start-stop-daemon` (used in .zscripts/dev.sh) properly daemonizes processes to survive container cleanup
+- Used .zscripts/dev.sh to start the server via start-stop-daemon with auto-restart loop
+- Copied SWC binary and Prisma client to standalone directory for proper server operation
+- Server now runs stably on port 3000, accessible via Caddy on port 81
+
+Stage Summary:
+- Root cause: corrupted SWC binary + improper process daemonization
+- Fix: reinstall SWC binary + use start-stop-daemon for proper daemonization
+- Server running on port 3000 via start-stop-daemon (PID file: /tmp/run/next-server.pid)
+- Accessible via Caddy reverse proxy on port 81
+- Application renders correctly with "Planificación de Mantención" title
