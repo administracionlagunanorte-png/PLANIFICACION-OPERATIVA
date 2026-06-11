@@ -773,6 +773,12 @@ export default function Home() {
   const getMaterialsTotal = (taskId: string) => materials.filter(m => m.taskId === taskId).reduce((sum, m) => sum + (m.totalPrice || 0), 0)
 
   // Filtered tasks
+  // Helper: get priority order for sorting (Alta=1, Media=2, Baja=3, etc.)
+  const getPriorityOrder = (priorityName: string): number => {
+    const p = priorities.find(pr => pr.name === priorityName)
+    return p?.order ?? 999
+  }
+
   const filteredTasks = tasks.filter(t => {
     if (filterSector !== 'all' && t.sector !== filterSector) return false
     if (filterPriority !== 'all' && t.priority !== filterPriority) return false
@@ -780,8 +786,11 @@ export default function Home() {
     if (filterRepairType !== 'all' && t.repairType !== filterRepairType) return false
     return true
   }).sort((a, b) => {
-    // Sort by workOrder: tasks with workOrder > 0 come first (sorted ascending)
-    // Tasks with workOrder === 0 go to the end, sorted by createdAt
+    // First sort by priority order (Alta first, then Media, then Baja)
+    const priorityA = getPriorityOrder(a.priority)
+    const priorityB = getPriorityOrder(b.priority)
+    if (priorityA !== priorityB) return priorityA - priorityB
+    // Within same priority, sort by workOrder (ascending, tasks with workOrder > 0 first)
     if (a.workOrder > 0 && b.workOrder > 0) return a.workOrder - b.workOrder
     if (a.workOrder > 0) return -1
     if (b.workOrder > 0) return 1
@@ -818,8 +827,13 @@ export default function Home() {
   }
 
   // Gantt chart helpers
-  // All filtered tasks sorted by workOrder for Gantt display
+  // All filtered tasks sorted by priority then workOrder for Gantt display
   const ganttTasks = [...filteredTasks].sort((a, b) => {
+    // First sort by priority order (Alta first, then Media, then Baja)
+    const priorityA = getPriorityOrder(a.priority)
+    const priorityB = getPriorityOrder(b.priority)
+    if (priorityA !== priorityB) return priorityA - priorityB
+    // Within same priority, sort by workOrder
     if (a.workOrder > 0 && b.workOrder > 0) return a.workOrder - b.workOrder
     if (a.workOrder > 0) return -1
     if (b.workOrder > 0) return 1
