@@ -2765,7 +2765,7 @@ export default function Home() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      
+                      <TableHead className="w-[50px] text-center">N°</TableHead>
                       <TableHead className="min-w-[200px]">Descripción</TableHead>
                       <TableHead>Sector</TableHead>
                       <TableHead>Tipo</TableHead>
@@ -2791,7 +2791,7 @@ export default function Home() {
                   <TableBody>
                     {filteredTasks.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={showMaterials ? 14 : 13} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={showMaterials ? 15 : 14} className="text-center py-8 text-gray-500">
                           No hay tareas que coincidan con los filtros
                         </TableCell>
                       </TableRow>
@@ -2802,7 +2802,9 @@ export default function Home() {
                         const matCount = getMaterialsCount(task.id)
                         return (
                           <TableRow key={task.id}>
-                            
+                            <TableCell className="text-center font-bold text-slate-600">
+                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-700 text-xs font-bold">{filteredTasks.indexOf(task) + 1}</span>
+                            </TableCell>
                             <TableCell className="font-medium max-w-[250px]">
                               <div className="truncate" title={task.description}>{task.description}</div>
                               {task.comments && (
