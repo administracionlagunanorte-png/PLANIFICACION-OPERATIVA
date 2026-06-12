@@ -77,6 +77,7 @@ import {
 } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import ExcelJS from 'exceljs'
+import { useToast } from '@/hooks/use-toast'
 
 // Types
 interface Task {
@@ -354,10 +355,18 @@ export default function Home() {
   }, [fetchTasks, fetchSectors, fetchRepairTypes, fetchPriorities, fetchEtapas, fetchStatuses, fetchResponsibles, fetchMaterials])
 
   // Task CRUD
+  const { toast } = useToast()
   const [savingTask, setSavingTask] = useState(false)
 
   const handleSaveTask = async () => {
-    if (!formData.description || !formData.sector) return
+    if (!formData.description || !formData.sector) {
+      toast({ title: 'Campos requeridos', description: 'Descripción y Sector son obligatorios', variant: 'destructive' })
+      return
+    }
+    if (!formData.repairType) {
+      toast({ title: 'Campo requerido', description: 'Tipo de Reparación es obligatorio', variant: 'destructive' })
+      return
+    }
     try {
       setSavingTask(true)
       const body = {
@@ -375,7 +384,11 @@ export default function Home() {
           body: JSON.stringify({ id: editingTask.id, ...body }),
         })
         if (!res.ok) {
-          console.error('Error updating task:', await res.text())
+          const errText = await res.text()
+          console.error('Error updating task:', errText)
+          toast({ title: 'Error al actualizar', description: errText, variant: 'destructive' })
+        } else {
+          toast({ title: 'Tarea actualizada', description: 'Los cambios se guardaron correctamente' })
         }
       } else {
         const res = await fetch('/api/tasks', {
@@ -384,8 +397,11 @@ export default function Home() {
           body: JSON.stringify(body),
         })
         if (!res.ok) {
-          console.error('Error creating task:', await res.text())
+          const errText = await res.text()
+          console.error('Error creating task:', errText)
+          toast({ title: 'Error al crear tarea', description: errText, variant: 'destructive' })
         } else {
+          toast({ title: 'Tarea creada', description: 'La tarea se creó correctamente' })
           // Save inline materials for new task
           const newTask = await res.json()
           if (formData.inlineMaterials.length > 0 && newTask.id) {
@@ -948,11 +964,8 @@ export default function Home() {
     const etapaA = getEtapaOrder(a.etapa)
     const etapaB = getEtapaOrder(b.etapa)
     if (etapaA !== etapaB) return etapaA - etapaB
-    // Within same priority+etapa, sort by workOrder (ascending, tasks with workOrder > 0 first)
-    if (a.workOrder > 0 && b.workOrder > 0) return a.workOrder - b.workOrder
-    if (a.workOrder > 0) return -1
-    if (b.workOrder > 0) return 1
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    // Within same priority+etapa, sort by creation date
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   })
 
   // Stats
@@ -985,7 +998,7 @@ export default function Home() {
   }
 
   // Gantt chart helpers
-  // All filtered tasks sorted by priority, then etapa, then workOrder for Gantt display
+  // All filtered tasks sorted by priority, then etapa, then creation date for Gantt display
   const ganttTasks = [...filteredTasks].sort((a, b) => {
     // First sort by priority order (Alta first, then Media, then Baja)
     const priorityA = getPriorityOrder(a.priority)
@@ -995,11 +1008,8 @@ export default function Home() {
     const etapaA = getEtapaOrder(a.etapa)
     const etapaB = getEtapaOrder(b.etapa)
     if (etapaA !== etapaB) return etapaA - etapaB
-    // Within same priority+etapa, sort by workOrder
-    if (a.workOrder > 0 && b.workOrder > 0) return a.workOrder - b.workOrder
-    if (a.workOrder > 0) return -1
-    if (b.workOrder > 0) return 1
-    return 0
+    // Within same priority+etapa, sort by creation date
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   })
   // Only tasks with dates (for calculating date range)
   const tasksWithDates = filteredTasks.filter(t => t.startDate && t.endDate)
@@ -1164,7 +1174,7 @@ export default function Home() {
         properties: { defaultColWidth: 4 },
       })
 
-      const fixedHeaders = ['N° Orden', 'Descripción', 'Sector', 'Tipo', 'Prioridad', 'Estado', 'Responsable', 'Fecha Inicio', 'Fecha Término']
+      const fixedHeaders = ['N°', 'Descripción', 'Sector', 'Tipo', 'Prioridad', 'Estado', 'Responsable', 'Fecha Inicio', 'Fecha Término']
       const allHeaders = [...fixedHeaders, ...ganttDays.map(d => String(d.getDate())), 'Total Mat.']
 
       // Title row
@@ -1271,7 +1281,7 @@ export default function Home() {
         const matCount = getMaterialsCount(task.id)
 
         const row = [
-          task.workOrder > 0 ? task.workOrder : '',
+          sortedTasks.indexOf(task) + 1,
           task.description + (!hasDates ? ' ⚠' : ''),
           task.sector,
           task.repairType,
@@ -1681,7 +1691,8 @@ export default function Home() {
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(15, 23, 42)
     doc.setFontSize(10)
-    const orderPrefix = task.workOrder > 0 ? `${task.workOrder}. ` : ''
+    const taskNumber = tasks.indexOf(task) + 1
+    const orderPrefix = `${taskNumber}. `
     doc.text(orderPrefix + task.description, margin + 3 + doc.getTextWidth('Actividad: '), y)
     y += 12
 
@@ -1956,7 +1967,7 @@ export default function Home() {
       row.getCell(2).alignment = { vertical: 'middle', wrapText: true }
     }
 
-    addInfoRow('N° Orden', task.workOrder > 0 ? String(task.workOrder) : 'Sin asignar')
+    addInfoRow('N° Tarea', String(tasks.indexOf(task) + 1))
     addInfoRow('Descripción', task.description)
     addInfoRow('Área / Sector', task.sector)
     addInfoRow('Tipo Reparación', task.repairType)
@@ -2195,12 +2206,12 @@ export default function Home() {
 
         colX = margin
 
-        // N° Orden
+        // N° Tarea (correlativo)
         doc.setFontSize(8)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(15, 23, 42)
-        if (task.workOrder > 0) {
-          const orderText = String(task.workOrder)
+        {
+          const orderText = String(tableTasks.indexOf(task) + 1)
           const orderW = doc.getTextWidth(orderText) + 6
           doc.setFillColor(30, 41, 59)
           doc.roundedRect(colX + (cols[0].width - orderW) / 2, y + 0.5, orderW, 5, 1.5, 1.5, 'F')
@@ -3188,9 +3199,7 @@ export default function Home() {
                         <div key={task.id} className={`flex border-b hover:bg-gray-50 transition-colors group ${!hasDates ? 'bg-gray-50/50' : ''}`}>
                           <div className="w-[280px] shrink-0 p-2 text-xs">
                             <div className="flex items-center gap-1.5">
-                              {task.workOrder > 0 && (
-                                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-700 text-white text-[9px] font-bold shrink-0">{task.workOrder}</span>
-                              )}
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-700 text-white text-[9px] font-bold shrink-0">{ganttTasks.indexOf(task) + 1}</span>
                               <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: priorityColor }}></span>
                               <span className="truncate font-medium" title={task.description}>{task.description}</span>
                             </div>

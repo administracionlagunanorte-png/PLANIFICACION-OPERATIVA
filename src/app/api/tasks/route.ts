@@ -55,7 +55,7 @@ async function logHistory(taskId: string, action: string, field: string | null, 
 export async function GET() {
   try {
     const tasks = await db.task.findMany({
-      orderBy: [{ workOrder: 'asc' }, { createdAt: 'desc' }],
+      orderBy: [{ createdAt: 'asc' }],
     })
     return NextResponse.json(tasks)
   } catch (error) {
