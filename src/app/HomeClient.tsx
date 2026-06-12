@@ -503,6 +503,21 @@ export default function Home() {
     }
   }
 
+  const handleUpdateTaskStatus = async (taskId: string, newStatus: string) => {
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: taskId, status: newStatus }),
+      })
+      if (res.ok) {
+        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t))
+      }
+    } catch (err) {
+      console.error('Error updating task status:', err)
+    }
+  }
+
   const openEditTask = (task: Task) => {
     setEditingTask(task)
     setFormData({
@@ -2980,9 +2995,18 @@ export default function Home() {
                               </select>
                             </TableCell>
                             <TableCell className="px-1 py-1.5">
-                              <Badge variant="outline" className={`text-[10px] px-1 ${getStatusBadgeClass(task.status) || ''}`}>
-                                {task.status}
-                              </Badge>
+                              <select
+                                value={task.status}
+                                onChange={e => handleUpdateTaskStatus(task.id, e.target.value)}
+                                className="text-[11px] border rounded px-1 py-0.5 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
+                                style={{ color: getStatusColor(task.status) }}
+                              >
+                                {statuses.map(s => (
+                                  <option key={s.id} value={s.name} style={{ color: s.color }}>
+                                    {s.name}
+                                  </option>
+                                ))}
+                              </select>
                             </TableCell>
                             <TableCell className="px-1 py-1.5">
                               <select
