@@ -74,6 +74,9 @@ import {
   FileSpreadsheet,
   Package,
   DollarSign,
+  CheckCircle,
+  XCircle,
+  MessageSquare,
 } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import ExcelJS from 'exceljs'
@@ -94,6 +97,7 @@ interface Task {
   startDate: string | null
   endDate: string | null
   comments: string | null
+  approvalStatus: string
   beforePhotos: string
   afterPhotos: string
   documents: string
@@ -178,6 +182,7 @@ export default function Home() {
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterRepairType, setFilterRepairType] = useState('all')
   const [filterEtapa, setFilterEtapa] = useState('all')
+  const [filterApproval, setFilterApproval] = useState('all')
 
   // Dialog states
   const [taskDialogOpen, setTaskDialogOpen] = useState(false)
@@ -237,6 +242,7 @@ export default function Home() {
     startDate: '',
     endDate: '',
     comments: '',
+    approvalStatus: 'En espera de decisión',
     beforePhotos: [] as string[],
     afterPhotos: [] as string[],
     documents: [] as Array<{url: string; name: string; type: string}>,
@@ -512,6 +518,7 @@ export default function Home() {
       startDate: task.startDate ? task.startDate.split('T')[0] : '',
       endDate: task.endDate ? task.endDate.split('T')[0] : '',
       comments: task.comments || '',
+      approvalStatus: task.approvalStatus || 'En espera de decisión',
       beforePhotos: JSON.parse(task.beforePhotos || '[]'),
       afterPhotos: JSON.parse(task.afterPhotos || '[]'),
       documents: JSON.parse(task.documents || '[]'),
@@ -540,6 +547,7 @@ export default function Home() {
       startDate: '',
       endDate: '',
       comments: '',
+      approvalStatus: 'En espera de decisión',
       beforePhotos: [],
       afterPhotos: [],
       documents: [],
@@ -953,12 +961,46 @@ export default function Home() {
     return e?.color || '#6b7280'
   }
 
+  const getApprovalColor = (status: string) => {
+    switch (status) {
+      case 'Aprobado': return '#16a34a'
+      case 'No aprobado': return '#dc2626'
+      case 'En espera de decisión': return '#d97706'
+      default: return '#6b7280'
+    }
+  }
+
+  const getApprovalBadgeClass = (status: string) => {
+    switch (status) {
+      case 'Aprobado': return 'bg-green-50 text-green-700 border-green-200'
+      case 'No aprobado': return 'bg-red-50 text-red-700 border-red-200'
+      case 'En espera de decisión': return 'bg-amber-50 text-amber-700 border-amber-200'
+      default: return ''
+    }
+  }
+
+  const handleUpdateTaskApproval = async (taskId: string, newApproval: string) => {
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: taskId, approvalStatus: newApproval }),
+      })
+      if (res.ok) {
+        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, approvalStatus: newApproval } : t))
+      }
+    } catch (err) {
+      console.error('Error updating task approval:', err)
+    }
+  }
+
   const filteredTasks = tasks.filter(t => {
     if (filterSector !== 'all' && t.sector !== filterSector) return false
     if (filterPriority !== 'all' && t.priority !== filterPriority) return false
     if (filterStatus !== 'all' && t.status !== filterStatus) return false
     if (filterRepairType !== 'all' && t.repairType !== filterRepairType) return false
     if (filterEtapa !== 'all' && t.etapa !== filterEtapa) return false
+    if (filterApproval !== 'all' && t.approvalStatus !== filterApproval) return false
     return true
   }).sort((a, b) => {
     // First sort by priority order (Alta first, then Media, then Baja)
@@ -978,6 +1020,9 @@ export default function Home() {
   const completedTasks = tasks.filter(t => t.status === 'Completada').length
   const inProgressTasks = tasks.filter(t => t.status === 'En Proceso').length
   const pendingTasks = tasks.filter(t => t.status === 'Pendiente').length
+  const approvedTasks = tasks.filter(t => t.approvalStatus === 'Aprobado').length
+  const notApprovedTasks = tasks.filter(t => t.approvalStatus === 'No aprobado').length
+  const waitingApprovalTasks = tasks.filter(t => t.approvalStatus === 'En espera de decisión' || !t.approvalStatus).length
   const totalAmount = tasks.reduce((sum, t) => sum + (t.amount || 0), 0)
   const completedAmount = tasks.filter(t => t.status === 'Completada').reduce((sum, t) => sum + (t.amount || 0), 0)
   const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
@@ -1705,9 +1750,9 @@ export default function Home() {
     const shortFields = [
       ['Área / Sector', task.sector, 'Tipo Reparación', task.repairType],
       ['Prioridad', task.priority, 'Estado', task.status],
-      ['Responsable', task.responsible || 'Sin asignar', 'Tiempo Estimado', task.estimatedTime || '-'],
+      ['Estado Aprobación', task.approvalStatus || 'En espera de decisión', 'Responsable', task.responsible || 'Sin asignar'],
+      ['Tiempo Estimado', task.estimatedTime || '-', 'Monto', task.amount ? formatCurrency(task.amount) : '-'],
       ['Fecha Inicio', formatDate(task.startDate), 'Fecha Término', formatDate(task.endDate)],
-      ['Monto', task.amount ? formatCurrency(task.amount) : '-', '', ''],
     ]
 
     const labelColW = 38
@@ -1978,6 +2023,7 @@ export default function Home() {
     addInfoRow('Tipo Reparación', task.repairType)
     addInfoRow('Prioridad', task.priority)
     addInfoRow('Estado', task.status)
+    addInfoRow('Estado Aprobación', task.approvalStatus || 'En espera de decisión')
     addInfoRow('Responsable', task.responsible || 'Sin asignar')
     addInfoRow('Fecha Inicio', formatDate(task.startDate))
     addInfoRow('Fecha Término', formatDate(task.endDate))
@@ -2138,6 +2184,8 @@ export default function Home() {
         { header: 'Tipo', width: 30 },
         { header: 'Prioridad', width: 26 },
         { header: 'Estado', width: 26 },
+        { header: 'Aprobación', width: 32 },
+        { header: 'Comentarios', width: 40 },
         { header: 'Responsable', width: 40 },
         { header: 'Tiempo Est.', width: 22 },
         { header: 'Monto', width: 28 },
@@ -2292,31 +2340,61 @@ export default function Home() {
         }
         colX += cols[5].width
 
+        // Aprobación with colored badge
+        const approvalStatus = task.approvalStatus || 'En espera de decisión'
+        const approvalColorMap: Record<string, { bg: string; text: string }> = {
+          'Aprobado': { bg: 'DCFCE7', text: '166534' },
+          'No aprobado': { bg: 'FEE2E2', text: '991B1B' },
+          'En espera de decisión': { bg: 'FEF3C7', text: '92400E' },
+        }
+        const aColors = approvalColorMap[approvalStatus]
+        if (aColors) {
+          const approvalW = doc.getTextWidth(approvalStatus) + 6
+          doc.setFillColor(parseInt(aColors.bg.substring(0, 2), 16), parseInt(aColors.bg.substring(2, 4), 16), parseInt(aColors.bg.substring(4, 6), 16))
+          doc.roundedRect(colX + 1, y + 0.5, Math.min(approvalW, cols[6].width - 4), 5, 1, 1, 'F')
+          doc.setTextColor(parseInt(aColors.text.substring(0, 2), 16), parseInt(aColors.text.substring(2, 4), 16), parseInt(aColors.text.substring(4, 6), 16))
+          doc.setFontSize(7)
+          doc.setFont('helvetica', 'bold')
+          doc.text(approvalStatus, colX + 4, y + 4)
+          doc.setFont('helvetica', 'normal')
+        } else {
+          doc.setTextColor(51, 65, 85)
+          doc.text(approvalStatus, colX + 2, y + 4)
+        }
+        colX += cols[6].width
+
+        // Comentarios
+        doc.setTextColor(51, 65, 85)
+        doc.setFontSize(7)
+        const commentsText = task.comments ? (task.comments.length > 28 ? task.comments.substring(0, 25) + '...' : task.comments) : '-'
+        doc.text(commentsText, colX + 2, y + 4)
+        colX += cols[7].width
+
         // Responsable
         doc.setTextColor(51, 65, 85)
         doc.setFontSize(7)
         doc.text(task.responsible || '-', colX + 2, y + 4)
-        colX += cols[6].width
+        colX += cols[8].width
 
         // Tiempo Est.
         doc.text(task.estimatedTime || '-', colX + 2, y + 4)
-        colX += cols[7].width
+        colX += cols[9].width
 
         // Monto
         doc.setTextColor(15, 23, 42)
         doc.setFont('helvetica', 'bold')
         doc.text(task.amount ? formatCurrency(task.amount) : '-', colX + 2, y + 4)
         doc.setFont('helvetica', 'normal')
-        colX += cols[8].width
+        colX += cols[10].width
 
         // Inicio
         doc.setTextColor(51, 65, 85)
         doc.text(formatDate(task.startDate), colX + 2, y + 4)
-        colX += cols[9].width
+        colX += cols[11].width
 
         // Término
         doc.text(formatDate(task.endDate), colX + 2, y + 4)
-        colX += cols[10].width
+        colX += cols[12].width
 
         // Fotos
         const beforePhotos = JSON.parse(task.beforePhotos || '[]') as string[]
@@ -2324,7 +2402,7 @@ export default function Home() {
         const totalPhotos = beforePhotos.length + afterPhotos.length
         doc.setTextColor(100, 116, 139)
         doc.text(totalPhotos > 0 ? String(totalPhotos) : '-', colX + 2, y + 4)
-        colX += cols[11].width
+        colX += cols[13].width
 
         // Materiales
         if (showMaterials) {
@@ -2569,6 +2647,17 @@ export default function Home() {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={filterApproval} onValueChange={setFilterApproval}>
+              <SelectTrigger className="w-[110px] sm:w-[150px] h-8 text-xs">
+                <SelectValue placeholder="Aprobación" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toda Aprobación</SelectItem>
+                <SelectItem value="Aprobado">Aprobado</SelectItem>
+                <SelectItem value="No aprobado">No aprobado</SelectItem>
+                <SelectItem value="En espera de decisión">En espera de decisión</SelectItem>
+              </SelectContent>
+            </Select>
             {/* Materials toggle for table/card views */}
             {(view === 'table' || view === 'cards') && (
               <div className="flex items-center gap-1.5 ml-2 pl-2 border-l">
@@ -2621,6 +2710,49 @@ export default function Home() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-green-600">{completedTasks}</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Approval Status Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="border-green-200 bg-green-50/50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-green-700 flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4" /> Aprobadas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-green-700">{approvedTasks}</div>
+                  <div className="text-xs text-green-600 mt-1">
+                    {totalTasks > 0 ? Math.round((approvedTasks / totalTasks) * 100) : 0}% del total
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-red-200 bg-red-50/50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-red-700 flex items-center gap-2">
+                    <XCircle className="h-4 w-4" /> No Aprobadas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-red-700">{notApprovedTasks}</div>
+                  <div className="text-xs text-red-600 mt-1">
+                    {totalTasks > 0 ? Math.round((notApprovedTasks / totalTasks) * 100) : 0}% del total
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-amber-200 bg-amber-50/50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-amber-700 flex items-center gap-2">
+                    <Clock className="h-4 w-4" /> En Espera de Decisión
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-amber-700">{waitingApprovalTasks}</div>
+                  <div className="text-xs text-amber-600 mt-1">
+                    {totalTasks > 0 ? Math.round((waitingApprovalTasks / totalTasks) * 100) : 0}% del total
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -2767,7 +2899,7 @@ export default function Home() {
                 <ChevronRight className="h-3 w-3" /> Desliza horizontalmente para ver más columnas
               </div>
               <div className="overflow-x-auto">
-                <Table className="min-w-[900px] text-xs">
+                <Table className="min-w-[1200px] text-xs">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[32px] text-center px-1 py-1.5">#</TableHead>
@@ -2777,6 +2909,8 @@ export default function Home() {
                       <TableHead className="px-1 py-1.5">Prior.</TableHead>
                       <TableHead className="px-1 py-1.5">Etapa</TableHead>
                       <TableHead className="px-1 py-1.5">Estado</TableHead>
+                      <TableHead className="px-1 py-1.5 min-w-[110px]">Aprobación</TableHead>
+                      <TableHead className="px-1 py-1.5 min-w-[100px]">Comentarios</TableHead>
                       <TableHead className="px-1 py-1.5">Resp.</TableHead>
                       <TableHead className="px-1 py-1.5 w-[50px]">T.E.</TableHead>
                       <TableHead className="text-right px-1 py-1.5 w-[65px]">Monto</TableHead>
@@ -2797,7 +2931,7 @@ export default function Home() {
                   <TableBody>
                     {filteredTasks.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={showMaterials ? 16 : 15} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={showMaterials ? 18 : 17} className="text-center py-8 text-gray-500">
                           No hay tareas que coincidan con los filtros
                         </TableCell>
                       </TableRow>
@@ -2813,9 +2947,6 @@ export default function Home() {
                             </TableCell>
                             <TableCell className="font-medium max-w-[180px] px-1 py-1.5">
                               <div className="truncate" title={task.description}>{task.description}</div>
-                              {task.comments && (
-                                <div className="text-[10px] text-gray-400 mt-0.5 truncate" title={task.comments}>{task.comments}</div>
-                              )}
                             </TableCell>
                             <TableCell className="px-1 py-1.5"><Badge variant="secondary" className="text-[10px] px-1">{task.sector}</Badge></TableCell>
                             <TableCell className="px-1 py-1.5">{task.repairType}</TableCell>
@@ -2852,6 +2983,25 @@ export default function Home() {
                               <Badge variant="outline" className={`text-[10px] px-1 ${getStatusBadgeClass(task.status) || ''}`}>
                                 {task.status}
                               </Badge>
+                            </TableCell>
+                            <TableCell className="px-1 py-1.5">
+                              <select
+                                value={task.approvalStatus || 'En espera de decisión'}
+                                onChange={e => handleUpdateTaskApproval(task.id, e.target.value)}
+                                className="text-[11px] border rounded px-1 py-0.5 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
+                                style={{ color: getApprovalColor(task.approvalStatus) }}
+                              >
+                                <option value="Aprobado" style={{ color: '#16a34a' }}>Aprobado</option>
+                                <option value="No aprobado" style={{ color: '#dc2626' }}>No aprobado</option>
+                                <option value="En espera de decisión" style={{ color: '#d97706' }}>En espera de decisión</option>
+                              </select>
+                            </TableCell>
+                            <TableCell className="px-1 py-1.5 max-w-[150px]">
+                              {task.comments ? (
+                                <div className="truncate text-[10px] text-gray-600" title={task.comments}>{task.comments}</div>
+                              ) : (
+                                <span className="text-[10px] text-gray-300">-</span>
+                              )}
                             </TableCell>
                             <TableCell className="px-1 py-1.5">{task.responsible || '-'}</TableCell>
                             <TableCell className="px-1 py-1.5">{task.estimatedTime || '-'}</TableCell>
@@ -3003,8 +3153,22 @@ export default function Home() {
                           </Badge>
                         )}
                       </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0.5 ${getApprovalBadgeClass(task.approvalStatus)}`}>
+                          {task.approvalStatus === 'Aprobado' && <CheckCircle className="h-3 w-3 mr-1" />}
+                          {task.approvalStatus === 'No aprobado' && <XCircle className="h-3 w-3 mr-1" />}
+                          {task.approvalStatus === 'En espera de decisión' && <Clock className="h-3 w-3 mr-1" />}
+                          {task.approvalStatus || 'En espera de decisión'}
+                        </Badge>
+                      </div>
                       {task.responsible && (
                         <div className="text-xs text-gray-500">Responsable: {task.responsible}</div>
+                      )}
+                      {task.comments && (
+                        <div className="text-xs text-gray-600 bg-gray-50 rounded p-2 border flex items-start gap-1.5">
+                          <MessageSquare className="h-3.5 w-3.5 text-gray-400 shrink-0 mt-0.5" />
+                          <span>{task.comments}</span>
+                        </div>
                       )}
                       <div className="flex items-center justify-between text-xs text-gray-500">
                         <span>Tiempo: {task.estimatedTime || '-'}</span>
@@ -3588,6 +3752,34 @@ export default function Home() {
                     {statuses.map(s => (
                       <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>Estado de Aprobación</Label>
+                <Select value={formData.approvalStatus || 'En espera de decisión'} onValueChange={v => setFormData(prev => ({ ...prev, approvalStatus: v }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Aprobado">
+                      <span className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+                        Aprobado
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="No aprobado">
+                      <span className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                        No aprobado
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="En espera de decisión">
+                      <span className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        En espera de decisión
+                      </span>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>

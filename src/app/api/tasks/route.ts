@@ -8,6 +8,7 @@ const FIELD_LABELS: Record<string, string> = {
   priority: 'Prioridad',
   etapa: 'Etapa',
   status: 'Estado',
+  approvalStatus: 'Estado de Aprobación',
   responsible: 'Responsable',
   estimatedTime: 'Tiempo Estimado',
   amount: 'Monto',
@@ -85,6 +86,7 @@ export async function POST(request: NextRequest) {
         startDate: body.startDate ? new Date(body.startDate) : null,
         endDate: body.endDate ? new Date(body.endDate) : null,
         comments: body.comments || null,
+        approvalStatus: body.approvalStatus || 'En espera de decisión',
         beforePhotos: body.beforePhotos || '[]',
         afterPhotos: body.afterPhotos || '[]',
         documents: body.documents || '[]',
@@ -131,7 +133,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Track field changes
-    const trackableFields = ['description', 'sector', 'repairType', 'priority', 'etapa', 'status', 'responsible', 'estimatedTime', 'amount', 'startDate', 'endDate', 'comments', 'beforePhotos', 'afterPhotos', 'documents', 'workOrder']
+    const trackableFields = ['description', 'sector', 'repairType', 'priority', 'etapa', 'status', 'approvalStatus', 'responsible', 'estimatedTime', 'amount', 'startDate', 'endDate', 'comments', 'beforePhotos', 'afterPhotos', 'documents', 'workOrder']
     const changes: { field: string; oldValue: unknown; newValue: unknown }[] = []
 
     for (const field of trackableFields) {
