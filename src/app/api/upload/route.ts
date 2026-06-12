@@ -31,21 +31,33 @@ export async function POST(request: NextRequest) {
         })
         return NextResponse.json({ url: blob.url })
       } catch (blobError) {
-        console.error('Vercel Blob upload failed, falling back to local:', blobError)
-        // Fall through to local storage
+        console.error('Vercel Blob upload failed:', blobError)
+        return NextResponse.json(
+          { error: 'Error uploading to Vercel Blob. Check BLOB_READ_WRITE_TOKEN configuration.' },
+          { status: 500 }
+        )
       }
     }
 
-    // Local filesystem storage (for development)
-    const uploadsDir = path.join(process.cwd(), 'uploads')
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true })
+    // Local filesystem storage (for development only)
+    // This will NOT work on Vercel serverless - you need BLOB_READ_WRITE_TOKEN
+    try {
+      const uploadsDir = path.join(process.cwd(), 'uploads')
+      if (!existsSync(uploadsDir)) {
+        await mkdir(uploadsDir, { recursive: true })
+      }
+
+      const filePath = path.join(uploadsDir, filename)
+      await writeFile(filePath, buffer)
+
+      return NextResponse.json({ url: `/uploads/${filename}` })
+    } catch (fsError) {
+      console.error('Local filesystem upload failed (expected on Vercel):', fsError)
+      return NextResponse.json(
+        { error: 'File upload not configured. Set up Vercel Blob storage by adding BLOB_READ_WRITE_TOKEN environment variable in Vercel Dashboard > Project Settings > Environment Variables.' },
+        { status: 500 }
+      )
     }
-
-    const filePath = path.join(uploadsDir, filename)
-    await writeFile(filePath, buffer)
-
-    return NextResponse.json({ url: `/uploads/${filename}` })
   } catch (error) {
     console.error('Error uploading file:', error)
     return NextResponse.json({ error: 'Error uploading file' }, { status: 500 })
