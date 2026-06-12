@@ -120,3 +120,18 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Touch-friendly scrolling for Gantt chart on mobile */
+.gantt-scroll-area {
+  touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hide scrollbar for horizontal tab overflow on mobile */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}

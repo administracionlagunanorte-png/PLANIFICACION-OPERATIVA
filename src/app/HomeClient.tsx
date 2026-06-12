@@ -2404,16 +2404,17 @@ export default function Home() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b shadow-sm sticky top-0 z-40">
-        <div className="max-w-[1600px] mx-auto px-4 py-3">
+        <div className="max-w-[1600px] mx-auto px-3 sm:px-4 py-2 sm:py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img src="/logo-laguna-norte.jpg" alt="Laguna Norte" className="h-10 w-auto rounded" />
+            <div className="flex items-center gap-2 sm:gap-3">
+              <img src="/logo-laguna-norte.jpg" alt="Laguna Norte" className="h-8 sm:h-10 w-auto rounded" />
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Planificación de Mantención</h1>
-                <p className="text-sm text-gray-500">Condominio & Parque - Laguna Norte</p>
+                <h1 className="text-base sm:text-xl font-bold text-gray-900">Planificación de Mantención</h1>
+                <p className="text-xs sm:text-sm text-gray-500 hidden sm:block">Condominio & Parque - Laguna Norte</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            {/* Desktop buttons */}
+            <div className="hidden lg:flex items-center gap-2">
               <Button onClick={openCreateTask} size="sm" className="gap-1">
                 <Plus className="h-4 w-4" /> Nueva Tarea
               </Button>
@@ -2424,14 +2425,35 @@ export default function Home() {
                 <History className="h-4 w-4" /> Historial
               </Button>
             </div>
+            {/* Mobile menu */}
+            <div className="flex lg:hidden items-center gap-1">
+              <Button onClick={openCreateTask} size="sm" className="h-9 w-9 p-0">
+                <Plus className="h-4 w-4" />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 w-9 p-0">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setConfigDialogOpen(true)}>
+                    <Settings className="h-4 w-4 mr-2" /> Configurar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => openHistory('all')}>
+                    <History className="h-4 w-4 mr-2" /> Historial
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </header>
 
       {/* View Tabs */}
-      <div className="max-w-[1600px] mx-auto px-4 py-3">
+      <div className="max-w-[1600px] mx-auto px-3 sm:px-4 py-2 sm:py-3">
         <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex bg-white rounded-lg border p-1 gap-1">
+          <div className="flex bg-white rounded-lg border p-1 gap-1 overflow-x-auto scrollbar-none">
             <Button
               variant={view === 'dashboard' ? 'default' : 'ghost'}
               size="sm"
@@ -2475,9 +2497,9 @@ export default function Home() {
           </div>
 
           {/* Filters */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap max-w-full">
             <Select value={filterSector} onValueChange={setFilterSector}>
-              <SelectTrigger className="w-[140px] h-8 text-xs">
+              <SelectTrigger className="w-[120px] sm:w-[140px] h-8 text-xs">
                 <SelectValue placeholder="Sector" />
               </SelectTrigger>
               <SelectContent>
@@ -2488,7 +2510,7 @@ export default function Home() {
               </SelectContent>
             </Select>
             <Select value={filterPriority} onValueChange={setFilterPriority}>
-              <SelectTrigger className="w-[130px] h-8 text-xs">
+              <SelectTrigger className="w-[110px] sm:w-[130px] h-8 text-xs">
                 <SelectValue placeholder="Prioridad" />
               </SelectTrigger>
               <SelectContent>
@@ -2499,7 +2521,7 @@ export default function Home() {
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[130px] h-8 text-xs">
+              <SelectTrigger className="w-[110px] sm:w-[130px] h-8 text-xs">
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent>
@@ -2510,7 +2532,7 @@ export default function Home() {
               </SelectContent>
             </Select>
             <Select value={filterRepairType} onValueChange={setFilterRepairType}>
-              <SelectTrigger className="w-[140px] h-8 text-xs">
+              <SelectTrigger className="w-[120px] sm:w-[140px] h-8 text-xs">
                 <SelectValue placeholder="Tipo Rep." />
               </SelectTrigger>
               <SelectContent>
@@ -2521,7 +2543,7 @@ export default function Home() {
               </SelectContent>
             </Select>
             <Select value={filterEtapa} onValueChange={setFilterEtapa}>
-              <SelectTrigger className="w-[130px] h-8 text-xs">
+              <SelectTrigger className="w-[110px] sm:w-[130px] h-8 text-xs">
                 <SelectValue placeholder="Etapa" />
               </SelectTrigger>
               <SelectContent>
@@ -2547,7 +2569,7 @@ export default function Home() {
       </div>
 
       {/* Main Content */}
-      <main className="max-w-[1600px] mx-auto px-4 pb-8">
+      <main className="max-w-[1600px] mx-auto px-3 sm:px-4 pb-8">
         {/* Dashboard View */}
         {view === 'dashboard' && (
           <div className="space-y-6">
@@ -2725,6 +2747,9 @@ export default function Home() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
+              <div className="sm:hidden px-4 py-2 text-xs text-gray-400 flex items-center gap-1">
+                <ChevronRight className="h-3 w-3" /> Desliza para ver más columnas
+              </div>
               <ScrollArea className="w-full">
                 <Table>
                   <TableHeader>
@@ -3112,7 +3137,7 @@ export default function Home() {
                   <p className="text-sm mt-1">Cree tareas y asígneles fechas para generar el diagrama.</p>
                 </div>
               ) : (
-                <ScrollArea className="w-full">
+                <ScrollArea className="w-full gantt-scroll-area">
                   <div id="gantt-chart-content" className="min-w-[900px] p-4 bg-white">
                     {/* Title for exported image */}
                     <div className="mb-4 pb-3 border-b">
@@ -3444,7 +3469,7 @@ export default function Home() {
 
       {/* Task Create/Edit Dialog */}
       <Dialog open={taskDialogOpen} onOpenChange={(open) => { setTaskDialogOpen(open); if (!open) cleanupAriaHidden() }}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto w-[calc(100vw-1rem)] sm:w-auto">
           <DialogHeader>
             <DialogTitle>{editingTask ? 'Editar Tarea' : 'Nueva Tarea'}</DialogTitle>
             <DialogDescription className="sr-only">
@@ -3461,7 +3486,7 @@ export default function Home() {
                 rows={2}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>Sector *</Label>
                 <Select value={formData.sector} onValueChange={v => setFormData(prev => ({ ...prev, sector: v }))}>
@@ -3489,7 +3514,7 @@ export default function Home() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>Prioridad *</Label>
                 <Select value={formData.priority} onValueChange={v => setFormData(prev => ({ ...prev, priority: v }))}>
@@ -3541,7 +3566,7 @@ export default function Home() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>Responsable</Label>
                 <Select value={formData.responsible} onValueChange={v => setFormData(prev => ({ ...prev, responsible: v }))}>
@@ -3566,7 +3591,7 @@ export default function Home() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="amount">Monto ($)</Label>
                 <Input
@@ -3578,7 +3603,7 @@ export default function Home() {
               </div>
               <div></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="startDate">Fecha de Inicio</Label>
                 <Input
@@ -3616,7 +3641,7 @@ export default function Home() {
                   Subiendo imágenes...
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Before Photos */}
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
@@ -3917,7 +3942,7 @@ export default function Home() {
 
       {/* Config Dialog */}
       <Dialog open={configDialogOpen} onOpenChange={(open) => { setConfigDialogOpen(open); if (!open) cleanupAriaHidden() }}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto w-[calc(100vw-1rem)] sm:w-auto">
           <DialogHeader>
             <DialogTitle>Configuración</DialogTitle>
             <DialogDescription className="sr-only">Administrar sectores, tipos de reparación, prioridades, estados y responsables</DialogDescription>
@@ -4280,7 +4305,7 @@ export default function Home() {
 
       {/* Material Create/Edit Dialog */}
       <Dialog open={materialDialogOpen} onOpenChange={(open) => { setMaterialDialogOpen(open); if (!open) cleanupAriaHidden() }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-lg w-[calc(100vw-1rem)] sm:w-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Package className="h-5 w-5" />
@@ -4300,7 +4325,7 @@ export default function Home() {
                 placeholder="Nombre del material"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="mat-category">Categoría</Label>
                 <Input
@@ -4457,7 +4482,7 @@ export default function Home() {
 
       {/* History Dialog */}
       <Dialog open={historyDialogOpen} onOpenChange={(open) => { setHistoryDialogOpen(open); if (!open) cleanupAriaHidden() }}>
-        <DialogContent className="max-w-2xl max-h-[80vh]">
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto w-[calc(100vw-1rem)] sm:w-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5" />
