@@ -2767,23 +2767,23 @@ export default function Home() {
                 <ChevronRight className="h-3 w-3" /> Desliza horizontalmente para ver más columnas
               </div>
               <div className="overflow-x-auto">
-                <Table className="min-w-[1200px]">
+                <Table className="min-w-[900px] text-xs">
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[40px] text-center px-2">N°</TableHead>
-                      <TableHead className="min-w-[180px] max-w-[220px] px-2">Descripción</TableHead>
-                      <TableHead className="px-2">Sector</TableHead>
-                      <TableHead className="px-2">Tipo</TableHead>
-                      <TableHead className="px-2">Prioridad</TableHead>
-                      <TableHead className="px-2">Etapa</TableHead>
-                      <TableHead className="px-2">Estado</TableHead>
-                      <TableHead className="px-2">Responsable</TableHead>
-                      <TableHead className="px-2 w-[70px]">T.Est.</TableHead>
-                      <TableHead className="text-right px-2 w-[80px]">Monto</TableHead>
-                      <TableHead className="px-2 w-[80px]">Inicio</TableHead>
-                      <TableHead className="px-2 w-[80px]">Término</TableHead>
-                      <TableHead className="px-2 w-[70px] text-center">Fotos</TableHead>
-                      <TableHead className="px-2 w-[70px] text-center">Docs</TableHead>
+                      <TableHead className="w-[32px] text-center px-1 py-1.5">#</TableHead>
+                      <TableHead className="min-w-[140px] max-w-[180px] px-1 py-1.5">Descripción</TableHead>
+                      <TableHead className="px-1 py-1.5">Sector</TableHead>
+                      <TableHead className="px-1 py-1.5">Tipo</TableHead>
+                      <TableHead className="px-1 py-1.5">Prior.</TableHead>
+                      <TableHead className="px-1 py-1.5">Etapa</TableHead>
+                      <TableHead className="px-1 py-1.5">Estado</TableHead>
+                      <TableHead className="px-1 py-1.5">Resp.</TableHead>
+                      <TableHead className="px-1 py-1.5 w-[50px]">T.E.</TableHead>
+                      <TableHead className="text-right px-1 py-1.5 w-[65px]">Monto</TableHead>
+                      <TableHead className="px-1 py-1.5 w-[65px]">Inicio</TableHead>
+                      <TableHead className="px-1 py-1.5 w-[65px]">Fin</TableHead>
+                      <TableHead className="px-1 py-1.5 w-[45px] text-center">📷</TableHead>
+                      <TableHead className="px-1 py-1.5 w-[40px] text-center">📄</TableHead>
                       {showMaterials && (
                         <TableHead className="text-center">
                           <span className="flex items-center gap-1 justify-center">
@@ -2808,22 +2808,22 @@ export default function Home() {
                         const matCount = getMaterialsCount(task.id)
                         return (
                           <TableRow key={task.id} className="hover:bg-gray-50/50">
-                            <TableCell className="text-center font-bold text-slate-600 px-2 py-2">
-                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold">{filteredTasks.indexOf(task) + 1}</span>
+                            <TableCell className="text-center font-bold text-slate-600 px-1 py-1.5">
+                              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-slate-100 text-slate-700 text-[9px] font-bold">{filteredTasks.indexOf(task) + 1}</span>
                             </TableCell>
-                            <TableCell className="font-medium max-w-[220px] px-2 py-2">
-                              <div className="truncate text-sm" title={task.description}>{task.description}</div>
+                            <TableCell className="font-medium max-w-[180px] px-1 py-1.5">
+                              <div className="truncate" title={task.description}>{task.description}</div>
                               {task.comments && (
-                                <div className="text-[11px] text-gray-400 mt-0.5 truncate" title={task.comments}>{task.comments}</div>
+                                <div className="text-[10px] text-gray-400 mt-0.5 truncate" title={task.comments}>{task.comments}</div>
                               )}
                             </TableCell>
-                            <TableCell className="px-2 py-2"><Badge variant="secondary" className="text-xs">{task.sector}</Badge></TableCell>
-                            <TableCell className="text-xs px-2 py-2">{task.repairType}</TableCell>
-                            <TableCell className="px-1 py-2">
+                            <TableCell className="px-1 py-1.5"><Badge variant="secondary" className="text-[10px] px-1">{task.sector}</Badge></TableCell>
+                            <TableCell className="px-1 py-1.5">{task.repairType}</TableCell>
+                            <TableCell className="px-1 py-1.5">
                               <select
                                 value={task.priority}
                                 onChange={e => handleUpdateTaskPriority(task.id, e.target.value)}
-                                className="text-xs border rounded px-1 py-0.5 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="text-[11px] border rounded px-1 py-0.5 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
                                 style={{ color: getPriorityColor(task.priority) }}
                               >
                                 {priorities.map(p => (
@@ -2833,11 +2833,11 @@ export default function Home() {
                                 ))}
                               </select>
                             </TableCell>
-                            <TableCell className="px-1 py-2">
+                            <TableCell className="px-1 py-1.5">
                               <select
                                 value={task.etapa || ''}
                                 onChange={e => handleUpdateTaskEtapa(task.id, e.target.value)}
-                                className="text-xs border rounded px-1 py-0.5 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="text-[11px] border rounded px-1 py-0.5 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
                                 style={{ color: getEtapaColor(task.etapa) }}
                               >
                                 <option value="" style={{ color: '#6b7280' }}>Sin etapa</option>
@@ -2848,23 +2848,21 @@ export default function Home() {
                                 ))}
                               </select>
                             </TableCell>
-                            <TableCell className="px-2 py-2">
-                              <Badge variant="outline" className={`text-xs ${getStatusBadgeClass(task.status) || ''}`}>
+                            <TableCell className="px-1 py-1.5">
+                              <Badge variant="outline" className={`text-[10px] px-1 ${getStatusBadgeClass(task.status) || ''}`}>
                                 {task.status}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-xs px-2 py-2">{task.responsible || '-'}</TableCell>
-                            <TableCell className="text-xs px-2 py-2">{task.estimatedTime || '-'}</TableCell>
-                            <TableCell className="text-right text-xs px-2 py-2">{formatCurrency(task.amount)}</TableCell>
-                            <TableCell className="text-xs px-2 py-2">{formatDate(task.startDate)}</TableCell>
-                            <TableCell className="text-xs px-2 py-2">{formatDate(task.endDate)}</TableCell>
-                            <TableCell className="px-2 py-2">
+                            <TableCell className="px-1 py-1.5">{task.responsible || '-'}</TableCell>
+                            <TableCell className="px-1 py-1.5">{task.estimatedTime || '-'}</TableCell>
+                            <TableCell className="text-right px-1 py-1.5">{formatCurrency(task.amount)}</TableCell>
+                            <TableCell className="px-1 py-1.5">{formatDate(task.startDate)}</TableCell>
+                            <TableCell className="px-1 py-1.5">{formatDate(task.endDate)}</TableCell>
+                            <TableCell className="px-1 py-1.5">
                               <div className="flex gap-0.5 items-center justify-center">
                                 {beforePhotos.length > 0 && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0 text-gray-400 hover:text-orange-500"
+                                  <button
+                                    className="flex items-center gap-0.5 text-gray-400 hover:text-orange-500 cursor-pointer"
                                     onClick={() => {
                                       setFullscreenPhotos(beforePhotos)
                                       setFullscreenIndex(0)
@@ -2873,14 +2871,12 @@ export default function Home() {
                                     title={`${beforePhotos.length} fotos antes`}
                                   >
                                     <Camera className="h-3 w-3" />
-                                    <span className="text-[10px] ml-0.5">{beforePhotos.length}</span>
-                                  </Button>
+                                    <span className="text-[10px]">{beforePhotos.length}</span>
+                                  </button>
                                 )}
                                 {afterPhotos.length > 0 && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0 text-gray-400 hover:text-green-500"
+                                  <button
+                                    className="flex items-center gap-0.5 text-gray-400 hover:text-green-500 cursor-pointer"
                                     onClick={() => {
                                       setFullscreenPhotos(afterPhotos)
                                       setFullscreenIndex(0)
@@ -2889,22 +2885,22 @@ export default function Home() {
                                     title={`${afterPhotos.length} fotos después`}
                                   >
                                     <ImageIcon className="h-3 w-3" />
-                                    <span className="text-[10px] ml-0.5">{afterPhotos.length}</span>
-                                  </Button>
+                                    <span className="text-[10px]">{afterPhotos.length}</span>
+                                  </button>
                                 )}
                                 {beforePhotos.length === 0 && afterPhotos.length === 0 && (
                                   <span className="text-[10px] text-gray-300">-</span>
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="px-2 py-2">
+                            <TableCell className="px-1 py-1.5 text-center">
                               {(() => {
                                 const docs = JSON.parse(task.documents || '[]') as Array<{url: string; name: string; type: string}>
                                 return docs.length > 0 ? (
-                                  <div className="flex gap-0.5 items-center justify-center">
-                                    <FileText className="h-3 w-3 text-blue-500" />
-                                    <span className="text-[10px] text-blue-600">{docs.length}</span>
-                                  </div>
+                                  <a href={docs[0].url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 justify-center text-blue-500 hover:text-blue-700" title={`${docs.length} documento(s)`}>
+                                    <FileText className="h-3 w-3" />
+                                    <span className="text-[10px]">{docs.length}</span>
+                                  </a>
                                 ) : (
                                   <span className="text-[10px] text-gray-300">-</span>
                                 )
@@ -2930,33 +2926,33 @@ export default function Home() {
                                 </Button>
                               </TableCell>
                             )}
-                            <TableCell className="text-right px-1 py-2">
+                            <TableCell className="text-right px-1 py-1.5">
                               <div className="flex justify-end gap-0.5">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Exportar">
-                                      <Download className="h-3.5 w-3.5" />
+                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Exportar">
+                                      <Download className="h-3 w-3" />
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
                                     <DropdownMenuItem onClick={() => exportTaskPDF(task)}>
-                                      <FileText className="h-4 w-4 mr-2" />
-                                      Exportar PDF
+                                      <FileText className="h-3.5 w-3.5 mr-2" />
+                                      PDF
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => exportTaskExcel(task)}>
-                                      <FileSpreadsheet className="h-4 w-4 mr-2" />
-                                      Exportar Excel
+                                      <FileSpreadsheet className="h-3.5 w-3.5 mr-2" />
+                                      Excel
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openHistory(task.id)} title="Historial">
-                                  <History className="h-3.5 w-3.5" />
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => openHistory(task.id)} title="Historial">
+                                  <History className="h-3 w-3" />
                                 </Button>
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEditTask(task)} title="Editar tarea">
-                                  <Pencil className="h-3.5 w-3.5" />
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => openEditTask(task)} title="Editar">
+                                  <Pencil className="h-3 w-3" />
                                 </Button>
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700" onClick={() => { setDeleteId(task.id); setDeleteDialogOpen(true) }} title="Eliminar">
-                                  <Trash2 className="h-3.5 w-3.5" />
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500 hover:text-red-700" onClick={() => { setDeleteId(task.id); setDeleteDialogOpen(true) }} title="Eliminar">
+                                  <Trash2 className="h-3 w-3" />
                                 </Button>
                               </div>
                             </TableCell>
