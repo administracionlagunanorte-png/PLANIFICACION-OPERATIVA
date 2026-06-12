@@ -2763,27 +2763,27 @@ export default function Home() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="sm:hidden px-4 py-2 text-xs text-gray-400 flex items-center gap-1">
-                <ChevronRight className="h-3 w-3" /> Desliza para ver más columnas
+              <div className="px-4 py-2 text-xs text-gray-400 flex items-center gap-1">
+                <ChevronRight className="h-3 w-3" /> Desliza horizontalmente para ver más columnas
               </div>
-              <ScrollArea className="w-full">
-                <Table>
+              <div className="overflow-x-auto">
+                <Table className="min-w-[1200px]">
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[50px] text-center">N°</TableHead>
-                      <TableHead className="min-w-[200px]">Descripción</TableHead>
-                      <TableHead>Sector</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Prioridad</TableHead>
-                      <TableHead>Etapa</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Responsable</TableHead>
-                      <TableHead>Tiempo Est.</TableHead>
-                      <TableHead className="text-right">Monto</TableHead>
-                      <TableHead>Inicio</TableHead>
-                      <TableHead>Término</TableHead>
-                      <TableHead>Fotos</TableHead>
-                      <TableHead>Docs</TableHead>
+                      <TableHead className="w-[40px] text-center px-2">N°</TableHead>
+                      <TableHead className="min-w-[180px] max-w-[220px] px-2">Descripción</TableHead>
+                      <TableHead className="px-2">Sector</TableHead>
+                      <TableHead className="px-2">Tipo</TableHead>
+                      <TableHead className="px-2">Prioridad</TableHead>
+                      <TableHead className="px-2">Etapa</TableHead>
+                      <TableHead className="px-2">Estado</TableHead>
+                      <TableHead className="px-2">Responsable</TableHead>
+                      <TableHead className="px-2 w-[70px]">T.Est.</TableHead>
+                      <TableHead className="text-right px-2 w-[80px]">Monto</TableHead>
+                      <TableHead className="px-2 w-[80px]">Inicio</TableHead>
+                      <TableHead className="px-2 w-[80px]">Término</TableHead>
+                      <TableHead className="px-2 w-[70px] text-center">Fotos</TableHead>
+                      <TableHead className="px-2 w-[70px] text-center">Docs</TableHead>
                       {showMaterials && (
                         <TableHead className="text-center">
                           <span className="flex items-center gap-1 justify-center">
@@ -2807,23 +2807,23 @@ export default function Home() {
                         const afterPhotos = JSON.parse(task.afterPhotos || '[]') as string[]
                         const matCount = getMaterialsCount(task.id)
                         return (
-                          <TableRow key={task.id}>
-                            <TableCell className="text-center font-bold text-slate-600">
-                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-700 text-xs font-bold">{filteredTasks.indexOf(task) + 1}</span>
+                          <TableRow key={task.id} className="hover:bg-gray-50/50">
+                            <TableCell className="text-center font-bold text-slate-600 px-2 py-2">
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold">{filteredTasks.indexOf(task) + 1}</span>
                             </TableCell>
-                            <TableCell className="font-medium max-w-[250px]">
-                              <div className="truncate" title={task.description}>{task.description}</div>
+                            <TableCell className="font-medium max-w-[220px] px-2 py-2">
+                              <div className="truncate text-sm" title={task.description}>{task.description}</div>
                               {task.comments && (
-                                <div className="text-xs text-gray-400 mt-1 truncate" title={task.comments}>{task.comments}</div>
+                                <div className="text-[11px] text-gray-400 mt-0.5 truncate" title={task.comments}>{task.comments}</div>
                               )}
                             </TableCell>
-                            <TableCell><Badge variant="secondary">{task.sector}</Badge></TableCell>
-                            <TableCell className="text-sm">{task.repairType}</TableCell>
-                            <TableCell>
+                            <TableCell className="px-2 py-2"><Badge variant="secondary" className="text-xs">{task.sector}</Badge></TableCell>
+                            <TableCell className="text-xs px-2 py-2">{task.repairType}</TableCell>
+                            <TableCell className="px-1 py-2">
                               <select
                                 value={task.priority}
                                 onChange={e => handleUpdateTaskPriority(task.id, e.target.value)}
-                                className="text-sm border rounded px-1.5 py-0.5 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="text-xs border rounded px-1 py-0.5 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
                                 style={{ color: getPriorityColor(task.priority) }}
                               >
                                 {priorities.map(p => (
@@ -2833,11 +2833,11 @@ export default function Home() {
                                 ))}
                               </select>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="px-1 py-2">
                               <select
                                 value={task.etapa || ''}
                                 onChange={e => handleUpdateTaskEtapa(task.id, e.target.value)}
-                                className="text-sm border rounded px-1.5 py-0.5 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="text-xs border rounded px-1 py-0.5 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
                                 style={{ color: getEtapaColor(task.etapa) }}
                               >
                                 <option value="" style={{ color: '#6b7280' }}>Sin etapa</option>
@@ -2848,23 +2848,23 @@ export default function Home() {
                                 ))}
                               </select>
                             </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className={getStatusBadgeClass(task.status) || ''}>
+                            <TableCell className="px-2 py-2">
+                              <Badge variant="outline" className={`text-xs ${getStatusBadgeClass(task.status) || ''}`}>
                                 {task.status}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-sm">{task.responsible || '-'}</TableCell>
-                            <TableCell className="text-sm">{task.estimatedTime || '-'}</TableCell>
-                            <TableCell className="text-right text-sm">{formatCurrency(task.amount)}</TableCell>
-                            <TableCell className="text-sm">{formatDate(task.startDate)}</TableCell>
-                            <TableCell className="text-sm">{formatDate(task.endDate)}</TableCell>
-                            <TableCell>
-                              <div className="flex gap-1">
+                            <TableCell className="text-xs px-2 py-2">{task.responsible || '-'}</TableCell>
+                            <TableCell className="text-xs px-2 py-2">{task.estimatedTime || '-'}</TableCell>
+                            <TableCell className="text-right text-xs px-2 py-2">{formatCurrency(task.amount)}</TableCell>
+                            <TableCell className="text-xs px-2 py-2">{formatDate(task.startDate)}</TableCell>
+                            <TableCell className="text-xs px-2 py-2">{formatDate(task.endDate)}</TableCell>
+                            <TableCell className="px-2 py-2">
+                              <div className="flex gap-0.5 items-center justify-center">
                                 {beforePhotos.length > 0 && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-7 w-7 p-0 text-gray-400 hover:text-orange-500"
+                                    className="h-6 w-6 p-0 text-gray-400 hover:text-orange-500"
                                     onClick={() => {
                                       setFullscreenPhotos(beforePhotos)
                                       setFullscreenIndex(0)
@@ -2872,15 +2872,15 @@ export default function Home() {
                                     }}
                                     title={`${beforePhotos.length} fotos antes`}
                                   >
-                                    <Camera className="h-3.5 w-3.5" />
-                                    <span className="text-xs ml-0.5">{beforePhotos.length}</span>
+                                    <Camera className="h-3 w-3" />
+                                    <span className="text-[10px] ml-0.5">{beforePhotos.length}</span>
                                   </Button>
                                 )}
                                 {afterPhotos.length > 0 && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-7 w-7 p-0 text-gray-400 hover:text-green-500"
+                                    className="h-6 w-6 p-0 text-gray-400 hover:text-green-500"
                                     onClick={() => {
                                       setFullscreenPhotos(afterPhotos)
                                       setFullscreenIndex(0)
@@ -2888,60 +2888,54 @@ export default function Home() {
                                     }}
                                     title={`${afterPhotos.length} fotos después`}
                                   >
-                                    <ImageIcon className="h-3.5 w-3.5" />
-                                    <span className="text-xs ml-0.5">{afterPhotos.length}</span>
+                                    <ImageIcon className="h-3 w-3" />
+                                    <span className="text-[10px] ml-0.5">{afterPhotos.length}</span>
                                   </Button>
                                 )}
                                 {beforePhotos.length === 0 && afterPhotos.length === 0 && (
-                                  <span className="text-xs text-gray-300">-</span>
+                                  <span className="text-[10px] text-gray-300">-</span>
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="px-2 py-2">
                               {(() => {
                                 const docs = JSON.parse(task.documents || '[]') as Array<{url: string; name: string; type: string}>
                                 return docs.length > 0 ? (
-                                  <div className="flex gap-1 items-center">
-                                    <FileText className="h-3.5 w-3.5 text-blue-500" />
-                                    <span className="text-xs text-blue-600">{docs.length}</span>
-                                    {docs.slice(0, 2).map((doc, i) => (
-                                      <a key={i} href={doc.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:text-blue-700 underline truncate max-w-[80px]" title={doc.name}>
-                                        {doc.name.length > 12 ? doc.name.substring(0, 10) + '...' : doc.name}
-                                      </a>
-                                    ))}
-                                    {docs.length > 2 && <span className="text-xs text-gray-400">+{docs.length - 2}</span>}
+                                  <div className="flex gap-0.5 items-center justify-center">
+                                    <FileText className="h-3 w-3 text-blue-500" />
+                                    <span className="text-[10px] text-blue-600">{docs.length}</span>
                                   </div>
                                 ) : (
-                                  <span className="text-xs text-gray-300">-</span>
+                                  <span className="text-[10px] text-gray-300">-</span>
                                 )
                               })()}
                             </TableCell>
                             {showMaterials && (
-                              <TableCell className="text-center">
+                              <TableCell className="text-center px-2 py-2">
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-7 gap-1"
+                                  className="h-6 gap-1"
                                   onClick={() => openAddMaterial(task.id)}
                                   title={matCount > 0 ? `${matCount} materiales - Total: ${formatCurrency(getMaterialsTotal(task.id))}` : 'Sin materiales'}
                                 >
                                   {matCount > 0 ? (
-                                    <Badge variant="secondary" className="gap-1 cursor-pointer">
+                                    <Badge variant="secondary" className="gap-1 cursor-pointer text-[10px]">
                                       <Package className="h-3 w-3" />
                                       {matCount}
                                     </Badge>
                                   ) : (
-                                    <span className="text-xs text-gray-300">-</span>
+                                    <span className="text-[10px] text-gray-300">-</span>
                                   )}
                                 </Button>
                               </TableCell>
                             )}
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-1">
+                            <TableCell className="text-right px-1 py-2">
+                              <div className="flex justify-end gap-0.5">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Exportar">
-                                      <Download className="h-4 w-4" />
+                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Exportar">
+                                      <Download className="h-3.5 w-3.5" />
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
@@ -2955,14 +2949,14 @@ export default function Home() {
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openHistory(task.id)} title="Historial">
-                                  <History className="h-4 w-4" />
+                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openHistory(task.id)} title="Historial">
+                                  <History className="h-3.5 w-3.5" />
                                 </Button>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openEditTask(task)} title="Editar tarea">
-                                  <Pencil className="h-4 w-4" />
+                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEditTask(task)} title="Editar tarea">
+                                  <Pencil className="h-3.5 w-3.5" />
                                 </Button>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:text-red-700" onClick={() => { setDeleteId(task.id); setDeleteDialogOpen(true) }} title="Eliminar">
-                                  <Trash2 className="h-4 w-4" />
+                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700" onClick={() => { setDeleteId(task.id); setDeleteDialogOpen(true) }} title="Eliminar">
+                                  <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                               </div>
                             </TableCell>
@@ -2972,7 +2966,7 @@ export default function Home() {
                     )}
                   </TableBody>
                 </Table>
-              </ScrollArea>
+              </div>
             </CardContent>
           </Card>
         )}
