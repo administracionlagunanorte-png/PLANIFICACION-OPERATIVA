@@ -75,3 +75,4 @@ keep-alive.js
 start-server.sh
 bun.lock
 worklog.md
+.env*
