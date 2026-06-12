@@ -61,3 +61,17 @@ server.log
 local-*
 prompt
 test
+
+# z-scripts and dev helpers
+.zscripts/
+agent-ctx/
+examples/
+mini-services/
+download/
+Caddyfile
+custom-server.js
+keep-alive*.sh
+keep-alive.js
+start-server.sh
+bun.lock
+worklog.md
