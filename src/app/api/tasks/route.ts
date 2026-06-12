@@ -87,6 +87,7 @@ export async function POST(request: NextRequest) {
         comments: body.comments || null,
         beforePhotos: body.beforePhotos || '[]',
         afterPhotos: body.afterPhotos || '[]',
+        documents: body.documents || '[]',
         workOrder: body.workOrder !== undefined ? parseInt(body.workOrder) : nextWorkOrder,
       },
     })
@@ -130,7 +131,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Track field changes
-    const trackableFields = ['description', 'sector', 'repairType', 'priority', 'etapa', 'status', 'responsible', 'estimatedTime', 'amount', 'startDate', 'endDate', 'comments', 'beforePhotos', 'afterPhotos', 'workOrder']
+    const trackableFields = ['description', 'sector', 'repairType', 'priority', 'etapa', 'status', 'responsible', 'estimatedTime', 'amount', 'startDate', 'endDate', 'comments', 'beforePhotos', 'afterPhotos', 'documents', 'workOrder']
     const changes: { field: string; oldValue: unknown; newValue: unknown }[] = []
 
     for (const field of trackableFields) {

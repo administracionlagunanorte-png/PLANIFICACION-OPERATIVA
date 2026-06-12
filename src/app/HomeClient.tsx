@@ -96,6 +96,7 @@ interface Task {
   comments: string | null
   beforePhotos: string
   afterPhotos: string
+  documents: string
   workOrder: number
   createdAt: string
   updatedAt: string
@@ -238,6 +239,7 @@ export default function Home() {
     comments: '',
     beforePhotos: [] as string[],
     afterPhotos: [] as string[],
+    documents: [] as Array<{url: string; name: string; type: string}>,
     inlineMaterials: [] as Array<{name: string; quantity: string; unit: string; unitPrice: string; totalPrice: string; category: string; notes: string}>,
   })
 
@@ -374,6 +376,7 @@ export default function Home() {
         responsible: formData.responsible === 'none' ? '' : formData.responsible,
         beforePhotos: JSON.stringify(formData.beforePhotos),
         afterPhotos: JSON.stringify(formData.afterPhotos),
+        documents: JSON.stringify(formData.documents),
       }
       delete (body as Record<string, unknown>).inlineMaterials
 
@@ -511,6 +514,7 @@ export default function Home() {
       comments: task.comments || '',
       beforePhotos: JSON.parse(task.beforePhotos || '[]'),
       afterPhotos: JSON.parse(task.afterPhotos || '[]'),
+      documents: JSON.parse(task.documents || '[]'),
       inlineMaterials: [],
     })
     setTaskDialogOpen(true)
@@ -538,6 +542,7 @@ export default function Home() {
       comments: '',
       beforePhotos: [],
       afterPhotos: [],
+      documents: [],
       inlineMaterials: [],
     })
   }
@@ -2778,6 +2783,7 @@ export default function Home() {
                       <TableHead>Inicio</TableHead>
                       <TableHead>Término</TableHead>
                       <TableHead>Fotos</TableHead>
+                      <TableHead>Docs</TableHead>
                       {showMaterials && (
                         <TableHead className="text-center">
                           <span className="flex items-center gap-1 justify-center">
@@ -2791,7 +2797,7 @@ export default function Home() {
                   <TableBody>
                     {filteredTasks.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={showMaterials ? 15 : 14} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={showMaterials ? 16 : 15} className="text-center py-8 text-gray-500">
                           No hay tareas que coincidan con los filtros
                         </TableCell>
                       </TableRow>
@@ -2890,6 +2896,25 @@ export default function Home() {
                                   <span className="text-xs text-gray-300">-</span>
                                 )}
                               </div>
+                            </TableCell>
+                            <TableCell>
+                              {(() => {
+                                const docs = JSON.parse(task.documents || '[]') as Array<{url: string; name: string; type: string}>
+                                return docs.length > 0 ? (
+                                  <div className="flex gap-1 items-center">
+                                    <FileText className="h-3.5 w-3.5 text-blue-500" />
+                                    <span className="text-xs text-blue-600">{docs.length}</span>
+                                    {docs.slice(0, 2).map((doc, i) => (
+                                      <a key={i} href={doc.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:text-blue-700 underline truncate max-w-[80px]" title={doc.name}>
+                                        {doc.name.length > 12 ? doc.name.substring(0, 10) + '...' : doc.name}
+                                      </a>
+                                    ))}
+                                    {docs.length > 2 && <span className="text-xs text-gray-400">+{docs.length - 2}</span>}
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-gray-300">-</span>
+                                )
+                              })()}
                             </TableCell>
                             {showMaterials && (
                               <TableCell className="text-center">
@@ -3761,6 +3786,82 @@ export default function Home() {
                   </label>
                 </div>
               </div>
+            </div>
+
+            {/* Documents / Cotizaciones Section */}
+            <div className="space-y-3 pt-4 border-t">
+              <Label className="flex items-center gap-2 text-base font-semibold">
+                <FileText className="h-4 w-4 text-blue-600" />
+                Cotizaciones / Documentos PDF
+              </Label>
+              <p className="text-xs text-gray-500">Sube cotizaciones de proveedores, presupuestos u otros documentos (máximo 10MB cada uno)</p>
+              
+              {formData.documents.length > 0 && (
+                <div className="space-y-2">
+                  {formData.documents.map((doc, idx) => (
+                    <div key={idx} className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                      <FileText className="h-5 w-5 text-blue-600 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-blue-800 truncate">{doc.name}</div>
+                        <div className="text-xs text-blue-500">{doc.type === 'application/pdf' ? 'PDF' : doc.type}</div>
+                      </div>
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:text-blue-800 underline shrink-0">Ver</a>
+                      <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-400 hover:text-red-600 shrink-0" onClick={() => {
+                        setFormData(prev => ({ ...prev, documents: prev.documents.filter((_, i) => i !== idx) }))
+                      }}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {formData.documents.length < 10 && (
+                <div>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx"
+                    multiple
+                    className="hidden"
+                    id="doc-upload"
+                    onChange={async (e) => {
+                      const files = e.target.files
+                      if (!files) return
+                      for (const file of Array.from(files)) {
+                        if (file.size > 10 * 1024 * 1024) {
+                          toast({ title: 'Archivo muy grande', description: `${file.name} excede 10MB`, variant: 'destructive' })
+                          continue
+                        }
+                        if (formData.documents.length >= 10) {
+                          toast({ title: 'Límite alcanzado', description: 'Máximo 10 documentos por tarea', variant: 'destructive' })
+                          break
+                        }
+                        try {
+                          const formDataUpload = new FormData()
+                          formDataUpload.append('file', file)
+                          const res = await fetch('/api/upload', { method: 'POST', body: formDataUpload })
+                          if (res.ok) {
+                            const data = await res.json()
+                            setFormData(prev => ({
+                              ...prev,
+                              documents: [...prev.documents, { url: data.url, name: file.name, type: file.type }]
+                            }))
+                          } else {
+                            toast({ title: 'Error al subir', description: `No se pudo subir ${file.name}`, variant: 'destructive' })
+                          }
+                        } catch {
+                          toast({ title: 'Error al subir', description: `No se pudo subir ${file.name}`, variant: 'destructive' })
+                        }
+                      }
+                      e.target.value = ''
+                    }}
+                  />
+                  <label htmlFor="doc-upload" className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg text-sm text-blue-700 transition-colors">
+                    <Upload className="h-4 w-4" />
+                    Subir Cotización / PDF
+                  </label>
+                </div>
+              )}
             </div>
 
             {/* Materials Section */}

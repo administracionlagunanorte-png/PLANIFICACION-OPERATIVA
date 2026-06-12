@@ -24,6 +24,7 @@ model Task {
   comments      String?
   beforePhotos  String   @default("[]")
   afterPhotos   String   @default("[]")
+  documents     String   @default("[]")
   workOrder     Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
