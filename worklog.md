@@ -1,43 +1,76 @@
 ---
 Task ID: 1
-Agent: Main
-Task: Migrate project to GitHub + Vercel + Neon PostgreSQL
+Agent: Main Agent
+Task: Diagnose and fix "Application error: a client-side exception has occurred" on Vercel
 
 Work Log:
-- Configured .env with Neon PostgreSQL connection string (removed channel_binding param for Prisma compat)
-- Ran prisma db push to create all tables in Neon
-- Ran prisma seed to populate initial data (priorities, statuses, sectors, repair types)
-- Ran migrate-data.ts to migrate existing SQLite data to Neon
-- Verified data: 21 tasks, 12 sectors, 3 priorities, 4 statuses, 4 etapas, 6 materials, 2 responsibles
-- Updated start-server.sh with explicit DATABASE_URL export
-- Build successful, all APIs working with Neon PostgreSQL
-- Attempted GitHub repo creation but token lacks repo:create permission
-- Waiting for user to create repo manually at https://github.com/new
+- Used agent-browser to access planificacion-operativa.vercel.app
+- Page loaded fine initially (dashboard, table views worked)
+- Identified that clicking "Nueva Tarea" button caused the crash
+- Set up JS error capturing in browser: window.onerror + unhandledrejection
+- Captured actual error: "A <Select.Item /> must have a value prop that is not an empty string"
+- Found root cause: line 3579 in HomeClient.tsx had `<SelectItem value="">Sin etapa</SelectItem>`
+- Radix UI Select component forbids empty string as value (reserved for clearing selection)
+- Fixed by changing to `<SelectItem value="none">Sin etapa</SelectItem>`
+- Added conversion logic: `onValueChange={v => setFormData(prev => ({ ...prev, etapa: v === 'none' ? '' : v }))}`
+- Updated Select value prop: `value={formData.etapa || 'none'}`
+- Verified fix on Vercel deployment - dialog opens without errors
 
 Stage Summary:
-- Database fully migrated to Neon PostgreSQL ✅
-- UI optimized for mobile ✅
-- Build passes ✅
-- Server running with Neon ✅
-- GitHub push pending (need user to create repo)
+- Root cause: Radix UI Select.Item with value="" is forbidden
+- Fix: Use value="none" with conversion logic to store empty string in DB
+- Task creation via API works (verified with curl POST)
+- Task creation via browser UI works (dialog opens, no errors)
+
 ---
-Task ID: 1
-Agent: main
-Task: Migrar aplicación Next.js a GitHub + Vercel + Neon PostgreSQL
+Task ID: 2
+Agent: Main Agent
+Task: Fix woff2 font preload warning
 
 Work Log:
-- Actualizado .env con URL real de Neon PostgreSQL
-- Ejecutado prisma db push para crear tablas en Neon (ya estaban sincronizadas)
-- Ejecutado seed script para poblar datos por defecto (3 prioridades, 4 estados, 12 sectores, 16 tipos reparación)
-- Limpiada base de datos Neon y migrados datos de SQLite (21 tareas, 231 historiales, 3 materiales, 2 responsables, 4 etapas)
-- Verificado build de producción exitoso
-- Actualizado .gitignore para excluir archivos de desarrollo
-- Eliminados archivos innecesarios del repositorio (skills, dev scripts, etc.)
-- Configurado remote con nuevo PAT con permisos Contents: Read and write
-- Push exitoso a GitHub: https://github.com/administracionlagunanorte-png/PLANIFICACION-OPERATIVA
+- The warning was caused by Geist Sans font with `preload: true` in layout.tsx
+- Changed `preload: true` to `preload: false` for geistSans
+- Font still loads via @font-face with display: swap, no visual impact
+- This prevents the browser console warning about unused preloaded resources
 
 Stage Summary:
-- Neon PostgreSQL: Todas las tablas creadas y datos migrados exitosamente
-- GitHub: Código subido a main branch
-- Vercel: Pendiente de despliegue por usuario (importar desde GitHub)
-- Variable de entorno necesaria: DATABASE_URL con conexión Neon
+- Fix: Set preload: false for Geist Sans font in layout.tsx
+- No visual impact (font still loads via CSS @font-face)
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: PDF upload feature for supplier quotes
+
+Work Log:
+- Feature was already implemented in previous session (commit 9764d6f)
+- Allows up to 10 documents per task (user requested minimum 3)
+- Supports PDF, DOC, DOCX, XLS, XLSX files
+- Max 10MB per file
+- Shows uploaded docs with name, type, view link, and delete button
+- Documents stored as JSON array in task.documents field
+- Upload UI visible in task dialog under "Cotizaciones / Documentos PDF" section
+- Added @vercel/blob package to dependencies for Vercel deployment
+- Vercel Blob requires BLOB_READ_WRITE_TOKEN environment variable (NOT YET CONFIGURED)
+
+Stage Summary:
+- Feature complete in UI and code
+- Needs Vercel Blob storage setup (BLOB_READ_WRITE_TOKEN) for production uploads
+- User needs to configure this in Vercel Dashboard
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Push fixes and verify deployment
+
+Work Log:
+- Committed fixes and pushed to GitHub
+- Vercel auto-deploys from GitHub main branch
+- Verified: Nueva Tarea dialog opens without errors
+- Verified: Table view shows N° column and Docs column
+- Verified: Task creation works via API (curl POST)
+- Verified: Page loads without client-side exceptions
+
+Stage Summary:
+- All fixes deployed to https://planificacion-operativa.vercel.app/
+- Outstanding: BLOB_READ_WRITE_TOKEN needs to be configured on Vercel for file uploads to work in production
