@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File
-    
+
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
@@ -18,19 +18,22 @@ export async function POST(request: NextRequest) {
     // Generate unique filename
     const timestamp = Date.now()
     const randomSuffix = Math.random().toString(36).substring(2, 8)
-    const ext = path.extname(file.name) || '.jpg'
+    const ext = path.extname(file.name) || '.bin'
     const filename = `${timestamp}_${randomSuffix}${ext}`
 
-    // For Vercel Blob or local storage
-    // If BLOB_READ_WRITE_TOKEN is set, use Vercel Blob
+    // Try Vercel Blob first (for production on Vercel)
     if (process.env.BLOB_READ_WRITE_TOKEN) {
-      // Use Vercel Blob
-      const { put } = await import('@vercel/blob')
-      const blob = await put(`uploads/${filename}`, buffer, {
-        access: 'public',
-        contentType: file.type,
-      })
-      return NextResponse.json({ url: blob.url })
+      try {
+        const { put } = await import('@vercel/blob')
+        const blob = await put(`uploads/${filename}`, buffer, {
+          access: 'public',
+          contentType: file.type || 'application/octet-stream',
+        })
+        return NextResponse.json({ url: blob.url })
+      } catch (blobError) {
+        console.error('Vercel Blob upload failed, falling back to local:', blobError)
+        // Fall through to local storage
+      }
     }
 
     // Local filesystem storage (for development)
@@ -38,7 +41,7 @@ export async function POST(request: NextRequest) {
     if (!existsSync(uploadsDir)) {
       await mkdir(uploadsDir, { recursive: true })
     }
-    
+
     const filePath = path.join(uploadsDir, filename)
     await writeFile(filePath, buffer)
 

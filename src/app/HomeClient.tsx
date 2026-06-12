@@ -3571,12 +3571,12 @@ export default function Home() {
               </div>
               <div className="grid gap-2">
                 <Label>Etapa</Label>
-                <Select value={formData.etapa || ''} onValueChange={v => setFormData(prev => ({ ...prev, etapa: v }))}>
+                <Select value={formData.etapa || 'none'} onValueChange={v => setFormData(prev => ({ ...prev, etapa: v === 'none' ? '' : v }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar etapa" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin etapa</SelectItem>
+                    <SelectItem value="none">Sin etapa</SelectItem>
                     {etapas.map(et => (
                       <SelectItem key={et.id} value={et.name}>
                         <span className="flex items-center gap-2">
