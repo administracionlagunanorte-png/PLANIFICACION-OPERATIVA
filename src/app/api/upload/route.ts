@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { put } from '@vercel/blob'
-import { writeFile, mkdir } from 'fs/promises'
+import { writeFile, mkdir, existsSync } from 'fs/promises'
 import path from 'path'
 
 // Resolve project root (works in both dev and standalone mode)
@@ -40,12 +40,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ url: blob.url })
       } catch (blobError) {
         console.error('Vercel Blob upload failed, falling back to local:', blobError)
+        if (process.env.VERCEL) {
+          return NextResponse.json(
+            { error: 'Error uploading to Vercel Blob. Check BLOB_READ_WRITE_TOKEN.' },
+            { status: 500 }
+          )
+        }
       }
     }
 
     // Fallback: save to local filesystem (works in development)
     const uploadsDir = path.join(getProjectRoot(), 'uploads')
-    await mkdir(uploadsDir, { recursive: true })
+    if (!existsSync(uploadsDir)) { await mkdir(uploadsDir, { recursive: true }) }
     const filePath = path.join(uploadsDir, filename)
     await writeFile(filePath, buffer)
 
