@@ -2195,23 +2195,22 @@ export default function Home() {
       // A3 landscape: 420mm - 16mm margins = 404mm content width
       const cols = [
         { header: 'N°', width: 9 },
-        { header: 'Descripción', width: 66 },
-        { header: 'Sector', width: 25 },
-        { header: 'Tipo', width: 26 },
-        { header: 'Prior.', width: 21 },
-        { header: 'Etapa', width: 23 },
-        { header: 'Estado', width: 23 },
-        { header: 'Aprobación', width: 28 },
-        { header: 'Comentarios', width: 38 },
-        { header: 'Responsable', width: 30 },
-        { header: 'T.E.', width: 15 },
-        { header: 'Monto', width: 26 },
-        { header: 'Inicio', width: 22 },
-        { header: 'Término', width: 22 },
-        { header: 'Adj.', width: 10 },
+        { header: 'Descripción', width: 80 },
+        { header: 'Sector', width: 28 },
+        { header: 'Tipo', width: 28 },
+        { header: 'Prior.', width: 22 },
+        { header: 'Etapa', width: 24 },
+        { header: 'Estado', width: 24 },
+        { header: 'Aprobación', width: 30 },
+        { header: 'Responsable', width: 34 },
+        { header: 'T.E.', width: 16 },
+        { header: 'Monto', width: 28 },
+        { header: 'Inicio', width: 24 },
+        { header: 'Término', width: 24 },
+        { header: 'Adj.', width: 11 },
       ]
       if (showMaterials) {
-        cols.push({ header: 'Materiales', width: 20 })
+        cols.push({ header: 'Materiales', width: 22 })
       }
 
       const headerH = 7
@@ -2406,42 +2405,34 @@ export default function Home() {
         }
         colX += cols[7].width
 
-        // Comentarios
-        doc.setTextColor(51, 65, 85)
-        doc.setFontSize(6.5)
-        const maxCommentChars = Math.floor(cols[8].width / 1.8)
-        const commentsText = task.comments ? (task.comments.length > maxCommentChars ? task.comments.substring(0, maxCommentChars - 2) + '..' : task.comments) : '-'
-        doc.text(commentsText, colX + 1, y + 3.8)
-        colX += cols[8].width
-
         // Responsable
         doc.setTextColor(51, 65, 85)
         doc.setFontSize(6.5)
-        const maxRespChars = Math.floor(cols[9].width / 1.8)
+        const maxRespChars = Math.floor(cols[8].width / 1.8)
         const respText = (task.responsible || '-').length > maxRespChars ? (task.responsible || '-').substring(0, maxRespChars - 2) + '..' : (task.responsible || '-')
         doc.text(respText, colX + 1, y + 3.8)
-        colX += cols[9].width
+        colX += cols[8].width
 
         // Tiempo Est.
         doc.text(task.estimatedTime || '-', colX + 1, y + 3.8)
-        colX += cols[10].width
+        colX += cols[9].width
 
         // Monto
         doc.setTextColor(15, 23, 42)
         doc.setFont('helvetica', 'bold')
         doc.text(task.amount ? formatCurrency(task.amount) : '-', colX + 1, y + 3.8)
         doc.setFont('helvetica', 'normal')
-        colX += cols[11].width
+        colX += cols[10].width
 
         // Inicio
         doc.setTextColor(51, 65, 85)
         doc.setFontSize(6.5)
         doc.text(formatDate(task.startDate), colX + 1, y + 3.8)
-        colX += cols[12].width
+        colX += cols[11].width
 
         // Término
         doc.text(formatDate(task.endDate), colX + 1, y + 3.8)
-        colX += cols[13].width
+        colX += cols[12].width
 
         // Adj. (Fotos + Docs combinados)
         const beforePhotos = JSON.parse(task.beforePhotos || '[]') as string[]
@@ -2451,7 +2442,7 @@ export default function Home() {
         const totalAdj = totalPhotos + docs.length
         doc.setTextColor(100, 116, 139)
         doc.text(totalAdj > 0 ? String(totalAdj) : '-', colX + 1, y + 3.8)
-        colX += cols[14].width
+        colX += cols[13].width
 
         // Materiales
         if (showMaterials) {
@@ -2957,7 +2948,6 @@ export default function Home() {
                       <TableHead className="px-0.5 py-1">Etapa</TableHead>
                       <TableHead className="px-0.5 py-1">Estado</TableHead>
                       <TableHead className="px-0.5 py-1">Aprobación</TableHead>
-                      <TableHead className="px-0.5 py-1">Coment.</TableHead>
                       <TableHead className="px-0.5 py-1">Resp.</TableHead>
                       <TableHead className="px-0.5 py-1 w-[42px]">T.E.</TableHead>
                       <TableHead className="text-right px-0.5 py-1 w-[58px]">Monto</TableHead>
@@ -2975,7 +2965,7 @@ export default function Home() {
                   <TableBody>
                     {filteredTasks.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={showMaterials ? 17 : 16} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={showMaterials ? 16 : 15} className="text-center py-8 text-gray-500">
                           No hay tareas que coincidan con los filtros
                         </TableCell>
                       </TableRow>
@@ -3048,13 +3038,6 @@ export default function Home() {
                                 <option value="No aprobado" style={{ color: '#dc2626' }}>No aprobado</option>
                                 <option value="En espera de decisión" style={{ color: '#d97706' }}>En espera</option>
                               </select>
-                            </TableCell>
-                            <TableCell className="px-0.5 py-1 max-w-[100px]">
-                              {task.comments ? (
-                                <div className="truncate text-[9px] text-gray-600" title={task.comments}>{task.comments}</div>
-                              ) : (
-                                <span className="text-[9px] text-gray-300">-</span>
-                              )}
                             </TableCell>
                             <TableCell className="px-0.5 py-1 text-[10px]">{task.responsible || '-'}</TableCell>
                             <TableCell className="px-0.5 py-1 text-[10px]">{task.estimatedTime || '-'}</TableCell>
