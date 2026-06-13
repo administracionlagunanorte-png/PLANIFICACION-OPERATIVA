@@ -2193,20 +2193,20 @@ export default function Home() {
 
       // ===== TABLE HEADER =====
       const cols = [
-        { header: 'N°', width: 14 },
-        { header: 'Descripción', width: 65 },
-        { header: 'Sector', width: 28 },
-        { header: 'Tipo', width: 30 },
-        { header: 'Prioridad', width: 26 },
-        { header: 'Estado', width: 26 },
-        { header: 'Aprobación', width: 32 },
-        { header: 'Comentarios', width: 40 },
-        { header: 'Responsable', width: 40 },
-        { header: 'Tiempo Est.', width: 22 },
-        { header: 'Monto', width: 28 },
+        { header: 'N°', width: 12 },
+        { header: 'Descripción', width: 58 },
+        { header: 'Sector', width: 24 },
+        { header: 'Tipo', width: 26 },
+        { header: 'Prioridad', width: 22 },
+        { header: 'Estado', width: 24 },
+        { header: 'Aprobación', width: 30 },
+        { header: 'Comentarios', width: 34 },
+        { header: 'Responsable', width: 34 },
+        { header: 'T.E.', width: 18 },
+        { header: 'Monto', width: 26 },
         { header: 'Inicio', width: 22 },
         { header: 'Término', width: 22 },
-        { header: 'Fotos', width: 14 },
+        { header: 'Fotos', width: 12 },
       ]
       if (showMaterials) {
         cols.push({ header: 'Materiales', width: 24 })
@@ -2279,7 +2279,7 @@ export default function Home() {
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(15, 23, 42)
         {
-          const orderText = String(tableTasks.indexOf(task) + 1)
+          const orderText = String(filteredTasks.indexOf(task) + 1)
           const orderW = doc.getTextWidth(orderText) + 6
           doc.setFillColor(30, 41, 59)
           doc.roundedRect(colX + (cols[0].width - orderW) / 2, y + 0.5, orderW, 5, 1.5, 1.5, 'F')
