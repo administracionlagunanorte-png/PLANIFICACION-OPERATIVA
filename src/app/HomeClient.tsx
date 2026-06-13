@@ -2147,8 +2147,8 @@ export default function Home() {
   const downloadTablePDF = async () => {
     setDownloadingTable(true)
     try {
-      // A4 landscape fits single page
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+      // A3 landscape for maximum space (420mm x 297mm)
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' })
       const pageWidth = doc.internal.pageSize.getWidth()
       const pageHeight = doc.internal.pageSize.getHeight()
       const margin = 8
@@ -2165,25 +2165,25 @@ export default function Home() {
       }
 
       const centerX = pageWidth / 2
-      doc.setFontSize(11)
+      doc.setFontSize(12)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(15, 23, 42)
       doc.text('CONDOMINIO & PARQUE', centerX, y + 5, { align: 'center' })
 
-      doc.setFontSize(7)
+      doc.setFontSize(8)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(71, 85, 105)
-      doc.text('Planificación de Mantención - Tabla de Tareas', centerX, y + 10, { align: 'center' })
+      doc.text('Planificación de Mantención - Tabla de Tareas', centerX, y + 11, { align: 'center' })
 
       // Date right
-      doc.setFontSize(6)
+      doc.setFontSize(7)
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(100, 116, 139)
       const genDate = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
       doc.text(genDate, pageWidth - margin, y + 5, { align: 'right' })
-      doc.text(`${filteredTasks.length} tareas`, pageWidth - margin, y + 9, { align: 'right' })
+      doc.text(`${filteredTasks.length} tareas`, pageWidth - margin, y + 10, { align: 'right' })
 
-      y += 16
+      y += 17
 
       // Separator
       doc.setDrawColor(30, 41, 59)
@@ -2192,44 +2192,46 @@ export default function Home() {
       y += 5
 
       // ===== TABLE HEADER =====
+      // A3 landscape: 420mm - 16mm margins = 404mm content width
       const cols = [
-        { header: 'N°', width: 8 },
-        { header: 'Descripción', width: 44 },
-        { header: 'Sector', width: 18 },
-        { header: 'Tipo', width: 18 },
-        { header: 'Prior.', width: 16 },
-        { header: 'Estado', width: 17 },
-        { header: 'Aprob.', width: 20 },
-        { header: 'Coment.', width: 24 },
-        { header: 'Resp.', width: 24 },
-        { header: 'T.E.', width: 12 },
-        { header: 'Monto', width: 18 },
-        { header: 'Inicio', width: 15 },
-        { header: 'Fin', width: 15 },
-        { header: 'Adj.', width: 9 },
+        { header: 'N°', width: 9 },
+        { header: 'Descripción', width: 66 },
+        { header: 'Sector', width: 25 },
+        { header: 'Tipo', width: 26 },
+        { header: 'Prior.', width: 21 },
+        { header: 'Etapa', width: 23 },
+        { header: 'Estado', width: 23 },
+        { header: 'Aprobación', width: 28 },
+        { header: 'Comentarios', width: 38 },
+        { header: 'Responsable', width: 30 },
+        { header: 'T.E.', width: 15 },
+        { header: 'Monto', width: 26 },
+        { header: 'Inicio', width: 22 },
+        { header: 'Término', width: 22 },
+        { header: 'Adj.', width: 10 },
       ]
       if (showMaterials) {
-        cols.push({ header: 'Materiales', width: 24 })
+        cols.push({ header: 'Materiales', width: 20 })
       }
 
-      const headerH = 6
+      const headerH = 7
       // Header background
       doc.setFillColor(30, 41, 59)
       doc.rect(margin, y - 1, contentWidth, headerH, 'F')
 
       // Header text
-      doc.setFontSize(5.5)
+      doc.setFontSize(6.5)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(255, 255, 255)
       let colX = margin
       cols.forEach(col => {
-        doc.text(col.header, colX + 1, y + 3)
+        doc.text(col.header, colX + 1.5, y + 4)
         colX += col.width
       })
       y += headerH + 1
 
       // ===== TABLE ROWS =====
-      const rowH = 5.5
+      const rowH = 6.5
       const statusColorMap: Record<string, { bg: string; text: string }> = {
         'Pendiente': { bg: 'FEF3C7', text: '92400E' },
         'En Proceso': { bg: 'DBEAFE', text: '1E40AF' },
@@ -2240,7 +2242,7 @@ export default function Home() {
       filteredTasks.forEach((task, idx) => {
         if (y + rowH > pageHeight - 15) {
           // Footer
-          doc.setFontSize(6)
+          doc.setFontSize(7)
           doc.setTextColor(148, 163, 184)
           doc.text(`Página ${doc.getNumberOfPages()}`, pageWidth - margin - 15, pageHeight - 6)
 
@@ -2275,41 +2277,43 @@ export default function Home() {
         colX = margin
 
         // N° Tarea (correlativo)
-        doc.setFontSize(6)
+        doc.setFontSize(7)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(15, 23, 42)
         {
           const orderText = String(filteredTasks.indexOf(task) + 1)
           const orderW = doc.getTextWidth(orderText) + 4
           doc.setFillColor(30, 41, 59)
-          doc.roundedRect(colX + (cols[0].width - orderW) / 2, y + 0.5, orderW, 4, 1, 1, 'F')
+          doc.roundedRect(colX + (cols[0].width - orderW) / 2, y + 0.5, orderW, 4.5, 1, 1, 'F')
           doc.setTextColor(255, 255, 255)
-          doc.text(orderText, colX + cols[0].width / 2, y + 3.5, { align: 'center' })
+          doc.text(orderText, colX + cols[0].width / 2, y + 3.8, { align: 'center' })
         }
         colX += cols[0].width
 
         // Descripción
-        doc.setFontSize(5.5)
+        doc.setFontSize(6.5)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(15, 23, 42)
-        const descText = task.description.length > 32 ? task.description.substring(0, 29) + '...' : task.description
-        doc.text(descText, colX + 1, y + 3.5)
+        const maxDescChars = Math.floor(cols[1].width / 1.8)
+        const descText = task.description.length > maxDescChars ? task.description.substring(0, maxDescChars - 2) + '..' : task.description
+        doc.text(descText, colX + 1, y + 3.8)
         colX += cols[1].width
 
         // Sector
         doc.setFont('helvetica', 'normal')
         doc.setTextColor(51, 65, 85)
-        doc.setFontSize(5.5)
-        const sectorW = doc.getTextWidth(task.sector) + 3
+        doc.setFontSize(6.5)
+        const sectorW = doc.getTextWidth(task.sector) + 4
         doc.setFillColor(241, 245, 249)
-        doc.roundedRect(colX + 1, y + 0.5, Math.min(sectorW, cols[2].width - 3), 4, 0.5, 0.5, 'F')
-        doc.text(task.sector, colX + 2.5, y + 3.5)
+        doc.roundedRect(colX + 1, y + 0.5, Math.min(sectorW, cols[2].width - 3), 4.5, 0.5, 0.5, 'F')
+        doc.text(task.sector, colX + 3, y + 3.8)
         colX += cols[2].width
 
         // Tipo
         doc.setTextColor(51, 65, 85)
-        const tipoText = task.repairType.length > 14 ? task.repairType.substring(0, 12) + '..' : task.repairType
-        doc.text(tipoText, colX + 1, y + 3.5)
+        const maxTipoChars = Math.floor(cols[3].width / 1.8)
+        const tipoText = task.repairType.length > maxTipoChars ? task.repairType.substring(0, maxTipoChars - 2) + '..' : task.repairType
+        doc.text(tipoText, colX + 1, y + 3.8)
         colX += cols[3].width
 
         // Prioridad with colored dot
@@ -2317,45 +2321,69 @@ export default function Home() {
         const pRgb = hexToRgb(pColor)
         if (pRgb) {
           doc.setFillColor(pRgb.r, pRgb.g, pRgb.b)
-          doc.circle(colX + 3, y + 2.8, 1.5, 'F')
+          doc.circle(colX + 3, y + 3, 1.8, 'F')
         }
         doc.setTextColor(30, 41, 59)
-        doc.setFontSize(5.5)
-        doc.text(task.priority, colX + 5.5, y + 3.5)
+        doc.setFontSize(6.5)
+        doc.text(task.priority, colX + 6, y + 3.8)
         colX += cols[4].width
+
+        // Etapa
+        const etapaColorMap: Record<string, { bg: string; text: string }> = {
+          'Planificación': { bg: 'E0E7FF', text: '3730A3' },
+          'Ejecución': { bg: 'FEF3C7', text: '92400E' },
+          'Cierre': { bg: 'DCFCE7', text: '166534' },
+        }
+        const etapaVal = task.etapa || '-'
+        const eColors = etapaColorMap[task.etapa || '']
+        if (eColors) {
+          const etapaW = doc.getTextWidth(etapaVal) + 5
+          doc.setFillColor(parseInt(eColors.bg.substring(0, 2), 16), parseInt(eColors.bg.substring(2, 4), 16), parseInt(eColors.bg.substring(4, 6), 16))
+          doc.roundedRect(colX + 1, y + 0.5, Math.min(etapaW, cols[5].width - 3), 4.5, 0.5, 0.5, 'F')
+          doc.setTextColor(parseInt(eColors.text.substring(0, 2), 16), parseInt(eColors.text.substring(2, 4), 16), parseInt(eColors.text.substring(4, 6), 16))
+          doc.setFontSize(6.5)
+          doc.setFont('helvetica', 'bold')
+          doc.text(etapaVal, colX + 3.5, y + 3.8)
+          doc.setFont('helvetica', 'normal')
+        } else {
+          doc.setTextColor(148, 163, 184)
+          doc.setFontSize(6.5)
+          doc.text(etapaVal, colX + 1, y + 3.8)
+        }
+        colX += cols[5].width
 
         // Estado with colored badge
         const sColors = statusColorMap[task.status]
         if (sColors) {
-          const statusW = doc.getTextWidth(task.status) + 4
+          const statusW = doc.getTextWidth(task.status) + 5
           doc.setFillColor(parseInt(sColors.bg.substring(0, 2), 16), parseInt(sColors.bg.substring(2, 4), 16), parseInt(sColors.bg.substring(4, 6), 16))
-          doc.roundedRect(colX + 1, y + 0.5, Math.min(statusW, cols[5].width - 3), 4, 0.5, 0.5, 'F')
+          doc.roundedRect(colX + 1, y + 0.5, Math.min(statusW, cols[6].width - 3), 4.5, 0.5, 0.5, 'F')
           doc.setTextColor(parseInt(sColors.text.substring(0, 2), 16), parseInt(sColors.text.substring(2, 4), 16), parseInt(sColors.text.substring(4, 6), 16))
-          doc.setFontSize(5.5)
+          doc.setFontSize(6.5)
           doc.setFont('helvetica', 'bold')
-          doc.text(task.status, colX + 3, y + 3.5)
+          doc.text(task.status, colX + 3.5, y + 3.8)
           doc.setFont('helvetica', 'normal')
         } else {
           const stColor = getStatusColor(task.status)
           const stRgb = hexToRgb(stColor)
           if (stRgb) {
-            const statusW = doc.getTextWidth(task.status) + 4
+            const statusW = doc.getTextWidth(task.status) + 5
             doc.setFillColor(Math.min(255, stRgb.r + 150), Math.min(255, stRgb.g + 150), Math.min(255, stRgb.b + 150))
-            doc.roundedRect(colX + 1, y + 0.5, Math.min(statusW, cols[5].width - 3), 4, 0.5, 0.5, 'F')
+            doc.roundedRect(colX + 1, y + 0.5, Math.min(statusW, cols[6].width - 3), 4.5, 0.5, 0.5, 'F')
             doc.setTextColor(stRgb.r, stRgb.g, stRgb.b)
-            doc.setFontSize(5.5)
+            doc.setFontSize(6.5)
             doc.setFont('helvetica', 'bold')
-            doc.text(task.status, colX + 3, y + 3.5)
+            doc.text(task.status, colX + 3.5, y + 3.8)
             doc.setFont('helvetica', 'normal')
           } else {
             doc.setTextColor(30, 41, 59)
-            doc.text(task.status, colX + 1, y + 3.5)
+            doc.text(task.status, colX + 1, y + 3.8)
           }
         }
-        colX += cols[5].width
+        colX += cols[6].width
 
         // Aprobación with colored badge
-        const approvalStatus = task.approvalStatus || 'En espera'
+        const approvalStatus = task.approvalStatus || 'En espera de decisión'
         const approvalLabel = approvalStatus === 'En espera de decisión' ? 'En espera' : approvalStatus
         const approvalColorMap: Record<string, { bg: string; text: string }> = {
           'Aprobado': { bg: 'DCFCE7', text: '166534' },
@@ -2364,54 +2392,56 @@ export default function Home() {
         }
         const aColors = approvalColorMap[approvalStatus] || approvalColorMap['En espera de decisión']
         if (aColors) {
-          const approvalW = doc.getTextWidth(approvalLabel) + 4
+          const approvalW = doc.getTextWidth(approvalLabel) + 5
           doc.setFillColor(parseInt(aColors.bg.substring(0, 2), 16), parseInt(aColors.bg.substring(2, 4), 16), parseInt(aColors.bg.substring(4, 6), 16))
-          doc.roundedRect(colX + 1, y + 0.5, Math.min(approvalW, cols[6].width - 3), 4, 0.5, 0.5, 'F')
+          doc.roundedRect(colX + 1, y + 0.5, Math.min(approvalW, cols[7].width - 3), 4.5, 0.5, 0.5, 'F')
           doc.setTextColor(parseInt(aColors.text.substring(0, 2), 16), parseInt(aColors.text.substring(2, 4), 16), parseInt(aColors.text.substring(4, 6), 16))
-          doc.setFontSize(5.5)
+          doc.setFontSize(6.5)
           doc.setFont('helvetica', 'bold')
-          doc.text(approvalLabel, colX + 3, y + 3.5)
+          doc.text(approvalLabel, colX + 3.5, y + 3.8)
           doc.setFont('helvetica', 'normal')
         } else {
           doc.setTextColor(51, 65, 85)
-          doc.text(approvalLabel, colX + 1, y + 3.5)
+          doc.text(approvalLabel, colX + 1, y + 3.8)
         }
-        colX += cols[6].width
+        colX += cols[7].width
 
         // Comentarios
         doc.setTextColor(51, 65, 85)
-        doc.setFontSize(5.5)
-        const commentsText = task.comments ? (task.comments.length > 20 ? task.comments.substring(0, 17) + '...' : task.comments) : '-'
-        doc.text(commentsText, colX + 1, y + 3.5)
-        colX += cols[7].width
+        doc.setFontSize(6.5)
+        const maxCommentChars = Math.floor(cols[8].width / 1.8)
+        const commentsText = task.comments ? (task.comments.length > maxCommentChars ? task.comments.substring(0, maxCommentChars - 2) + '..' : task.comments) : '-'
+        doc.text(commentsText, colX + 1, y + 3.8)
+        colX += cols[8].width
 
         // Responsable
         doc.setTextColor(51, 65, 85)
-        doc.setFontSize(5.5)
-        const respText = (task.responsible || '-').length > 16 ? (task.responsible || '-').substring(0, 14) + '..' : (task.responsible || '-')
-        doc.text(respText, colX + 1, y + 3.5)
-        colX += cols[8].width
+        doc.setFontSize(6.5)
+        const maxRespChars = Math.floor(cols[9].width / 1.8)
+        const respText = (task.responsible || '-').length > maxRespChars ? (task.responsible || '-').substring(0, maxRespChars - 2) + '..' : (task.responsible || '-')
+        doc.text(respText, colX + 1, y + 3.8)
+        colX += cols[9].width
 
         // Tiempo Est.
-        doc.text(task.estimatedTime || '-', colX + 1, y + 3.5)
-        colX += cols[9].width
+        doc.text(task.estimatedTime || '-', colX + 1, y + 3.8)
+        colX += cols[10].width
 
         // Monto
         doc.setTextColor(15, 23, 42)
         doc.setFont('helvetica', 'bold')
-        doc.text(task.amount ? formatCurrency(task.amount) : '-', colX + 1, y + 3.5)
+        doc.text(task.amount ? formatCurrency(task.amount) : '-', colX + 1, y + 3.8)
         doc.setFont('helvetica', 'normal')
-        colX += cols[10].width
+        colX += cols[11].width
 
         // Inicio
         doc.setTextColor(51, 65, 85)
-        doc.setFontSize(5.5)
-        doc.text(formatDate(task.startDate), colX + 1, y + 3.5)
-        colX += cols[11].width
-
-        // Fin
-        doc.text(formatDate(task.endDate), colX + 1, y + 3.5)
+        doc.setFontSize(6.5)
+        doc.text(formatDate(task.startDate), colX + 1, y + 3.8)
         colX += cols[12].width
+
+        // Término
+        doc.text(formatDate(task.endDate), colX + 1, y + 3.8)
+        colX += cols[13].width
 
         // Adj. (Fotos + Docs combinados)
         const beforePhotos = JSON.parse(task.beforePhotos || '[]') as string[]
@@ -2420,8 +2450,8 @@ export default function Home() {
         const docs = JSON.parse(task.documents || '[]') as Array<{url: string; name: string; type: string}>
         const totalAdj = totalPhotos + docs.length
         doc.setTextColor(100, 116, 139)
-        doc.text(totalAdj > 0 ? String(totalAdj) : '-', colX + 1, y + 3.5)
-        colX += cols[13].width
+        doc.text(totalAdj > 0 ? String(totalAdj) : '-', colX + 1, y + 3.8)
+        colX += cols[14].width
 
         // Materiales
         if (showMaterials) {
@@ -2430,11 +2460,11 @@ export default function Home() {
             const matTotal = getMaterialsTotal(task.id)
             doc.setTextColor(5, 150, 105)
             doc.setFont('helvetica', 'bold')
-            doc.text(`${matCount}/${formatCurrency(matTotal)}`, colX + 1, y + 3.5)
+            doc.text(`${matCount}/${formatCurrency(matTotal)}`, colX + 1, y + 3.8)
             doc.setFont('helvetica', 'normal')
           } else {
             doc.setTextColor(100, 116, 139)
-            doc.text('-', colX + 1, y + 3.5)
+            doc.text('-', colX + 1, y + 3.8)
           }
         }
 
@@ -2448,28 +2478,28 @@ export default function Home() {
       doc.line(margin, y, pageWidth - margin, y)
       y += 5
 
-      doc.setFontSize(6)
+      doc.setFontSize(7)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(71, 85, 105)
       doc.text(`Total: ${filteredTasks.length}`, margin + 2, y)
 
       const totalAmount = filteredTasks.reduce((sum, t) => sum + (t.amount || 0), 0)
-      doc.text(`Monto: ${formatCurrency(totalAmount)}`, margin + 40, y)
+      doc.text(`Monto: ${formatCurrency(totalAmount)}`, margin + 50, y)
 
       const pendingCount = filteredTasks.filter(t => t.status === 'Pendiente').length
       const inProgressCount = filteredTasks.filter(t => t.status === 'En Proceso').length
       const completedCount = filteredTasks.filter(t => t.status === 'Completada').length
       const approvedCount = filteredTasks.filter(t => t.approvalStatus === 'Aprobado').length
-      doc.text(`Pend: ${pendingCount} | Proceso: ${inProgressCount} | Compl: ${completedCount} | Aprob: ${approvedCount}`, margin + 100, y)
+      doc.text(`Pend: ${pendingCount} | Proceso: ${inProgressCount} | Compl: ${completedCount} | Aprob: ${approvedCount}`, margin + 120, y)
 
       // Footer on all pages
       const totalPages = doc.getNumberOfPages()
       for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i)
-        doc.setFontSize(6)
+        doc.setFontSize(7)
         doc.setTextColor(148, 163, 184)
         doc.text('Documento generado automáticamente por Sistema de Gestión Laguna Norte', margin, pageHeight - 6)
-        doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin - 20, pageHeight - 6)
+        doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin - 25, pageHeight - 6)
       }
 
       doc.save(`tabla-tareas-${new Date().toISOString().split('T')[0]}.pdf`)
