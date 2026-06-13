@@ -2147,11 +2147,11 @@ export default function Home() {
   const downloadTablePDF = async () => {
     setDownloadingTable(true)
     try {
-      // Landscape A3 for wide table
+      // A3 landscape for maximum space (420mm x 297mm)
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' })
       const pageWidth = doc.internal.pageSize.getWidth()
       const pageHeight = doc.internal.pageSize.getHeight()
-      const margin = 10
+      const margin = 8
       const contentWidth = pageWidth - 2 * margin
 
       // Fetch logo
@@ -2161,29 +2161,29 @@ export default function Home() {
 
       // ===== HEADER =====
       if (logoBase64) {
-        doc.addImage(logoBase64, 'JPEG', margin, y, 18, 18)
+        doc.addImage(logoBase64, 'JPEG', margin, y, 14, 14)
       }
 
       const centerX = pageWidth / 2
-      doc.setFontSize(14)
+      doc.setFontSize(12)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(15, 23, 42)
-      doc.text('CONDOMINIO & PARQUE', centerX, y + 6, { align: 'center' })
+      doc.text('CONDOMINIO & PARQUE', centerX, y + 5, { align: 'center' })
 
-      doc.setFontSize(9)
+      doc.setFontSize(8)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(71, 85, 105)
-      doc.text('Planificación de Mantención - Tabla de Tareas', centerX, y + 12, { align: 'center' })
+      doc.text('Planificación de Mantención - Tabla de Tareas', centerX, y + 11, { align: 'center' })
 
       // Date right
       doc.setFontSize(7)
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(100, 116, 139)
       const genDate = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
-      doc.text(genDate, pageWidth - margin, y + 6, { align: 'right' })
+      doc.text(genDate, pageWidth - margin, y + 5, { align: 'right' })
       doc.text(`${filteredTasks.length} tareas`, pageWidth - margin, y + 10, { align: 'right' })
 
-      y += 22
+      y += 17
 
       // Separator
       doc.setDrawColor(30, 41, 59)
@@ -2192,44 +2192,46 @@ export default function Home() {
       y += 5
 
       // ===== TABLE HEADER =====
+      // A3 landscape: 420mm - 16mm margins = 404mm content width
       const cols = [
-        { header: 'N°', width: 14 },
-        { header: 'Descripción', width: 65 },
-        { header: 'Sector', width: 28 },
-        { header: 'Tipo', width: 30 },
-        { header: 'Prioridad', width: 26 },
-        { header: 'Estado', width: 26 },
-        { header: 'Aprobación', width: 32 },
-        { header: 'Comentarios', width: 40 },
-        { header: 'Responsable', width: 40 },
-        { header: 'Tiempo Est.', width: 22 },
-        { header: 'Monto', width: 28 },
+        { header: 'N°', width: 9 },
+        { header: 'Descripción', width: 66 },
+        { header: 'Sector', width: 25 },
+        { header: 'Tipo', width: 26 },
+        { header: 'Prior.', width: 21 },
+        { header: 'Etapa', width: 23 },
+        { header: 'Estado', width: 23 },
+        { header: 'Aprobación', width: 28 },
+        { header: 'Comentarios', width: 38 },
+        { header: 'Responsable', width: 30 },
+        { header: 'T.E.', width: 15 },
+        { header: 'Monto', width: 26 },
         { header: 'Inicio', width: 22 },
         { header: 'Término', width: 22 },
-        { header: 'Fotos', width: 14 },
+        { header: 'Adj.', width: 10 },
       ]
       if (showMaterials) {
-        cols.push({ header: 'Materiales', width: 24 })
+        cols.push({ header: 'Materiales', width: 20 })
       }
 
-      const headerH = 8
+      const headerH = 7
       // Header background
       doc.setFillColor(30, 41, 59)
       doc.rect(margin, y - 1, contentWidth, headerH, 'F')
 
       // Header text
-      doc.setFontSize(7)
+      doc.setFontSize(6.5)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(255, 255, 255)
       let colX = margin
       cols.forEach(col => {
-        doc.text(col.header, colX + 2, y + 4)
+        doc.text(col.header, colX + 1.5, y + 4)
         colX += col.width
       })
       y += headerH + 1
 
       // ===== TABLE ROWS =====
-      const rowH = 7
+      const rowH = 6.5
       const statusColorMap: Record<string, { bg: string; text: string }> = {
         'Pendiente': { bg: 'FEF3C7', text: '92400E' },
         'En Proceso': { bg: 'DBEAFE', text: '1E40AF' },
@@ -2240,7 +2242,7 @@ export default function Home() {
       filteredTasks.forEach((task, idx) => {
         if (y + rowH > pageHeight - 15) {
           // Footer
-          doc.setFontSize(6)
+          doc.setFontSize(7)
           doc.setTextColor(148, 163, 184)
           doc.text(`Página ${doc.getNumberOfPages()}`, pageWidth - margin - 15, pageHeight - 6)
 
@@ -2275,41 +2277,43 @@ export default function Home() {
         colX = margin
 
         // N° Tarea (correlativo)
-        doc.setFontSize(8)
+        doc.setFontSize(7)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(15, 23, 42)
         {
-          const orderText = String(tableTasks.indexOf(task) + 1)
-          const orderW = doc.getTextWidth(orderText) + 6
+          const orderText = String(filteredTasks.indexOf(task) + 1)
+          const orderW = doc.getTextWidth(orderText) + 4
           doc.setFillColor(30, 41, 59)
-          doc.roundedRect(colX + (cols[0].width - orderW) / 2, y + 0.5, orderW, 5, 1.5, 1.5, 'F')
+          doc.roundedRect(colX + (cols[0].width - orderW) / 2, y + 0.5, orderW, 4.5, 1, 1, 'F')
           doc.setTextColor(255, 255, 255)
-          doc.text(orderText, colX + cols[0].width / 2, y + 4, { align: 'center' })
+          doc.text(orderText, colX + cols[0].width / 2, y + 3.8, { align: 'center' })
         }
         colX += cols[0].width
 
         // Descripción
-        doc.setFontSize(7)
+        doc.setFontSize(6.5)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(15, 23, 42)
-        const descText = task.description.length > 38 ? task.description.substring(0, 35) + '...' : task.description
-        doc.text(descText, colX + 2, y + 4)
+        const maxDescChars = Math.floor(cols[1].width / 1.8)
+        const descText = task.description.length > maxDescChars ? task.description.substring(0, maxDescChars - 2) + '..' : task.description
+        doc.text(descText, colX + 1, y + 3.8)
         colX += cols[1].width
 
         // Sector
         doc.setFont('helvetica', 'normal')
         doc.setTextColor(51, 65, 85)
-        doc.setFontSize(7)
-        // Sector badge background
+        doc.setFontSize(6.5)
         const sectorW = doc.getTextWidth(task.sector) + 4
         doc.setFillColor(241, 245, 249)
-        doc.roundedRect(colX + 1, y + 0.5, Math.min(sectorW, cols[2].width - 4), 5, 1, 1, 'F')
-        doc.text(task.sector, colX + 3, y + 4)
+        doc.roundedRect(colX + 1, y + 0.5, Math.min(sectorW, cols[2].width - 3), 4.5, 0.5, 0.5, 'F')
+        doc.text(task.sector, colX + 3, y + 3.8)
         colX += cols[2].width
 
         // Tipo
         doc.setTextColor(51, 65, 85)
-        doc.text(task.repairType, colX + 2, y + 4)
+        const maxTipoChars = Math.floor(cols[3].width / 1.8)
+        const tipoText = task.repairType.length > maxTipoChars ? task.repairType.substring(0, maxTipoChars - 2) + '..' : task.repairType
+        doc.text(tipoText, colX + 1, y + 3.8)
         colX += cols[3].width
 
         // Prioridad with colored dot
@@ -2317,107 +2321,137 @@ export default function Home() {
         const pRgb = hexToRgb(pColor)
         if (pRgb) {
           doc.setFillColor(pRgb.r, pRgb.g, pRgb.b)
-          doc.circle(colX + 4, y + 3.2, 1.8, 'F')
+          doc.circle(colX + 3, y + 3, 1.8, 'F')
         }
         doc.setTextColor(30, 41, 59)
-        doc.setFontSize(7)
-        doc.text(task.priority, colX + 8, y + 4)
+        doc.setFontSize(6.5)
+        doc.text(task.priority, colX + 6, y + 3.8)
         colX += cols[4].width
+
+        // Etapa
+        const etapaColorMap: Record<string, { bg: string; text: string }> = {
+          'Planificación': { bg: 'E0E7FF', text: '3730A3' },
+          'Ejecución': { bg: 'FEF3C7', text: '92400E' },
+          'Cierre': { bg: 'DCFCE7', text: '166534' },
+        }
+        const etapaVal = task.etapa || '-'
+        const eColors = etapaColorMap[task.etapa || '']
+        if (eColors) {
+          const etapaW = doc.getTextWidth(etapaVal) + 5
+          doc.setFillColor(parseInt(eColors.bg.substring(0, 2), 16), parseInt(eColors.bg.substring(2, 4), 16), parseInt(eColors.bg.substring(4, 6), 16))
+          doc.roundedRect(colX + 1, y + 0.5, Math.min(etapaW, cols[5].width - 3), 4.5, 0.5, 0.5, 'F')
+          doc.setTextColor(parseInt(eColors.text.substring(0, 2), 16), parseInt(eColors.text.substring(2, 4), 16), parseInt(eColors.text.substring(4, 6), 16))
+          doc.setFontSize(6.5)
+          doc.setFont('helvetica', 'bold')
+          doc.text(etapaVal, colX + 3.5, y + 3.8)
+          doc.setFont('helvetica', 'normal')
+        } else {
+          doc.setTextColor(148, 163, 184)
+          doc.setFontSize(6.5)
+          doc.text(etapaVal, colX + 1, y + 3.8)
+        }
+        colX += cols[5].width
 
         // Estado with colored badge
         const sColors = statusColorMap[task.status]
         if (sColors) {
-          const statusW = doc.getTextWidth(task.status) + 6
+          const statusW = doc.getTextWidth(task.status) + 5
           doc.setFillColor(parseInt(sColors.bg.substring(0, 2), 16), parseInt(sColors.bg.substring(2, 4), 16), parseInt(sColors.bg.substring(4, 6), 16))
-          doc.roundedRect(colX + 1, y + 0.5, Math.min(statusW, cols[5].width - 4), 5, 1, 1, 'F')
+          doc.roundedRect(colX + 1, y + 0.5, Math.min(statusW, cols[6].width - 3), 4.5, 0.5, 0.5, 'F')
           doc.setTextColor(parseInt(sColors.text.substring(0, 2), 16), parseInt(sColors.text.substring(2, 4), 16), parseInt(sColors.text.substring(4, 6), 16))
-          doc.setFontSize(7)
+          doc.setFontSize(6.5)
           doc.setFont('helvetica', 'bold')
-          doc.text(task.status, colX + 4, y + 4)
+          doc.text(task.status, colX + 3.5, y + 3.8)
           doc.setFont('helvetica', 'normal')
         } else {
-          // Custom status - use status color from config
           const stColor = getStatusColor(task.status)
           const stRgb = hexToRgb(stColor)
           if (stRgb) {
-            const statusW = doc.getTextWidth(task.status) + 6
+            const statusW = doc.getTextWidth(task.status) + 5
             doc.setFillColor(Math.min(255, stRgb.r + 150), Math.min(255, stRgb.g + 150), Math.min(255, stRgb.b + 150))
-            doc.roundedRect(colX + 1, y + 0.5, Math.min(statusW, cols[5].width - 4), 5, 1, 1, 'F')
+            doc.roundedRect(colX + 1, y + 0.5, Math.min(statusW, cols[6].width - 3), 4.5, 0.5, 0.5, 'F')
             doc.setTextColor(stRgb.r, stRgb.g, stRgb.b)
-            doc.setFontSize(7)
+            doc.setFontSize(6.5)
             doc.setFont('helvetica', 'bold')
-            doc.text(task.status, colX + 4, y + 4)
+            doc.text(task.status, colX + 3.5, y + 3.8)
             doc.setFont('helvetica', 'normal')
           } else {
             doc.setTextColor(30, 41, 59)
-            doc.text(task.status, colX + 2, y + 4)
+            doc.text(task.status, colX + 1, y + 3.8)
           }
         }
-        colX += cols[5].width
+        colX += cols[6].width
 
         // Aprobación with colored badge
         const approvalStatus = task.approvalStatus || 'En espera de decisión'
+        const approvalLabel = approvalStatus === 'En espera de decisión' ? 'En espera' : approvalStatus
         const approvalColorMap: Record<string, { bg: string; text: string }> = {
           'Aprobado': { bg: 'DCFCE7', text: '166534' },
           'No aprobado': { bg: 'FEE2E2', text: '991B1B' },
           'En espera de decisión': { bg: 'FEF3C7', text: '92400E' },
         }
-        const aColors = approvalColorMap[approvalStatus]
+        const aColors = approvalColorMap[approvalStatus] || approvalColorMap['En espera de decisión']
         if (aColors) {
-          const approvalW = doc.getTextWidth(approvalStatus) + 6
+          const approvalW = doc.getTextWidth(approvalLabel) + 5
           doc.setFillColor(parseInt(aColors.bg.substring(0, 2), 16), parseInt(aColors.bg.substring(2, 4), 16), parseInt(aColors.bg.substring(4, 6), 16))
-          doc.roundedRect(colX + 1, y + 0.5, Math.min(approvalW, cols[6].width - 4), 5, 1, 1, 'F')
+          doc.roundedRect(colX + 1, y + 0.5, Math.min(approvalW, cols[7].width - 3), 4.5, 0.5, 0.5, 'F')
           doc.setTextColor(parseInt(aColors.text.substring(0, 2), 16), parseInt(aColors.text.substring(2, 4), 16), parseInt(aColors.text.substring(4, 6), 16))
-          doc.setFontSize(7)
+          doc.setFontSize(6.5)
           doc.setFont('helvetica', 'bold')
-          doc.text(approvalStatus, colX + 4, y + 4)
+          doc.text(approvalLabel, colX + 3.5, y + 3.8)
           doc.setFont('helvetica', 'normal')
         } else {
           doc.setTextColor(51, 65, 85)
-          doc.text(approvalStatus, colX + 2, y + 4)
+          doc.text(approvalLabel, colX + 1, y + 3.8)
         }
-        colX += cols[6].width
+        colX += cols[7].width
 
         // Comentarios
         doc.setTextColor(51, 65, 85)
-        doc.setFontSize(7)
-        const commentsText = task.comments ? (task.comments.length > 28 ? task.comments.substring(0, 25) + '...' : task.comments) : '-'
-        doc.text(commentsText, colX + 2, y + 4)
-        colX += cols[7].width
+        doc.setFontSize(6.5)
+        const maxCommentChars = Math.floor(cols[8].width / 1.8)
+        const commentsText = task.comments ? (task.comments.length > maxCommentChars ? task.comments.substring(0, maxCommentChars - 2) + '..' : task.comments) : '-'
+        doc.text(commentsText, colX + 1, y + 3.8)
+        colX += cols[8].width
 
         // Responsable
         doc.setTextColor(51, 65, 85)
-        doc.setFontSize(7)
-        doc.text(task.responsible || '-', colX + 2, y + 4)
-        colX += cols[8].width
+        doc.setFontSize(6.5)
+        const maxRespChars = Math.floor(cols[9].width / 1.8)
+        const respText = (task.responsible || '-').length > maxRespChars ? (task.responsible || '-').substring(0, maxRespChars - 2) + '..' : (task.responsible || '-')
+        doc.text(respText, colX + 1, y + 3.8)
+        colX += cols[9].width
 
         // Tiempo Est.
-        doc.text(task.estimatedTime || '-', colX + 2, y + 4)
-        colX += cols[9].width
+        doc.text(task.estimatedTime || '-', colX + 1, y + 3.8)
+        colX += cols[10].width
 
         // Monto
         doc.setTextColor(15, 23, 42)
         doc.setFont('helvetica', 'bold')
-        doc.text(task.amount ? formatCurrency(task.amount) : '-', colX + 2, y + 4)
+        doc.text(task.amount ? formatCurrency(task.amount) : '-', colX + 1, y + 3.8)
         doc.setFont('helvetica', 'normal')
-        colX += cols[10].width
+        colX += cols[11].width
 
         // Inicio
         doc.setTextColor(51, 65, 85)
-        doc.text(formatDate(task.startDate), colX + 2, y + 4)
-        colX += cols[11].width
-
-        // Término
-        doc.text(formatDate(task.endDate), colX + 2, y + 4)
+        doc.setFontSize(6.5)
+        doc.text(formatDate(task.startDate), colX + 1, y + 3.8)
         colX += cols[12].width
 
-        // Fotos
+        // Término
+        doc.text(formatDate(task.endDate), colX + 1, y + 3.8)
+        colX += cols[13].width
+
+        // Adj. (Fotos + Docs combinados)
         const beforePhotos = JSON.parse(task.beforePhotos || '[]') as string[]
         const afterPhotos = JSON.parse(task.afterPhotos || '[]') as string[]
         const totalPhotos = beforePhotos.length + afterPhotos.length
+        const docs = JSON.parse(task.documents || '[]') as Array<{url: string; name: string; type: string}>
+        const totalAdj = totalPhotos + docs.length
         doc.setTextColor(100, 116, 139)
-        doc.text(totalPhotos > 0 ? String(totalPhotos) : '-', colX + 2, y + 4)
-        colX += cols[13].width
+        doc.text(totalAdj > 0 ? String(totalAdj) : '-', colX + 1, y + 3.8)
+        colX += cols[14].width
 
         // Materiales
         if (showMaterials) {
@@ -2426,11 +2460,11 @@ export default function Home() {
             const matTotal = getMaterialsTotal(task.id)
             doc.setTextColor(5, 150, 105)
             doc.setFont('helvetica', 'bold')
-            doc.text(`${matCount} / ${formatCurrency(matTotal)}`, colX + 2, y + 4)
+            doc.text(`${matCount}/${formatCurrency(matTotal)}`, colX + 1, y + 3.8)
             doc.setFont('helvetica', 'normal')
           } else {
             doc.setTextColor(100, 116, 139)
-            doc.text('-', colX + 2, y + 4)
+            doc.text('-', colX + 1, y + 3.8)
           }
         }
 
@@ -2444,27 +2478,28 @@ export default function Home() {
       doc.line(margin, y, pageWidth - margin, y)
       y += 5
 
-      doc.setFontSize(8)
+      doc.setFontSize(7)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(71, 85, 105)
-      doc.text(`Total tareas: ${filteredTasks.length}`, margin + 2, y)
+      doc.text(`Total: ${filteredTasks.length}`, margin + 2, y)
 
       const totalAmount = filteredTasks.reduce((sum, t) => sum + (t.amount || 0), 0)
-      doc.text(`Monto total: ${formatCurrency(totalAmount)}`, margin + 60, y)
+      doc.text(`Monto: ${formatCurrency(totalAmount)}`, margin + 50, y)
 
       const pendingCount = filteredTasks.filter(t => t.status === 'Pendiente').length
       const inProgressCount = filteredTasks.filter(t => t.status === 'En Proceso').length
       const completedCount = filteredTasks.filter(t => t.status === 'Completada').length
-      doc.text(`Pendientes: ${pendingCount} | En Proceso: ${inProgressCount} | Completadas: ${completedCount}`, margin + 140, y)
+      const approvedCount = filteredTasks.filter(t => t.approvalStatus === 'Aprobado').length
+      doc.text(`Pend: ${pendingCount} | Proceso: ${inProgressCount} | Compl: ${completedCount} | Aprob: ${approvedCount}`, margin + 120, y)
 
       // Footer on all pages
       const totalPages = doc.getNumberOfPages()
       for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i)
-        doc.setFontSize(6)
+        doc.setFontSize(7)
         doc.setTextColor(148, 163, 184)
         doc.text('Documento generado automáticamente por Sistema de Gestión Laguna Norte', margin, pageHeight - 6)
-        doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin - 20, pageHeight - 6)
+        doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin - 25, pageHeight - 6)
       }
 
       doc.save(`tabla-tareas-${new Date().toISOString().split('T')[0]}.pdf`)
@@ -2910,43 +2945,37 @@ export default function Home() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="px-4 py-2 text-xs text-gray-400 flex items-center gap-1">
-                <ChevronRight className="h-3 w-3" /> Desliza horizontalmente para ver más columnas
-              </div>
               <div className="overflow-x-auto">
-                <Table className="min-w-[1200px] text-xs">
+                <Table className="w-full text-[11px]">
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[32px] text-center px-1 py-1.5">#</TableHead>
-                      <TableHead className="min-w-[140px] max-w-[180px] px-1 py-1.5">Descripción</TableHead>
-                      <TableHead className="px-1 py-1.5">Sector</TableHead>
-                      <TableHead className="px-1 py-1.5">Tipo</TableHead>
-                      <TableHead className="px-1 py-1.5">Prior.</TableHead>
-                      <TableHead className="px-1 py-1.5">Etapa</TableHead>
-                      <TableHead className="px-1 py-1.5">Estado</TableHead>
-                      <TableHead className="px-1 py-1.5 min-w-[110px]">Aprobación</TableHead>
-                      <TableHead className="px-1 py-1.5 min-w-[100px]">Comentarios</TableHead>
-                      <TableHead className="px-1 py-1.5">Resp.</TableHead>
-                      <TableHead className="px-1 py-1.5 w-[50px]">T.E.</TableHead>
-                      <TableHead className="text-right px-1 py-1.5 w-[65px]">Monto</TableHead>
-                      <TableHead className="px-1 py-1.5 w-[65px]">Inicio</TableHead>
-                      <TableHead className="px-1 py-1.5 w-[65px]">Fin</TableHead>
-                      <TableHead className="px-1 py-1.5 w-[45px] text-center">📷</TableHead>
-                      <TableHead className="px-1 py-1.5 w-[40px] text-center">📄</TableHead>
+                      <TableHead className="w-[28px] text-center px-0.5 py-1">#</TableHead>
+                      <TableHead className="px-0.5 py-1">Descripción</TableHead>
+                      <TableHead className="px-0.5 py-1">Sector</TableHead>
+                      <TableHead className="px-0.5 py-1">Tipo</TableHead>
+                      <TableHead className="px-0.5 py-1">Prior.</TableHead>
+                      <TableHead className="px-0.5 py-1">Etapa</TableHead>
+                      <TableHead className="px-0.5 py-1">Estado</TableHead>
+                      <TableHead className="px-0.5 py-1">Aprobación</TableHead>
+                      <TableHead className="px-0.5 py-1">Coment.</TableHead>
+                      <TableHead className="px-0.5 py-1">Resp.</TableHead>
+                      <TableHead className="px-0.5 py-1 w-[42px]">T.E.</TableHead>
+                      <TableHead className="text-right px-0.5 py-1 w-[58px]">Monto</TableHead>
+                      <TableHead className="px-0.5 py-1 w-[56px]">Inicio</TableHead>
+                      <TableHead className="px-0.5 py-1 w-[56px]">Fin</TableHead>
+                      <TableHead className="px-0.5 py-1 w-[32px] text-center">Adj.</TableHead>
                       {showMaterials && (
-                        <TableHead className="text-center">
-                          <span className="flex items-center gap-1 justify-center">
-                            <Package className="h-3.5 w-3.5" /> Materiales
-                          </span>
+                        <TableHead className="text-center px-0.5 py-1 w-[32px]">
+                          <Package className="h-3 w-3 mx-auto" />
                         </TableHead>
                       )}
-                      <TableHead className="text-right">Acciones</TableHead>
+                      <TableHead className="text-right px-0.5 py-1 w-[70px]">Acc.</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredTasks.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={showMaterials ? 18 : 17} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={showMaterials ? 17 : 16} className="text-center py-8 text-gray-500">
                           No hay tareas que coincidan con los filtros
                         </TableCell>
                       </TableRow>
@@ -2957,19 +2986,19 @@ export default function Home() {
                         const matCount = getMaterialsCount(task.id)
                         return (
                           <TableRow key={task.id} className="hover:bg-gray-50/50">
-                            <TableCell className="text-center font-bold text-slate-600 px-1 py-1.5">
+                            <TableCell className="text-center font-bold text-slate-600 px-0.5 py-1">
                               <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-slate-100 text-slate-700 text-[9px] font-bold">{filteredTasks.indexOf(task) + 1}</span>
                             </TableCell>
-                            <TableCell className="font-medium max-w-[180px] px-1 py-1.5">
+                            <TableCell className="font-medium max-w-[160px] px-0.5 py-1">
                               <div className="truncate" title={task.description}>{task.description}</div>
                             </TableCell>
-                            <TableCell className="px-1 py-1.5"><Badge variant="secondary" className="text-[10px] px-1">{task.sector}</Badge></TableCell>
-                            <TableCell className="px-1 py-1.5">{task.repairType}</TableCell>
-                            <TableCell className="px-1 py-1.5">
+                            <TableCell className="px-0.5 py-1"><Badge variant="secondary" className="text-[9px] px-1 py-0">{task.sector}</Badge></TableCell>
+                            <TableCell className="px-0.5 py-1 text-[10px]">{task.repairType}</TableCell>
+                            <TableCell className="px-0.5 py-1">
                               <select
                                 value={task.priority}
                                 onChange={e => handleUpdateTaskPriority(task.id, e.target.value)}
-                                className="text-[11px] border rounded px-1 py-0.5 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="text-[10px] border rounded px-0.5 py-0 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
                                 style={{ color: getPriorityColor(task.priority) }}
                               >
                                 {priorities.map(p => (
@@ -2979,11 +3008,11 @@ export default function Home() {
                                 ))}
                               </select>
                             </TableCell>
-                            <TableCell className="px-1 py-1.5">
+                            <TableCell className="px-0.5 py-1">
                               <select
                                 value={task.etapa || ''}
                                 onChange={e => handleUpdateTaskEtapa(task.id, e.target.value)}
-                                className="text-[11px] border rounded px-1 py-0.5 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="text-[10px] border rounded px-0.5 py-0 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
                                 style={{ color: getEtapaColor(task.etapa) }}
                               >
                                 <option value="" style={{ color: '#6b7280' }}>Sin etapa</option>
@@ -2994,11 +3023,11 @@ export default function Home() {
                                 ))}
                               </select>
                             </TableCell>
-                            <TableCell className="px-1 py-1.5">
+                            <TableCell className="px-0.5 py-1">
                               <select
                                 value={task.status}
                                 onChange={e => handleUpdateTaskStatus(task.id, e.target.value)}
-                                className="text-[11px] border rounded px-1 py-0.5 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="text-[10px] border rounded px-0.5 py-0 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
                                 style={{ color: getStatusColor(task.status) }}
                               >
                                 {statuses.map(s => (
@@ -3008,103 +3037,79 @@ export default function Home() {
                                 ))}
                               </select>
                             </TableCell>
-                            <TableCell className="px-1 py-1.5">
+                            <TableCell className="px-0.5 py-1">
                               <select
                                 value={task.approvalStatus || 'En espera de decisión'}
                                 onChange={e => handleUpdateTaskApproval(task.id, e.target.value)}
-                                className="text-[11px] border rounded px-1 py-0.5 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="text-[10px] border rounded px-0.5 py-0 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
                                 style={{ color: getApprovalColor(task.approvalStatus) }}
                               >
                                 <option value="Aprobado" style={{ color: '#16a34a' }}>Aprobado</option>
                                 <option value="No aprobado" style={{ color: '#dc2626' }}>No aprobado</option>
-                                <option value="En espera de decisión" style={{ color: '#d97706' }}>En espera de decisión</option>
+                                <option value="En espera de decisión" style={{ color: '#d97706' }}>En espera</option>
                               </select>
                             </TableCell>
-                            <TableCell className="px-1 py-1.5 max-w-[150px]">
+                            <TableCell className="px-0.5 py-1 max-w-[100px]">
                               {task.comments ? (
-                                <div className="truncate text-[10px] text-gray-600" title={task.comments}>{task.comments}</div>
+                                <div className="truncate text-[9px] text-gray-600" title={task.comments}>{task.comments}</div>
                               ) : (
-                                <span className="text-[10px] text-gray-300">-</span>
+                                <span className="text-[9px] text-gray-300">-</span>
                               )}
                             </TableCell>
-                            <TableCell className="px-1 py-1.5">{task.responsible || '-'}</TableCell>
-                            <TableCell className="px-1 py-1.5">{task.estimatedTime || '-'}</TableCell>
-                            <TableCell className="text-right px-1 py-1.5">{formatCurrency(task.amount)}</TableCell>
-                            <TableCell className="px-1 py-1.5">{formatDate(task.startDate)}</TableCell>
-                            <TableCell className="px-1 py-1.5">{formatDate(task.endDate)}</TableCell>
-                            <TableCell className="px-1 py-1.5">
-                              <div className="flex gap-0.5 items-center justify-center">
-                                {beforePhotos.length > 0 && (
+                            <TableCell className="px-0.5 py-1 text-[10px]">{task.responsible || '-'}</TableCell>
+                            <TableCell className="px-0.5 py-1 text-[10px]">{task.estimatedTime || '-'}</TableCell>
+                            <TableCell className="text-right px-0.5 py-1 text-[10px]">{formatCurrency(task.amount)}</TableCell>
+                            <TableCell className="px-0.5 py-1 text-[10px]">{formatDate(task.startDate)}</TableCell>
+                            <TableCell className="px-0.5 py-1 text-[10px]">{formatDate(task.endDate)}</TableCell>
+                            <TableCell className="px-0.5 py-1">
+                              <div className="flex gap-0.5 items-center justify-center text-[9px]">
+                                {(beforePhotos.length > 0 || afterPhotos.length > 0) && (
                                   <button
-                                    className="flex items-center gap-0.5 text-gray-400 hover:text-orange-500 cursor-pointer"
+                                    className="flex items-center gap-0 text-gray-400 hover:text-orange-500 cursor-pointer"
                                     onClick={() => {
-                                      setFullscreenPhotos(beforePhotos)
+                                      setFullscreenPhotos(beforePhotos.length > 0 ? beforePhotos : afterPhotos)
                                       setFullscreenIndex(0)
                                       setPhotoDialogOpen(true)
                                     }}
-                                    title={`${beforePhotos.length} fotos antes`}
+                                    title={`Fotos: ${beforePhotos.length} antes, ${afterPhotos.length} después`}
                                   >
                                     <Camera className="h-3 w-3" />
-                                    <span className="text-[10px]">{beforePhotos.length}</span>
+                                    <span>{beforePhotos.length + afterPhotos.length}</span>
                                   </button>
                                 )}
-                                {afterPhotos.length > 0 && (
-                                  <button
-                                    className="flex items-center gap-0.5 text-gray-400 hover:text-green-500 cursor-pointer"
-                                    onClick={() => {
-                                      setFullscreenPhotos(afterPhotos)
-                                      setFullscreenIndex(0)
-                                      setPhotoDialogOpen(true)
-                                    }}
-                                    title={`${afterPhotos.length} fotos después`}
-                                  >
-                                    <ImageIcon className="h-3 w-3" />
-                                    <span className="text-[10px]">{afterPhotos.length}</span>
-                                  </button>
-                                )}
-                                {beforePhotos.length === 0 && afterPhotos.length === 0 && (
-                                  <span className="text-[10px] text-gray-300">-</span>
+                                {(() => {
+                                  const docs = JSON.parse(task.documents || '[]') as Array<{url: string; name: string; type: string}>
+                                  return docs.length > 0 ? (
+                                    <a href={docs[0].url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0 text-blue-500 hover:text-blue-700" title={`${docs.length} doc(s)`}>
+                                      <FileText className="h-3 w-3" />
+                                      <span>{docs.length}</span>
+                                    </a>
+                                  ) : null
+                                })()}
+                                {beforePhotos.length === 0 && afterPhotos.length === 0 && !JSON.parse(task.documents || '[]').length && (
+                                  <span className="text-gray-300">-</span>
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="px-1 py-1.5 text-center">
-                              {(() => {
-                                const docs = JSON.parse(task.documents || '[]') as Array<{url: string; name: string; type: string}>
-                                return docs.length > 0 ? (
-                                  <a href={docs[0].url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 justify-center text-blue-500 hover:text-blue-700" title={`${docs.length} documento(s)`}>
-                                    <FileText className="h-3 w-3" />
-                                    <span className="text-[10px]">{docs.length}</span>
-                                  </a>
-                                ) : (
-                                  <span className="text-[10px] text-gray-300">-</span>
-                                )
-                              })()}
-                            </TableCell>
                             {showMaterials && (
-                              <TableCell className="text-center px-2 py-2">
+                              <TableCell className="text-center px-0.5 py-1">
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-6 gap-1"
+                                  className="h-5 gap-0.5 text-[9px] px-1"
                                   onClick={() => openAddMaterial(task.id)}
                                   title={matCount > 0 ? `${matCount} materiales - Total: ${formatCurrency(getMaterialsTotal(task.id))}` : 'Sin materiales'}
                                 >
-                                  {matCount > 0 ? (
-                                    <Badge variant="secondary" className="gap-1 cursor-pointer text-[10px]">
-                                      <Package className="h-3 w-3" />
-                                      {matCount}
-                                    </Badge>
-                                  ) : (
-                                    <span className="text-[10px] text-gray-300">-</span>
-                                  )}
+                                  <Package className="h-3 w-3" />
+                                  {matCount > 0 ? matCount : '-'}
                                 </Button>
                               </TableCell>
                             )}
-                            <TableCell className="text-right px-1 py-1.5">
-                              <div className="flex justify-end gap-0.5">
+                            <TableCell className="text-right px-0.5 py-1">
+                              <div className="flex justify-end gap-0">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Exportar">
+                                    <Button variant="ghost" size="sm" className="h-5 w-5 p-0" title="Exportar">
                                       <Download className="h-3 w-3" />
                                     </Button>
                                   </DropdownMenuTrigger>
@@ -3119,13 +3124,13 @@ export default function Home() {
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
-                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => openHistory(task.id)} title="Historial">
+                                <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => openHistory(task.id)} title="Historial">
                                   <History className="h-3 w-3" />
                                 </Button>
-                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => openEditTask(task)} title="Editar">
+                                <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => openEditTask(task)} title="Editar">
                                   <Pencil className="h-3 w-3" />
                                 </Button>
-                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500 hover:text-red-700" onClick={() => { setDeleteId(task.id); setDeleteDialogOpen(true) }} title="Eliminar">
+                                <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-red-500 hover:text-red-700" onClick={() => { setDeleteId(task.id); setDeleteDialogOpen(true) }} title="Eliminar">
                                   <Trash2 className="h-3 w-3" />
                                 </Button>
                               </div>
