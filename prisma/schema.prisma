@@ -103,3 +103,24 @@ model Etapa {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model ExpenseReport {
+  id              String   @id @default(cuid())
+  numero          Int      @default(0)           // número correlativo de rendición
+  taskId          String?                        // vinculado a una tarea (opcional)
+  description     String                         // descripción del gasto
+  category        String                         // categoría (materiales, mano de obra, transporte, servicios, otros)
+  amount          Float                          // monto del gasto
+  date            DateTime                       // fecha del gasto
+  responsible     String?                        // responsable del gasto
+  supplier        String?                        // proveedor
+  receiptNumber   String?                        // número de boleta/factura
+  receiptType     String?                        // tipo de documento (boleta, factura, recibo, otro)
+  receiptPhoto    String   @default("[]")        // fotos del comprobante (JSON array de URLs)
+  notes           String?                        // observaciones
+  approvalStatus  String   @default("En espera de decisión")  // Aprobado / No aprobado / En espera
+  approvedBy      String?                        // quien aprobó
+  approvedAt      DateTime?                      // fecha de aprobación
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
