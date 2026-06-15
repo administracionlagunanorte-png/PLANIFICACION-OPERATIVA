@@ -2151,86 +2151,86 @@ export default function Home() {
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' })
       const pageWidth = doc.internal.pageSize.getWidth()
       const pageHeight = doc.internal.pageSize.getHeight()
-      const margin = 8
+      const margin = 6
       const contentWidth = pageWidth - 2 * margin
 
       // Fetch logo
       const logoBase64 = await fetchImageAsBase64('/logo-laguna-norte.jpg')
 
-      let y = 12
+      let y = 8
 
       // ===== HEADER =====
       if (logoBase64) {
-        doc.addImage(logoBase64, 'JPEG', margin, y, 14, 14)
+        doc.addImage(logoBase64, 'JPEG', margin, y, 10, 10)
       }
 
       const centerX = pageWidth / 2
-      doc.setFontSize(14)
+      doc.setFontSize(11)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(15, 23, 42)
-      doc.text('CONDOMINIO & PARQUE', centerX, y + 5, { align: 'center' })
+      doc.text('CONDOMINIO & PARQUE', centerX, y + 4, { align: 'center' })
 
-      doc.setFontSize(9)
+      doc.setFontSize(7)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(71, 85, 105)
-      doc.text('Planificación de Mantención - Tabla de Tareas', centerX, y + 11, { align: 'center' })
+      doc.text('Planificación de Mantención - Tabla de Tareas', centerX, y + 8, { align: 'center' })
 
       // Date right
-      doc.setFontSize(8)
+      doc.setFontSize(6)
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(100, 116, 139)
       const genDate = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
-      doc.text(genDate, pageWidth - margin, y + 5, { align: 'right' })
-      doc.text(`${filteredTasks.length} tareas`, pageWidth - margin, y + 10, { align: 'right' })
+      doc.text(genDate, pageWidth - margin, y + 4, { align: 'right' })
+      doc.text(`${filteredTasks.length} tareas`, pageWidth - margin, y + 8, { align: 'right' })
 
-      y += 17
+      y += 11
 
       // Separator
       doc.setDrawColor(30, 41, 59)
-      doc.setLineWidth(0.6)
+      doc.setLineWidth(0.4)
       doc.line(margin, y, pageWidth - margin, y)
-      y += 5
+      y += 3
 
       // ===== TABLE HEADER =====
-      // A3 landscape: 420mm - 16mm margins = 404mm content width
+      // A3 landscape: 420mm - 12mm margins = 408mm content width
       const cols = [
-        { header: 'N°', width: 10 },
-        { header: 'Descripción', width: 88 },
-        { header: 'Sector', width: 30 },
-        { header: 'Tipo', width: 30 },
-        { header: 'Prior.', width: 24 },
-        { header: 'Etapa', width: 26 },
-        { header: 'Estado', width: 28 },
-        { header: 'Aprobación', width: 33 },
-        { header: 'Responsable', width: 38 },
-        { header: 'T.E.', width: 17 },
-        { header: 'Monto', width: 30 },
-        { header: 'Inicio', width: 25 },
-        { header: 'Término', width: 25 },
-        { header: 'Adj.', width: 14 },
+        { header: 'N°', width: 8 },
+        { header: 'Descripción', width: 78 },
+        { header: 'Sector', width: 24 },
+        { header: 'Tipo', width: 24 },
+        { header: 'Prior.', width: 20 },
+        { header: 'Etapa', width: 22 },
+        { header: 'Estado', width: 24 },
+        { header: 'Aprobación', width: 28 },
+        { header: 'Responsable', width: 32 },
+        { header: 'T.E.', width: 12 },
+        { header: 'Monto', width: 26 },
+        { header: 'Inicio', width: 22 },
+        { header: 'Término', width: 22 },
+        { header: 'Adj.', width: 10 },
       ]
       if (showMaterials) {
-        cols.push({ header: 'Materiales', width: 24 })
+        cols.push({ header: 'Mat.', width: 16 })
       }
 
-      const headerH = 9.5
+      const headerH = 6
       // Header background
       doc.setFillColor(30, 41, 59)
       doc.rect(margin, y - 1, contentWidth, headerH, 'F')
 
       // Header text
-      doc.setFontSize(8.5)
+      doc.setFontSize(6)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(255, 255, 255)
       let colX = margin
       cols.forEach(col => {
-        doc.text(col.header, colX + 2, y + 6)
+        doc.text(col.header, colX + 1, y + 3.5)
         colX += col.width
       })
-      y += headerH + 1
+      y += headerH + 0.5
 
       // ===== TABLE ROWS =====
-      const rowH = 9
+      const rowH = 6
       const statusColorMap: Record<string, { bg: string; text: string }> = {
         'Pendiente': { bg: 'FEF3C7', text: '92400E' },
         'En Proceso': { bg: 'DBEAFE', text: '1E40AF' },
@@ -2251,7 +2251,7 @@ export default function Home() {
           // Repeat header on new page
           doc.setFillColor(30, 41, 59)
           doc.rect(margin, y - 1, contentWidth, headerH, 'F')
-          doc.setFontSize(8.5)
+          doc.setFontSize(6)
           doc.setFont('helvetica', 'bold')
           doc.setTextColor(255, 255, 255)
           colX = margin
@@ -2276,43 +2276,43 @@ export default function Home() {
         colX = margin
 
         // N° Tarea (correlativo)
-        doc.setFontSize(8.5)
+        doc.setFontSize(6)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(15, 23, 42)
         {
           const orderText = String(filteredTasks.indexOf(task) + 1)
           const orderW = doc.getTextWidth(orderText) + 5
           doc.setFillColor(30, 41, 59)
-          doc.roundedRect(colX + (cols[0].width - orderW) / 2, y + 0.8, orderW, 6, 1, 1, 'F')
+          doc.roundedRect(colX + (cols[0].width - orderW) / 2, y + 0.3, orderW, 4, 1, 1, 'F')
           doc.setTextColor(255, 255, 255)
-          doc.text(orderText, colX + cols[0].width / 2, y + 5.2, { align: 'center' })
+          doc.text(orderText, colX + cols[0].width / 2, y + 3.8, { align: 'center' })
         }
         colX += cols[0].width
 
         // Descripción
-        doc.setFontSize(8.5)
+        doc.setFontSize(6)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(15, 23, 42)
-        const maxDescChars = Math.floor(cols[1].width / 1.8)
+        const maxDescChars = Math.floor(cols[1].width / 1.4)
         const descText = task.description.length > maxDescChars ? task.description.substring(0, maxDescChars - 2) + '..' : task.description
-        doc.text(descText, colX + 1, y + 5.2)
+        doc.text(descText, colX + 1, y + 3.8)
         colX += cols[1].width
 
         // Sector
         doc.setFont('helvetica', 'normal')
         doc.setTextColor(51, 65, 85)
-        doc.setFontSize(8.5)
+        doc.setFontSize(6)
         const sectorW = doc.getTextWidth(task.sector) + 5
         doc.setFillColor(241, 245, 249)
-        doc.roundedRect(colX + 1, y + 0.8, Math.min(sectorW, cols[2].width - 3), 6, 0.5, 0.5, 'F')
-        doc.text(task.sector, colX + 3.5, y + 5.2)
+        doc.roundedRect(colX + 1, y + 0.3, Math.min(sectorW, cols[2].width - 3), 4, 0.5, 0.5, 'F')
+        doc.text(task.sector, colX + 3, y + 3.8)
         colX += cols[2].width
 
         // Tipo
         doc.setTextColor(51, 65, 85)
-        const maxTipoChars = Math.floor(cols[3].width / 1.8)
+        const maxTipoChars = Math.floor(cols[3].width / 1.4)
         const tipoText = task.repairType.length > maxTipoChars ? task.repairType.substring(0, maxTipoChars - 2) + '..' : task.repairType
-        doc.text(tipoText, colX + 1, y + 5.2)
+        doc.text(tipoText, colX + 1, y + 3.8)
         colX += cols[3].width
 
         // Prioridad with colored dot
@@ -2320,11 +2320,11 @@ export default function Home() {
         const pRgb = hexToRgb(pColor)
         if (pRgb) {
           doc.setFillColor(pRgb.r, pRgb.g, pRgb.b)
-          doc.circle(colX + 3, y + 4, 2.5, 'F')
+          doc.circle(colX + 2.5, y + 2.5, 1.5, 'F')
         }
         doc.setTextColor(30, 41, 59)
-        doc.setFontSize(8.5)
-        doc.text(task.priority, colX + 6.5, y + 5.2)
+        doc.setFontSize(6)
+        doc.text(task.priority, colX + 4.5, y + 3.8)
         colX += cols[4].width
 
         // Etapa
@@ -2338,16 +2338,16 @@ export default function Home() {
         if (eColors) {
           const etapaW = doc.getTextWidth(etapaVal) + 6
           doc.setFillColor(parseInt(eColors.bg.substring(0, 2), 16), parseInt(eColors.bg.substring(2, 4), 16), parseInt(eColors.bg.substring(4, 6), 16))
-          doc.roundedRect(colX + 1, y + 0.8, Math.min(etapaW, cols[5].width - 3), 6, 0.5, 0.5, 'F')
+          doc.roundedRect(colX + 1, y + 0.3, Math.min(etapaW, cols[5].width - 3), 4, 0.5, 0.5, 'F')
           doc.setTextColor(parseInt(eColors.text.substring(0, 2), 16), parseInt(eColors.text.substring(2, 4), 16), parseInt(eColors.text.substring(4, 6), 16))
-          doc.setFontSize(8.5)
+          doc.setFontSize(6)
           doc.setFont('helvetica', 'bold')
-          doc.text(etapaVal, colX + 4, y + 5.2)
+          doc.text(etapaVal, colX + 4, y + 3.8)
           doc.setFont('helvetica', 'normal')
         } else {
           doc.setTextColor(148, 163, 184)
-          doc.setFontSize(8.5)
-          doc.text(etapaVal, colX + 1, y + 5.2)
+          doc.setFontSize(6)
+          doc.text(etapaVal, colX + 1, y + 3.8)
         }
         colX += cols[5].width
 
@@ -2356,11 +2356,11 @@ export default function Home() {
         if (sColors) {
           const statusW = doc.getTextWidth(task.status) + 6
           doc.setFillColor(parseInt(sColors.bg.substring(0, 2), 16), parseInt(sColors.bg.substring(2, 4), 16), parseInt(sColors.bg.substring(4, 6), 16))
-          doc.roundedRect(colX + 1, y + 0.8, Math.min(statusW, cols[6].width - 3), 6, 0.5, 0.5, 'F')
+          doc.roundedRect(colX + 1, y + 0.3, Math.min(statusW, cols[6].width - 3), 4, 0.5, 0.5, 'F')
           doc.setTextColor(parseInt(sColors.text.substring(0, 2), 16), parseInt(sColors.text.substring(2, 4), 16), parseInt(sColors.text.substring(4, 6), 16))
-          doc.setFontSize(8.5)
+          doc.setFontSize(6)
           doc.setFont('helvetica', 'bold')
-          doc.text(task.status, colX + 4, y + 5.2)
+          doc.text(task.status, colX + 4, y + 3.8)
           doc.setFont('helvetica', 'normal')
         } else {
           const stColor = getStatusColor(task.status)
@@ -2368,15 +2368,15 @@ export default function Home() {
           if (stRgb) {
             const statusW = doc.getTextWidth(task.status) + 6
             doc.setFillColor(Math.min(255, stRgb.r + 150), Math.min(255, stRgb.g + 150), Math.min(255, stRgb.b + 150))
-            doc.roundedRect(colX + 1, y + 0.8, Math.min(statusW, cols[6].width - 3), 6, 0.5, 0.5, 'F')
+            doc.roundedRect(colX + 1, y + 0.3, Math.min(statusW, cols[6].width - 3), 4, 0.5, 0.5, 'F')
             doc.setTextColor(stRgb.r, stRgb.g, stRgb.b)
-            doc.setFontSize(8.5)
+            doc.setFontSize(6)
             doc.setFont('helvetica', 'bold')
-            doc.text(task.status, colX + 4, y + 5.2)
+            doc.text(task.status, colX + 4, y + 3.8)
             doc.setFont('helvetica', 'normal')
           } else {
             doc.setTextColor(30, 41, 59)
-            doc.text(task.status, colX + 1, y + 5.2)
+            doc.text(task.status, colX + 1, y + 3.8)
           }
         }
         colX += cols[6].width
@@ -2393,45 +2393,45 @@ export default function Home() {
         if (aColors) {
           const approvalW = doc.getTextWidth(approvalLabel) + 6
           doc.setFillColor(parseInt(aColors.bg.substring(0, 2), 16), parseInt(aColors.bg.substring(2, 4), 16), parseInt(aColors.bg.substring(4, 6), 16))
-          doc.roundedRect(colX + 1, y + 0.8, Math.min(approvalW, cols[7].width - 3), 6, 0.5, 0.5, 'F')
+          doc.roundedRect(colX + 1, y + 0.3, Math.min(approvalW, cols[7].width - 3), 4, 0.5, 0.5, 'F')
           doc.setTextColor(parseInt(aColors.text.substring(0, 2), 16), parseInt(aColors.text.substring(2, 4), 16), parseInt(aColors.text.substring(4, 6), 16))
-          doc.setFontSize(8.5)
+          doc.setFontSize(6)
           doc.setFont('helvetica', 'bold')
-          doc.text(approvalLabel, colX + 4, y + 5.2)
+          doc.text(approvalLabel, colX + 4, y + 3.8)
           doc.setFont('helvetica', 'normal')
         } else {
           doc.setTextColor(51, 65, 85)
-          doc.text(approvalLabel, colX + 1, y + 5.2)
+          doc.text(approvalLabel, colX + 1, y + 3.8)
         }
         colX += cols[7].width
 
         // Responsable
         doc.setTextColor(51, 65, 85)
-        doc.setFontSize(8.5)
-        const maxRespChars = Math.floor(cols[8].width / 1.8)
+        doc.setFontSize(6)
+        const maxRespChars = Math.floor(cols[8].width / 1.4)
         const respText = (task.responsible || '-').length > maxRespChars ? (task.responsible || '-').substring(0, maxRespChars - 2) + '..' : (task.responsible || '-')
-        doc.text(respText, colX + 1, y + 5.2)
+        doc.text(respText, colX + 1, y + 3.8)
         colX += cols[8].width
 
         // Tiempo Est.
-        doc.text(task.estimatedTime || '-', colX + 1, y + 5.2)
+        doc.text(task.estimatedTime || '-', colX + 1, y + 3.8)
         colX += cols[9].width
 
         // Monto
         doc.setTextColor(15, 23, 42)
         doc.setFont('helvetica', 'bold')
-        doc.text(task.amount ? formatCurrency(task.amount) : '-', colX + 1, y + 5.2)
+        doc.text(task.amount ? formatCurrency(task.amount) : '-', colX + 1, y + 3.8)
         doc.setFont('helvetica', 'normal')
         colX += cols[10].width
 
         // Inicio
         doc.setTextColor(51, 65, 85)
-        doc.setFontSize(8.5)
-        doc.text(formatDate(task.startDate), colX + 1, y + 5.2)
+        doc.setFontSize(6)
+        doc.text(formatDate(task.startDate), colX + 1, y + 3.8)
         colX += cols[11].width
 
         // Término
-        doc.text(formatDate(task.endDate), colX + 1, y + 5.2)
+        doc.text(formatDate(task.endDate), colX + 1, y + 3.8)
         colX += cols[12].width
 
         // Adj. (Fotos + Docs combinados)
@@ -2441,7 +2441,7 @@ export default function Home() {
         const docs = JSON.parse(task.documents || '[]') as Array<{url: string; name: string; type: string}>
         const totalAdj = totalPhotos + docs.length
         doc.setTextColor(100, 116, 139)
-        doc.text(totalAdj > 0 ? String(totalAdj) : '-', colX + 1, y + 5.2)
+        doc.text(totalAdj > 0 ? String(totalAdj) : '-', colX + 1, y + 3.8)
         colX += cols[13].width
 
         // Materiales
@@ -2463,31 +2463,31 @@ export default function Home() {
       })
 
       // Summary row
-      y += 2
+      y += 1
       doc.setDrawColor(30, 41, 59)
-      doc.setLineWidth(0.5)
+      doc.setLineWidth(0.4)
       doc.line(margin, y, pageWidth - margin, y)
-      y += 5
+      y += 4
 
-      doc.setFontSize(9)
+      doc.setFontSize(7)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(71, 85, 105)
       doc.text(`Total: ${filteredTasks.length}`, margin + 2, y)
 
       const totalAmount = filteredTasks.reduce((sum, t) => sum + (t.amount || 0), 0)
-      doc.text(`Monto: ${formatCurrency(totalAmount)}`, margin + 50, y)
+      doc.text(`Monto: ${formatCurrency(totalAmount)}`, margin + 40, y)
 
       const pendingCount = filteredTasks.filter(t => t.status === 'Pendiente').length
       const inProgressCount = filteredTasks.filter(t => t.status === 'En Proceso').length
       const completedCount = filteredTasks.filter(t => t.status === 'Completada').length
       const approvedCount = filteredTasks.filter(t => t.approvalStatus === 'Aprobado').length
-      doc.text(`Pend: ${pendingCount} | Proceso: ${inProgressCount} | Compl: ${completedCount} | Aprob: ${approvedCount}`, margin + 120, y)
+      doc.text(`Pend: ${pendingCount} | Proceso: ${inProgressCount} | Compl: ${completedCount} | Aprob: ${approvedCount}`, margin + 100, y)
 
       // Footer on all pages
       const totalPages = doc.getNumberOfPages()
       for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i)
-        doc.setFontSize(8)
+        doc.setFontSize(6)
         doc.setTextColor(148, 163, 184)
         doc.text('Documento generado automáticamente por Sistema de Gestión Laguna Norte', margin, pageHeight - 6)
         doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin - 25, pageHeight - 6)
@@ -2937,29 +2937,29 @@ export default function Home() {
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <Table className="w-full text-sm min-w-[1500px]">
+                <Table className="w-full text-[11px]">
                   <TableHeader>
                     <TableRow className="bg-slate-50">
-                      <TableHead className="w-[42px] text-center px-2 py-2.5 text-xs font-semibold">#</TableHead>
-                      <TableHead className="px-2 py-2.5 text-xs font-semibold">Descripción</TableHead>
-                      <TableHead className="px-2 py-2.5 text-xs font-semibold">Sector</TableHead>
-                      <TableHead className="px-2 py-2.5 text-xs font-semibold">Tipo</TableHead>
-                      <TableHead className="px-2 py-2.5 text-xs font-semibold">Prioridad</TableHead>
-                      <TableHead className="px-2 py-2.5 text-xs font-semibold">Etapa</TableHead>
-                      <TableHead className="px-2 py-2.5 text-xs font-semibold">Estado</TableHead>
-                      <TableHead className="px-2 py-2.5 text-xs font-semibold">Aprobación</TableHead>
-                      <TableHead className="px-2 py-2.5 text-xs font-semibold">Responsable</TableHead>
-                      <TableHead className="px-2 py-2.5 text-xs font-semibold w-[58px]">T.E.</TableHead>
-                      <TableHead className="text-right px-2 py-2.5 text-xs font-semibold w-[95px]">Monto</TableHead>
-                      <TableHead className="px-2 py-2.5 text-xs font-semibold w-[82px]">Inicio</TableHead>
-                      <TableHead className="px-2 py-2.5 text-xs font-semibold w-[82px]">Fin</TableHead>
-                      <TableHead className="px-2 py-2.5 text-xs font-semibold w-[50px] text-center">Adj.</TableHead>
+                      <TableHead className="w-[28px] text-center px-1 py-1 text-[10px] font-semibold">#</TableHead>
+                      <TableHead className="px-1 py-1 text-[10px] font-semibold">Descripción</TableHead>
+                      <TableHead className="px-1 py-1 text-[10px] font-semibold">Sector</TableHead>
+                      <TableHead className="px-1 py-1 text-[10px] font-semibold">Tipo</TableHead>
+                      <TableHead className="px-1 py-1 text-[10px] font-semibold">Prior.</TableHead>
+                      <TableHead className="px-1 py-1 text-[10px] font-semibold">Etapa</TableHead>
+                      <TableHead className="px-1 py-1 text-[10px] font-semibold">Estado</TableHead>
+                      <TableHead className="px-1 py-1 text-[10px] font-semibold">Aprobación</TableHead>
+                      <TableHead className="px-1 py-1 text-[10px] font-semibold">Responsable</TableHead>
+                      <TableHead className="px-1 py-1 text-[10px] font-semibold w-[36px]">T.E.</TableHead>
+                      <TableHead className="text-right px-1 py-1 text-[10px] font-semibold w-[68px]">Monto</TableHead>
+                      <TableHead className="px-1 py-1 text-[10px] font-semibold w-[58px]">Inicio</TableHead>
+                      <TableHead className="px-1 py-1 text-[10px] font-semibold w-[58px]">Fin</TableHead>
+                      <TableHead className="px-1 py-1 text-[10px] font-semibold w-[32px] text-center">Adj.</TableHead>
                       {showMaterials && (
-                        <TableHead className="text-center px-2 py-2.5 w-[50px]">
-                          <Package className="h-4 w-4 mx-auto" />
+                        <TableHead className="text-center px-1 py-1 w-[32px]">
+                          <Package className="h-3 w-3 mx-auto" />
                         </TableHead>
                       )}
-                      <TableHead className="text-right px-2 py-2.5 w-[95px]">Acc.</TableHead>
+                      <TableHead className="text-right px-1 py-1 w-[72px]">Acc.</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -2976,19 +2976,19 @@ export default function Home() {
                         const matCount = getMaterialsCount(task.id)
                         return (
                           <TableRow key={task.id} className="hover:bg-blue-50/30">
-                            <TableCell className="text-center font-bold text-slate-600 px-2 py-2">
-                              <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-700 text-white text-xs font-bold">{filteredTasks.indexOf(task) + 1}</span>
+                            <TableCell className="text-center font-bold text-slate-600 px-1 py-0.5">
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-700 text-white text-[9px] font-bold">{filteredTasks.indexOf(task) + 1}</span>
                             </TableCell>
-                            <TableCell className="font-medium px-2 py-2">
+                            <TableCell className="font-medium px-1 py-0.5 max-w-[180px]">
                               <div className="truncate" title={task.description}>{task.description}</div>
                             </TableCell>
-                            <TableCell className="px-2 py-2"><Badge variant="secondary" className="text-xs px-2 py-0.5">{task.sector}</Badge></TableCell>
-                            <TableCell className="px-2 py-2 text-[13px]">{task.repairType}</TableCell>
-                            <TableCell className="px-2 py-2">
+                            <TableCell className="px-1 py-0.5"><Badge variant="secondary" className="text-[9px] px-1 py-0">{task.sector}</Badge></TableCell>
+                            <TableCell className="px-1 py-0.5 text-[11px]">{task.repairType}</TableCell>
+                            <TableCell className="px-1 py-0.5">
                               <select
                                 value={task.priority}
                                 onChange={e => handleUpdateTaskPriority(task.id, e.target.value)}
-                                className="text-[13px] border rounded px-2 py-1 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="text-[11px] border rounded px-1 py-0 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
                                 style={{ color: getPriorityColor(task.priority) }}
                               >
                                 {priorities.map(p => (
@@ -2998,11 +2998,11 @@ export default function Home() {
                                 ))}
                               </select>
                             </TableCell>
-                            <TableCell className="px-2 py-2">
+                            <TableCell className="px-1 py-0.5">
                               <select
                                 value={task.etapa || ''}
                                 onChange={e => handleUpdateTaskEtapa(task.id, e.target.value)}
-                                className="text-[13px] border rounded px-2 py-1 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="text-[11px] border rounded px-1 py-0 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
                                 style={{ color: getEtapaColor(task.etapa) }}
                               >
                                 <option value="" style={{ color: '#6b7280' }}>Sin etapa</option>
@@ -3013,11 +3013,11 @@ export default function Home() {
                                 ))}
                               </select>
                             </TableCell>
-                            <TableCell className="px-2 py-2">
+                            <TableCell className="px-1 py-0.5">
                               <select
                                 value={task.status}
                                 onChange={e => handleUpdateTaskStatus(task.id, e.target.value)}
-                                className="text-[13px] border rounded px-2 py-1 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="text-[11px] border rounded px-1 py-0 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
                                 style={{ color: getStatusColor(task.status) }}
                               >
                                 {statuses.map(s => (
@@ -3027,11 +3027,11 @@ export default function Home() {
                                 ))}
                               </select>
                             </TableCell>
-                            <TableCell className="px-2 py-2">
+                            <TableCell className="px-1 py-0.5">
                               <select
                                 value={task.approvalStatus || 'En espera de decisión'}
                                 onChange={e => handleUpdateTaskApproval(task.id, e.target.value)}
-                                className="text-[13px] border rounded px-2 py-1 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="text-[11px] border rounded px-1 py-0 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
                                 style={{ color: getApprovalColor(task.approvalStatus) }}
                               >
                                 <option value="Aprobado" style={{ color: '#16a34a' }}>Aprobado</option>
@@ -3039,13 +3039,13 @@ export default function Home() {
                                 <option value="En espera de decisión" style={{ color: '#d97706' }}>En espera</option>
                               </select>
                             </TableCell>
-                            <TableCell className="px-2 py-2 text-[13px]">{task.responsible || '-'}</TableCell>
-                            <TableCell className="px-2 py-2 text-[13px]">{task.estimatedTime || '-'}</TableCell>
-                            <TableCell className="text-right px-2 py-2 text-[13px] font-medium">{formatCurrency(task.amount)}</TableCell>
-                            <TableCell className="px-2 py-2 text-[13px]">{formatDate(task.startDate)}</TableCell>
-                            <TableCell className="px-2 py-2 text-[13px]">{formatDate(task.endDate)}</TableCell>
-                            <TableCell className="px-2 py-2">
-                              <div className="flex gap-1 items-center justify-center text-xs">
+                            <TableCell className="px-1 py-0.5 text-[11px]">{task.responsible || '-'}</TableCell>
+                            <TableCell className="px-1 py-0.5 text-[11px]">{task.estimatedTime || '-'}</TableCell>
+                            <TableCell className="text-right px-1 py-0.5 text-[11px] font-medium">{formatCurrency(task.amount)}</TableCell>
+                            <TableCell className="px-1 py-0.5 text-[11px]">{formatDate(task.startDate)}</TableCell>
+                            <TableCell className="px-1 py-0.5 text-[11px]">{formatDate(task.endDate)}</TableCell>
+                            <TableCell className="px-1 py-0.5">
+                              <div className="flex gap-0.5 items-center justify-center text-[10px]">
                                 {(beforePhotos.length > 0 || afterPhotos.length > 0) && (
                                   <button
                                     className="flex items-center gap-0.5 text-gray-500 hover:text-orange-500 cursor-pointer"
@@ -3056,16 +3056,16 @@ export default function Home() {
                                     }}
                                     title={`Fotos: ${beforePhotos.length} antes, ${afterPhotos.length} después`}
                                   >
-                                    <Camera className="h-4 w-4" />
-                                    <span className="text-[13px]">{beforePhotos.length + afterPhotos.length}</span>
+                                    <Camera className="h-3 w-3" />
+                                    <span>{beforePhotos.length + afterPhotos.length}</span>
                                   </button>
                                 )}
                                 {(() => {
                                   const docs = JSON.parse(task.documents || '[]') as Array<{url: string; name: string; type: string}>
                                   return docs.length > 0 ? (
                                     <a href={docs[0].url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 text-blue-500 hover:text-blue-700" title={`${docs.length} doc(s)`}>
-                                      <FileText className="h-4 w-4" />
-                                      <span className="text-[13px]">{docs.length}</span>
+                                      <FileText className="h-3 w-3" />
+                                      <span>{docs.length}</span>
                                     </a>
                                   ) : null
                                 })()}
@@ -3075,46 +3075,46 @@ export default function Home() {
                               </div>
                             </TableCell>
                             {showMaterials && (
-                              <TableCell className="text-center px-2 py-2">
+                              <TableCell className="text-center px-1 py-0.5">
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-7 gap-0.5 text-xs px-2"
+                                  className="h-5 gap-0.5 text-[10px] px-1"
                                   onClick={() => openAddMaterial(task.id)}
                                   title={matCount > 0 ? `${matCount} materiales - Total: ${formatCurrency(getMaterialsTotal(task.id))}` : 'Sin materiales'}
                                 >
-                                  <Package className="h-4 w-4" />
+                                  <Package className="h-3 w-3" />
                                   {matCount > 0 ? matCount : '-'}
                                 </Button>
                               </TableCell>
                             )}
-                            <TableCell className="text-right px-2 py-2">
-                              <div className="flex justify-end gap-0.5">
+                            <TableCell className="text-right px-1 py-0.5">
+                              <div className="flex justify-end gap-0">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Exportar">
-                                      <Download className="h-4 w-4" />
+                                    <Button variant="ghost" size="sm" className="h-5 w-5 p-0" title="Exportar">
+                                      <Download className="h-3 w-3" />
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
                                     <DropdownMenuItem onClick={() => exportTaskPDF(task)}>
-                                      <FileText className="h-4 w-4 mr-2" />
+                                      <FileText className="h-3 w-3 mr-1" />
                                       PDF
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => exportTaskExcel(task)}>
-                                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                                      <FileSpreadsheet className="h-3 w-3 mr-1" />
                                       Excel
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openHistory(task.id)} title="Historial">
-                                  <History className="h-3.5 w-3.5" />
+                                <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => openHistory(task.id)} title="Historial">
+                                  <History className="h-3 w-3" />
                                 </Button>
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEditTask(task)} title="Editar">
-                                  <Pencil className="h-3.5 w-3.5" />
+                                <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => openEditTask(task)} title="Editar">
+                                  <Pencil className="h-3 w-3" />
                                 </Button>
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700" onClick={() => { setDeleteId(task.id); setDeleteDialogOpen(true) }} title="Eliminar">
-                                  <Trash2 className="h-3.5 w-3.5" />
+                                <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-red-500 hover:text-red-700" onClick={() => { setDeleteId(task.id); setDeleteDialogOpen(true) }} title="Eliminar">
+                                  <Trash2 className="h-3 w-3" />
                                 </Button>
                               </div>
                             </TableCell>
