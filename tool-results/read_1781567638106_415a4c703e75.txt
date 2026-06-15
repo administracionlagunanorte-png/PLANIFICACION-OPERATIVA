@@ -1,0 +1,2002 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useEffect, useCallback } from 'react'
+     4→     4→import {
+     5→     5→  Dialog,
+     6→     6→  DialogContent,
+     7→     7→  DialogDescription,
+     8→     8→  DialogHeader,
+     9→     9→  DialogTitle,
+    10→    10→  DialogFooter,
+    11→    11→} from '@/components/ui/dialog'
+    12→    12→import { Button } from '@/components/ui/button'
+    13→    13→import { Input } from '@/components/ui/input'
+    14→    14→import { Label } from '@/components/ui/label'
+    15→    15→import { Textarea } from '@/components/ui/textarea'
+    16→    16→import {
+    17→    17→  Select,
+    18→    18→  SelectContent,
+    19→    19→  SelectItem,
+    20→    20→  SelectTrigger,
+    21→    21→  SelectValue,
+    22→    22→} from '@/components/ui/select'
+    23→    23→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    24→    24→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    25→    25→import { Badge } from '@/components/ui/badge'
+    26→    26→import { Progress } from '@/components/ui/progress'
+    27→    27→import { ScrollArea } from '@/components/ui/scroll-area'
+    28→    28→import {
+    29→    29→  Table,
+    30→    30→  TableBody,
+    31→    31→  TableCell,
+    32→    32→  TableHead,
+    33→    33→  TableHeader,
+    34→    34→  TableRow,
+    35→    35→} from '@/components/ui/table'
+    36→    36→import {
+    37→    37→  AlertDialog,
+    38→    38→  AlertDialogAction,
+    39→    39→  AlertDialogCancel,
+    40→    40→  AlertDialogContent,
+    41→    41→  AlertDialogDescription,
+    42→    42→  AlertDialogFooter,
+    43→    43→  AlertDialogHeader,
+    44→    44→  AlertDialogTitle,
+    45→    45→} from '@/components/ui/alert-dialog'
+    46→    46→import {
+    47→    47→  DropdownMenu,
+    48→    48→  DropdownMenuContent,
+    49→    49→  DropdownMenuItem,
+    50→    50→  DropdownMenuTrigger,
+    51→    51→} from '@/components/ui/dropdown-menu'
+    52→    52→import { Switch } from '@/components/ui/switch'
+    53→    53→import {
+    54→    54→  Plus,
+    55→    55→  Pencil,
+    56→    56→  Trash2,
+    57→    57→  LayoutDashboard,
+    58→    58→  List,
+    59→    59→  LayoutGrid,
+    60→    60→  GanttChart,
+    61→    61→  Settings,
+    62→    62→  Camera,
+    63→    63→  X,
+    64→    64→  ChevronLeft,
+    65→    65→  ChevronRight,
+    66→    66→  Upload,
+    67→    67→  Image as ImageIcon,
+    68→    68→  Download,
+    69→    69→  History,
+    70→    70→  Clock,
+    71→    71→  ChevronDown,
+    72→    72→  ChevronUp,
+    73→    73→  FileText,
+    74→    74→  FileSpreadsheet,
+    75→    75→  Package,
+    76→    76→  DollarSign,
+    77→    77→  CheckCircle,
+    78→    78→  XCircle,
+    79→    79→  MessageSquare,
+    80→    80→} from 'lucide-react'
+    81→    81→import { jsPDF } from 'jspdf'
+    82→    82→import ExcelJS from 'exceljs'
+    83→    83→import { useToast } from '@/hooks/use-toast'
+    84→    84→
+    85→    85→// Types
+    86→    86→interface Task {
+    87→    87→  id: string
+    88→    88→  description: string
+    89→    89→  sector: string
+    90→    90→  repairType: string
+    91→    91→  priority: string
+    92→    92→  etapa: string
+    93→    93→  status: string
+    94→    94→  responsible: string | null
+    95→    95→  estimatedTime: string | null
+    96→    96→  amount: number | null
+    97→    97→  startDate: string | null
+    98→    98→  endDate: string | null
+    99→    99→  comments: string | null
+   100→   100→  approvalStatus: string
+   101→   101→  beforePhotos: string
+   102→   102→  afterPhotos: string
+   103→   103→  documents: string
+   104→   104→  workOrder: number
+   105→   105→  createdAt: string
+   106→   106→  updatedAt: string
+   107→   107→}
+   108→   108→
+   109→   109→interface Sector {
+   110→   110→  id: string
+   111→   111→  name: string
+   112→   112→}
+   113→   113→
+   114→   114→interface RepairType {
+   115→   115→  id: string
+   116→   116→  name: string
+   117→   117→}
+   118→   118→
+   119→   119→interface Priority {
+   120→   120→  id: string
+   121→   121→  name: string
+   122→   122→  color: string
+   123→   123→  order: number
+   124→   124→}
+   125→   125→
+   126→   126→interface StatusItem {
+   127→   127→  id: string
+   128→   128→  name: string
+   129→   129→  color: string
+   130→   130→  order: number
+   131→   131→}
+   132→   132→
+   133→   133→interface ResponsibleItem {
+   134→   134→  id: string
+   135→   135→  name: string
+   136→   136→}
+   137→   137→
+   138→   138→interface EtapaItem {
+   139→   139→  id: string
+   140→   140→  name: string
+   141→   141→  color: string
+   142→   142→  order: number
+   143→   143→}
+   144→   144→
+   145→   145→interface TaskHistoryEntry {
+   146→   146→  id: string
+   147→   147→  taskId: string
+   148→   148→  action: string
+   149→   149→  field: string | null
+   150→   150→  oldValue: string | null
+   151→   151→  newValue: string | null
+   152→   152→  changedBy: string | null
+   153→   153→  createdAt: string
+   154→   154→}
+   155→   155→
+   156→   156→interface Material {
+   157→   157→  id: string
+   158→   158→  taskId: string
+   159→   159→  name: string
+   160→   160→  quantity: string | null
+   161→   161→  unit: string | null
+   162→   162→  unitPrice: number | null
+   163→   163→  totalPrice: number | null
+   164→   164→  category: string | null
+   165→   165→  notes: string | null
+   166→   166→  createdAt: string
+   167→   167→  updatedAt: string
+   168→   168→}
+   169→   169→
+   170→   170→export default function Home() {
+   171→   171→  const [tasks, setTasks] = useState<Task[]>([])
+   172→   172→  const [sectors, setSectors] = useState<Sector[]>([])
+   173→   173→  const [repairTypes, setRepairTypes] = useState<RepairType[]>([])
+   174→   174→  const [priorities, setPriorities] = useState<Priority[]>([])
+   175→   175→  const [etapas, setEtapas] = useState<EtapaItem[]>([])
+   176→   176→  const [statuses, setStatuses] = useState<StatusItem[]>([])
+   177→   177→  const [responsibles, setResponsibles] = useState<ResponsibleItem[]>([])
+   178→   178→  const [loading, setLoading] = useState(true)
+   179→   179→  const [view, setView] = useState<'dashboard' | 'table' | 'cards' | 'gantt' | 'materials'>('dashboard')
+   180→   180→  const [filterSector, setFilterSector] = useState('all')
+   181→   181→  const [filterPriority, setFilterPriority] = useState('all')
+   182→   182→  const [filterStatus, setFilterStatus] = useState('all')
+   183→   183→  const [filterRepairType, setFilterRepairType] = useState('all')
+   184→   184→  const [filterEtapa, setFilterEtapa] = useState('all')
+   185→   185→  const [filterApproval, setFilterApproval] = useState('all')
+   186→   186→
+   187→   187→  // Dialog states
+   188→   188→  const [taskDialogOpen, setTaskDialogOpen] = useState(false)
+   189→   189→  const [configDialogOpen, setConfigDialogOpen] = useState(false)
+   190→   190→  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+   191→   191→  const [photoDialogOpen, setPhotoDialogOpen] = useState(false)
+   192→   192→  const [deleteId, setDeleteId] = useState<string | null>(null)
+   193→   193→
+   194→   194→  // Photo viewer
+   195→   195→  const [fullscreenPhotos, setFullscreenPhotos] = useState<string[]>([])
+   196→   196→  const [fullscreenIndex, setFullscreenIndex] = useState(0)
+   197→   197→
+   198→   198→  // History viewer
+   199→   199→  const [historyDialogOpen, setHistoryDialogOpen] = useState(false)
+   200→   200→  const [historyTaskId, setHistoryTaskId] = useState<string | null>(null)
+   201→   201→  const [historyEntries, setHistoryEntries] = useState<TaskHistoryEntry[]>([])
+   202→   202→  const [historyLoading, setHistoryLoading] = useState(false)
+   203→   203→  const [downloadingGantt, setDownloadingGantt] = useState(false)
+   204→   204→
+   205→   205→  // Materials states
+   206→   206→  const [materials, setMaterials] = useState<Material[]>([])
+   207→   207→  const [materialDialogOpen, setMaterialDialogOpen] = useState(false)
+   208→   208→  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null)
+   209→   209→  const [materialTaskId, setMaterialTaskId] = useState<string | null>(null)
+   210→   210→  const [showMaterials, setShowMaterials] = useState(false)
+   211→   211→  const [materialFormData, setMaterialFormData] = useState({
+   212→   212→    name: '', quantity: '', unit: '', unitPrice: '', totalPrice: '', category: '', notes: ''
+   213→   213→  })
+   214→   214→  const [deleteMaterialDialogOpen, setDeleteMaterialDialogOpen] = useState(false)
+   215→   215→  const [deleteMaterialId, setDeleteMaterialId] = useState<string | null>(null)
+   216→   216→  const [deleteMaterialName, setDeleteMaterialName] = useState('')
+   217→   217→
+   218→   218→  // Helper to clean up aria-hidden after dialog close
+   219→   219→  const cleanupAriaHidden = useCallback(() => {
+   220→   220→    setTimeout(() => {
+   221→   221→      document.querySelectorAll('[aria-hidden="true"]').forEach(el => {
+   222→   222→        if (el.getAttribute('data-radix-popper-content-wrapper') === null && !el.closest('[role="dialog"]')) {
+   223→   223→          el.removeAttribute('aria-hidden')
+   224→   224→        }
+   225→   225→      })
+   226→   226→      document.body.removeAttribute('aria-hidden')
+   227→   227→    }, 100)
+   228→   228→  }, [])
+   229→   229→
+   230→   230→  // Task form
+   231→   231→  const [editingTask, setEditingTask] = useState<Task | null>(null)
+   232→   232→  const [formData, setFormData] = useState({
+   233→   233→    description: '',
+   234→   234→    sector: '',
+   235→   235→    repairType: '',
+   236→   236→    priority: '',
+   237→   237→    etapa: '',
+   238→   238→    status: 'Pendiente',
+   239→   239→    responsible: 'none',
+   240→   240→    estimatedTime: '',
+   241→   241→    amount: '',
+   242→   242→    startDate: '',
+   243→   243→    endDate: '',
+   244→   244→    comments: '',
+   245→   245→    approvalStatus: 'En espera de decisión',
+   246→   246→    beforePhotos: [] as string[],
+   247→   247→    afterPhotos: [] as string[],
+   248→   248→    documents: [] as Array<{url: string; name: string; type: string}>,
+   249→   249→    inlineMaterials: [] as Array<{name: string; quantity: string; unit: string; unitPrice: string; totalPrice: string; category: string; notes: string}>,
+   250→   250→  })
+   251→   251→
+   252→   252→  // Config form
+   253→   253→  const [configTab, setConfigTab] = useState<'sectors' | 'repairTypes' | 'priorities' | 'etapas' | 'statuses' | 'responsibles'>('sectors')
+   254→   254→  const [newSectorName, setNewSectorName] = useState('')
+   255→   255→  const [newRepairTypeName, setNewRepairTypeName] = useState('')
+   256→   256→  const [newPriorityName, setNewPriorityName] = useState('')
+   257→   257→  const [newPriorityColor, setNewPriorityColor] = useState('#6b7280')
+   258→   258→  const [editingSectorId, setEditingSectorId] = useState<string | null>(null)
+   259→   259→  const [editingRepairTypeId, setEditingRepairTypeId] = useState<string | null>(null)
+   260→   260→  const [editingPriorityId, setEditingPriorityId] = useState<string | null>(null)
+   261→   261→  const [editSectorName, setEditSectorName] = useState('')
+   262→   262→  const [editRepairTypeName, setEditRepairTypeName] = useState('')
+   263→   263→  const [editPriorityName, setEditPriorityName] = useState('')
+   264→   264→  const [editPriorityColor, setEditPriorityColor] = useState('')
+   265→   265→  const [newStatusName, setNewStatusName] = useState('')
+   266→   266→  const [newStatusColor, setNewStatusColor] = useState('#6b7280')
+   267→   267→  const [editingStatusId, setEditingStatusId] = useState<string | null>(null)
+   268→   268→  const [editStatusName, setEditStatusName] = useState('')
+   269→   269→  const [editStatusColor, setEditStatusColor] = useState('')
+   270→   270→  const [newResponsibleName, setNewResponsibleName] = useState('')
+   271→   271→  const [editingResponsibleId, setEditingResponsibleId] = useState<string | null>(null)
+   272→   272→  const [editResponsibleName, setEditResponsibleName] = useState('')
+   273→   273→  // Etapa config states
+   274→   274→  const [newEtapaName, setNewEtapaName] = useState('')
+   275→   275→  const [newEtapaColor, setNewEtapaColor] = useState('#6b7280')
+   276→   276→  const [editingEtapaId, setEditingEtapaId] = useState<string | null>(null)
+   277→   277→  const [editEtapaName, setEditEtapaName] = useState('')
+   278→   278→  const [editEtapaColor, setEditEtapaColor] = useState('')
+   279→   279→
+   280→   280→  // Fetch functions
+   281→   281→  const fetchTasks = useCallback(async () => {
+   282→   282→    try {
+   283→   283→      const res = await fetch('/api/tasks')
+   284→   284→      if (res.ok) {
+   285→   285→        const data = await res.json()
+   286→   286→        setTasks(data)
+   287→   287→      }
+   288→   288→    } catch (err) {
+   289→   289→      console.error('Error fetching tasks:', err)
+   290→   290→    }
+   291→   291→  }, [])
+   292→   292→
+   293→   293→  const fetchSectors = useCallback(async () => {
+   294→   294→    try {
+   295→   295→      const res = await fetch('/api/sectors')
+   296→   296→      if (res.ok) setSectors(await res.json())
+   297→   297→    } catch (err) {
+   298→   298→      console.error('Error fetching sectors:', err)
+   299→   299→    }
+   300→   300→  }, [])
+   301→   301→
+   302→   302→  const fetchRepairTypes = useCallback(async () => {
+   303→   303→    try {
+   304→   304→      const res = await fetch('/api/repair-types')
+   305→   305→      if (res.ok) setRepairTypes(await res.json())
+   306→   306→    } catch (err) {
+   307→   307→      console.error('Error fetching repair types:', err)
+   308→   308→    }
+   309→   309→  }, [])
+   310→   310→
+   311→   311→  const fetchPriorities = useCallback(async () => {
+   312→   312→    try {
+   313→   313→      const res = await fetch('/api/priorities')
+   314→   314→      if (res.ok) setPriorities(await res.json())
+   315→   315→    } catch (err) {
+   316→   316→      console.error('Error fetching priorities:', err)
+   317→   317→    }
+   318→   318→  }, [])
+   319→   319→
+   320→   320→  const fetchEtapas = useCallback(async () => {
+   321→   321→    try {
+   322→   322→      const res = await fetch('/api/etapas')
+   323→   323→      if (res.ok) setEtapas(await res.json())
+   324→   324→    } catch (err) {
+   325→   325→      console.error('Error fetching etapas:', err)
+   326→   326→    }
+   327→   327→  }, [])
+   328→   328→
+   329→   329→  const fetchStatuses = useCallback(async () => {
+   330→   330→    try {
+   331→   331→      const res = await fetch('/api/status')
+   332→   332→      if (res.ok) setStatuses(await res.json())
+   333→   333→    } catch (err) {
+   334→   334→      console.error('Error fetching statuses:', err)
+   335→   335→    }
+   336→   336→  }, [])
+   337→   337→
+   338→   338→  const fetchResponsibles = useCallback(async () => {
+   339→   339→    try {
+   340→   340→      const res = await fetch('/api/responsibles')
+   341→   341→      if (res.ok) setResponsibles(await res.json())
+   342→   342→    } catch (err) {
+   343→   343→      console.error('Error fetching responsibles:', err)
+   344→   344→    }
+   345→   345→  }, [])
+   346→   346→
+   347→   347→  const fetchMaterials = useCallback(async () => {
+   348→   348→    try {
+   349→   349→      const res = await fetch('/api/materials')
+   350→   350→      if (res.ok) setMaterials(await res.json())
+   351→   351→    } catch (err) {
+   352→   352→      console.error('Error fetching materials:', err)
+   353→   353→    }
+   354→   354→  }, [])
+   355→   355→
+   356→   356→  useEffect(() => {
+   357→   357→    const loadAll = async () => {
+   358→   358→      setLoading(true)
+   359→   359→      await Promise.all([fetchTasks(), fetchSectors(), fetchRepairTypes(), fetchPriorities(), fetchEtapas(), fetchStatuses(), fetchResponsibles(), fetchMaterials()])
+   360→   360→      setLoading(false)
+   361→   361→    }
+   362→   362→    loadAll()
+   363→   363→  }, [fetchTasks, fetchSectors, fetchRepairTypes, fetchPriorities, fetchEtapas, fetchStatuses, fetchResponsibles, fetchMaterials])
+   364→   364→
+   365→   365→  // Task CRUD
+   366→   366→  const { toast } = useToast()
+   367→   367→  const [savingTask, setSavingTask] = useState(false)
+   368→   368→
+   369→   369→  const handleSaveTask = async () => {
+   370→   370→    if (!formData.description || !formData.sector) {
+   371→   371→      toast({ title: 'Campos requeridos', description: 'Descripción y Sector son obligatorios', variant: 'destructive' })
+   372→   372→      return
+   373→   373→    }
+   374→   374→    if (!formData.repairType) {
+   375→   375→      toast({ title: 'Campo requerido', description: 'Tipo de Reparación es obligatorio', variant: 'destructive' })
+   376→   376→      return
+   377→   377→    }
+   378→   378→    try {
+   379→   379→      setSavingTask(true)
+   380→   380→      const body = {
+   381→   381→        ...formData,
+   382→   382→        responsible: formData.responsible === 'none' ? '' : formData.responsible,
+   383→   383→        beforePhotos: JSON.stringify(formData.beforePhotos),
+   384→   384→        afterPhotos: JSON.stringify(formData.afterPhotos),
+   385→   385→        documents: JSON.stringify(formData.documents),
+   386→   386→      }
+   387→   387→      delete (body as Record<string, unknown>).inlineMaterials
+   388→   388→
+   389→   389→      if (editingTask) {
+   390→   390→        const res = await fetch('/api/tasks', {
+   391→   391→          method: 'PUT',
+   392→   392→          headers: { 'Content-Type': 'application/json' },
+   393→   393→          body: JSON.stringify({ id: editingTask.id, ...body }),
+   394→   394→        })
+   395→   395→        if (!res.ok) {
+   396→   396→          const errText = await res.text()
+   397→   397→          console.error('Error updating task:', errText)
+   398→   398→          toast({ title: 'Error al actualizar', description: errText, variant: 'destructive' })
+   399→   399→        } else {
+   400→   400→          toast({ title: 'Tarea actualizada', description: 'Los cambios se guardaron correctamente' })
+   401→   401→        }
+   402→   402→      } else {
+   403→   403→        const res = await fetch('/api/tasks', {
+   404→   404→          method: 'POST',
+   405→   405→          headers: { 'Content-Type': 'application/json' },
+   406→   406→          body: JSON.stringify(body),
+   407→   407→        })
+   408→   408→        if (!res.ok) {
+   409→   409→          const errText = await res.text()
+   410→   410→          console.error('Error creating task:', errText)
+   411→   411→          toast({ title: 'Error al crear tarea', description: errText, variant: 'destructive' })
+   412→   412→        } else {
+   413→   413→          toast({ title: 'Tarea creada', description: 'La tarea se creó correctamente' })
+   414→   414→          // Save inline materials for new task
+   415→   415→          const newTask = await res.json()
+   416→   416→          if (formData.inlineMaterials.length > 0 && newTask.id) {
+   417→   417→            for (const mat of formData.inlineMaterials) {
+   418→   418→              try {
+   419→   419→                await fetch('/api/materials', {
+   420→   420→                  method: 'POST',
+   421→   421→                  headers: { 'Content-Type': 'application/json' },
+   422→   422→                  body: JSON.stringify({
+   423→   423→                    taskId: newTask.id,
+   424→   424→                    name: mat.name,
+   425→   425→                    quantity: mat.quantity || null,
+   426→   426→                    unit: mat.unit || null,
+   427→   427→                    unitPrice: mat.unitPrice ? parseFloat(mat.unitPrice) : null,
+   428→   428→                    totalPrice: mat.totalPrice ? parseFloat(mat.totalPrice) : null,
+   429→   429→                    category: mat.category || null,
+   430→   430→                    notes: mat.notes || null,
+   431→   431→                  }),
+   432→   432→                })
+   433→   433→              } catch (matErr) {
+   434→   434→                console.error('Error saving inline material:', matErr)
+   435→   435→              }
+   436→   436→            }
+   437→   437→            fetchMaterials()
+   438→   438→          }
+   439→   439→        }
+   440→   440→      }
+   441→   441→
+   442→   442→      setTaskDialogOpen(false)
+   443→   443→      setEditingTask(null)
+   444→   444→      resetForm()
+   445→   445→      fetchTasks()
+   446→   446→      fetchPriorities()
+   447→   447→    } catch (err) {
+   448→   448→      console.error('Error saving task:', err)
+   449→   449→    } finally {
+   450→   450→      setSavingTask(false)
+   451→   451→    }
+   452→   452→  }
+   453→   453→
+   454→   454→  const handleDeleteTask = async () => {
+   455→   455→    if (!deleteId) return
+   456→   456→    try {
+   457→   457→      await fetch(`/api/tasks?id=${deleteId}`, { method: 'DELETE' })
+   458→   458→      setDeleteDialogOpen(false)
+   459→   459→      setDeleteId(null)
+   460→   460→      fetchTasks()
+   461→   461→    } catch (err) {
+   462→   462→      console.error('Error deleting task:', err)
+   463→   463→    }
+   464→   464→  }
+   465→   465→
+   466→   466→  // Update work order inline
+   467→   467→  const handleUpdateWorkOrder = async (taskId: string, newOrder: number) => {
+   468→   468→    try {
+   469→   469→      await fetch('/api/tasks', {
+   470→   470→        method: 'PUT',
+   471→   471→        headers: { 'Content-Type': 'application/json' },
+   472→   472→        body: JSON.stringify({ id: taskId, workOrder: newOrder }),
+   473→   473→      })
+   474→   474→      fetchTasks()
+   475→   475→    } catch (err) {
+   476→   476→      console.error('Error updating work order:', err)
+   477→   477→    }
+   478→   478→  }
+   479→   479→
+   480→   480→  const handleUpdateTaskPriority = async (taskId: string, newPriority: string) => {
+   481→   481→    try {
+   482→   482→      await fetch('/api/tasks', {
+   483→   483→        method: 'PUT',
+   484→   484→        headers: { 'Content-Type': 'application/json' },
+   485→   485→        body: JSON.stringify({ id: taskId, priority: newPriority }),
+   486→   486→      })
+   487→   487→      fetchTasks()
+   488→   488→    } catch (err) {
+   489→   489→      console.error('Error updating task priority:', err)
+   490→   490→    }
+   491→   491→  }
+   492→   492→
+   493→   493→  const handleUpdateTaskEtapa = async (taskId: string, newEtapa: string) => {
+   494→   494→    try {
+   495→   495→      await fetch('/api/tasks', {
+   496→   496→        method: 'PUT',
+   497→   497→        headers: { 'Content-Type': 'application/json' },
+   498→   498→        body: JSON.stringify({ id: taskId, etapa: newEtapa }),
+   499→   499→      })
+   500→   500→      fetchTasks()
+   501→   501→    } catch (err) {
+   502→   502→      console.error('Error updating task etapa:', err)
+   503→   503→    }
+   504→   504→  }
+   505→   505→
+   506→   506→  const handleUpdateTaskStatus = async (taskId: string, newStatus: string) => {
+   507→   507→    try {
+   508→   508→      const res = await fetch('/api/tasks', {
+   509→   509→        method: 'PUT',
+   510→   510→        headers: { 'Content-Type': 'application/json' },
+   511→   511→        body: JSON.stringify({ id: taskId, status: newStatus }),
+   512→   512→      })
+   513→   513→      if (res.ok) {
+   514→   514→        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t))
+   515→   515→      }
+   516→   516→    } catch (err) {
+   517→   517→      console.error('Error updating task status:', err)
+   518→   518→    }
+   519→   519→  }
+   520→   520→
+   521→   521→  const openEditTask = (task: Task) => {
+   522→   522→    setEditingTask(task)
+   523→   523→    setFormData({
+   524→   524→      description: task.description,
+   525→   525→      sector: task.sector,
+   526→   526→      repairType: task.repairType,
+   527→   527→      priority: task.priority,
+   528→   528→      etapa: task.etapa || '',
+   529→   529→      status: task.status,
+   530→   530→      responsible: task.responsible || 'none',
+   531→   531→      estimatedTime: task.estimatedTime || '',
+   532→   532→      amount: task.amount?.toString() || '',
+   533→   533→      startDate: task.startDate ? task.startDate.split('T')[0] : '',
+   534→   534→      endDate: task.endDate ? task.endDate.split('T')[0] : '',
+   535→   535→      comments: task.comments || '',
+   536→   536→      approvalStatus: task.approvalStatus || 'En espera de decisión',
+   537→   537→      beforePhotos: JSON.parse(task.beforePhotos || '[]'),
+   538→   538→      afterPhotos: JSON.parse(task.afterPhotos || '[]'),
+   539→   539→      documents: JSON.parse(task.documents || '[]'),
+   540→   540→      inlineMaterials: [],
+   541→   541→    })
+   542→   542→    setTaskDialogOpen(true)
+   543→   543→  }
+   544→   544→
+   545→   545→  const openCreateTask = () => {
+   546→   546→    setEditingTask(null)
+   547→   547→    resetForm()
+   548→   548→    setTaskDialogOpen(true)
+   549→   549→  }
+   550→   550→
+   551→   551→  const resetForm = () => {
+   552→   552→    setFormData({
+   553→   553→      description: '',
+   554→   554→      sector: sectors[0]?.name || '',
+   555→   555→      repairType: repairTypes[0]?.name || '',
+   556→   556→      priority: priorities[0]?.name || '',
+   557→   557→      etapa: '',
+   558→   558→      status: statuses[0]?.name || 'Pendiente',
+   559→   559→      responsible: 'none',
+   560→   560→      estimatedTime: '',
+   561→   561→      amount: '',
+   562→   562→      startDate: '',
+   563→   563→      endDate: '',
+   564→   564→      comments: '',
+   565→   565→      approvalStatus: 'En espera de decisión',
+   566→   566→      beforePhotos: [],
+   567→   567→      afterPhotos: [],
+   568→   568→      documents: [],
+   569→   569→      inlineMaterials: [],
+   570→   570→    })
+   571→   571→  }
+   572→   572→
+   573→   573→  // Photo upload
+   574→   574→  const [uploadingPhotos, setUploadingPhotos] = useState(false)
+   575→   575→
+   576→   576→  const handlePhotoUpload = async (file: File, type: 'before' | 'after') => {
+   577→   577→    const formDataUpload = new FormData()
+   578→   578→    formDataUpload.append('file', file)
+   579→   579→    try {
+   580→   580→      setUploadingPhotos(true)
+   581→   581→      const res = await fetch('/api/upload', { method: 'POST', body: formDataUpload })
+   582→   582→      if (res.ok) {
+   583→   583→        const data = await res.json()
+   584→   584→        if (type === 'before') {
+   585→   585→          setFormData(prev => ({ ...prev, beforePhotos: [...prev.beforePhotos, data.url] }))
+   586→   586→        } else {
+   587→   587→          setFormData(prev => ({ ...prev, afterPhotos: [...prev.afterPhotos, data.url] }))
+   588→   588→        }
+   589→   589→      } else {
+   590→   590→        console.error('Upload failed:', res.status, await res.text())
+   591→   591→      }
+   592→   592→    } catch (err) {
+   593→   593→      console.error('Error uploading photo:', err)
+   594→   594→    } finally {
+   595→   595→      setUploadingPhotos(false)
+   596→   596→    }
+   597→   597→  }
+   598→   598→
+   599→   599→  const handleMultiplePhotoUpload = async (files: FileList, type: 'before' | 'after') => {
+   600→   600→    setUploadingPhotos(true)
+   601→   601→    const newUrls: string[] = []
+   602→   602→    for (let i = 0; i < files.length; i++) {
+   603→   603→      const file = files[i]
+   604→   604→      if (!file.type.startsWith('image/')) continue
+   605→   605→      const formDataUpload = new FormData()
+   606→   606→      formDataUpload.append('file', file)
+   607→   607→      try {
+   608→   608→        const res = await fetch('/api/upload', { method: 'POST', body: formDataUpload })
+   609→   609→        if (res.ok) {
+   610→   610→          const data = await res.json()
+   611→   611→          newUrls.push(data.url)
+   612→   612→        }
+   613→   613→      } catch (err) {
+   614→   614→        console.error('Error uploading photo:', err)
+   615→   615→      }
+   616→   616→    }
+   617→   617→    if (newUrls.length > 0) {
+   618→   618→      if (type === 'before') {
+   619→   619→        setFormData(prev => ({ ...prev, beforePhotos: [...prev.beforePhotos, ...newUrls] }))
+   620→   620→      } else {
+   621→   621→        setFormData(prev => ({ ...prev, afterPhotos: [...prev.afterPhotos, ...newUrls] }))
+   622→   622→      }
+   623→   623→    }
+   624→   624→    setUploadingPhotos(false)
+   625→   625→  }
+   626→   626→
+   627→   627→  const removePhoto = (index: number, type: 'before' | 'after') => {
+   628→   628→    if (type === 'before') {
+   629→   629→      setFormData(prev => ({
+   630→   630→        ...prev,
+   631→   631→        beforePhotos: prev.beforePhotos.filter((_, i) => i !== index),
+   632→   632→      }))
+   633→   633→    } else {
+   634→   634→      setFormData(prev => ({
+   635→   635→        ...prev,
+   636→   636→        afterPhotos: prev.afterPhotos.filter((_, i) => i !== index),
+   637→   637→      }))
+   638→   638→    }
+   639→   639→  }
+   640→   640→
+   641→   641→  // Config CRUD
+   642→   642→  const handleAddSector = async () => {
+   643→   643→    if (!newSectorName.trim()) return
+   644→   644→    await fetch('/api/sectors', {
+   645→   645→      method: 'POST',
+   646→   646→      headers: { 'Content-Type': 'application/json' },
+   647→   647→      body: JSON.stringify({ name: newSectorName.trim() }),
+   648→   648→    })
+   649→   649→    setNewSectorName('')
+   650→   650→    fetchSectors()
+   651→   651→  }
+   652→   652→
+   653→   653→  const handleUpdateSector = async (id: string) => {
+   654→   654→    if (!editSectorName.trim()) return
+   655→   655→    await fetch('/api/sectors', {
+   656→   656→      method: 'PUT',
+   657→   657→      headers: { 'Content-Type': 'application/json' },
+   658→   658→      body: JSON.stringify({ id, name: editSectorName.trim() }),
+   659→   659→    })
+   660→   660→    setEditingSectorId(null)
+   661→   661→    fetchSectors()
+   662→   662→  }
+   663→   663→
+   664→   664→  const handleDeleteSector = async (id: string) => {
+   665→   665→    await fetch(`/api/sectors?id=${id}`, { method: 'DELETE' })
+   666→   666→    fetchSectors()
+   667→   667→  }
+   668→   668→
+   669→   669→  const handleAddRepairType = async () => {
+   670→   670→    if (!newRepairTypeName.trim()) return
+   671→   671→    await fetch('/api/repair-types', {
+   672→   672→      method: 'POST',
+   673→   673→      headers: { 'Content-Type': 'application/json' },
+   674→   674→      body: JSON.stringify({ name: newRepairTypeName.trim() }),
+   675→   675→    })
+   676→   676→    setNewRepairTypeName('')
+   677→   677→    fetchRepairTypes()
+   678→   678→  }
+   679→   679→
+   680→   680→  const handleUpdateRepairType = async (id: string) => {
+   681→   681→    if (!editRepairTypeName.trim()) return
+   682→   682→    await fetch('/api/repair-types', {
+   683→   683→      method: 'PUT',
+   684→   684→      headers: { 'Content-Type': 'application/json' },
+   685→   685→      body: JSON.stringify({ id, name: editRepairTypeName.trim() }),
+   686→   686→    })
+   687→   687→    setEditingRepairTypeId(null)
+   688→   688→    fetchRepairTypes()
+   689→   689→  }
+   690→   690→
+   691→   691→  const handleDeleteRepairType = async (id: string) => {
+   692→   692→    await fetch(`/api/repair-types?id=${id}`, { method: 'DELETE' })
+   693→   693→    fetchRepairTypes()
+   694→   694→  }
+   695→   695→
+   696→   696→  const handleAddPriority = async () => {
+   697→   697→    if (!newPriorityName.trim()) return
+   698→   698→    await fetch('/api/priorities', {
+   699→   699→      method: 'POST',
+   700→   700→      headers: { 'Content-Type': 'application/json' },
+   701→   701→      body: JSON.stringify({ name: newPriorityName.trim(), color: newPriorityColor, order: Math.max(...priorities.map(p => p.order), 0) + 1 }),
+   702→   702→    })
+   703→   703→    setNewPriorityName('')
+   704→   704→    setNewPriorityColor('#6b7280')
+   705→   705→    fetchPriorities()
+   706→   706→  }
+   707→   707→
+   708→   708→  const handleUpdatePriority = async (id: string) => {
+   709→   709→    if (!editPriorityName.trim()) return
+   710→   710→    await fetch('/api/priorities', {
+   711→   711→      method: 'PUT',
+   712→   712→      headers: { 'Content-Type': 'application/json' },
+   713→   713→      body: JSON.stringify({ id, name: editPriorityName.trim(), color: editPriorityColor }),
+   714→   714→    })
+   715→   715→    setEditingPriorityId(null)
+   716→   716→    fetchPriorities()
+   717→   717→    fetchTasks()
+   718→   718→  }
+   719→   719→
+   720→   720→  const handleDeletePriority = async (id: string) => {
+   721→   721→    await fetch(`/api/priorities?id=${id}`, { method: 'DELETE' })
+   722→   722→    // Re-fetch and recalculate orders
+   723→   723→    const res = await fetch('/api/priorities')
+   724→   724→    if (res.ok) {
+   725→   725→      const updated = await res.json()
+   726→   726→      // Re-index orders sequentially
+   727→   727→      for (let i = 0; i < updated.length; i++) {
+   728→   728→        if (updated[i].order !== i + 1) {
+   729→   729→          await fetch('/api/priorities', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: updated[i].id, order: i + 1 }) })
+   730→   730→        }
+   731→   731→      }
+   732→   732→    }
+   733→   733→    fetchPriorities()
+   734→   734→    fetchTasks()
+   735→   735→  }
+   736→   736→
+   737→   737→  const handleAddEtapa = async () => {
+   738→   738→    if (!newEtapaName.trim()) return
+   739→   739→    await fetch('/api/etapas', {
+   740→   740→      method: 'POST',
+   741→   741→      headers: { 'Content-Type': 'application/json' },
+   742→   742→      body: JSON.stringify({ name: newEtapaName.trim(), color: newEtapaColor, order: Math.max(...etapas.map(e => e.order), 0) + 1 }),
+   743→   743→    })
+   744→   744→    setNewEtapaName('')
+   745→   745→    setNewEtapaColor('#6b7280')
+   746→   746→    fetchEtapas()
+   747→   747→  }
+   748→   748→
+   749→   749→  const handleUpdateEtapa = async (id: string) => {
+   750→   750→    if (!editEtapaName.trim()) return
+   751→   751→    await fetch('/api/etapas', {
+   752→   752→      method: 'PUT',
+   753→   753→      headers: { 'Content-Type': 'application/json' },
+   754→   754→      body: JSON.stringify({ id, name: editEtapaName.trim(), color: editEtapaColor }),
+   755→   755→    })
+   756→   756→    setEditingEtapaId(null)
+   757→   757→    fetchEtapas()
+   758→   758→    fetchTasks()
+   759→   759→  }
+   760→   760→
+   761→   761→  const handleDeleteEtapa = async (id: string) => {
+   762→   762→    await fetch(`/api/etapas?id=${id}`, { method: 'DELETE' })
+   763→   763→    // Re-fetch and recalculate orders
+   764→   764→    const res = await fetch('/api/etapas')
+   765→   765→    if (res.ok) {
+   766→   766→      const updated = await res.json()
+   767→   767→      for (let i = 0; i < updated.length; i++) {
+   768→   768→        if (updated[i].order !== i + 1) {
+   769→   769→          await fetch('/api/etapas', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: updated[i].id, order: i + 1 }) })
+   770→   770→        }
+   771→   771→      }
+   772→   772→    }
+   773→   773→    fetchEtapas()
+   774→   774→    fetchTasks()
+   775→   775→  }
+   776→   776→
+   777→   777→  const handleMovePriority = async (id: string, direction: 'up' | 'down') => {
+   778→   778→    const sorted = [...priorities].sort((a, b) => a.order - b.order)
+   779→   779→    const idx = sorted.findIndex(p => p.id === id)
+   780→   780→    if (direction === 'up' && idx <= 0) return
+   781→   781→    if (direction === 'down' && idx >= sorted.length - 1) return
+   782→   782→    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+   783→   783→    const item = sorted[idx]
+   784→   784→    const swapItem = sorted[swapIdx]
+   785→   785→    // Swap orders
+   786→   786→    await Promise.all([
+   787→   787→      fetch('/api/priorities', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: item.id, order: swapItem.order }) }),
+   788→   788→      fetch('/api/priorities', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: swapItem.id, order: item.order }) }),
+   789→   789→    ])
+   790→   790→    fetchPriorities()
+   791→   791→    fetchTasks()
+   792→   792→  }
+   793→   793→
+   794→   794→  const handleMoveEtapa = async (id: string, direction: 'up' | 'down') => {
+   795→   795→    const sorted = [...etapas].sort((a, b) => a.order - b.order)
+   796→   796→    const idx = sorted.findIndex(e => e.id === id)
+   797→   797→    if (direction === 'up' && idx <= 0) return
+   798→   798→    if (direction === 'down' && idx >= sorted.length - 1) return
+   799→   799→    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+   800→   800→    const item = sorted[idx]
+   801→   801→    const swapItem = sorted[swapIdx]
+   802→   802→    await Promise.all([
+   803→   803→      fetch('/api/etapas', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: item.id, order: swapItem.order }) }),
+   804→   804→      fetch('/api/etapas', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: swapItem.id, order: item.order }) }),
+   805→   805→    ])
+   806→   806→    fetchEtapas()
+   807→   807→    fetchTasks()
+   808→   808→  }
+   809→   809→
+   810→   810→  const handleAddStatus = async () => {
+   811→   811→    if (!newStatusName.trim()) return
+   812→   812→    await fetch('/api/status', {
+   813→   813→      method: 'POST',
+   814→   814→      headers: { 'Content-Type': 'application/json' },
+   815→   815→      body: JSON.stringify({ name: newStatusName.trim(), color: newStatusColor, order: Math.max(...statuses.map(s => s.order), 0) + 1 }),
+   816→   816→    })
+   817→   817→    setNewStatusName('')
+   818→   818→    setNewStatusColor('#6b7280')
+   819→   819→    fetchStatuses()
+   820→   820→  }
+   821→   821→
+   822→   822→  const handleUpdateStatus = async (id: string) => {
+   823→   823→    if (!editStatusName.trim()) return
+   824→   824→    await fetch('/api/status', {
+   825→   825→      method: 'PUT',
+   826→   826→      headers: { 'Content-Type': 'application/json' },
+   827→   827→      body: JSON.stringify({ id, name: editStatusName.trim(), color: editStatusColor }),
+   828→   828→    })
+   829→   829→    setEditingStatusId(null)
+   830→   830→    fetchStatuses()
+   831→   831→  }
+   832→   832→
+   833→   833→  const handleDeleteStatus = async (id: string) => {
+   834→   834→    await fetch(`/api/status?id=${id}`, { method: 'DELETE' })
+   835→   835→    fetchStatuses()
+   836→   836→  }
+   837→   837→
+   838→   838→  const handleAddResponsible = async () => {
+   839→   839→    if (!newResponsibleName.trim()) return
+   840→   840→    await fetch('/api/responsibles', {
+   841→   841→      method: 'POST',
+   842→   842→      headers: { 'Content-Type': 'application/json' },
+   843→   843→      body: JSON.stringify({ name: newResponsibleName.trim() }),
+   844→   844→    })
+   845→   845→    setNewResponsibleName('')
+   846→   846→    fetchResponsibles()
+   847→   847→  }
+   848→   848→
+   849→   849→  const handleUpdateResponsible = async (id: string) => {
+   850→   850→    if (!editResponsibleName.trim()) return
+   851→   851→    await fetch('/api/responsibles', {
+   852→   852→      method: 'PUT',
+   853→   853→      headers: { 'Content-Type': 'application/json' },
+   854→   854→      body: JSON.stringify({ id, name: editResponsibleName.trim() }),
+   855→   855→    })
+   856→   856→    setEditingResponsibleId(null)
+   857→   857→    fetchResponsibles()
+   858→   858→  }
+   859→   859→
+   860→   860→  const handleDeleteResponsible = async (id: string) => {
+   861→   861→    await fetch(`/api/responsibles?id=${id}`, { method: 'DELETE' })
+   862→   862→    fetchResponsibles()
+   863→   863→  }
+   864→   864→
+   865→   865→  // Material CRUD
+   866→   866→  const handleSaveMaterial = async () => {
+   867→   867→    if (!materialTaskId || !materialFormData.name.trim()) return
+   868→   868→    try {
+   869→   869→      const body = { ...materialFormData, taskId: materialTaskId }
+   870→   870→      if (editingMaterial) {
+   871→   871→        await fetch('/api/materials', {
+   872→   872→          method: 'PUT',
+   873→   873→          headers: { 'Content-Type': 'application/json' },
+   874→   874→          body: JSON.stringify({ id: editingMaterial.id, ...body }),
+   875→   875→        })
+   876→   876→      } else {
+   877→   877→        await fetch('/api/materials', {
+   878→   878→          method: 'POST',
+   879→   879→          headers: { 'Content-Type': 'application/json' },
+   880→   880→          body: JSON.stringify(body),
+   881→   881→        })
+   882→   882→      }
+   883→   883→      setMaterialDialogOpen(false)
+   884→   884→      setEditingMaterial(null)
+   885→   885→      setMaterialFormData({ name: '', quantity: '', unit: '', unitPrice: '', totalPrice: '', category: '', notes: '' })
+   886→   886→      fetchMaterials()
+   887→   887→    } catch (err) {
+   888→   888→      console.error('Error saving material:', err)
+   889→   889→    }
+   890→   890→  }
+   891→   891→
+   892→   892→  const handleDeleteMaterial = async () => {
+   893→   893→    if (!deleteMaterialId) return
+   894→   894→    try {
+   895→   895→      await fetch(`/api/materials?id=${deleteMaterialId}`, { method: 'DELETE' })
+   896→   896→      setDeleteMaterialDialogOpen(false)
+   897→   897→      setDeleteMaterialId(null)
+   898→   898→      setDeleteMaterialName('')
+   899→   899→      fetchMaterials()
+   900→   900→    } catch (err) {
+   901→   901→      console.error('Error deleting material:', err)
+   902→   902→    }
+   903→   903→  }
+   904→   904→
+   905→   905→  const confirmDeleteMaterial = (material: Material) => {
+   906→   906→    setDeleteMaterialId(material.id)
+   907→   907→    setDeleteMaterialName(material.name)
+   908→   908→    setDeleteMaterialDialogOpen(true)
+   909→   909→  }
+   910→   910→
+   911→   911→  // Auto-calculate total price when quantity or unitPrice changes
+   912→   912→  const handleMaterialQuantityChange = (value: string) => {
+   913→   913→    const qty = parseFloat(value) || 0
+   914→   914→    const price = parseFloat(materialFormData.unitPrice) || 0
+   915→   915→    const total = qty * price
+   916→   916→    setMaterialFormData(prev => ({
+   917→   917→      ...prev,
+   918→   918→      quantity: value,
+   919→   919→      totalPrice: total > 0 ? total.toString() : ''
+   920→   920→    }))
+   921→   921→  }
+   922→   922→
+   923→   923→  const handleMaterialUnitPriceChange = (value: string) => {
+   924→   924→    const price = parseFloat(value) || 0
+   925→   925→    const qty = parseFloat(materialFormData.quantity) || 0
+   926→   926→    const total = qty * price
+   927→   927→    setMaterialFormData(prev => ({
+   928→   928→      ...prev,
+   929→   929→      unitPrice: value,
+   930→   930→      totalPrice: total > 0 ? total.toString() : ''
+   931→   931→    }))
+   932→   932→  }
+   933→   933→
+   934→   934→  const openAddMaterial = (taskId: string) => {
+   935→   935→    setMaterialTaskId(taskId)
+   936→   936→    setEditingMaterial(null)
+   937→   937→    setMaterialFormData({ name: '', quantity: '', unit: '', unitPrice: '', totalPrice: '', category: '', notes: '' })
+   938→   938→    setMaterialDialogOpen(true)
+   939→   939→  }
+   940→   940→
+   941→   941→  const openEditMaterial = (material: Material) => {
+   942→   942→    setMaterialTaskId(material.taskId)
+   943→   943→    setEditingMaterial(material)
+   944→   944→    setMaterialFormData({
+   945→   945→      name: material.name,
+   946→   946→      quantity: material.quantity || '',
+   947→   947→      unit: material.unit || '',
+   948→   948→      unitPrice: material.unitPrice?.toString() || '',
+   949→   949→      totalPrice: material.totalPrice?.toString() || '',
+   950→   950→      category: material.category || '',
+   951→   951→      notes: material.notes || '',
+   952→   952→    })
+   953→   953→    setMaterialDialogOpen(true)
+   954→   954→  }
+   955→   955→
+   956→   956→  // Material helpers
+   957→   957→  const getMaterialsForTask = (taskId: string) => materials.filter(m => m.taskId === taskId)
+   958→   958→  const getMaterialsCount = (taskId: string) => materials.filter(m => m.taskId === taskId).length
+   959→   959→  const getMaterialsTotal = (taskId: string) => materials.filter(m => m.taskId === taskId).reduce((sum, m) => sum + (m.totalPrice || 0), 0)
+   960→   960→
+   961→   961→  // Filtered tasks
+   962→   962→  // Helper: get priority order for sorting (Alta=1, Media=2, Baja=3, etc.)
+   963→   963→  const getPriorityOrder = (priorityName: string): number => {
+   964→   964→    const p = priorities.find(pr => pr.name === priorityName)
+   965→   965→    return p?.order ?? 999
+   966→   966→  }
+   967→   967→
+   968→   968→  // Helper: get etapa order for sorting
+   969→   969→  const getEtapaOrder = (etapaName: string): number => {
+   970→   970→    const e = etapas.find(et => et.name === etapaName)
+   971→   971→    return e?.order ?? 999
+   972→   972→  }
+   973→   973→
+   974→   974→  const getEtapaColor = (name: string) => {
+   975→   975→    const e = etapas.find(et => et.name === name)
+   976→   976→    return e?.color || '#6b7280'
+   977→   977→  }
+   978→   978→
+   979→   979→  const getApprovalColor = (status: string) => {
+   980→   980→    switch (status) {
+   981→   981→      case 'Aprobado': return '#16a34a'
+   982→   982→      case 'No aprobado': return '#dc2626'
+   983→   983→      case 'En espera de decisión': return '#d97706'
+   984→   984→      default: return '#6b7280'
+   985→   985→    }
+   986→   986→  }
+   987→   987→
+   988→   988→  const getApprovalBadgeClass = (status: string) => {
+   989→   989→    switch (status) {
+   990→   990→      case 'Aprobado': return 'bg-green-50 text-green-700 border-green-200'
+   991→   991→      case 'No aprobado': return 'bg-red-50 text-red-700 border-red-200'
+   992→   992→      case 'En espera de decisión': return 'bg-amber-50 text-amber-700 border-amber-200'
+   993→   993→      default: return ''
+   994→   994→    }
+   995→   995→  }
+   996→   996→
+   997→   997→  const handleUpdateTaskApproval = async (taskId: string, newApproval: string) => {
+   998→   998→    try {
+   999→   999→      const res = await fetch('/api/tasks', {
+  1000→  1000→        method: 'PUT',
+  1001→  1001→        headers: { 'Content-Type': 'application/json' },
+  1002→  1002→        body: JSON.stringify({ id: taskId, approvalStatus: newApproval }),
+  1003→  1003→      })
+  1004→  1004→      if (res.ok) {
+  1005→  1005→        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, approvalStatus: newApproval } : t))
+  1006→  1006→      }
+  1007→  1007→    } catch (err) {
+  1008→  1008→      console.error('Error updating task approval:', err)
+  1009→  1009→    }
+  1010→  1010→  }
+  1011→  1011→
+  1012→  1012→  const filteredTasks = tasks.filter(t => {
+  1013→  1013→    if (filterSector !== 'all' && t.sector !== filterSector) return false
+  1014→  1014→    if (filterPriority !== 'all' && t.priority !== filterPriority) return false
+  1015→  1015→    if (filterStatus !== 'all' && t.status !== filterStatus) return false
+  1016→  1016→    if (filterRepairType !== 'all' && t.repairType !== filterRepairType) return false
+  1017→  1017→    if (filterEtapa !== 'all' && t.etapa !== filterEtapa) return false
+  1018→  1018→    if (filterApproval !== 'all' && t.approvalStatus !== filterApproval) return false
+  1019→  1019→    return true
+  1020→  1020→  }).sort((a, b) => {
+  1021→  1021→    // First sort by priority order (Alta first, then Media, then Baja)
+  1022→  1022→    const priorityA = getPriorityOrder(a.priority)
+  1023→  1023→    const priorityB = getPriorityOrder(b.priority)
+  1024→  1024→    if (priorityA !== priorityB) return priorityA - priorityB
+  1025→  1025→    // Within same priority, sort by etapa order
+  1026→  1026→    const etapaA = getEtapaOrder(a.etapa)
+  1027→  1027→    const etapaB = getEtapaOrder(b.etapa)
+  1028→  1028→    if (etapaA !== etapaB) return etapaA - etapaB
+  1029→  1029→    // Within same priority+etapa, sort by creation date
+  1030→  1030→    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  1031→  1031→  })
+  1032→  1032→
+  1033→  1033→  // Stats
+  1034→  1034→  const totalTasks = tasks.length
+  1035→  1035→  const completedTasks = tasks.filter(t => t.status === 'Completada').length
+  1036→  1036→  const inProgressTasks = tasks.filter(t => t.status === 'En Proceso').length
+  1037→  1037→  const pendingTasks = tasks.filter(t => t.status === 'Pendiente').length
+  1038→  1038→  const approvedTasks = tasks.filter(t => t.approvalStatus === 'Aprobado').length
+  1039→  1039→  const notApprovedTasks = tasks.filter(t => t.approvalStatus === 'No aprobado').length
+  1040→  1040→  const waitingApprovalTasks = tasks.filter(t => t.approvalStatus === 'En espera de decisión' || !t.approvalStatus).length
+  1041→  1041→  const totalAmount = tasks.reduce((sum, t) => sum + (t.amount || 0), 0)
+  1042→  1042→  const completedAmount = tasks.filter(t => t.status === 'Completada').reduce((sum, t) => sum + (t.amount || 0), 0)
+  1043→  1043→  const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+  1044→  1044→
+  1045→  1045→  const getPriorityColor = (name: string) => {
+  1046→  1046→    const p = priorities.find(pr => pr.name === name)
+  1047→  1047→    return p?.color || '#6b7280'
+  1048→  1048→  }
+  1049→  1049→
+  1050→  1050→  const getStatusColor = (name: string) => {
+  1051→  1051→    const s = statuses.find(st => st.name === name)
+  1052→  1052→    return s?.color || '#6b7280'
+  1053→  1053→  }
+  1054→  1054→
+  1055→  1055→  const getStatusBadgeClass = (name: string) => {
+  1056→  1056→    const fallbackMap: Record<string, string> = {
+  1057→  1057→      Pendiente: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+  1058→  1058→      'En Proceso': 'bg-blue-100 text-blue-800 border-blue-300',
+  1059→  1059→      Completada: 'bg-green-100 text-green-800 border-green-300',
+  1060→  1060→      Cancelada: 'bg-red-100 text-red-800 border-red-300',
+  1061→  1061→    }
+  1062→  1062→    return fallbackMap[name] || 'bg-gray-100 text-gray-800 border-gray-300'
+  1063→  1063→  }
+  1064→  1064→
+  1065→  1065→  // Gantt chart helpers
+  1066→  1066→  // All filtered tasks sorted by priority, then etapa, then creation date for Gantt display
+  1067→  1067→  const ganttTasks = [...filteredTasks].sort((a, b) => {
+  1068→  1068→    // First sort by priority order (Alta first, then Media, then Baja)
+  1069→  1069→    const priorityA = getPriorityOrder(a.priority)
+  1070→  1070→    const priorityB = getPriorityOrder(b.priority)
+  1071→  1071→    if (priorityA !== priorityB) return priorityA - priorityB
+  1072→  1072→    // Within same priority, sort by etapa order
+  1073→  1073→    const etapaA = getEtapaOrder(a.etapa)
+  1074→  1074→    const etapaB = getEtapaOrder(b.etapa)
+  1075→  1075→    if (etapaA !== etapaB) return etapaA - etapaB
+  1076→  1076→    // Within same priority+etapa, sort by creation date
+  1077→  1077→    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  1078→  1078→  })
+  1079→  1079→  // Only tasks with dates (for calculating date range)
+  1080→  1080→  const tasksWithDates = filteredTasks.filter(t => t.startDate && t.endDate)
+  1081→  1081→  const ganttStartDate = tasksWithDates.length > 0
+  1082→  1082→    ? new Date(Math.min(...tasksWithDates.map(t => new Date(t.startDate!).getTime())))
+  1083→  1083→    : new Date() // When no tasks have dates, start from today
+  1084→  1084→  const ganttEndDate = tasksWithDates.length > 0
+  1085→  1085→    ? new Date(Math.max(...tasksWithDates.map(t => new Date(t.endDate!).getTime())))
+  1086→  1086→    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // Default 30-day range when no dates
+  1087→  1087→
+  1088→  1088→  // Extend gantt range slightly
+  1089→  1089→  const ganttRangeStart = new Date(ganttStartDate)
+  1090→  1090→  ganttRangeStart.setDate(ganttRangeStart.getDate() - 2)
+  1091→  1091→  const ganttRangeEnd = new Date(ganttEndDate)
+  1092→  1092→  ganttRangeEnd.setDate(ganttRangeEnd.getDate() + 2)
+  1093→  1093→
+  1094→  1094→  // Minimum range of 7 days to ensure visible timeline
+  1095→  1095→  if (ganttRangeEnd.getTime() - ganttRangeStart.getTime() < 7 * 24 * 60 * 60 * 1000) {
+  1096→  1096→    ganttRangeEnd.setTime(ganttRangeStart.getTime() + 30 * 24 * 60 * 60 * 1000)
+  1097→  1097→  }
+  1098→  1098→
+  1099→  1099→  const totalGanttDays = Math.max(1, Math.ceil((ganttRangeEnd.getTime() - ganttRangeStart.getTime()) / (1000 * 60 * 60 * 24)))
+  1100→  1100→
+  1101→  1101→  const getBarPosition = (startDate: string, endDate: string) => {
+  1102→  1102→    const start = new Date(startDate)
+  1103→  1103→    const end = new Date(endDate)
+  1104→  1104→    const leftPercent = ((start.getTime() - ganttRangeStart.getTime()) / (ganttRangeEnd.getTime() - ganttRangeStart.getTime())) * 100
+  1105→  1105→    const widthPercent = ((end.getTime() - start.getTime()) / (ganttRangeEnd.getTime() - ganttRangeStart.getTime())) * 100
+  1106→  1106→    return { left: Math.max(0, leftPercent), width: Math.max(1, widthPercent) }
+  1107→  1107→  }
+  1108→  1108→
+  1109→  1109→  // Generate day columns for gantt
+  1110→  1110→  const ganttDays: Date[] = []
+  1111→  1111→  for (let d = new Date(ganttRangeStart); d <= ganttRangeEnd; d.setDate(d.getDate() + 1)) {
+  1112→  1112→    ganttDays.push(new Date(d))
+  1113→  1113→  }
+  1114→  1114→
+  1115→  1115→  const formatDate = (dateStr: string | null) => {
+  1116→  1116→    if (!dateStr) return '-'
+  1117→  1117→    const d = new Date(dateStr)
+  1118→  1118→    return d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  1119→  1119→  }
+  1120→  1120→
+  1121→  1121→  const formatCurrency = (amount: number | null) => {
+  1122→  1122→    if (!amount) return '-'
+  1123→  1123→    return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(amount)
+  1124→  1124→  }
+  1125→  1125→
+  1126→  1126→  // History functions
+  1127→  1127→  const openHistory = async (taskId: string) => {
+  1128→  1128→    setHistoryTaskId(taskId)
+  1129→  1129→    setHistoryDialogOpen(true)
+  1130→  1130→    setHistoryLoading(true)
+  1131→  1131→    try {
+  1132→  1132→      const res = await fetch(`/api/task-history?taskId=${taskId}`)
+  1133→  1133→      if (res.ok) {
+  1134→  1134→        setHistoryEntries(await res.json())
+  1135→  1135→      }
+  1136→  1136→    } catch (err) {
+  1137→  1137→      console.error('Error fetching history:', err)
+  1138→  1138→    }
+  1139→  1139→    setHistoryLoading(false)
+  1140→  1140→  }
+  1141→  1141→
+  1142→  1142→  // Gantt download as PDF - Captures exact on-screen Gantt format via html2canvas
+  1143→  1143→  const downloadGanttPDF = async () => {
+  1144→  1144→    setDownloadingGantt(true)
+  1145→  1145→    try {
+  1146→  1146→      const element = document.getElementById('gantt-chart-content')
+  1147→  1147→      if (!element) return
+  1148→  1148→
+  1149→  1149→      // Dynamic import to avoid SSR issues
+  1150→  1150→      const html2canvasModule = await import('html2canvas-pro')
+  1151→  1151→      const html2canvas = html2canvasModule.default
+  1152→  1152→
+  1153→  1153→      // Temporarily expand for full capture
+  1154→  1154→      const originalOverflow = element.style.overflow
+  1155→  1155→      const originalWidth = element.style.width
+  1156→  1156→      element.style.overflow = 'visible'
+  1157→  1157→      element.style.width = 'max-content'
+  1158→  1158→
+  1159→  1159→      const canvas = await html2canvas(element, {
+  1160→  1160→        scale: 2,
+  1161→  1161→        useCORS: true,
+  1162→  1162→        backgroundColor: '#ffffff',
+  1163→  1163→        logging: false,
+  1164→  1164→        windowWidth: element.scrollWidth,
+  1165→  1165→      })
+  1166→  1166→
+  1167→  1167→      element.style.overflow = originalOverflow
+  1168→  1168→      element.style.width = originalWidth
+  1169→  1169→
+  1170→  1170→      // A3 Landscape dimensions (mm)
+  1171→  1171→      const pageWidthMM = 420
+  1172→  1172→      const pageHeightMM = 297
+  1173→  1173→      const marginMM = 8
+  1174→  1174→
+  1175→  1175→      const imgWidth = pageWidthMM - 2 * marginMM
+  1176→  1176→      const imgHeight = (canvas.height * imgWidth) / canvas.width
+  1177→  1177→
+  1178→  1178→      const pdf = new jsPDF({
+  1179→  1179→        orientation: 'landscape',
+  1180→  1180→        unit: 'mm',
+  1181→  1181→        format: 'a3',
+  1182→  1182→      })
+  1183→  1183→
+  1184→  1184→      // If the image fits on one page
+  1185→  1185→      if (imgHeight <= pageHeightMM - 2 * marginMM) {
+  1186→  1186→        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', marginMM, marginMM, imgWidth, imgHeight)
+  1187→  1187→      } else {
+  1188→  1188→        // Multi-page: split the canvas image vertically
+  1189→  1189→        const usableHeightMM = pageHeightMM - 2 * marginMM
+  1190→  1190→        const pxPerMM = canvas.width / imgWidth
+  1191→  1191→        const pageHeightPx = usableHeightMM * pxPerMM
+  1192→  1192→        const totalPages = Math.ceil(canvas.height / pageHeightPx)
+  1193→  1193→
+  1194→  1194→        for (let page = 0; page < totalPages; page++) {
+  1195→  1195→          if (page > 0) pdf.addPage('a3', 'landscape')
+  1196→  1196→
+  1197→  1197→          const srcY = page * pageHeightPx
+  1198→  1198→          const srcH = Math.min(pageHeightPx, canvas.height - srcY)
+  1199→  1199→
+  1200→  1200→          // Create a sub-canvas for this page
+  1201→  1201→          const pageCanvas = document.createElement('canvas')
+  1202→  1202→          pageCanvas.width = canvas.width
+  1203→  1203→          pageCanvas.height = srcH
+  1204→  1204→          const ctx = pageCanvas.getContext('2d')!
+  1205→  1205→          ctx.fillStyle = '#ffffff'
+  1206→  1206→          ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height)
+  1207→  1207→          ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH)
+  1208→  1208→
+  1209→  1209→          const pageImgHeight = (srcH * imgWidth) / canvas.width
+  1210→  1210→          pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', marginMM, marginMM, imgWidth, pageImgHeight)
+  1211→  1211→
+  1212→  1212→          // Add page number footer
+  1213→  1213→          pdf.setFontSize(8)
+  1214→  1214→          pdf.setTextColor(148, 163, 184)
+  1215→  1215→          pdf.text(`Página ${page + 1} de ${totalPages}`, pageWidthMM - marginMM - 40, pageHeightMM - marginMM / 2)
+  1216→  1216→        }
+  1217→  1217→      }
+  1218→  1218→
+  1219→  1219→      pdf.save(`gantt-planificacion-${new Date().toISOString().split('T')[0]}.pdf`)
+  1220→  1220→    } catch (err) {
+  1221→  1221→      console.error('Error downloading Gantt as PDF:', err)
+  1222→  1222→    }
+  1223→  1223→    setDownloadingGantt(false)
+  1224→  1224→  }
+  1225→  1225→
+  1226→  1226→
+  1227→  1227→  // Gantt download as Excel - Professional format with materials sheet
+  1228→  1228→  const downloadGanttExcel = async () => {
+  1229→  1229→    setDownloadingGantt(true)
+  1230→  1230→    try {
+  1231→  1231→      const sortedTasks = [...ganttTasks]
+  1232→  1232→
+  1233→  1233→      const wb = new ExcelJS.Workbook()
+  1234→  1234→      const today = new Date()
+  1235→  1235→      today.setHours(0, 0, 0, 0)
+  1236→  1236→
+  1237→  1237→      // ===== GANTT SHEET =====
+  1238→  1238→      const ws = wb.addWorksheet('Gantt', {
+  1239→  1239→        properties: { defaultColWidth: 4 },
+  1240→  1240→      })
+  1241→  1241→
+  1242→  1242→      const fixedHeaders = ['N°', 'Descripción', 'Sector', 'Tipo', 'Prioridad', 'Estado', 'Responsable', 'Fecha Inicio', 'Fecha Término']
+  1243→  1243→      const allHeaders = [...fixedHeaders, ...ganttDays.map(d => String(d.getDate())), 'Total Mat.']
+  1244→  1244→
+  1245→  1245→      // Title row
+  1246→  1246→      const titleRow = ws.addRow(['Planificación de Mantención - Diagrama de Gantt'])
+  1247→  1247→      titleRow.getCell(1).font = { bold: true, size: 16, color: { argb: 'FF0F172A' } }
+  1248→  1248→      titleRow.getCell(1).alignment = { horizontal: 'left' }
+  1249→  1249→      ws.mergeCells(1, 1, 1, allHeaders.length)
+  1250→  1250→      titleRow.height = 30
+  1251→  1251→
+  1252→  1252→      // Subtitle row
+  1253→  1253→      const dateRow = ws.addRow([
+  1254→  1254→        `Generado: ${new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })} | ${sortedTasks.length} tareas`
+  1255→  1255→      ])
+  1256→  1256→      dateRow.getCell(1).font = { size: 10, color: { argb: 'FF64748B' } }
+  1257→  1257→      ws.mergeCells(2, 1, 2, allHeaders.length)
+  1258→  1258→      dateRow.height = 20
+  1259→  1259→
+  1260→  1260→      // Blank row
+  1261→  1261→      ws.addRow([])
+  1262→  1262→
+  1263→  1263→      // Month header row
+  1264→  1264→      const monthRowNum = 4
+  1265→  1265→      const monthRow = ws.addRow([])
+  1266→  1266→      let currentMonth = ''
+  1267→  1267→      let monthStartCol = fixedHeaders.length + 1
+  1268→  1268→      for (let i = 0; i < ganttDays.length; i++) {
+  1269→  1269→        const monthLabel = ganttDays[i].toLocaleDateString('es-CL', { month: 'short', year: '2-digit' })
+  1270→  1270→        const col = fixedHeaders.length + 1 + i
+  1271→  1271→        if (monthLabel !== currentMonth) {
+  1272→  1272→          if (currentMonth !== '') {
+  1273→  1273→            if (col - 1 > monthStartCol) {
+  1274→  1274→              ws.mergeCells(monthRowNum, monthStartCol, monthRowNum, col - 1)
+  1275→  1275→            }
+  1276→  1276→            const cell = ws.getCell(monthRowNum, monthStartCol)
+  1277→  1277→            cell.value = currentMonth
+  1278→  1278→            cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 }
+  1279→  1279→            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }
+  1280→  1280→            cell.alignment = { horizontal: 'center', vertical: 'middle' }
+  1281→  1281→            cell.border = { bottom: { style: 'thin', color: { argb: 'FF334155' } } }
+  1282→  1282→          }
+  1283→  1283→          monthStartCol = col
+  1284→  1284→          currentMonth = monthLabel
+  1285→  1285→        }
+  1286→  1286→        if (i === ganttDays.length - 1) {
+  1287→  1287→          if (col > monthStartCol) {
+  1288→  1288→            ws.mergeCells(monthRowNum, monthStartCol, monthRowNum, col)
+  1289→  1289→          }
+  1290→  1290→          const cell = ws.getCell(monthRowNum, monthStartCol)
+  1291→  1291→          cell.value = currentMonth
+  1292→  1292→          cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 }
+  1293→  1293→          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }
+  1294→  1294→          cell.alignment = { horizontal: 'center', vertical: 'middle' }
+  1295→  1295→        }
+  1296→  1296→      }
+  1297→  1297→      // Fill fixed header cells in month row
+  1298→  1298→      for (let c = 1; c <= fixedHeaders.length; c++) {
+  1299→  1299→        const cell = ws.getCell(monthRowNum, c)
+  1300→  1300→        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }
+  1301→  1301→      }
+  1302→  1302→      // Total Mat header in month row
+  1303→  1303→      const totalMatHeaderCell = ws.getCell(monthRowNum, fixedHeaders.length + ganttDays.length + 1)
+  1304→  1304→      totalMatHeaderCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }
+  1305→  1305→
+  1306→  1306→      // Day header row
+  1307→  1307→      const dayHeaderRow = ws.addRow(allHeaders)
+  1308→  1308→      dayHeaderRow.height = 22
+  1309→  1309→
+  1310→  1310→      for (let c = 1; c <= allHeaders.length; c++) {
+  1311→  1311→        const cell = dayHeaderRow.getCell(c)
+  1312→  1312→        if (c <= fixedHeaders.length) {
+  1313→  1313→          cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
+  1314→  1314→          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } }
+  1315→  1315→          cell.alignment = { horizontal: 'center', vertical: 'middle' }
+  1316→  1316→        } else if (c <= fixedHeaders.length + ganttDays.length) {
+  1317→  1317→          const dayIdx = c - fixedHeaders.length - 1
+  1318→  1318→          const dayDate = ganttDays[dayIdx]
+  1319→  1319→          const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6
+  1320→  1320→          const isToday = dayDate.getTime() === today.getTime()
+  1321→  1321→
+  1322→  1322→          if (isToday) {
+  1323→  1323→            cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 8 }
+  1324→  1324→            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDC2626' } }
+  1325→  1325→          } else if (isWeekend) {
+  1326→  1326→            cell.font = { bold: true, color: { argb: 'FF475569' }, size: 8 }
+  1327→  1327→            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1D5DB' } }
+  1328→  1328→          } else {
+  1329→  1329→            cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 8 }
+  1330→  1330→            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF475569' } }
+  1331→  1331→          }
+  1332→  1332→          cell.alignment = { horizontal: 'center', vertical: 'middle' }
+  1333→  1333→        } else {
+  1334→  1334→          cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
+  1335→  1335→          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } }
+  1336→  1336→          cell.alignment = { horizontal: 'center', vertical: 'middle' }
+  1337→  1337→        }
+  1338→  1338→      }
+  1339→  1339→
+  1340→  1340→      // Data rows
+  1341→  1341→      for (const task of sortedTasks) {
+  1342→  1342→        const taskStart = task.startDate ? new Date(task.startDate) : null
+  1343→  1343→        const taskEnd = task.endDate ? new Date(task.endDate) : null
+  1344→  1344→        const hasDates = !!(taskStart && taskEnd)
+  1345→  1345→        const materialsTotal = getMaterialsTotal(task.id)
+  1346→  1346→        const matCount = getMaterialsCount(task.id)
+  1347→  1347→
+  1348→  1348→        const row = [
+  1349→  1349→          sortedTasks.indexOf(task) + 1,
+  1350→  1350→          task.description + (!hasDates ? ' ⚠' : ''),
+  1351→  1351→          task.sector,
+  1352→  1352→          task.repairType,
+  1353→  1353→          task.priority,
+  1354→  1354→          task.status,
+  1355→  1355→          task.responsible || '',
+  1356→  1356→          task.startDate ? new Date(task.startDate).toLocaleDateString('es-CL') : 'Sin fecha',
+  1357→  1357→          task.endDate ? new Date(task.endDate).toLocaleDateString('es-CL') : 'Sin fecha',
+  1358→  1358→        ]
+  1359→  1359→
+  1360→  1360→        ganttDays.forEach((dayDate) => {
+  1361→  1361→          const dayTime = dayDate.getTime()
+  1362→  1362→          const inRange = taskStart && taskEnd && dayTime >= taskStart.getTime() && dayTime <= taskEnd.getTime()
+  1363→  1363→          row.push(inRange ? ' ' : '')
+  1364→  1364→        })
+  1365→  1365→
+  1366→  1366→        row.push(matCount > 0 ? String(materialsTotal) : '')
+  1367→  1367→
+  1368→  1368→        const excelRow = ws.addRow(row)
+  1369→  1369→        excelRow.height = 18
+  1370→  1370→
+  1371→  1371→        // Bar color
+  1372→  1372→        const statusBarColorMap: Record<string, string> = {
+  1373→  1373→          'Pendiente': getPriorityColor(task.priority).replace('#', ''),
+  1374→  1374→          'En Proceso': '2563EB',
+  1375→  1375→          'Completada': '16A34A',
+  1376→  1376→          'Cancelada': 'DC2626',
+  1377→  1377→        }
+  1378→  1378→        const barColorHex = statusBarColorMap[task.status] || getPriorityColor(task.priority).replace('#', '')
+  1379→  1379→
+  1380→  1380→        // Style fixed columns
+  1381→  1381→        excelRow.getCell(1).font = { size: 10, bold: true }
+  1382→  1382→        excelRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' }
+  1383→  1383→        excelRow.getCell(2).font = { size: 10, bold: true }
+  1384→  1384→        excelRow.getCell(3).font = { size: 9 }
+  1385→  1385→        excelRow.getCell(4).font = { size: 9 }
+  1386→  1386→
+  1387→  1387→        // Dim rows without dates
+  1388→  1388→        if (!hasDates) {
+  1389→  1389→          excelRow.getCell(2).font = { size: 10, bold: true, color: { argb: 'FF9CA3AF' } }
+  1390→  1390→          excelRow.getCell(8).font = { size: 9, color: { argb: 'FFF97316' } }
+  1391→  1391→          excelRow.getCell(9).font = { size: 9, color: { argb: 'FFF97316' } }
+  1392→  1392→        }
+  1393→  1393→
+  1394→  1394→        // Priority column (column 5)
+  1395→  1395→        const pColor = getPriorityColor(task.priority)
+  1396→  1396→        excelRow.getCell(5).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${pColor.replace('#', '')}` } }
+  1397→  1397→        excelRow.getCell(5).font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
+  1398→  1398→        excelRow.getCell(5).alignment = { horizontal: 'center' }
+  1399→  1399→
+  1400→  1400→        // Status column with color (column 6)
+  1401→  1401→        const statusStyleMap: Record<string, string> = {
+  1402→  1402→          'Pendiente': 'FFF59E0B',
+  1403→  1403→          'En Proceso': 'FF2563EB',
+  1404→  1404→          'Completada': 'FF16A34A',
+  1405→  1405→          'Cancelada': 'FFDC2626',
+  1406→  1406→        }
+  1407→  1407→        const statusColor = statusStyleMap[task.status]
+  1408→  1408→        if (statusColor) {
+  1409→  1409→          excelRow.getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: statusColor } }
+  1410→  1410→          excelRow.getCell(6).font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
+  1411→  1411→          excelRow.getCell(6).alignment = { horizontal: 'center' }
+  1412→  1412→        }
+  1413→  1413→
+  1414→  1414→        // Style day columns - gantt bars
+  1415→  1415→        for (let c = fixedHeaders.length + 1; c <= fixedHeaders.length + ganttDays.length; c++) {
+  1416→  1416→          const cell = excelRow.getCell(c)
+  1417→  1417→          const dayIdx = c - fixedHeaders.length - 1
+  1418→  1418→          const dayDate = ganttDays[dayIdx]
+  1419→  1419→          const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6
+  1420→  1420→          const isDayToday = dayDate.getTime() === today.getTime()
+  1421→  1421→          const isBar = cell.value === ' '
+  1422→  1422→
+  1423→  1423→          if (isBar) {
+  1424→  1424→            // Gantt bar cell - fill with the bar color
+  1425→  1425→            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${barColorHex}` } }
+  1426→  1426→            cell.font = { color: { argb: `FF${barColorHex}` }, size: 10 }
+  1427→  1427→            cell.alignment = { horizontal: 'center' }
+  1428→  1428→            cell.value = '' // Clear the space, fill provides the visual
+  1429→  1429→          } else if (isDayToday) {
+  1430→  1430→            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }
+  1431→  1431→          } else if (isWeekend) {
+  1432→  1432→            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }
+  1433→  1433→          }
+  1434→  1434→        }
+  1435→  1435→
+  1436→  1436→        // Total Materiales column
+  1437→  1437→        const totalMatCol = fixedHeaders.length + ganttDays.length + 1
+  1438→  1438→        const totalMatCell = excelRow.getCell(totalMatCol)
+  1439→  1439→        if (totalMatCell.value && Number(totalMatCell.value) > 0) {
+  1440→  1440→          totalMatCell.font = { bold: true, color: { argb: 'FF059669' }, size: 10 }
+  1441→  1441→          totalMatCell.numFmt = '$#,##0'
+  1442→  1442→          totalMatCell.alignment = { horizontal: 'right' }
+  1443→  1443→        }
+  1444→  1444→      }
+  1445→  1445→
+  1446→  1446→      // Set column widths
+  1447→  1447→      ws.getColumn(1).width = 40
+  1448→  1448→      ws.getColumn(2).width = 14
+  1449→  1449→      ws.getColumn(3).width = 14
+  1450→  1450→      ws.getColumn(4).width = 12
+  1451→  1451→      ws.getColumn(5).width = 12
+  1452→  1452→      ws.getColumn(6).width = 16
+  1453→  1453→      ws.getColumn(7).width = 14
+  1454→  1454→      ws.getColumn(8).width = 14
+  1455→  1455→      for (let i = 1; i <= ganttDays.length; i++) {
+  1456→  1456→        ws.getColumn(fixedHeaders.length + i).width = 3.5
+  1457→  1457→      }
+  1458→  1458→      ws.getColumn(fixedHeaders.length + ganttDays.length + 1).width = 16
+  1459→  1459→
+  1460→  1460→      // Freeze panes
+  1461→  1461→      ws.views = [{ state: 'frozen', xSplit: fixedHeaders.length, ySplit: 6 }]
+  1462→  1462→
+  1463→  1463→      // ===== MATERIALES SHEET =====
+  1464→  1464→      const wsMat = wb.addWorksheet('Materiales')
+  1465→  1465→      wsMat.getColumn(1).width = 35
+  1466→  1466→      wsMat.getColumn(2).width = 15
+  1467→  1467→      wsMat.getColumn(3).width = 12
+  1468→  1468→      wsMat.getColumn(4).width = 10
+  1469→  1469→      wsMat.getColumn(5).width = 12
+  1470→  1470→      wsMat.getColumn(6).width = 14
+  1471→  1471→      wsMat.getColumn(7).width = 14
+  1472→  1472→      wsMat.getColumn(8).width = 20
+  1473→  1473→
+  1474→  1474→      const matTitleRow = wsMat.addRow(['Listado de Materiales por Tarea'])
+  1475→  1475→      matTitleRow.getCell(1).font = { bold: true, size: 16, color: { argb: 'FF0F172A' } }
+  1476→  1476→      wsMat.mergeCells(1, 1, 1, 8)
+  1477→  1477→      matTitleRow.height = 30
+  1478→  1478→
+  1479→  1479→      wsMat.addRow([])
+  1480→  1480→
+  1481→  1481→      // Header row
+  1482→  1482→      const matHeaderRow = wsMat.addRow(['Tarea', 'Sector', 'Material', 'Categoría', 'Cantidad', 'Unidad', 'P. Unitario', 'P. Total'])
+  1483→  1483→      matHeaderRow.height = 22
+  1484→  1484→      for (let c = 1; c <= 8; c++) {
+  1485→  1485→        const cell = matHeaderRow.getCell(c)
+  1486→  1486→        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 }
+  1487→  1487→        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }
+  1488→  1488→        cell.alignment = { horizontal: 'center', vertical: 'middle' }
+  1489→  1489→      }
+  1490→  1490→
+  1491→  1491→      let grandTotal = 0
+  1492→  1492→      for (const task of filteredTasks) {
+  1493→  1493→        const taskMaterials = getMaterialsForTask(task.id)
+  1494→  1494→        if (taskMaterials.length === 0) continue
+  1495→  1495→        const taskTotal = getMaterialsTotal(task.id)
+  1496→  1496→        grandTotal += taskTotal
+  1497→  1497→
+  1498→  1498→        for (let mi = 0; mi < taskMaterials.length; mi++) {
+  1499→  1499→          const mat = taskMaterials[mi]
+  1500→  1500→          const row = wsMat.addRow([
+  1501→  1501→            mi === 0 ? task.description : '',
+  1502→  1502→            mi === 0 ? task.sector : '',
+  1503→  1503→            mat.name,
+  1504→  1504→            mat.category || '',
+  1505→  1505→            mat.quantity || '',
+  1506→  1506→            mat.unit || '',
+  1507→  1507→            mat.unitPrice || '',
+  1508→  1508→            mat.totalPrice || '',
+  1509→  1509→          ])
+  1510→  1510→
+  1511→  1511→          // Style material rows
+  1512→  1512→          row.getCell(7).numFmt = '$#,##0'
+  1513→  1513→          row.getCell(8).numFmt = '$#,##0'
+  1514→  1514→          row.getCell(8).font = { bold: true, color: { argb: 'FF059669' } }
+  1515→  1515→
+  1516→  1516→          // Alternate row background
+  1517→  1517→          if (mi % 2 === 0) {
+  1518→  1518→            for (let c = 1; c <= 8; c++) {
+  1519→  1519→              row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } }
+  1520→  1520→            }
+  1521→  1521→          }
+  1522→  1522→        }
+  1523→  1523→
+  1524→  1524→        // Subtotal row for task
+  1525→  1525→        const subtotalRow = wsMat.addRow(['', '', '', '', '', 'Subtotal:', '', taskTotal])
+  1526→  1526→        subtotalRow.getCell(7).font = { bold: true, size: 10, color: { argb: 'FF475569' } }
+  1527→  1527→        subtotalRow.getCell(8).font = { bold: true, size: 11, color: { argb: 'FF059669' } }
+  1528→  1528→        subtotalRow.getCell(8).numFmt = '$#,##0'
+  1529→  1529→        for (let c = 1; c <= 8; c++) {
+  1530→  1530→          subtotalRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } }
+  1531→  1531→          subtotalRow.getCell(c).border = { top: { style: 'thin', color: { argb: 'FF94A3B8' } }, bottom: { style: 'thin', color: { argb: 'FF94A3B8' } } }
+  1532→  1532→        }
+  1533→  1533→      }
+  1534→  1534→
+  1535→  1535→      // Grand total
+  1536→  1536→      wsMat.addRow([])
+  1537→  1537→      const grandTotalRow = wsMat.addRow(['', '', '', '', '', 'TOTAL GENERAL:', '', grandTotal])
+  1538→  1538→      grandTotalRow.getCell(7).font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } }
+  1539→  1539→      grandTotalRow.getCell(8).font = { bold: true, size: 14, color: { argb: 'FF22C55E' } }
+  1540→  1540→      grandTotalRow.getCell(8).numFmt = '$#,##0'
+  1541→  1541→      for (let c = 1; c <= 8; c++) {
+  1542→  1542→        grandTotalRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }
+  1543→  1543→      }
+  1544→  1544→
+  1545→  1545→      // ===== LEYENDA SHEET =====
+  1546→  1546→      const wsLegend = wb.addWorksheet('Leyenda')
+  1547→  1547→      wsLegend.getColumn(1).width = 25
+  1548→  1548→      wsLegend.getColumn(2).width = 30
+  1549→  1549→
+  1550→  1550→      const legendTitle = wsLegend.addRow(['Leyenda de Prioridades'])
+  1551→  1551→      legendTitle.getCell(1).font = { bold: true, size: 14, color: { argb: 'FF0F172A' } }
+  1552→  1552→
+  1553→  1553→      wsLegend.addRow(['Prioridad', 'Color'])
+  1554→  1554→      for (const p of priorities) {
+  1555→  1555→        const row = wsLegend.addRow([p.name, p.color])
+  1556→  1556→        row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${p.color.replace('#', '')}` } }
+  1557→  1557→        row.getCell(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
+  1558→  1558→      }
+  1559→  1559→
+  1560→  1560→      wsLegend.addRow([])
+  1561→  1561→      wsLegend.addRow(['Leyenda de Estados'])
+  1562→  1562→      const statusLegendData = [
+  1563→  1563→        ['Pendiente', 'Color de la prioridad asignada'],
+  1564→  1564→        ['En Proceso', 'Azul (#2563EB)'],
+  1565→  1565→        ['Completada', 'Verde (#16A34A)'],
+  1566→  1566→        ['Cancelada', 'Rojo (#DC2626)'],
+  1567→  1567→      ]
+  1568→  1568→      for (const [status, colorDesc] of statusLegendData) {
+  1569→  1569→        const row = wsLegend.addRow([status, colorDesc])
+  1570→  1570→        const statusFillMap: Record<string, string> = {
+  1571→  1571→          'Pendiente': 'FFF59E0B',
+  1572→  1572→          'En Proceso': 'FF2563EB',
+  1573→  1573→          'Completada': 'FF16A34A',
+  1574→  1574→          'Cancelada': 'FFDC2626',
+  1575→  1575→        }
+  1576→  1576→        if (statusFillMap[status]) {
+  1577→  1577→          row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: statusFillMap[status] } }
+  1578→  1578→          row.getCell(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
+  1579→  1579→        }
+  1580→  1580→      }
+  1581→  1581→
+  1582→  1582→      wsLegend.addRow([])
+  1583→  1583→      wsLegend.addRow(['Convenciones'])
+  1584→  1584→      wsLegend.addRow(['Columna roja', 'Día actual (hoy)'])
+  1585→  1585→      wsLegend.addRow(['Columna gris clara', 'Fin de semana'])
+  1586→  1586→      wsLegend.addRow(['Bloque colorido', 'Rango de la tarea (color por estado)'])
+  1587→  1587→
+  1588→  1588→      // Generate and download
+  1589→  1589→      const buffer = await wb.xlsx.writeBuffer()
+  1590→  1590→      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  1591→  1591→      const url = URL.createObjectURL(blob)
+  1592→  1592→      const a = document.createElement('a')
+  1593→  1593→      a.href = url
+  1594→  1594→      a.download = `gantt-planificacion-${new Date().toISOString().split('T')[0]}.xlsx`
+  1595→  1595→      a.click()
+  1596→  1596→      URL.revokeObjectURL(url)
+  1597→  1597→    } catch (err) {
+  1598→  1598→      console.error('Error downloading Gantt as Excel:', err)
+  1599→  1599→    }
+  1600→  1600→    setDownloadingGantt(false)
+  1601→  1601→  }
+  1602→  1602→
+  1603→  1603→  // Gantt download as PNG image - Captures exact on-screen format
+  1604→  1604→  const downloadGanttPNG = async () => {
+  1605→  1605→    setDownloadingGantt(true)
+  1606→  1606→    try {
+  1607→  1607→      const element = document.getElementById('gantt-chart-content')
+  1608→  1608→      if (!element) return
+  1609→  1609→
+  1610→  1610→      // Dynamic import to avoid SSR issues
+  1611→  1611→      const html2canvasModule = await import('html2canvas-pro')
+  1612→  1612→      const html2canvas = html2canvasModule.default
+  1613→  1613→
+  1614→  1614→      // Temporarily make the element fully visible for capture
+  1615→  1615→      const originalOverflow = element.style.overflow
+  1616→  1616→      const originalWidth = element.style.width
+  1617→  1617→      element.style.overflow = 'visible'
+  1618→  1618→      element.style.width = 'max-content'
+  1619→  1619→
+  1620→  1620→      const canvas = await html2canvas(element, {
+  1621→  1621→        scale: 2,
+  1622→  1622→        useCORS: true,
+  1623→  1623→        backgroundColor: '#ffffff',
+  1624→  1624→        logging: false,
+  1625→  1625→        windowWidth: element.scrollWidth,
+  1626→  1626→      })
+  1627→  1627→
+  1628→  1628→      element.style.overflow = originalOverflow
+  1629→  1629→      element.style.width = originalWidth
+  1630→  1630→
+  1631→  1631→      const link = document.createElement('a')
+  1632→  1632→      link.download = `gantt-planificacion-${new Date().toISOString().split('T')[0]}.png`
+  1633→  1633→      link.href = canvas.toDataURL('image/png')
+  1634→  1634→      link.click()
+  1635→  1635→    } catch (err) {
+  1636→  1636→      console.error('Error downloading Gantt as PNG:', err)
+  1637→  1637→    }
+  1638→  1638→    setDownloadingGantt(false)
+  1639→  1639→  }
+  1640→  1640→
+  1641→  1641→  // Helper to convert hex color to RGB
+  1642→  1642→  const hexToRgb = (hex: string) => {
+  1643→  1643→    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  1644→  1644→    return result ? {
+  1645→  1645→      r: parseInt(result[1], 16),
+  1646→  1646→      g: parseInt(result[2], 16),
+  1647→  1647→      b: parseInt(result[3], 16),
+  1648→  1648→    } : null
+  1649→  1649→  }
+  1650→  1650→
+  1651→  1651→  // Helper: fetch image as base64 data URL
+  1652→  1652→  const fetchImageAsBase64 = async (url: string): Promise<string | null> => {
+  1653→  1653→    try {
+  1654→  1654→      const res = await fetch(url)
+  1655→  1655→      if (!res.ok) return null
+  1656→  1656→      const blob = await res.blob()
+  1657→  1657→      return new Promise((resolve) => {
+  1658→  1658→        const reader = new FileReader()
+  1659→  1659→        reader.onloadend = () => resolve(reader.result as string)
+  1660→  1660→        reader.onerror = () => resolve(null)
+  1661→  1661→        reader.readAsDataURL(blob)
+  1662→  1662→      })
+  1663→  1663→    } catch {
+  1664→  1664→      return null
+  1665→  1665→    }
+  1666→  1666→  }
+  1667→  1667→
+  1668→  1668→  // Export individual task as PDF - Professional Template
+  1669→  1669→  const exportTaskPDF = async (task: Task) => {
+  1670→  1670→    const doc = new jsPDF()
+  1671→  1671→    const taskMaterials = getMaterialsForTask(task.id)
+  1672→  1672→    const materialsTotal = getMaterialsTotal(task.id)
+  1673→  1673→    const beforePhotos = JSON.parse(task.beforePhotos || '[]') as string[]
+  1674→  1674→    const afterPhotos = JSON.parse(task.afterPhotos || '[]') as string[]
+  1675→  1675→
+  1676→  1676→    const margin = 15
+  1677→  1677→    const pageWidth = doc.internal.pageSize.getWidth()
+  1678→  1678→    const pageHeight = doc.internal.pageSize.getHeight()
+  1679→  1679→    const contentWidth = pageWidth - 2 * margin
+  1680→  1680→
+  1681→  1681→    // Helper to load image
+  1682→  1682→    const loadImage = (url: string): Promise<HTMLImageElement> => {
+  1683→  1683→      return new Promise((resolve) => {
+  1684→  1684→        const img = new Image()
+  1685→  1685→        img.crossOrigin = 'anonymous'
+  1686→  1686→        img.onload = () => resolve(img)
+  1687→  1687→        img.onerror = () => resolve(img)
+  1688→  1688→        img.src = url
+  1689→  1689→      })
+  1690→  1690→    }
+  1691→  1691→
+  1692→  1692→    // Fetch logo as base64 for reliable embedding
+  1693→  1693→    const logoBase64 = await fetchImageAsBase64('/logo-laguna-norte.jpg')
+  1694→  1694→
+  1695→  1695→    // Helper to add footer to current page
+  1696→  1696→    const addFooter = () => {
+  1697→  1697→      doc.setFontSize(7)
+  1698→  1698→      doc.setTextColor(120, 120, 120)
+  1699→  1699→      doc.text('Documento generado automáticamente por Sistema de Gestión Laguna Norte', margin, pageHeight - 10)
+  1700→  1700→      doc.text('Administración - Asesorías Integrales CyJ', margin, pageHeight - 6)
+  1701→  1701→      const pageCount = doc.getNumberOfPages()
+  1702→  1702→      doc.text(`Página ${doc.getCurrentPageInfo().pageNumber} de ${pageCount}`, pageWidth - margin - 20, pageHeight - 6)
+  1703→  1703→    }
+  1704→  1704→
+  1705→  1705→    let y = 15
+  1706→  1706→
+  1707→  1707→    // ===== HEADER =====
+  1708→  1708→    // Logo
+  1709→  1709→    if (logoBase64) {
+  1710→  1710→      doc.addImage(logoBase64, 'JPEG', margin, y, 24, 24)
+  1711→  1711→    }
+  1712→  1712→
+  1713→  1713→    // Company title - centered on the page
+  1714→  1714→    const centerX = pageWidth / 2
+  1715→  1715→    doc.setFontSize(18)
+  1716→  1716→    doc.setFont('helvetica', 'bold')
+  1717→  1717→    doc.setTextColor(15, 23, 42)
+  1718→  1718→    doc.text('CONDOMINIO & PARQUE', centerX, y + 8, { align: 'center' })
+  1719→  1719→
+  1720→  1720→    doc.setFontSize(11)
+  1721→  1721→    doc.setFont('helvetica', 'bold')
+  1722→  1722→    doc.setTextColor(71, 85, 105)
+  1723→  1723→    doc.text('REPORTE DE OPERACIÓN', centerX, y + 15, { align: 'center' })
+  1724→  1724→
+  1725→  1725→    // Date on the right
+  1726→  1726→    doc.setFontSize(9)
+  1727→  1727→    doc.setFont('helvetica', 'normal')
+  1728→  1728→    doc.setTextColor(100, 116, 139)
+  1729→  1729→    const dateStr = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
+  1730→  1730→    doc.text(dateStr, pageWidth - margin, y + 8, { align: 'right' })
+  1731→  1731→    const createdStr = `Creada: ${formatDate(task.createdAt)}`
+  1732→  1732→    doc.text(createdStr, pageWidth - margin, y + 14, { align: 'right' })
+  1733→  1733→
+  1734→  1734→    y += 28
+  1735→  1735→
+  1736→  1736→    // Separator line
+  1737→  1737→    doc.setDrawColor(30, 41, 59)
+  1738→  1738→    doc.setLineWidth(0.8)
+  1739→  1739→    doc.line(margin, y, pageWidth - margin, y)
+  1740→  1740→    y += 8
+  1741→  1741→
+  1742→  1742→    // ===== INFORMACIÓN DE LA ORDEN =====
+  1743→  1743→    doc.setFontSize(11)
+  1744→  1744→    doc.setFont('helvetica', 'bold')
+  1745→  1745→    doc.setTextColor(15, 23, 42)
+  1746→  1746→    doc.text('INFORMACIÓN DE LA ORDEN', margin, y)
+  1747→  1747→    y += 7
+  1748→  1748→
+  1749→  1749→    // Activity name - FULL WIDTH on its own line
+  1750→  1750→    doc.setFillColor(241, 245, 249)
+  1751→  1751→    doc.roundedRect(margin, y - 4, contentWidth, 9, 1.5, 1.5, 'F')
+  1752→  1752→    doc.setFontSize(9)
+  1753→  1753→    doc.setFont('helvetica', 'bold')
+  1754→  1754→    doc.setTextColor(71, 85, 105)
+  1755→  1755→    doc.text('Actividad:', margin + 3, y)
+  1756→  1756→    doc.setFont('helvetica', 'bold')
+  1757→  1757→    doc.setTextColor(15, 23, 42)
+  1758→  1758→    doc.setFontSize(10)
+  1759→  1759→    const taskNumber = tasks.indexOf(task) + 1
+  1760→  1760→    const orderPrefix = `${taskNumber}. `
+  1761→  1761→    doc.text(orderPrefix + task.description, margin + 3 + doc.getTextWidth('Actividad: '), y)
+  1762→  1762→    y += 12
+  1763→  1763→
+  1764→  1764→    // Two-column layout for short fields
+  1765→  1765→    const shortFields = [
+  1766→  1766→      ['Área / Sector', task.sector, 'Tipo Reparación', task.repairType],
+  1767→  1767→      ['Prioridad', task.priority, 'Estado', task.status],
+  1768→  1768→      ['Estado Aprobación', task.approvalStatus || 'En espera de decisión', 'Responsable', task.responsible || 'Sin asignar'],
+  1769→  1769→      ['Tiempo Estimado', task.estimatedTime || '-', 'Monto', task.amount ? formatCurrency(task.amount) : '-'],
+  1770→  1770→      ['Fecha Inicio', formatDate(task.startDate), 'Fecha Término', formatDate(task.endDate)],
+  1771→  1771→    ]
+  1772→  1772→
+  1773→  1773→    const labelColW = 38
+  1774→  1774→    const halfW = contentWidth / 2
+  1775→  1775→    const rowH = 8
+  1776→  1776→
+  1777→  1777→    shortFields.forEach((row, rowIdx) => {
+  1778→  1778→      if (y > pageHeight - 25) { addFooter(); doc.addPage(); y = 20 }
+  1779→  1779→
+  1780→  1780→      // Alternating row background
+  1781→  1781→      if (rowIdx % 2 === 0) {
+  1782→  1782→        doc.setFillColor(248, 250, 252)
+  1783→  1783→        doc.rect(margin, y - 4, contentWidth, rowH, 'F')
+  1784→  1784→      }
+  1785→  1785→
+  1786→  1786→      // Left column
+  1787→  1787→      if (row[0]) {
+  1788→  1788→        doc.setFontSize(8)
+  1789→  1789→        doc.setFont('helvetica', 'bold')
+  1790→  1790→        doc.setTextColor(71, 85, 105)
+  1791→  1791→        doc.text(`${row[0]}:`, margin + 2, y)
+  1792→  1792→        doc.setFont('helvetica', 'normal')
+  1793→  1793→        doc.setTextColor(30, 41, 59)
+  1794→  1794→        doc.setFontSize(9)
+  1795→  1795→        const leftLabelW = doc.getTextWidth(`${row[0]}: `)
+  1796→  1796→        const leftMaxW = halfW - labelColW
+  1797→  1797→        const leftVal = row[1]
+  1798→  1798→        const leftLines = doc.splitTextToSize(leftVal, leftMaxW)
+  1799→  1799→        doc.text(leftLines[0], margin + 2 + leftLabelW, y)
+  1800→  1800→      }
+  1801→  1801→
+  1802→  1802→      // Right column
+  1803→  1803→      if (row[2]) {
+  1804→  1804→        doc.setFontSize(8)
+  1805→  1805→        doc.setFont('helvetica', 'bold')
+  1806→  1806→        doc.setTextColor(71, 85, 105)
+  1807→  1807→        doc.text(`${row[2]}:`, margin + halfW + 2, y)
+  1808→  1808→        doc.setFont('helvetica', 'normal')
+  1809→  1809→        doc.setTextColor(30, 41, 59)
+  1810→  1810→        doc.setFontSize(9)
+  1811→  1811→        const rightLabelW = doc.getTextWidth(`${row[2]}: `)
+  1812→  1812→        const rightMaxW = halfW - labelColW
+  1813→  1813→        const rightVal = row[3]
+  1814→  1814→        const rightLines = doc.splitTextToSize(rightVal, rightMaxW)
+  1815→  1815→        doc.text(rightLines[0], margin + halfW + 2 + rightLabelW, y)
+  1816→  1816→      }
+  1817→  1817→
+  1818→  1818→      y += rowH
+  1819→  1819→    })
+  1820→  1820→
+  1821→  1821→    y += 4
+  1822→  1822→
+  1823→  1823→    // ===== DESCRIPCIÓN DEL TRABAJO =====
+  1824→  1824→    if (y > pageHeight - 40) { addFooter(); doc.addPage(); y = 20 }
+  1825→  1825→
+  1826→  1826→    doc.setFontSize(11)
+  1827→  1827→    doc.setFont('helvetica', 'bold')
+  1828→  1828→    doc.setTextColor(15, 23, 42)
+  1829→  1829→    doc.text('DESCRIPCIÓN DEL TRABAJO', margin, y)
+  1830→  1830→    y += 5
+  1831→  1831→
+  1832→  1832→    // Description box
+  1833→  1833→    doc.setDrawColor(203, 213, 225)
+  1834→  1834→    doc.setFillColor(252, 252, 253)
+  1835→  1835→    const descLines = doc.splitTextToSize(task.comments || task.description, contentWidth - 8)
+  1836→  1836→    const descBoxH = Math.max(15, descLines.length * 5 + 6)
+  1837→  1837→    doc.roundedRect(margin, y - 2, contentWidth, descBoxH, 2, 2, 'FD')
+  1838→  1838→    doc.setFontSize(9)
+  1839→  1839→    doc.setFont('helvetica', 'normal')
+  1840→  1840→    doc.setTextColor(51, 65, 85)
+  1841→  1841→    descLines.forEach((line: string, i: number) => {
+  1842→  1842→      doc.text(line, margin + 4, y + 3 + i * 5)
+  1843→  1843→    })
+  1844→  1844→    y += descBoxH + 6
+  1845→  1845→
+  1846→  1846→    // ===== MATERIALES =====
+  1847→  1847→    if (taskMaterials.length > 0) {
+  1848→  1848→      if (y > pageHeight - 50) { addFooter(); doc.addPage(); y = 20 }
+  1849→  1849→
+  1850→  1850→      doc.setFontSize(11)
+  1851→  1851→      doc.setFont('helvetica', 'bold')
+  1852→  1852→      doc.setTextColor(15, 23, 42)
+  1853→  1853→      doc.text('MATERIALES', margin, y)
+  1854→  1854→      y += 5
+  1855→  1855→
+  1856→  1856→      // Table header
+  1857→  1857→      doc.setFontSize(8)
+  1858→  1858→      doc.setFont('helvetica', 'bold')
+  1859→  1859→      const matColWidths = [50, 25, 18, 18, 25, 25]
+  1860→  1860→      let matColX = margin
+  1861→  1861→      const matColPositions: number[] = []
+  1862→  1862→      matColWidths.forEach(w => { matColPositions.push(matColX); matColX += w })
+  1863→  1863→
+  1864→  1864→      doc.setFillColor(30, 41, 59)
+  1865→  1865→      doc.setTextColor(255, 255, 255)
+  1866→  1866→      doc.rect(margin, y - 4, contentWidth, 7, 'F')
+  1867→  1867→      doc.text('Nombre', matColPositions[0] + 2, y)
+  1868→  1868→      doc.text('Categoría', matColPositions[1] + 2, y)
+  1869→  1869→      doc.text('Cantidad', matColPositions[2] + 2, y)
+  1870→  1870→      doc.text('Unidad', matColPositions[3] + 2, y)
+  1871→  1871→      doc.text('P. Unitario', matColPositions[4] + 2, y)
+  1872→  1872→      doc.text('P. Total', matColPositions[5] + 2, y)
+  1873→  1873→      y += 7
+  1874→  1874→
+  1875→  1875→      doc.setTextColor(30, 41, 59)
+  1876→  1876→      doc.setFont('helvetica', 'normal')
+  1877→  1877→      taskMaterials.forEach((mat, idx) => {
+  1878→  1878→        if (y > pageHeight - 25) { addFooter(); doc.addPage(); y = 20 }
+  1879→  1879→        if (idx % 2 === 0) {
+  1880→  1880→          doc.setFillColor(248, 250, 252)
+  1881→  1881→          doc.rect(margin, y - 4, contentWidth, 6, 'F')
+  1882→  1882→        }
+  1883→  1883→        doc.text(mat.name.substring(0, 28), matColPositions[0] + 2, y)
+  1884→  1884→        doc.text((mat.category || '-').substring(0, 14), matColPositions[1] + 2, y)
+  1885→  1885→        doc.text(mat.quantity || '-', matColPositions[2] + 2, y)
+  1886→  1886→        doc.text(mat.unit || '-', matColPositions[3] + 2, y)
+  1887→  1887→        doc.text(mat.unitPrice ? formatCurrency(mat.unitPrice) : '-', matColPositions[4] + 2, y)
+  1888→  1888→        doc.setFont('helvetica', 'bold')
+  1889→  1889→        doc.text(mat.totalPrice ? formatCurrency(mat.totalPrice) : '-', matColPositions[5] + 2, y)
+  1890→  1890→        doc.setFont('helvetica', 'normal')
+  1891→  1891→        y += 6
+  1892→  1892→      })
+  1893→  1893→
+  1894→  1894→      // Total row
+  1895→  1895→      doc.setFillColor(226, 232, 240)
+  1896→  1896→      doc.rect(margin, y - 4, contentWidth, 7, 'F')
+  1897→  1897→      doc.setFont('helvetica', 'bold')
+  1898→  1898→      doc.setTextColor(71, 85, 105)
+  1899→  1899→      doc.text('Total Materiales:', matColPositions[4] + 2, y)
+  1900→  1900→      doc.setTextColor(5, 150, 105)
+  1901→  1901→      doc.setFontSize(10)
+  1902→  1902→      doc.text(formatCurrency(materialsTotal), matColPositions[5] + 2, y)
+  1903→  1903→      y += 12
+  1904→  1904→    }
+  1905→  1905→
+  1906→  1906→    // ===== EVIDENCIA FOTOGRÁFICA =====
+  1907→  1907→    if (beforePhotos.length > 0 || afterPhotos.length > 0) {
+  1908→  1908→      if (y > pageHeight - 60) { addFooter(); doc.addPage(); y = 20 }
+  1909→  1909→
+  1910→  1910→      doc.setFontSize(11)
+  1911→  1911→      doc.setFont('helvetica', 'bold')
+  1912→  1912→      doc.setTextColor(15, 23, 42)
+  1913→  1913→      doc.text('EVIDENCIA FOTOGRÁFICA', margin, y)
+  1914→  1914→      y += 7
+  1915→  1915→
+  1916→  1916→      const photoWidth = (contentWidth - 10) / 2
+  1917→  1917→      const photoHeight = 55
+  1918→  1918→
+  1919→  1919→      // ANTES column
+  1920→  1920→      const colStartX1 = margin
+  1921→  1921→      const colStartX2 = margin + photoWidth + 10
+  1922→  1922→
+  1923→  1923→      // Column headers
+  1924→  1924→      doc.setFontSize(9)
+  1925→  1925→      doc.setFont('helvetica', 'bold')
+  1926→  1926→      doc.setTextColor(71, 85, 105)
+  1927→  1927→      doc.text('ANTES', colStartX1, y)
+  1928→  1928→      doc.text('DESPUÉS', colStartX2, y)
+  1929→  1929→      y += 4
+  1930→  1930→
+  1931→  1931→      // Draw photos in ANTES and DESPUÉS columns
+  1932→  1932→      const maxRows = Math.max(beforePhotos.length, afterPhotos.length)
+  1933→  1933→
+  1934→  1934→      for (let row = 0; row < maxRows; row++) {
+  1935→  1935→        if (y + photoHeight > pageHeight - 20) { addFooter(); doc.addPage(); y = 20 }
+  1936→  1936→
+  1937→  1937→        // Before photo
+  1938→  1938→        if (row < beforePhotos.length) {
+  1939→  1939→          try {
+  1940→  1940→            const img = await loadImage(beforePhotos[row])
+  1941→  1941→            if (img.complete && img.naturalWidth > 0) {
+  1942→  1942→              doc.addImage(img, 'JPEG', colStartX1, y, photoWidth, photoHeight)
+  1943→  1943→            }
+  1944→  1944→          } catch {
+  1945→  1945→            doc.setDrawColor(203, 213, 225)
+  1946→  1946→            doc.setFillColor(248, 250, 252)
+  1947→  1947→            doc.rect(colStartX1, y, photoWidth, photoHeight, 'FD')
+  1948→  1948→            doc.setFontSize(8)
+  1949→  1949→            doc.setTextColor(148, 163, 184)
+  1950→  1950→            doc.text('Foto no disponible', colStartX1 + photoWidth / 2 - 20, y + photoHeight / 2)
+  1951→  1951→          }
+  1952→  1952→          doc.setDrawColor(203, 213, 225)
+  1953→  1953→          doc.rect(colStartX1, y, photoWidth, photoHeight)
+  1954→  1954→        }
+  1955→  1955→
+  1956→  1956→        // After photo
+  1957→  1957→        if (row < afterPhotos.length) {
+  1958→  1958→          try {
+  1959→  1959→            const img = await loadImage(afterPhotos[row])
+  1960→  1960→            if (img.complete && img.naturalWidth > 0) {
+  1961→  1961→              doc.addImage(img, 'JPEG', colStartX2, y, photoWidth, photoHeight)
+  1962→  1962→            }
+  1963→  1963→          } catch {
+  1964→  1964→            doc.setDrawColor(203, 213, 225)
+  1965→  1965→            doc.setFillColor(248, 250, 252)
+  1966→  1966→            doc.rect(colStartX2, y, photoWidth, photoHeight, 'FD')
+  1967→  1967→            doc.setFontSize(8)
+  1968→  1968→            doc.setTextColor(148, 163, 184)
+  1969→  1969→            doc.text('Foto no disponible', colStartX2 + photoWidth / 2 - 20, y + photoHeight / 2)
+  1970→  1970→          }
+  1971→  1971→          doc.setDrawColor(203, 213, 225)
+  1972→  1972→          doc.rect(colStartX2, y, photoWidth, photoHeight)
+  1973→  1973→        }
+  1974→  1974→
+  1975→  1975→        y += photoHeight + 5
+  1976→  1976→      }
+  1977→  1977→    }
+  1978→  1978→
+  1979→  1979→    // Add footer to all pages
+  1980→  1980→    const totalPageCount = doc.getNumberOfPages()
+  1981→  1981→    for (let i = 1; i <= totalPageCount; i++) {
+  1982→  1982→      doc.setPage(i)
+  1983→  1983→      doc.setFontSize(7)
+  1984→  1984→      doc.setTextColor(120, 120, 120)
+  1985→  1985→      doc.text('Documento generado automáticamente por Sistema de Gestión Laguna Norte', margin, pageHeight - 10)
+  1986→  1986→      doc.text('Administración - Asesorías Integrales CyJ', margin, pageHeight - 6)
+  1987→  1987→      doc.text(`Página ${i} de ${totalPageCount}`, pageWidth - margin - 20, pageHeight - 6)
+  1988→  1988→    }
+  1989→  1989→
+  1990→  1990→    const slug = task.description.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/g, '').substring(0, 30)
+  1991→  1991→    doc.save(`tarea-${slug}-${new Date().toISOString().split('T')[0]}.pdf`)
+  1992→  1992→  }
+  1993→  1993→
+  1994→  1994→  // Export individual task as Excel
+  1995→  1995→  const exportTaskExcel = async (task: Task) => {
+  1996→  1996→    const taskMaterials = getMaterialsForTask(task.id)
+  1997→  1997→    const materialsTotal = getMaterialsTotal(task.id)
+  1998→  1998→
+  1999→  1999→    const wb = new ExcelJS.Workbook()
+  2000→  2000→    const ws = wb.addWorksheet('Detalle')
+
+[showing lines 1-2000 of 2002; use offset=2001 with limit to continue reading]
