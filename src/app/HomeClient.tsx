@@ -2143,6 +2143,549 @@ export default function Home() {
 
   // Export full table as PDF with colors matching on-screen view
   const [downloadingTable, setDownloadingTable] = useState(false)
+  const [downloadingReport, setDownloadingReport] = useState(false)
+
+  // ===== INFORME PDF MASIVO - Todas las tareas con fotos =====
+  const downloadMassReportPDF = async () => {
+    setDownloadingReport(true)
+    try {
+      const doc = new jsPDF()
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const margin = 15
+      const contentWidth = pageWidth - 2 * margin
+      const logoBase64 = await fetchImageAsBase64('/logo-laguna-norte.jpg')
+
+      const loadImage = (url: string): Promise<HTMLImageElement> => {
+        return new Promise((resolve) => {
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+          img.onload = () => resolve(img)
+          img.onerror = () => resolve(img)
+          img.src = url
+        })
+      }
+
+      const addFooter = (pageNum: number, totalPages: number) => {
+        doc.setFontSize(7)
+        doc.setTextColor(120, 120, 120)
+        doc.text('Documento generado automáticamente por Sistema de Gestión Laguna Norte', margin, pageHeight - 8)
+        doc.text('Administración - Asesorías Integrales CyJ', margin, pageHeight - 4)
+        doc.text(`Página ${pageNum} de ${totalPages}`, pageWidth - margin - 20, pageHeight - 4)
+      }
+
+      let y = 15
+
+      // ===== COVER PAGE =====
+      if (logoBase64) {
+        doc.addImage(logoBase64, 'JPEG', pageWidth / 2 - 20, y, 40, 40)
+      }
+      y += 50
+      const centerX = pageWidth / 2
+      doc.setFontSize(22)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(15, 23, 42)
+      doc.text('CONDOMINIO & PARQUE', centerX, y, { align: 'center' })
+      y += 10
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(71, 85, 105)
+      doc.text('INFORME DE PLANIFICACIÓN OPERATIVA', centerX, y, { align: 'center' })
+      y += 10
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(100, 116, 139)
+      const genDate = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
+      doc.text(`Generado: ${genDate}`, centerX, y, { align: 'center' })
+      y += 8
+      doc.text(`Total de tareas: ${filteredTasks.length}`, centerX, y, { align: 'center' })
+      y += 8
+      const totalAmt = filteredTasks.reduce((s, t) => s + (t.amount || 0), 0)
+      doc.text(`Monto total: ${formatCurrency(totalAmt)}`, centerX, y, { align: 'center' })
+
+      // Stats summary
+      y += 20
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(15, 23, 42)
+      doc.text('RESUMEN ESTADÍSTICO', centerX, y, { align: 'center' })
+      y += 8
+      const stats = [
+        ['Pendientes', String(filteredTasks.filter(t => t.status === 'Pendiente').length)],
+        ['En Proceso', String(filteredTasks.filter(t => t.status === 'En Proceso').length)],
+        ['Completadas', String(filteredTasks.filter(t => t.status === 'Completada').length)],
+        ['Canceladas', String(filteredTasks.filter(t => t.status === 'Cancelada').length)],
+        ['Aprobadas', String(filteredTasks.filter(t => t.approvalStatus === 'Aprobado').length)],
+        ['No aprobadas', String(filteredTasks.filter(t => t.approvalStatus === 'No aprobado').length)],
+        ['En espera', String(filteredTasks.filter(t => t.approvalStatus === 'En espera de decisión').length)],
+      ]
+      const statColW = contentWidth / 3
+      stats.forEach((s, i) => {
+        const col = i % 3
+        const row = Math.floor(i / 3)
+        const sx = margin + col * statColW
+        const sy = y + row * 12
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(71, 85, 105)
+        doc.text(`${s[0]}:`, sx + 2, sy)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(15, 23, 42)
+        doc.text(s[1], sx + doc.getTextWidth(`${s[0]}: `) + 2, sy)
+      })
+
+      addFooter(1, 1)
+
+      // ===== INDIVIDUAL TASK PAGES =====
+      for (let taskIdx = 0; taskIdx < filteredTasks.length; taskIdx++) {
+        const task = filteredTasks[taskIdx]
+        doc.addPage()
+        y = 15
+        const taskMaterials = getMaterialsForTask(task.id)
+        const materialsTotal = getMaterialsTotal(task.id)
+        const beforePhotos = JSON.parse(task.beforePhotos || '[]') as string[]
+        const afterPhotos = JSON.parse(task.afterPhotos || '[]') as string[]
+        const docs = JSON.parse(task.documents || '[]') as Array<{url: string; name: string; type: string}>
+
+        // Header
+        if (logoBase64) {
+          doc.addImage(logoBase64, 'JPEG', margin, y, 18, 18)
+        }
+        doc.setFontSize(14)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(15, 23, 42)
+        doc.text('CONDOMINIO & PARQUE', centerX, y + 6, { align: 'center' })
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(71, 85, 105)
+        doc.text(`REPORTE DE OPERACIÓN #${taskIdx + 1}`, centerX, y + 12, { align: 'center' })
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(100, 116, 139)
+        doc.text(genDate, pageWidth - margin, y + 6, { align: 'right' })
+        y += 18
+
+        // Separator
+        doc.setDrawColor(30, 41, 59)
+        doc.setLineWidth(0.6)
+        doc.line(margin, y, pageWidth - margin, y)
+        y += 6
+
+        // Activity name
+        doc.setFillColor(241, 245, 249)
+        doc.roundedRect(margin, y - 4, contentWidth, 9, 1.5, 1.5, 'F')
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(71, 85, 105)
+        doc.text('Actividad:', margin + 3, y)
+        doc.setTextColor(15, 23, 42)
+        doc.setFontSize(10)
+        const actText = `${taskIdx + 1}. ${task.description}`
+        doc.text(actText.substring(0, 70), margin + 3 + doc.getTextWidth('Actividad: '), y)
+        y += 12
+
+        // Info fields - two column
+        const fields = [
+          ['Área / Sector', task.sector, 'Tipo Reparación', task.repairType],
+          ['Prioridad', task.priority, 'Etapa', task.etapa || '-'],
+          ['Estado', task.status, 'Aprobación', task.approvalStatus || 'En espera de decisión'],
+          ['Responsable', task.responsible || 'Sin asignar', 'Tiempo Est.', task.estimatedTime || '-'],
+          ['Monto', task.amount ? formatCurrency(task.amount) : '-', 'Comentarios', task.comments || '-'],
+          ['Fecha Inicio', formatDate(task.startDate), 'Fecha Término', formatDate(task.endDate)],
+        ]
+        const halfW = contentWidth / 2
+        const labelColW = 32
+        fields.forEach((row, rowIdx) => {
+          if (y > pageHeight - 20) { doc.addPage(); y = 15 }
+          if (rowIdx % 2 === 0) {
+            doc.setFillColor(248, 250, 252)
+            doc.rect(margin, y - 4, contentWidth, 7, 'F')
+          }
+          if (row[0]) {
+            doc.setFontSize(7.5)
+            doc.setFont('helvetica', 'bold')
+            doc.setTextColor(71, 85, 105)
+            doc.text(`${row[0]}:`, margin + 2, y)
+            doc.setFont('helvetica', 'normal')
+            doc.setTextColor(30, 41, 59)
+            doc.setFontSize(8.5)
+            doc.text(row[1].substring(0, 30), margin + 2 + labelColW, y)
+          }
+          if (row[2]) {
+            doc.setFontSize(7.5)
+            doc.setFont('helvetica', 'bold')
+            doc.setTextColor(71, 85, 105)
+            doc.text(`${row[2]}:`, margin + halfW + 2, y)
+            doc.setFont('helvetica', 'normal')
+            doc.setTextColor(30, 41, 59)
+            doc.setFontSize(8.5)
+            doc.text(row[3].substring(0, 30), margin + halfW + 2 + labelColW, y)
+          }
+          y += 7
+        })
+        y += 4
+
+        // Documents
+        if (docs.length > 0) {
+          if (y > pageHeight - 20) { doc.addPage(); y = 15 }
+          doc.setFontSize(9)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(15, 23, 42)
+          doc.text('DOCUMENTOS ADJUNTOS', margin, y)
+          y += 5
+          docs.forEach((d) => {
+            doc.setFontSize(8)
+            doc.setFont('helvetica', 'normal')
+            doc.setTextColor(59, 130, 246)
+            doc.text(`• ${d.name || 'Documento'}`, margin + 4, y)
+            y += 5
+          })
+          y += 2
+        }
+
+        // Materials
+        if (taskMaterials.length > 0) {
+          if (y > pageHeight - 40) { doc.addPage(); y = 15 }
+          doc.setFontSize(9)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(15, 23, 42)
+          doc.text('MATERIALES', margin, y)
+          y += 5
+
+          const matCols = [50, 25, 18, 18, 25, 25]
+          let mcX = margin
+          const mcPos: number[] = []
+          matCols.forEach(w => { mcPos.push(mcX); mcX += w })
+
+          doc.setFillColor(30, 41, 59)
+          doc.setTextColor(255, 255, 255)
+          doc.setFontSize(7)
+          doc.rect(margin, y - 4, contentWidth, 6, 'F')
+          doc.text('Nombre', mcPos[0] + 2, y)
+          doc.text('Categoría', mcPos[1] + 2, y)
+          doc.text('Cant.', mcPos[2] + 2, y)
+          doc.text('Unidad', mcPos[3] + 2, y)
+          doc.text('P. Unit.', mcPos[4] + 2, y)
+          doc.text('P. Total', mcPos[5] + 2, y)
+          y += 6
+
+          doc.setTextColor(30, 41, 59)
+          doc.setFont('helvetica', 'normal')
+          taskMaterials.forEach((mat, idx) => {
+            if (y > pageHeight - 20) { doc.addPage(); y = 15 }
+            if (idx % 2 === 0) {
+              doc.setFillColor(248, 250, 252)
+              doc.rect(margin, y - 4, contentWidth, 5, 'F')
+            }
+            doc.setFontSize(7)
+            doc.text(mat.name.substring(0, 28), mcPos[0] + 2, y)
+            doc.text((mat.category || '-').substring(0, 14), mcPos[1] + 2, y)
+            doc.text(mat.quantity || '-', mcPos[2] + 2, y)
+            doc.text(mat.unit || '-', mcPos[3] + 2, y)
+            doc.text(mat.unitPrice ? formatCurrency(mat.unitPrice) : '-', mcPos[4] + 2, y)
+            doc.setFont('helvetica', 'bold')
+            doc.text(mat.totalPrice ? formatCurrency(mat.totalPrice) : '-', mcPos[5] + 2, y)
+            doc.setFont('helvetica', 'normal')
+            y += 5
+          })
+          doc.setFillColor(226, 232, 240)
+          doc.rect(margin, y - 4, contentWidth, 6, 'F')
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(71, 85, 105)
+          doc.setFontSize(8)
+          doc.text('Total:', mcPos[4] + 2, y)
+          doc.setTextColor(5, 150, 105)
+          doc.text(formatCurrency(materialsTotal), mcPos[5] + 2, y)
+          y += 10
+        }
+
+        // Photos
+        if (beforePhotos.length > 0 || afterPhotos.length > 0) {
+          if (y > pageHeight - 50) { doc.addPage(); y = 15 }
+          doc.setFontSize(9)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(15, 23, 42)
+          doc.text('EVIDENCIA FOTOGRÁFICA', margin, y)
+          y += 5
+
+          const photoW = (contentWidth - 10) / 2
+          const photoH = 50
+          const colX1 = margin
+          const colX2 = margin + photoW + 10
+
+          doc.setFontSize(8)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(71, 85, 105)
+          doc.text(`ANTES (${beforePhotos.length})`, colX1, y)
+          doc.text(`DESPUÉS (${afterPhotos.length})`, colX2, y)
+          y += 3
+
+          const maxRows = Math.max(beforePhotos.length, afterPhotos.length)
+          for (let row = 0; row < maxRows; row++) {
+            if (y + photoH > pageHeight - 15) { doc.addPage(); y = 15 }
+            if (row < beforePhotos.length) {
+              try {
+                const img = await loadImage(beforePhotos[row])
+                if (img.complete && img.naturalWidth > 0) {
+                  doc.addImage(img, 'JPEG', colX1, y, photoW, photoH)
+                }
+              } catch {
+                doc.setDrawColor(203, 213, 225)
+                doc.setFillColor(248, 250, 252)
+                doc.rect(colX1, y, photoW, photoH, 'FD')
+                doc.setFontSize(7)
+                doc.setTextColor(148, 163, 184)
+                doc.text('Foto no disponible', colX1 + photoW / 2 - 15, y + photoH / 2)
+              }
+              doc.setDrawColor(203, 213, 225)
+              doc.rect(colX1, y, photoW, photoH)
+            }
+            if (row < afterPhotos.length) {
+              try {
+                const img = await loadImage(afterPhotos[row])
+                if (img.complete && img.naturalWidth > 0) {
+                  doc.addImage(img, 'JPEG', colX2, y, photoW, photoH)
+                }
+              } catch {
+                doc.setDrawColor(203, 213, 225)
+                doc.setFillColor(248, 250, 252)
+                doc.rect(colX2, y, photoW, photoH, 'FD')
+                doc.setFontSize(7)
+                doc.setTextColor(148, 163, 184)
+                doc.text('Foto no disponible', colX2 + photoW / 2 - 15, y + photoH / 2)
+              }
+              doc.setDrawColor(203, 213, 225)
+              doc.rect(colX2, y, photoW, photoH)
+            }
+            y += photoH + 4
+          }
+        }
+      }
+
+      // Add footers to all pages
+      const totalPages = doc.getNumberOfPages()
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i)
+        addFooter(i, totalPages)
+      }
+
+      doc.save(`informe-operativo-${new Date().toISOString().split('T')[0]}.pdf`)
+    } catch (err) {
+      console.error('Error generating mass report:', err)
+    }
+    setDownloadingReport(false)
+  }
+
+  // ===== INFORME EXCEL MASIVO - Todas las tareas con datos =====
+  const downloadMassReportExcel = async () => {
+    setDownloadingReport(true)
+    try {
+      const wb = new ExcelJS.Workbook()
+
+      // ===== HOJA RESUMEN =====
+      const wsRes = wb.addWorksheet('Resumen')
+      wsRes.getColumn(1).width = 25
+      wsRes.getColumn(2).width = 50
+
+      const titleRow = wsRes.addRow(['CONDOMINIO & PARQUE - Informe Operativo'])
+      titleRow.getCell(1).font = { bold: true, size: 16, color: { argb: 'FF0F172A' } }
+      wsRes.mergeCells(1, 1, 1, 2)
+      titleRow.height = 30
+
+      const subRow = wsRes.addRow(['Resumen General'])
+      subRow.getCell(1).font = { bold: true, size: 12, color: { argb: 'FF475569' } }
+      wsRes.mergeCells(2, 1, 2, 2)
+      subRow.height = 22
+
+      const dateRow = wsRes.addRow(['Generado:', new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })])
+      dateRow.getCell(2).font = { size: 10, color: { argb: 'FF64748B' } }
+      wsRes.addRow([])
+
+      const addStat = (label: string, value: string) => {
+        const r = wsRes.addRow([label, value])
+        r.getCell(1).font = { bold: true, size: 10, color: { argb: 'FF475569' } }
+        r.getCell(2).font = { size: 10, color: { argb: 'FF1E293B' } }
+      }
+      addStat('Total Tareas', String(filteredTasks.length))
+      addStat('Monto Total', formatCurrency(filteredTasks.reduce((s, t) => s + (t.amount || 0), 0)))
+      addStat('Pendientes', String(filteredTasks.filter(t => t.status === 'Pendiente').length))
+      addStat('En Proceso', String(filteredTasks.filter(t => t.status === 'En Proceso').length))
+      addStat('Completadas', String(filteredTasks.filter(t => t.status === 'Completada').length))
+      addStat('Canceladas', String(filteredTasks.filter(t => t.status === 'Cancelada').length))
+      addStat('Aprobadas', String(filteredTasks.filter(t => t.approvalStatus === 'Aprobado').length))
+      addStat('No aprobadas', String(filteredTasks.filter(t => t.approvalStatus === 'No aprobado').length))
+
+      // ===== HOJA TODAS LAS TAREAS =====
+      const wsTasks = wb.addWorksheet('Tareas')
+      const taskHeaders = ['#', 'Descripción', 'Sector', 'Tipo', 'Prioridad', 'Etapa', 'Estado', 'Aprobación', 'Responsable', 'T.E.', 'Monto', 'Inicio', 'Término', 'Comentarios', 'Fotos Antes', 'Fotos Después', 'Documentos']
+      taskHeaders.forEach((_, i) => { wsTasks.getColumn(i + 1).width = i === 1 ? 40 : 16 })
+
+      const hRow = wsTasks.addRow(taskHeaders)
+      hRow.height = 22
+      for (let c = 1; c <= taskHeaders.length; c++) {
+        const cell = hRow.getCell(c)
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }
+        cell.alignment = { horizontal: 'center', vertical: 'middle' }
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF334155' } },
+          bottom: { style: 'thin', color: { argb: 'FF334155' } },
+          left: { style: 'thin', color: { argb: 'FF334155' } },
+          right: { style: 'thin', color: { argb: 'FF334155' } },
+        }
+      }
+
+      filteredTasks.forEach((task, idx) => {
+        const beforePhotos = JSON.parse(task.beforePhotos || '[]') as string[]
+        const afterPhotos = JSON.parse(task.afterPhotos || '[]') as string[]
+        const docs = JSON.parse(task.documents || '[]') as Array<{url: string; name: string; type: string}>
+        const row = wsTasks.addRow([
+          idx + 1,
+          task.description,
+          task.sector,
+          task.repairType,
+          task.priority,
+          task.etapa || '-',
+          task.status,
+          task.approvalStatus || 'En espera de decisión',
+          task.responsible || '-',
+          task.estimatedTime || '-',
+          task.amount || 0,
+          formatDate(task.startDate),
+          formatDate(task.endDate),
+          task.comments || '-',
+          beforePhotos.length > 0 ? `${beforePhotos.length} foto(s)` : '-',
+          afterPhotos.length > 0 ? `${afterPhotos.length} foto(s)` : '-',
+          docs.length > 0 ? docs.map(d => d.name).join(', ') : '-',
+        ])
+        row.getCell(11).numFmt = '$#,##0'
+        if (idx % 2 === 0) {
+          for (let c = 1; c <= taskHeaders.length; c++) {
+            row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } }
+          }
+        }
+        for (let c = 1; c <= taskHeaders.length; c++) {
+          row.getCell(c).border = {
+            top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          }
+        }
+      })
+
+      // ===== HOJA DETALLE POR TAREA =====
+      filteredTasks.forEach((task, idx) => {
+        const taskMaterials = getMaterialsForTask(task.id)
+        const slug = task.description.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/g, '').substring(0, 25)
+        const wsName = `${idx + 1}-${slug}`.substring(0, 31)
+        const ws = wb.addWorksheet(wsName)
+        ws.getColumn(1).width = 22
+        ws.getColumn(2).width = 45
+
+        const tRow = ws.addRow([`Tarea #${idx + 1}`])
+        tRow.getCell(1).font = { bold: true, size: 14, color: { argb: 'FF0F172A' } }
+        ws.mergeCells(1, 1, 1, 2)
+        tRow.height = 25
+        ws.addRow([])
+
+        const addInfo = (label: string, value: string) => {
+          const r = ws.addRow([label, value])
+          r.getCell(1).font = { bold: true, size: 10, color: { argb: 'FF475569' } }
+          r.getCell(2).font = { size: 10, color: { argb: 'FF1E293B' } }
+          r.getCell(2).alignment = { wrapText: true }
+        }
+        addInfo('Descripción', task.description)
+        addInfo('Sector', task.sector)
+        addInfo('Tipo', task.repairType)
+        addInfo('Prioridad', task.priority)
+        addInfo('Etapa', task.etapa || '-')
+        addInfo('Estado', task.status)
+        addInfo('Aprobación', task.approvalStatus || 'En espera de decisión')
+        addInfo('Responsable', task.responsible || '-')
+        addInfo('T. Estimado', task.estimatedTime || '-')
+        addInfo('Monto', task.amount ? formatCurrency(task.amount) : '-')
+        addInfo('Inicio', formatDate(task.startDate))
+        addInfo('Término', formatDate(task.endDate))
+        addInfo('Comentarios', task.comments || '-')
+
+        const beforePhotos = JSON.parse(task.beforePhotos || '[]') as string[]
+        const afterPhotos = JSON.parse(task.afterPhotos || '[]') as string[]
+        addInfo('Fotos Antes', beforePhotos.length > 0 ? `${beforePhotos.length} foto(s)` : 'Sin fotos')
+        addInfo('Fotos Después', afterPhotos.length > 0 ? `${afterPhotos.length} foto(s)` : 'Sin fotos')
+
+        const docs = JSON.parse(task.documents || '[]') as Array<{url: string; name: string; type: string}>
+        addInfo('Documentos', docs.length > 0 ? docs.map(d => d.name).join(', ') : 'Sin documentos')
+
+        // Materials table
+        if (taskMaterials.length > 0) {
+          ws.addRow([])
+          const mTitle = ws.addRow(['Materiales'])
+          mTitle.getCell(1).font = { bold: true, size: 12, color: { argb: 'FF0F172A' } }
+          ws.mergeCells(mTitle.number, 1, mTitle.number, 6)
+          ws.addRow([])
+
+          ws.getColumn(1).width = 30
+          ws.getColumn(2).width = 15
+          ws.getColumn(3).width = 12
+          ws.getColumn(4).width = 10
+          ws.getColumn(5).width = 14
+          ws.getColumn(6).width = 14
+
+          const mhRow = ws.addRow(['Nombre', 'Categoría', 'Cantidad', 'Unidad', 'P. Unitario', 'P. Total'])
+          mhRow.height = 22
+          for (let c = 1; c <= 6; c++) {
+            const cell = mhRow.getCell(c)
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 }
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }
+            cell.alignment = { horizontal: 'center', vertical: 'middle' }
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'FF334155' } },
+              bottom: { style: 'thin', color: { argb: 'FF334155' } },
+              left: { style: 'thin', color: { argb: 'FF334155' } },
+              right: { style: 'thin', color: { argb: 'FF334155' } },
+            }
+          }
+          taskMaterials.forEach((mat, mi) => {
+            const r = ws.addRow([mat.name, mat.category || '', mat.quantity || '', mat.unit || '', mat.unitPrice || 0, mat.totalPrice || 0])
+            r.getCell(5).numFmt = '$#,##0'
+            r.getCell(6).numFmt = '$#,##0'
+            r.getCell(6).font = { bold: true, color: { argb: 'FF059669' } }
+            if (mi % 2 === 0) {
+              for (let c = 1; c <= 6; c++) { r.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } } }
+            }
+            for (let c = 1; c <= 6; c++) {
+              r.getCell(c).border = {
+                top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+              }
+            }
+          })
+          const totalR = ws.addRow(['', '', '', '', 'Total:', getMaterialsTotal(task.id)])
+          totalR.getCell(5).font = { bold: true, size: 11, color: { argb: 'FF475569' } }
+          totalR.getCell(6).font = { bold: true, size: 12, color: { argb: 'FF059669' } }
+          totalR.getCell(6).numFmt = '$#,##0'
+          for (let c = 1; c <= 6; c++) {
+            totalR.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } }
+          }
+        }
+      })
+
+      const buffer = await wb.xlsx.writeBuffer()
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `informe-operativo-${new Date().toISOString().split('T')[0]}.xlsx`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Error generating mass Excel report:', err)
+    }
+    setDownloadingReport(false)
+  }
 
   const downloadTablePDF = async () => {
     setDownloadingTable(true)
@@ -2550,6 +3093,28 @@ export default function Home() {
             </div>
             {/* Desktop buttons */}
             <div className="hidden lg:flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1" disabled={downloadingReport}>
+                    <FileText className="h-4 w-4" />
+                    {downloadingReport ? 'Generando...' : 'Informe'}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={downloadMassReportPDF}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Informe PDF (completo con fotos)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={downloadMassReportExcel}>
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Informe Excel (completo)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={downloadTablePDF} disabled={downloadingTable}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Tabla PDF (resumen)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button onClick={openCreateTask} size="sm" className="gap-1">
                 <Plus className="h-4 w-4" /> Nueva Tarea
               </Button>
@@ -2572,6 +3137,12 @@ export default function Home() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={downloadMassReportPDF} disabled={downloadingReport}>
+                    <FileText className="h-4 w-4 mr-2" /> Informe PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={downloadMassReportExcel} disabled={downloadingReport}>
+                    <FileSpreadsheet className="h-4 w-4 mr-2" /> Informe Excel
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setConfigDialogOpen(true)}>
                     <Settings className="h-4 w-4 mr-2" /> Configurar
                   </DropdownMenuItem>
