@@ -50,6 +50,12 @@ import {
   Clock,
   Download,
   Upload,
+  Bell,
+  BellRing,
+  Settings,
+  AlertTriangle,
+  Users,
+  Save,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -80,6 +86,21 @@ interface Anticipo {
   createdAt: string
   updatedAt: string
   periodo?: AnticipoPeriod
+}
+
+interface Worker {
+  id: string
+  nombre: string
+  rut: string
+  cuentaBancaria: string
+  active: boolean
+}
+
+interface AlertConfig {
+  id: string
+  dayOfMonth: number
+  active: boolean
+  message: string
 }
 
 // ============================================================
@@ -136,6 +157,20 @@ export default function AnticiposPanel({ userRole = 'USER', initialStatusFilter,
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [importing, setImporting] = useState(false)
 
+  // --- Workers ---
+  const [workers, setWorkers] = useState<Worker[]>([])
+
+  // --- Alert config ---
+  const [alertConfig, setAlertConfig] = useState<AlertConfig | null>(null)
+  const [alertConfigOpen, setAlertConfigOpen] = useState(false)
+  const [alertForm, setAlertForm] = useState({ dayOfMonth: 13, active: true, message: '' })
+
+  // --- Worker management dialog ---
+  const [workerDialogOpen, setWorkerDialogOpen] = useState(false)
+  const [workerForm, setWorkerForm] = useState({ nombre: '', rut: '', cuentaBancaria: '' })
+  const [editingWorker, setEditingWorker] = useState<Worker | null>(null)
+  const [allWorkers, setAllWorkers] = useState<Worker[]>([])
+
   // ============================================================
   // React to initialStatusFilter from parent (dashboard click)
   // ============================================================
@@ -183,6 +218,8 @@ export default function AnticiposPanel({ userRole = 'USER', initialStatusFilter,
 
   useEffect(() => {
     fetchPeriods()
+    fetchWorkers()
+    fetchAlertConfig()
   }, [])
 
   // ============================================================
@@ -467,6 +504,121 @@ export default function AnticiposPanel({ userRole = 'USER', initialStatusFilter,
   }
 
   // ============================================================
+  // Workers
+  // ============================================================
+  const fetchWorkers = async () => {
+    try {
+      const res = await fetch('/api/workers')
+      if (res.ok) {
+        const data = await res.json()
+        setWorkers(data)
+      }
+    } catch (err) {
+      console.error('Error fetching workers:', err)
+    }
+  }
+
+  const fetchAllWorkers = async () => {
+    try {
+      const res = await fetch('/api/workers')
+      if (res.ok) {
+        const data = await res.json()
+        setAllWorkers(data)
+      }
+    } catch (err) {
+      console.error('Error fetching all workers:', err)
+    }
+  }
+
+  const handleCreateWorker = async () => {
+    if (!workerForm.nombre || !workerForm.rut) {
+      toast({ title: 'Campos requeridos', description: 'Nombre y RUT son obligatorios', variant: 'destructive' })
+      return
+    }
+    try {
+      const res = await fetch('/api/workers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(workerForm),
+      })
+      if (res.ok) {
+        toast({ title: 'Trabajador agregado', description: 'El trabajador fue agregado exitosamente' })
+        setWorkerForm({ nombre: '', rut: '', cuentaBancaria: '' })
+        fetchWorkers()
+        fetchAllWorkers()
+      } else {
+        const err = await res.json()
+        toast({ title: 'Error', description: err.error || 'No se pudo agregar', variant: 'destructive' })
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+    }
+  }
+
+  const handleDeleteWorker = async (id: string) => {
+    try {
+      await fetch(`/api/workers/${id}`, { method: 'DELETE' })
+      toast({ title: 'Eliminado', description: 'Trabajador eliminado' })
+      fetchWorkers()
+      fetchAllWorkers()
+    } catch {
+      toast({ title: 'Error', description: 'No se pudo eliminar', variant: 'destructive' })
+    }
+  }
+
+  // ============================================================
+  // Alert Config
+  // ============================================================
+  const fetchAlertConfig = async () => {
+    try {
+      const res = await fetch('/api/anticipo-alert')
+      if (res.ok) {
+        const data = await res.json()
+        setAlertConfig(data)
+        setAlertForm({ dayOfMonth: data.dayOfMonth, active: data.active, message: data.message })
+      }
+    } catch (err) {
+      console.error('Error fetching alert config:', err)
+    }
+  }
+
+  const handleSaveAlertConfig = async () => {
+    try {
+      const res = await fetch('/api/anticipo-alert', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(alertForm),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setAlertConfig(data)
+        setAlertConfigOpen(false)
+        toast({ title: 'Configuración guardada', description: `Alerta configurada para el día ${data.dayOfMonth} de cada mes` })
+      }
+    } catch {
+      toast({ title: 'Error', description: 'No se pudo guardar la configuración', variant: 'destructive' })
+    }
+  }
+
+  // Check if alert should show
+  const shouldShowAlert = () => {
+    if (!alertConfig || !alertConfig.active) return false
+    const today = new Date()
+    const currentDay = today.getDate()
+    return currentDay >= alertConfig.dayOfMonth
+  }
+
+  const getAlertSeverity = () => {
+    if (!alertConfig) return 'warning'
+    const today = new Date()
+    const currentDay = today.getDate()
+    const daysPast = currentDay - alertConfig.dayOfMonth
+    if (daysPast >= 5) return 'critical'
+    if (daysPast >= 1) return 'urgent'
+    return 'warning'
+  }
+
+  // ============================================================
   // Format helpers
   // ============================================================
   const formatCurrency = (amount: number) => {
@@ -497,6 +649,61 @@ export default function AnticiposPanel({ userRole = 'USER', initialStatusFilter,
   // ============================================================
   return (
     <div className="space-y-4">
+      {/* Alert banner — shows when day >= configured day */}
+      {shouldShowAlert() && (
+        <div className={`rounded-xl border-2 p-4 flex items-center gap-4 ${
+          getAlertSeverity() === 'critical'
+            ? 'bg-red-50 border-red-300'
+            : getAlertSeverity() === 'urgent'
+            ? 'bg-orange-50 border-orange-300'
+            : 'bg-amber-50 border-amber-300'
+        }`}>
+          <div className={`shrink-0 p-2 rounded-full ${
+            getAlertSeverity() === 'critical'
+              ? 'bg-red-100'
+              : getAlertSeverity() === 'urgent'
+              ? 'bg-orange-100'
+              : 'bg-amber-100'
+          }`}>
+            {getAlertSeverity() === 'critical'
+              ? <AlertTriangle className="h-6 w-6 text-red-600" />
+              : getAlertSeverity() === 'urgent'
+              ? <BellRing className="h-6 w-6 text-orange-600" />
+              : <Bell className="h-6 w-6 text-amber-600" />
+            }
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className={`font-bold text-sm ${
+              getAlertSeverity() === 'critical' ? 'text-red-800' : getAlertSeverity() === 'urgent' ? 'text-orange-800' : 'text-amber-800'
+            }`}>
+              {getAlertSeverity() === 'critical'
+                ? 'ALERTA CRÍTICA'
+                : getAlertSeverity() === 'urgent'
+                ? 'ALERTA URGENTE'
+                : 'RECORDATORIO'
+              }
+            </h3>
+            <p className={`text-sm ${
+              getAlertSeverity() === 'critical' ? 'text-red-700' : getAlertSeverity() === 'urgent' ? 'text-orange-700' : 'text-amber-700'
+            }`}>
+              {alertConfig?.message || 'Plazo vencido: Anticipos pendientes deben ser pagados'}
+            </p>
+            <p className="text-xs mt-1 text-slate-500">
+              Vencimiento: día {alertConfig?.dayOfMonth} de cada mes
+            </p>
+          </div>
+          {canEdit && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 gap-1"
+              onClick={() => setAlertConfigOpen(true)}
+            >
+              <Settings className="h-3.5 w-3.5" /> Configurar
+            </Button>
+          )}
+        </div>
+      )}
       {/* ============================================================ */}
       {/* PERIODS LIST VIEW                                            */}
       {/* ============================================================ */}
@@ -510,11 +717,21 @@ export default function AnticiposPanel({ userRole = 'USER', initialStatusFilter,
               </h2>
               <p className="text-sm text-slate-500 mt-1">Gestión de anticipos por periodo</p>
             </div>
-            {canEdit && (
-              <Button className="gap-1.5 bg-orange-600 hover:bg-orange-700 text-white" onClick={() => setPeriodFormOpen(true)}>
-                <Plus className="h-4 w-4" /> Nuevo Periodo
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {canEdit && (
+                <>
+                  <Button variant="outline" size="sm" className="gap-1" onClick={() => { fetchAllWorkers(); setWorkerDialogOpen(true) }}>
+                    <Users className="h-4 w-4" /> Trabajadores
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-1" onClick={() => setAlertConfigOpen(true)}>
+                    <Bell className="h-4 w-4" /> Alerta
+                  </Button>
+                  <Button className="gap-1.5 bg-orange-600 hover:bg-orange-700 text-white" onClick={() => setPeriodFormOpen(true)}>
+                    <Plus className="h-4 w-4" /> Nuevo Periodo
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Filter */}
@@ -865,45 +1082,117 @@ export default function AnticiposPanel({ userRole = 'USER', initialStatusFilter,
           <DialogHeader>
             <DialogTitle>{editingAnticipo ? 'Editar Anticipo' : 'Agregar Anticipo'}</DialogTitle>
             <DialogDescription>
-              {editingAnticipo ? 'Modifica los datos del anticipo' : 'Ingresa los datos del nuevo anticipo'}
+              {editingAnticipo ? 'Modifica los datos del anticipo' : 'Selecciona un trabajador y el monto del anticipo'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>Nombre Completo *</Label>
-              <Input
-                placeholder="Ej: Cesar Edmundo Adasme Aravena"
-                value={anticipoForm.nombre}
-                onChange={(e) => setAnticipoForm({ ...anticipoForm, nombre: e.target.value })}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>RUT *</Label>
-                <Input
-                  placeholder="Ej: 7151017-4"
-                  value={anticipoForm.rut}
-                  onChange={(e) => setAnticipoForm({ ...anticipoForm, rut: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Monto Anticipo *</Label>
-                <Input
-                  type="number"
-                  placeholder="Ej: 100000"
-                  value={anticipoForm.monto}
-                  onChange={(e) => setAnticipoForm({ ...anticipoForm, monto: e.target.value })}
-                />
-              </div>
-            </div>
-            <div>
-              <Label>Cuenta Bancaria</Label>
-              <Input
-                placeholder="Ej: BCO ESTADO CUENTA RUT"
-                value={anticipoForm.cuentaBancaria}
-                onChange={(e) => setAnticipoForm({ ...anticipoForm, cuentaBancaria: e.target.value })}
-              />
-            </div>
+            {editingAnticipo ? (
+              // Edit mode: plain inputs
+              <>
+                <div>
+                  <Label>Nombre Completo *</Label>
+                  <Input
+                    placeholder="Ej: Cesar Edmundo Adasme Aravena"
+                    value={anticipoForm.nombre}
+                    onChange={(e) => setAnticipoForm({ ...anticipoForm, nombre: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>RUT *</Label>
+                    <Input
+                      placeholder="Ej: 7151017-4"
+                      value={anticipoForm.rut}
+                      onChange={(e) => setAnticipoForm({ ...anticipoForm, rut: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label>Monto Anticipo *</Label>
+                    <Input
+                      type="number"
+                      placeholder="Ej: 100000"
+                      value={anticipoForm.monto}
+                      onChange={(e) => setAnticipoForm({ ...anticipoForm, monto: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>Cuenta Bancaria</Label>
+                  <Input
+                    placeholder="Ej: BCO ESTADO CUENTA RUT"
+                    value={anticipoForm.cuentaBancaria}
+                    onChange={(e) => setAnticipoForm({ ...anticipoForm, cuentaBancaria: e.target.value })}
+                  />
+                </div>
+              </>
+            ) : (
+              // Create mode: dropdown with auto-fill
+              <>
+                <div>
+                  <Label>Seleccionar Trabajador *</Label>
+                  <Select
+                    value={anticipoForm.nombre}
+                    onValueChange={(val) => {
+                      const worker = workers.find(w => w.nombre === val)
+                      if (worker) {
+                        setAnticipoForm({
+                          ...anticipoForm,
+                          nombre: worker.nombre,
+                          rut: worker.rut,
+                          cuentaBancaria: worker.cuentaBancaria,
+                        })
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Buscar y seleccionar trabajador..." />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[250px]">
+                      {workers.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-slate-500">No hay trabajadores registrados</div>
+                      ) : (
+                        workers.map(w => (
+                          <SelectItem key={w.id} value={w.nombre}>
+                            {w.nombre} — {w.rut}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* Auto-filled fields (read-only) */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>RUT</Label>
+                    <Input
+                      value={anticipoForm.rut}
+                      readOnly
+                      className="bg-slate-50 text-slate-600"
+                      placeholder="Se llena automáticamente"
+                    />
+                  </div>
+                  <div>
+                    <Label>Cuenta Bancaria</Label>
+                    <Input
+                      value={anticipoForm.cuentaBancaria}
+                      readOnly
+                      className="bg-slate-50 text-slate-600"
+                      placeholder="Se llena automáticamente"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>Monto Anticipo *</Label>
+                  <Input
+                    type="number"
+                    placeholder="Ej: 100000"
+                    value={anticipoForm.monto}
+                    onChange={(e) => setAnticipoForm({ ...anticipoForm, monto: e.target.value })}
+                    className="text-lg font-bold"
+                  />
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setAnticipoFormOpen(false); setEditingAnticipo(null) }}>Cancelar</Button>
@@ -968,6 +1257,146 @@ export default function AnticiposPanel({ userRole = 'USER', initialStatusFilter,
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Alert Configuration Dialog */}
+      <Dialog open={alertConfigOpen} onOpenChange={setAlertConfigOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BellRing className="h-5 w-5 text-orange-600" />
+              Configuración de Alerta de Vencimiento
+            </DialogTitle>
+            <DialogDescription>
+              Configura el día del mes en que se activa la alerta de vencimiento para anticipos pendientes
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border">
+              <div>
+                <Label className="text-sm font-semibold">Alerta Activa</Label>
+                <p className="text-xs text-slate-500">Activar o desactivar la alerta de vencimiento</p>
+              </div>
+              <Button
+                variant={alertForm.active ? 'default' : 'outline'}
+                size="sm"
+                className={alertForm.active ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''}
+                onClick={() => setAlertForm({ ...alertForm, active: !alertForm.active })}
+              >
+                {alertForm.active ? 'Activada' : 'Desactivada'}
+              </Button>
+            </div>
+            <div>
+              <Label>Día del Mes para Vencimiento</Label>
+              <div className="flex items-center gap-3 mt-1">
+                <Input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={alertForm.dayOfMonth}
+                  onChange={(e) => setAlertForm({ ...alertForm, dayOfMonth: Number(e.target.value) || 1 })}
+                  className="w-20 text-center text-lg font-bold"
+                />
+                <span className="text-sm text-slate-500">de cada mes</span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">La alerta se mostrará desde este día en adelante cada mes</p>
+            </div>
+            <div>
+              <Label>Mensaje de la Alerta</Label>
+              <Textarea
+                value={alertForm.message}
+                onChange={(e) => setAlertForm({ ...alertForm, message: e.target.value })}
+                placeholder="Mensaje que se mostrará en la alerta..."
+                rows={2}
+              />
+            </div>
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-xs text-amber-700">
+                <b>Severidad automática:</b> El día {alertForm.dayOfMonth} se muestra como RECORDATORIO (amarillo), 
+                al día siguiente como URGENTE (naranja), y después de 5 días como CRÍTICA (rojo).
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAlertConfigOpen(false)}>Cancelar</Button>
+            <Button className="bg-orange-600 hover:bg-orange-700 text-white gap-1" onClick={handleSaveAlertConfig}>
+              <Save className="h-4 w-4" /> Guardar Configuración
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Worker Management Dialog */}
+      <Dialog open={workerDialogOpen} onOpenChange={setWorkerDialogOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-orange-600" />
+              Listado de Trabajadores
+            </DialogTitle>
+            <DialogDescription>
+              Gestiona el listado de trabajadores disponibles para anticipos. Al seleccionar un trabajador en el formulario, sus datos se llenan automáticamente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 flex-1 overflow-y-auto">
+            {/* Add worker form */}
+            <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+              <p className="text-xs font-semibold text-orange-700 mb-2">Agregar nuevo trabajador</p>
+              <div className="grid grid-cols-3 gap-2">
+                <Input
+                  placeholder="Nombre completo"
+                  value={workerForm.nombre}
+                  onChange={(e) => setWorkerForm({ ...workerForm, nombre: e.target.value })}
+                  className="h-8 text-xs"
+                />
+                <Input
+                  placeholder="RUT"
+                  value={workerForm.rut}
+                  onChange={(e) => setWorkerForm({ ...workerForm, rut: e.target.value })}
+                  className="h-8 text-xs"
+                />
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Cuenta Bancaria"
+                    value={workerForm.cuentaBancaria}
+                    onChange={(e) => setWorkerForm({ ...workerForm, cuentaBancaria: e.target.value })}
+                    className="h-8 text-xs"
+                  />
+                  <Button size="sm" className="h-8 bg-orange-600 hover:bg-orange-700 text-white shrink-0" onClick={handleCreateWorker}>
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+            {/* Workers list */}
+            <div className="space-y-1">
+              {allWorkers.length === 0 ? (
+                <p className="text-center py-4 text-sm text-slate-400">No hay trabajadores registrados</p>
+              ) : (
+                allWorkers.map(w => (
+                  <div key={w.id} className="flex items-center gap-3 p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">{w.nombre}</p>
+                      <p className="text-xs text-slate-500">{w.rut} · {w.cuentaBancaria || 'Sin cuenta'}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0 text-red-500 hover:text-red-700 shrink-0"
+                      onClick={() => handleDeleteWorker(w.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          <DialogFooter className="mt-2">
+            <p className="text-xs text-slate-400 mr-auto">{allWorkers.length} trabajadores registrados</p>
+            <Button variant="outline" onClick={() => setWorkerDialogOpen(false)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
