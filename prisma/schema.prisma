@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider     = "postgresql"
-  url          = env("DATABASE_URL")
-  relationMode = "prisma"
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model Task {
@@ -57,24 +56,24 @@ model Priority {
 model TaskHistory {
   id        String   @id @default(cuid())
   taskId    String
-  action    String   // "creada", "actualizada", "eliminada", "cambio_estado"
-  field     String?  // which field changed
-  oldValue  String?  // previous value
-  newValue  String?  // new value
-  changedBy String?  // who made the change
+  action    String
+  field     String?
+  oldValue  String?
+  newValue  String?
+  changedBy String?
   createdAt DateTime @default(now())
 }
 
 model Material {
   id          String   @id @default(cuid())
   taskId      String
-  name        String   // nombre del material
-  quantity    String?  // cantidad
-  unit        String?  // unidad (unidades, kg, m2, m, lt, etc.)
-  unitPrice   Float?   // precio unitario
-  totalPrice  Float?   // precio total
-  category    String?  // categoría (herrajes, eléctrico, plomería, etc.)
-  notes       String?  // notas/observaciones
+  name        String
+  quantity    String?
+  unit        String?
+  unitPrice   Float?
+  totalPrice  Float?
+  category    String?
+  notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -104,23 +103,97 @@ model Etapa {
   updatedAt DateTime @updatedAt
 }
 
+// ============================================================
+// RENDICIÓN DE GASTOS
+// ============================================================
+
 model ExpenseReport {
-  id              String   @id @default(cuid())
-  numero          Int      @default(0)           // número correlativo de rendición
-  taskId          String?                        // vinculado a una tarea (opcional)
-  description     String                         // descripción del gasto
-  category        String                         // categoría (materiales, mano de obra, transporte, servicios, otros)
-  amount          Float                          // monto del gasto
-  date            DateTime                       // fecha del gasto
-  responsible     String?                        // responsable del gasto
-  supplier        String?                        // proveedor
-  receiptNumber   String?                        // número de boleta/factura
-  receiptType     String?                        // tipo de documento (boleta, factura, recibo, otro)
-  receiptPhoto    String   @default("[]")        // fotos del comprobante (JSON array de URLs)
-  notes           String?                        // observaciones
-  approvalStatus  String   @default("En espera de decisión")  // Aprobado / No aprobado / En espera
-  approvedBy      String?                        // quien aprobó
-  approvedAt      DateTime?                      // fecha de aprobación
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                String        @id @default(cuid())
+  correlativeNumber Int           @unique
+  title             String
+  description       String?
+  status            String        @default("BORRADOR")
+  totalAmount       Float         @default(0)
+  responsible       String?
+  reviewNote        String?
+  reviewedBy        String?
+  reviewedAt        DateTime?
+  submittedAt       DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  items             ExpenseItem[]
+
+  @@map("expense_reports")
+}
+
+model ExpenseItem {
+  id             String        @id @default(cuid())
+  description    String
+  numeroBoleta   String
+  montoRendir    Float
+  category       String
+  expenseDate    DateTime
+  imageBoletaUrl String        @default("")
+  imageCompraUrl String        @default("")
+  reportId       String
+  report         ExpenseReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@map("expense_items")
+}
+
+model ExpenseCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  icon      String   @default("📦")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("expense_categories")
+}
+
+// ============================================================
+// SOLICITUDES DE COMPRA
+// ============================================================
+
+model PurchaseRequest {
+  id                 String            @id @default(cuid())
+  correlativeNumber  Int               @unique
+  productDescription String
+  brand              String?
+  quantity           Int               @default(1)
+  priority           String            @default("MEDIA")
+  productLink        String?
+  referencePhotoUrl  String?
+  directProvider     String?
+  notes              String?
+  status             String            @default("PENDIENTE")
+  responsible        String?
+  reviewedBy         String?
+  reviewedAt         DateTime?
+  reviewNote         String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  quotes             PurchaseQuote[]
+
+  @@map("purchase_requests")
+}
+
+model PurchaseQuote {
+  id                String           @id @default(cuid())
+  purchaseRequestId String
+  purchaseRequest   PurchaseRequest  @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  providerName      String
+  amount            Float
+  currency          String           @default("CLP")
+  fileName          String?
+  fileUrl           String?
+  fileType          String?
+  notes             String?
+  isWinner          Boolean          @default(false)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@map("purchase_quotes")
 }

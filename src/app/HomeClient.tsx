@@ -77,10 +77,13 @@ import {
   CheckCircle,
   XCircle,
   MessageSquare,
+  ShoppingBag,
 } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import ExcelJS from 'exceljs'
+import SolicitudesCompra from '@/components/rendicion/SolicitudesCompra'
 import { useToast } from '@/hooks/use-toast'
+import RendicionGastos from '@/components/rendicion/RendicionGastos'
 
 // Types
 interface Task {
@@ -176,7 +179,7 @@ export default function Home() {
   const [statuses, setStatuses] = useState<StatusItem[]>([])
   const [responsibles, setResponsibles] = useState<ResponsibleItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [view, setView] = useState<'dashboard' | 'table' | 'cards' | 'gantt' | 'materials'>('dashboard')
+  const [view, setView] = useState<'dashboard' | 'table' | 'cards' | 'gantt' | 'materials' | 'rendicion' | 'solicitudes'>('dashboard')
   const [filterSector, setFilterSector] = useState('all')
   const [filterPriority, setFilterPriority] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
@@ -3200,9 +3203,26 @@ export default function Home() {
             >
               <Package className="h-4 w-4" /> Materiales
             </Button>
+            <Button
+              variant={view === 'rendicion' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setView('rendicion')}
+              className="gap-1"
+            >
+              <DollarSign className="h-4 w-4" /> Rendición
+            </Button>
+            <Button
+              variant={view === 'solicitudes' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setView('solicitudes')}
+              className="gap-1"
+            >
+              <ShoppingBag className="h-4 w-4" /> Compras
+            </Button>
           </div>
 
           {/* Filters */}
+          {view !== 'rendicion' && view !== 'solicitudes' && (
           <div className="flex items-center gap-2 flex-wrap max-w-full">
             <Select value={filterSector} onValueChange={setFilterSector}>
               <SelectTrigger className="w-[120px] sm:w-[140px] h-8 text-xs">
@@ -3282,6 +3302,7 @@ export default function Home() {
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
 
@@ -4237,6 +4258,14 @@ export default function Home() {
               )
             })()}
           </div>
+        )}
+
+        {view === 'rendicion' && (
+          <RendicionGastos />
+        )}
+
+        {view === 'solicitudes' && (
+          <SolicitudesCompra />
         )}
       </main>
 

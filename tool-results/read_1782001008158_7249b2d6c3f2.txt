@@ -1,0 +1,788 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect } from 'react'
+     4→import { useSession } from '@/lib/auth-context'
+     5→import { formatCLP } from '@/lib/format-currency'
+     6→import { useQuery, useQueryClient } from '@tanstack/react-query'
+     7→import { motion } from 'framer-motion'
+     8→import {
+     9→  ArrowLeft,
+    10→  Clock,
+    11→  CheckCircle2,
+    12→  XCircle,
+    13→  AlertTriangle,
+    14→  FileEdit,
+    15→  Send,
+    16→  Download,
+    17→  Camera,
+    18→  FileText,
+    19→  DollarSign,
+    20→  Calendar,
+    21→  User,
+    22→  MessageSquare,
+    23→  ThumbsUp,
+    24→  ThumbsDown,
+    25→  Edit3,
+    26→  Receipt,
+    27→  ImageIcon,
+    28→  Loader2,
+    29→  PlusCircle,
+    30→  Trash2,
+    31→  Pencil,
+    32→  Shield,
+    33→} from 'lucide-react'
+    34→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    35→import { Button } from '@/components/ui/button'
+    36→import { Badge } from '@/components/ui/badge'
+    37→import { Textarea } from '@/components/ui/textarea'
+    38→import { Label } from '@/components/ui/label'
+    39→import { Separator } from '@/components/ui/separator'
+    40→import { Skeleton } from '@/components/ui/skeleton'
+    41→import {
+    42→  Dialog,
+    43→  DialogContent,
+    44→  DialogDescription,
+    45→  DialogFooter,
+    46→  DialogHeader,
+    47→  DialogTitle,
+    48→  DialogTrigger,
+    49→} from '@/components/ui/dialog'
+    50→import { useAppStore } from '@/lib/store'
+    51→import { ExpenseItemDialog } from './expense-item-dialog'
+    52→import { toast } from 'sonner'
+    53→
+    54→interface Category {
+    55→  id: string
+    56→  name: string
+    57→  icon: string
+    58→}
+    59→
+    60→const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode; description: string }> = {
+    61→  DRAFT: {
+    62→    label: 'Borrador',
+    63→    color: 'bg-gray-100 text-gray-700 border-gray-200',
+    64→    icon: <FileEdit className="h-4 w-4" />,
+    65→    description: 'La rendición está en edición',
+    66→  },
+    67→  SUBMITTED: {
+    68→    label: 'Enviado',
+    69→    color: 'bg-amber-50 text-amber-700 border-amber-200',
+    70→    icon: <Clock className="h-4 w-4" />,
+    71→    description: 'Pendiente de revisión por un administrador',
+    72→  },
+    73→  APPROVED: {
+    74→    label: 'Aprobado',
+    75→    color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    76→    icon: <CheckCircle2 className="h-4 w-4" />,
+    77→    description: 'La rendición ha sido aprobada',
+    78→  },
+    79→  REJECTED: {
+    80→    label: 'Rechazado',
+    81→    color: 'bg-red-50 text-red-700 border-red-200',
+    82→    icon: <XCircle className="h-4 w-4" />,
+    83→    description: 'La rendición ha sido rechazada',
+    84→  },
+    85→  MODIFICATION_REQUESTED: {
+    86→    label: 'Modificación Solicitada',
+    87→    color: 'bg-orange-50 text-orange-700 border-orange-200',
+    88→    icon: <AlertTriangle className="h-4 w-4" />,
+    89→    description: 'Se han solicitado modificaciones',
+    90→  },
+    91→}
+    92→
+    93→export function ReportDetail() {
+    94→  const { data: session } = useSession()
+    95→  const queryClient = useQueryClient()
+    96→  const { selectedReportId, setCurrentView } = useAppStore()
+    97→  const [reviewNote, setReviewNote] = useState('')
+    98→  const [actionDialog, setActionDialog] = useState<string | null>(null)
+    99→  const [isActing, setIsActing] = useState(false)
+   100→  const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null)
+   101→  const [editingItem, setEditingItem] = useState<any | null>(null)
+   102→  const [showItemDialog, setShowItemDialog] = useState(false)
+   103→  const [deleteItemId, setDeleteItemId] = useState<string | null>(null)
+   104→  const [isDeleting, setIsDeleting] = useState(false)
+   105→  const [categories, setCategories] = useState<Category[]>([])
+   106→
+   107→  const isAdmin = session?.user?.role === 'ADMIN'
+   108→  const userId = session?.user?.id
+   109→
+   110→  // Fetch categories for display
+   111→  useEffect(() => {
+   112→    fetch('/api/categories')
+   113→      .then((res) => res.json())
+   114→      .then((data) => {
+   115→        if (Array.isArray(data)) {
+   116→          setCategories(data)
+   117→        }
+   118→      })
+   119→      .catch(() => {})
+   120→  }, [])
+   121→
+   122→  const { data: report, isLoading } = useQuery({
+   123→    queryKey: ['report', selectedReportId],
+   124→    queryFn: async () => {
+   125→      const res = await fetch(`/api/reports/${selectedReportId}`)
+   126→      if (!res.ok) throw new Error('Error')
+   127→      return res.json()
+   128→    },
+   129→    enabled: !!selectedReportId,
+   130→  })
+   131→
+   132→  const getCategoryDisplay = (catName: string) => {
+   133→    const cat = categories.find((c) => c.name === catName)
+   134→    return cat ? `${cat.icon} ${cat.name}` : catName
+   135→  }
+   136→
+   137→  const handleStatusChange = async (status: string) => {
+   138→    setIsActing(true)
+   139→    try {
+   140→      const res = await fetch(`/api/reports/${selectedReportId}`, {
+   141→        method: 'PATCH',
+   142→        headers: { 'Content-Type': 'application/json' },
+   143→        body: JSON.stringify({ status, reviewNote: reviewNote.trim() || undefined }),
+   144→      })
+   145→      if (!res.ok) {
+   146→        const data = await res.json()
+   147→        throw new Error(data.error || 'Error al cambiar estado')
+   148→      }
+   149→      toast.success(
+   150→        status === 'APPROVED' ? 'Rendición aprobada' :
+   151→        status === 'REJECTED' ? 'Rendición rechazada' :
+   152→        'Modificación solicitada'
+   153→      )
+   154→      queryClient.invalidateQueries({ queryKey: ['report', selectedReportId] })
+   155→      queryClient.invalidateQueries({ queryKey: ['reports'] })
+   156→      queryClient.invalidateQueries({ queryKey: ['stats'] })
+   157→      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+   158→      setReviewNote('')
+   159→      setActionDialog(null)
+   160→    } catch (err: any) {
+   161→      toast.error(err.message || 'Error al procesar la acción')
+   162→    } finally {
+   163→      setIsActing(false)
+   164→    }
+   165→  }
+   166→
+   167→  const handleSubmitForReview = async () => {
+   168→    try {
+   169→      const res = await fetch(`/api/reports/${selectedReportId}`, {
+   170→        method: 'PATCH',
+   171→        headers: { 'Content-Type': 'application/json' },
+   172→        body: JSON.stringify({ status: 'SUBMITTED' }),
+   173→      })
+   174→      if (!res.ok) {
+   175→        const data = await res.json()
+   176→        throw new Error(data.error || 'Error al enviar')
+   177→      }
+   178→      // Admin auto-approval
+   179→      if (isAdmin) {
+   180→        toast.success('Rendición enviada y aprobada automáticamente (Admin)')
+   181→      } else {
+   182→        toast.success('Rendición enviada para revisión')
+   183→      }
+   184→      queryClient.invalidateQueries({ queryKey: ['report', selectedReportId] })
+   185→      queryClient.invalidateQueries({ queryKey: ['reports'] })
+   186→      queryClient.invalidateQueries({ queryKey: ['stats'] })
+   187→    } catch (err: any) {
+   188→      toast.error(err.message || 'Error al enviar la rendición')
+   189→    }
+   190→  }
+   191→
+   192→  const handleDeleteItem = async () => {
+   193→    if (!deleteItemId) return
+   194→    setIsDeleting(true)
+   195→    try {
+   196→      const res = await fetch(`/api/items/${deleteItemId}`, { method: 'DELETE' })
+   197→      if (!res.ok) {
+   198→        const data = await res.json()
+   199→        throw new Error(data.error || 'Error al eliminar gasto')
+   200→      }
+   201→      toast.success('Gasto eliminado correctamente')
+   202→      queryClient.invalidateQueries({ queryKey: ['report', selectedReportId] })
+   203→      queryClient.invalidateQueries({ queryKey: ['reports'] })
+   204→      queryClient.invalidateQueries({ queryKey: ['stats'] })
+   205→      setDeleteItemId(null)
+   206→    } catch (err: any) {
+   207→      toast.error(err.message || 'Error al eliminar el gasto')
+   208→    } finally {
+   209→      setIsDeleting(false)
+   210→    }
+   211→  }
+   212→
+   213→  const handleExport = async (format: 'excel' | 'pdf') => {
+   214→    try {
+   215→      if (format === 'pdf') {
+   216→        const url = `/api/export/pdf?reportId=${selectedReportId}`
+   217→        window.open(url, '_blank')
+   218→        toast.success('Documento abierto en nueva pestaña. Use Ctrl+P para guardar como PDF.')
+   219→      } else {
+   220→        const url = `/api/export/excel?reportId=${selectedReportId}`
+   221→        const res = await fetch(url)
+   222→        if (!res.ok) throw new Error('Error al exportar')
+   223→        const blob = await res.blob()
+   224→        const downloadUrl = URL.createObjectURL(blob)
+   225→        const a = document.createElement('a')
+   226→        a.href = downloadUrl
+   227→        a.download = `rendicion-${selectedReportId}.xlsx`
+   228→        a.click()
+   229→        URL.revokeObjectURL(downloadUrl)
+   230→        toast.success('Exportación completada')
+   231→      }
+   232→    } catch {
+   233→      toast.error('Error al exportar la rendición')
+   234→    }
+   235→  }
+   236→
+   237→  const handleDownloadPhotos = async () => {
+   238→    try {
+   239→      const url = `/api/export/photos?reportId=${selectedReportId}`
+   240→      const res = await fetch(url)
+   241→      if (!res.ok) {
+   242→        const data = await res.json()
+   243→        throw new Error(data.error || 'Error al descargar fotos')
+   244→      }
+   245→      const blob = await res.blob()
+   246→      const downloadUrl = URL.createObjectURL(blob)
+   247→      const a = document.createElement('a')
+   248→      a.href = downloadUrl
+   249→      const correlative = report?.correlativeNumber
+   250→        ? `R-${String(report.correlativeNumber).padStart(3, '0')}`
+   251→        : selectedReportId
+   252→      a.download = `fotos_rendicion_${correlative}.zip`
+   253→      a.click()
+   254→      URL.revokeObjectURL(downloadUrl)
+   255→      toast.success('Fotos descargadas correctamente')
+   256→    } catch (err: any) {
+   257→      toast.error(err.message || 'Error al descargar las fotos')
+   258→    }
+   259→  }
+   260→
+   261→  if (isLoading) {
+   262→    return (
+   263→      <div className="space-y-4 max-w-3xl">
+   264→        <Skeleton className="h-8 w-48" />
+   265→        <Skeleton className="h-32 w-full" />
+   266→        <Skeleton className="h-48 w-full" />
+   267→      </div>
+   268→    )
+   269→  }
+   270→
+   271→  if (!report) {
+   272→    return (
+   273→      <div className="text-center py-12">
+   274→        <FileText className="h-12 w-12 mx-auto text-muted-foreground/30 mb-3" />
+   275→        <p className="text-muted-foreground">Rendición no encontrada</p>
+   276→      </div>
+   277→    )
+   278→  }
+   279→
+   280→  const status = statusConfig[report.status] || statusConfig.DRAFT
+   281→  const canEdit = (report.userId === userId || isAdmin) && ['DRAFT', 'MODIFICATION_REQUESTED'].includes(report.status)
+   282→  const canSubmit = (report.userId === userId || isAdmin) && ['DRAFT', 'MODIFICATION_REQUESTED'].includes(report.status) && report.items?.length > 0
+   283→  const canReview = isAdmin && report.userId !== userId && ['SUBMITTED', 'MODIFICATION_REQUESTED'].includes(report.status)
+   284→  const canAdminModify = isAdmin && report.status === 'APPROVED'
+   285→  const canAddItem = canEdit || canAdminModify
+   286→
+   287→  // Calculate total monto a rendir
+   288→  const totalMontoRendir = report.items?.reduce((sum: number, item: any) => sum + (item.montoRendir || 0), 0) || 0
+   289→
+   290→  const openEditDialog = (item?: any) => {
+   291→    setEditingItem(item || null)
+   292→    setShowItemDialog(true)
+   293→  }
+   294→
+   295→  return (
+   296→    <div className="space-y-6 max-w-3xl">
+   297→      {/* Image Preview Dialog */}
+   298→      {previewImage && (
+   299→        <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
+   300→          <DialogContent className="max-w-lg">
+   301→            <DialogHeader>
+   302→              <DialogTitle>{previewImage.title}</DialogTitle>
+   303→            </DialogHeader>
+   304→            <img
+   305→              src={previewImage.url}
+   306→              alt={previewImage.title}
+   307→              className="w-full rounded-lg"
+   308→            />
+   309→          </DialogContent>
+   310→        </Dialog>
+   311→      )}
+   312→
+   313→      {/* Delete Item Confirmation Dialog */}
+   314→      <Dialog open={!!deleteItemId} onOpenChange={(open) => !open && setDeleteItemId(null)}>
+   315→        <DialogContent className="sm:max-w-sm">
+   316→          <DialogHeader>
+   317→            <DialogTitle>Eliminar Gasto</DialogTitle>
+   318→            <DialogDescription>
+   319→              ¿Está seguro de que desea eliminar este gasto? Esta acción no se puede deshacer.
+   320→            </DialogDescription>
+   321→          </DialogHeader>
+   322→          <DialogFooter className="gap-2">
+   323→            <Button variant="outline" onClick={() => setDeleteItemId(null)} disabled={isDeleting}>
+   324→              Cancelar
+   325→            </Button>
+   326→            <Button variant="destructive" onClick={handleDeleteItem} disabled={isDeleting}>
+   327→              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+   328→              Eliminar
+   329→            </Button>
+   330→          </DialogFooter>
+   331→        </DialogContent>
+   332→      </Dialog>
+   333→
+   334→      {/* Expense Item Dialog */}
+   335→      <ExpenseItemDialog
+   336→        open={showItemDialog}
+   337→        onOpenChange={setShowItemDialog}
+   338→        item={editingItem}
+   339→        reportId={selectedReportId!}
+   340→        onSave={() => {
+   341→          queryClient.invalidateQueries({ queryKey: ['report', selectedReportId] })
+   342→          queryClient.invalidateQueries({ queryKey: ['reports'] })
+   343→          queryClient.invalidateQueries({ queryKey: ['stats'] })
+   344→        }}
+   345→      />
+   346→
+   347→      {/* Header */}
+   348→      <div className="flex items-start gap-3">
+   349→        <Button
+   350→          variant="ghost"
+   351→          size="icon"
+   352→          onClick={() => setCurrentView('dashboard')}
+   353→          className="h-9 w-9 shrink-0"
+   354→        >
+   355→          <ArrowLeft className="h-4 w-4" />
+   356→        </Button>
+   357→        <div className="flex-1 min-w-0">
+   358→          <div className="flex items-start justify-between gap-2">
+   359→            <div className="flex items-center gap-2">
+   360→              {report.correlativeNumber != null && (
+   361→                <Badge className="bg-emerald-600 text-white border-0 text-xs shrink-0">
+   362→                  Rendición #{String(report.correlativeNumber).padStart(3, '0')}
+   363→                </Badge>
+   364→              )}
+   365→              <h2 className="text-xl font-bold truncate">{report.title}</h2>
+   366→            </div>
+   367→            <div className="flex items-center gap-2 shrink-0">
+   368→              {isAdmin && report.userId === userId && (
+   369→                <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">
+   370→                  <Shield className="h-2.5 w-2.5 mr-0.5" />
+   371→                  Auto-aprobación
+   372→                </Badge>
+   373→              )}
+   374→              <Badge variant="outline" className={`shrink-0 text-xs ${status.color}`}>
+   375→                {status.icon}
+   376→                <span className="ml-1">{status.label}</span>
+   377→              </Badge>
+   378→            </div>
+   379→          </div>
+   380→          <p className="text-sm text-muted-foreground mt-1">{status.description}</p>
+   381→          {isAdmin && report.userId === userId && ['DRAFT', 'MODIFICATION_REQUESTED'].includes(report.status) && (
+   382→            <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+   383→              <Shield className="h-3 w-3" />
+   384→              Como administrador, su rendición se aprobará automáticamente al enviarla
+   385→            </p>
+   386→          )}
+   387→          {canAdminModify && (
+   388→            <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+   389→              <Shield className="h-3 w-3" />
+   390→              Como administrador, puede modificar esta rendición aprobada
+   391→            </p>
+   392→          )}
+   393→        </div>
+   394→      </div>
+   395→
+   396→      {/* Report Info */}
+   397→      <Card className="shadow-sm">
+   398→        <CardContent className="p-4 space-y-3">
+   399→          {report.description && (
+   400→            <div>
+   401→              <span className="text-xs font-medium text-muted-foreground">Descripción</span>
+   402→              <p className="text-sm mt-0.5">{report.description}</p>
+   403→            </div>
+   404→          )}
+   405→          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+   406→            <div className="flex items-center gap-2">
+   407→              <User className="h-3.5 w-3.5 text-muted-foreground" />
+   408→              <span className="text-muted-foreground">Solicitante:</span>
+   409→              <span className="font-medium">{report.user?.name}</span>
+   410→            </div>
+   411→            <div className="flex items-center gap-2">
+   412→              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+   413→              <span className="text-muted-foreground">Creado:</span>
+   414→              <span className="font-medium">{new Date(report.createdAt).toLocaleDateString('es-CL')}</span>
+   415→            </div>
+   416→            {report.reviewedAt && (
+   417→              <div className="flex items-center gap-2">
+   418→                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+   419→                <span className="text-muted-foreground">Revisado:</span>
+   420→                <span className="font-medium">{new Date(report.reviewedAt).toLocaleDateString('es-CL')}</span>
+   421→              </div>
+   422→            )}
+   423→          </div>
+   424→          {report.reviewNote && (
+   425→            <div className="bg-muted/50 rounded-lg p-3">
+   426→              <div className="flex items-center gap-2 mb-1">
+   427→                <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+   428→                <span className="text-xs font-medium text-muted-foreground">Nota de revisión</span>
+   429→              </div>
+   430→              <p className="text-sm">{report.reviewNote}</p>
+   431→            </div>
+   432→          )}
+   433→        </CardContent>
+   434→      </Card>
+   435→
+   436→      {/* Expense Items */}
+   437→      <Card className="shadow-sm">
+   438→        <CardHeader className="pb-3">
+   439→          <div className="flex items-center justify-between">
+   440→            <CardTitle className="text-base flex items-center gap-2">
+   441→              <DollarSign className="h-4 w-4 text-emerald-600" />
+   442→              Detalle de Gastos
+   443→            </CardTitle>
+   444→            <div className="flex items-center gap-2">
+   445→              <Badge className="bg-emerald-600 text-white border-0">
+   446→                {report.items?.length || 0} {report.items?.length === 1 ? 'gasto' : 'gastos'}
+   447→              </Badge>
+   448→              {canAddItem && (
+   449→                <Button
+   450→                  type="button"
+   451→                  variant="outline"
+   452→                  size="sm"
+   453→                  onClick={() => openEditDialog()}
+   454→                  className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 text-xs"
+   455→                >
+   456→                  <PlusCircle className="h-3.5 w-3.5 mr-1" />
+   457→                  Agregar
+   458→                </Button>
+   459→              )}
+   460→            </div>
+   461→          </div>
+   462→        </CardHeader>
+   463→        <CardContent>
+   464→          {report.items?.length === 0 ? (
+   465→            <div className="text-center py-6">
+   466→              <DollarSign className="h-10 w-10 mx-auto text-muted-foreground/30 mb-2" />
+   467→              <p className="text-sm text-muted-foreground">No hay gastos registrados</p>
+   468→              {canAddItem && (
+   469→                <Button
+   470→                  variant="link"
+   471→                  className="text-emerald-600 mt-1"
+   472→                  onClick={() => openEditDialog()}
+   473→                >
+   474→                  Agregar primer gasto
+   475→                </Button>
+   476→              )}
+   477→            </div>
+   478→          ) : (
+   479→            <div className="space-y-3">
+   480→              {report.items?.map((item: any, index: number) => (
+   481→                <motion.div
+   482→                  key={item.id}
+   483→                  initial={{ opacity: 0, y: 10 }}
+   484→                  animate={{ opacity: 1, y: 0 }}
+   485→                  transition={{ duration: 0.2, delay: index * 0.05 }}
+   486→                  className="border rounded-lg p-4 hover:bg-muted/30 transition-colors"
+   487→                >
+   488→                  <div className="flex items-start justify-between gap-3">
+   489→                    <div className="flex-1 min-w-0">
+   490→                      <p className="text-sm font-medium">{item.description}</p>
+   491→                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+   492→                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+   493→                          <Receipt className="h-3 w-3" />
+   494→                          Boleta: {item.numeroBoleta}
+   495→                        </span>
+   496→                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+   497→                          <span className="inline-block w-2 h-2 rounded-full bg-emerald-400" />
+   498→                          {getCategoryDisplay(item.category)}
+   499→                        </span>
+   500→                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+   501→                          <Calendar className="h-3 w-3" />
+   502→                          {new Date(item.expenseDate).toLocaleDateString('es-CL')}
+   503→                        </span>
+   504→                      </div>
+   505→                      <div className="flex flex-wrap gap-2 mt-2">
+   506→                        <span className="text-xs font-semibold text-emerald-700">
+   507→                          A Rendir: {formatCLP(item.montoRendir)}
+   508→                        </span>
+   509→                      </div>
+   510→                    </div>
+   511→
+   512→                    {/* Edit & Delete buttons */}
+   513→                    {(canEdit || canAdminModify) && (
+   514→                      <div className="flex items-center gap-1 shrink-0">
+   515→                        <Button
+   516→                          variant="ghost"
+   517→                          size="icon"
+   518→                          className="h-7 w-7 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"
+   519→                          onClick={() => openEditDialog(item)}
+   520→                        >
+   521→                          <Pencil className="h-3.5 w-3.5" />
+   522→                        </Button>
+   523→                        <Button
+   524→                          variant="ghost"
+   525→                          size="icon"
+   526→                          className="h-7 w-7 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+   527→                          onClick={() => setDeleteItemId(item.id)}
+   528→                        >
+   529→                          <Trash2 className="h-3.5 w-3.5" />
+   530→                        </Button>
+   531→                      </div>
+   532→                    )}
+   533→                  </div>
+   534→
+   535→                  {/* Photos */}
+   536→                  <div className="grid grid-cols-2 gap-2 mt-3">
+   537→                    {item.imageBoletaUrl && (
+   538→                      <button
+   539→                        onClick={() => setPreviewImage({ url: item.imageBoletaUrl, title: 'Foto de la Boleta' })}
+   540→                        className="relative group rounded-md overflow-hidden border hover:ring-2 hover:ring-emerald-300 transition-all"
+   541→                      >
+   542→                        <div className="text-[10px] font-medium text-center bg-emerald-50 text-emerald-700 py-0.5">
+   543→                          Foto Boleta
+   544→                        </div>
+   545→                        <img
+   546→                          src={item.imageBoletaUrl}
+   547→                          alt="Foto de la boleta"
+   548→                          className="w-full h-24 object-cover"
+   549→                        />
+   550→                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+   551→                          <ImageIcon className="h-5 w-5 text-white" />
+   552→                        </div>
+   553→                      </button>
+   554→                    )}
+   555→                    {item.imageCompraUrl && (
+   556→                      <button
+   557→                        onClick={() => setPreviewImage({ url: item.imageCompraUrl, title: 'Foto de la Compra' })}
+   558→                        className="relative group rounded-md overflow-hidden border hover:ring-2 hover:ring-blue-300 transition-all"
+   559→                      >
+   560→                        <div className="text-[10px] font-medium text-center bg-blue-50 text-blue-700 py-0.5">
+   561→                          Foto Compra
+   562→                        </div>
+   563→                        <img
+   564→                          src={item.imageCompraUrl}
+   565→                          alt="Foto de la compra"
+   566→                          className="w-full h-24 object-cover"
+   567→                        />
+   568→                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+   569→                          <ImageIcon className="h-5 w-5 text-white" />
+   570→                        </div>
+   571→                      </button>
+   572→                    )}
+   573→                  </div>
+   574→                </motion.div>
+   575→              ))}
+   576→            </div>
+   577→          )}
+   578→
+   579→          {/* Totals */}
+   580→          <Separator className="my-4" />
+   581→          <div className="space-y-2">
+   582→            <div className="flex items-center justify-between">
+   583→              <span className="text-sm font-semibold">Total a Rendir</span>
+   584→              <span className="text-2xl font-bold text-emerald-700">
+   585→                {formatCLP(totalMontoRendir)}
+   586→              </span>
+   587→            </div>
+   588→          </div>
+   589→        </CardContent>
+   590→      </Card>
+   591→
+   592→      {/* Admin Actions (for other users' reports) */}
+   593→      {canReview && (
+   594→        <Card className="shadow-sm border-amber-200 bg-amber-50/30">
+   595→          <CardHeader className="pb-3">
+   596→            <CardTitle className="text-base flex items-center gap-2 text-amber-800">
+   597→              <Clock className="h-4 w-4" />
+   598→              Revisión de Rendición
+   599→            </CardTitle>
+   600→          </CardHeader>
+   601→          <CardContent className="space-y-4">
+   602→            <div className="space-y-2">
+   603→              <Label htmlFor="review-note" className="text-xs">Nota de revisión (opcional)</Label>
+   604→              <Textarea
+   605→                id="review-note"
+   606→                placeholder="Agregar comentario sobre la revisión..."
+   607→                value={reviewNote}
+   608→                onChange={(e) => setReviewNote(e.target.value)}
+   609→                rows={3}
+   610→              />
+   611→            </div>
+   612→            <div className="flex flex-col sm:flex-row gap-3">
+   613→              <Dialog open={actionDialog === 'approve'} onOpenChange={(open) => !open && setActionDialog(null)}>
+   614→                <DialogTrigger asChild>
+   615→                  <Button
+   616→                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+   617→                    onClick={() => setActionDialog('approve')}
+   618→                  >
+   619→                    <ThumbsUp className="mr-2 h-4 w-4" />
+   620→                    Aprobar
+   621→                  </Button>
+   622→                </DialogTrigger>
+   623→                <DialogContent>
+   624→                  <DialogHeader>
+   625→                    <DialogTitle>Confirmar Aprobación</DialogTitle>
+   626→                    <DialogDescription>
+   627→                      ¿Está seguro de que desea aprobar esta rendición por {formatCLP(totalMontoRendir)}?
+   628→                    </DialogDescription>
+   629→                  </DialogHeader>
+   630→                  <DialogFooter>
+   631→                    <Button variant="outline" onClick={() => setActionDialog(null)}>Cancelar</Button>
+   632→                    <Button
+   633→                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+   634→                      onClick={() => handleStatusChange('APPROVED')}
+   635→                      disabled={isActing}
+   636→                    >
+   637→                      {isActing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+   638→                      Confirmar Aprobación
+   639→                    </Button>
+   640→                  </DialogFooter>
+   641→                </DialogContent>
+   642→              </Dialog>
+   643→
+   644→              <Dialog open={actionDialog === 'reject'} onOpenChange={(open) => !open && setActionDialog(null)}>
+   645→                <DialogTrigger asChild>
+   646→                  <Button
+   647→                    variant="destructive"
+   648→                    className="flex-1"
+   649→                    onClick={() => setActionDialog('reject')}
+   650→                  >
+   651→                    <ThumbsDown className="mr-2 h-4 w-4" />
+   652→                    Rechazar
+   653→                  </Button>
+   654→                </DialogTrigger>
+   655→                <DialogContent>
+   656→                  <DialogHeader>
+   657→                    <DialogTitle>Confirmar Rechazo</DialogTitle>
+   658→                    <DialogDescription>
+   659→                      ¿Está seguro de que desea rechazar esta rendición? Esta acción notificará al solicitante.
+   660→                    </DialogDescription>
+   661→                  </DialogHeader>
+   662→                  <DialogFooter>
+   663→                    <Button variant="outline" onClick={() => setActionDialog(null)}>Cancelar</Button>
+   664→                    <Button
+   665→                      variant="destructive"
+   666→                      onClick={() => handleStatusChange('REJECTED')}
+   667→                      disabled={isActing}
+   668→                    >
+   669→                      {isActing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+   670→                      Confirmar Rechazo
+   671→                    </Button>
+   672→                  </DialogFooter>
+   673→                </DialogContent>
+   674→              </Dialog>
+   675→
+   676→              <Dialog open={actionDialog === 'modify'} onOpenChange={(open) => !open && setActionDialog(null)}>
+   677→                <DialogTrigger asChild>
+   678→                  <Button
+   679→                    variant="outline"
+   680→                    className="flex-1 border-orange-300 text-orange-700 hover:bg-orange-50"
+   681→                    onClick={() => setActionDialog('modify')}
+   682→                  >
+   683→                    <Edit3 className="mr-2 h-4 w-4" />
+   684→                    Solicitar Modificación
+   685→                  </Button>
+   686→                </DialogTrigger>
+   687→                <DialogContent>
+   688→                  <DialogHeader>
+   689→                    <DialogTitle>Solicitar Modificación</DialogTitle>
+   690→                    <DialogDescription>
+   691→                      Se notificará al solicitante que debe realizar cambios en su rendición.
+   692→                    </DialogDescription>
+   693→                  </DialogHeader>
+   694→                  <DialogFooter>
+   695→                    <Button variant="outline" onClick={() => setActionDialog(null)}>Cancelar</Button>
+   696→                    <Button
+   697→                      variant="outline"
+   698→                      className="border-orange-300 text-orange-700 hover:bg-orange-50"
+   699→                      onClick={() => handleStatusChange('MODIFICATION_REQUESTED')}
+   700→                      disabled={isActing}
+   701→                    >
+   702→                      {isActing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+   703→                      Solicitar Modificación
+   704→                    </Button>
+   705→                  </DialogFooter>
+   706→                </DialogContent>
+   707→              </Dialog>
+   708→            </div>
+   709→          </CardContent>
+   710→        </Card>
+   711→      )}
+   712→
+   713→      {/* User & Admin Actions */}
+   714→      {(canEdit || canSubmit || canAdminModify) && (
+   715→        <Card className="shadow-sm">
+   716→          <CardContent className="p-4">
+   717→            <div className="flex flex-col sm:flex-row gap-3">
+   718→              {canEdit && (
+   719→                <Button
+   720→                  variant="outline"
+   721→                  className="flex-1"
+   722→                  onClick={() => setCurrentView('edit-report')}
+   723→                >
+   724→                  <FileEdit className="mr-2 h-4 w-4" />
+   725→                  Editar Rendición Completa
+   726→                </Button>
+   727→              )}
+   728→              {canAdminModify && (
+   729→                <Button
+   730→                  variant="outline"
+   731→                  className="flex-1 border-blue-300 text-blue-700 hover:bg-blue-50"
+   732→                  onClick={() => setCurrentView('edit-report')}
+   733→                >
+   734→                  <FileEdit className="mr-2 h-4 w-4" />
+   735→                  Modificar Rendición Aprobada
+   736→                </Button>
+   737→              )}
+   738→              {canSubmit && (
+   739→                <Button
+   740→                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+   741→                  onClick={handleSubmitForReview}
+   742→                >
+   743→                  <Send className="mr-2 h-4 w-4" />
+   744→                  {isAdmin && report.userId === userId ? 'Enviar y Aprobar' : 'Enviar para Revisión'}
+   745→                </Button>
+   746→              )}
+   747→            </div>
+   748→          </CardContent>
+   749→        </Card>
+   750→      )}
+   751→
+   752→      {/* Export Buttons */}
+   753→      <Card className="shadow-sm">
+   754→        <CardContent className="p-4">
+   755→          <div className="flex flex-col sm:flex-row gap-3">
+   756→            <Button
+   757→              variant="outline"
+   758→              className="flex-1 shadow-sm"
+   759→              onClick={() => handleExport('excel')}
+   760→            >
+   761→              <Download className="mr-2 h-4 w-4" />
+   762→              Exportar a Excel
+   763→            </Button>
+   764→            <Button
+   765→              variant="outline"
+   766→              className="flex-1 shadow-sm"
+   767→              onClick={() => handleExport('pdf')}
+   768→            >
+   769→              <Download className="mr-2 h-4 w-4" />
+   770→              Exportar a PDF
+   771→            </Button>
+   772→            {isAdmin && (
+   773→              <Button
+   774→                variant="outline"
+   775→                className="flex-1 shadow-sm border-blue-200 text-blue-700 hover:bg-blue-50"
+   776→                onClick={handleDownloadPhotos}
+   777→              >
+   778→                <Camera className="mr-2 h-4 w-4" />
+   779→                Descargar Fotos
+   780→              </Button>
+   781→            )}
+   782→          </div>
+   783→        </CardContent>
+   784→      </Card>
+   785→    </div>
+   786→  )
+   787→}
+   788→

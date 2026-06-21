@@ -1,0 +1,741 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect } from 'react'
+     4→import { useSession } from '@/lib/auth-context'
+     5→import { formatCLP } from '@/lib/format-currency'
+     6→import { useQuery, useQueryClient } from '@tanstack/react-query'
+     7→import { motion } from 'framer-motion'
+     8→import {
+     9→  ArrowLeft,
+    10→  ShoppingCart,
+    11→  Tag,
+    12→  Package,
+    13→  Building2,
+    14→  ExternalLink,
+    15→  Image as ImageIcon,
+    16→  Loader2,
+    17→  Plus,
+    18→  Trash2,
+    19→  Check,
+    20→  X,
+    21→  Edit,
+    22→  FileText,
+    23→  Award,
+    24→  Download,
+    25→  AlertCircle,
+    26→} from 'lucide-react'
+    27→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    28→import { Button } from '@/components/ui/button'
+    29→import { Input } from '@/components/ui/input'
+    30→import { Label } from '@/components/ui/label'
+    31→import { Textarea } from '@/components/ui/textarea'
+    32→import { Badge } from '@/components/ui/badge'
+    33→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    34→import {
+    35→  Dialog,
+    36→  DialogContent,
+    37→  DialogDescription,
+    38→  DialogFooter,
+    39→  DialogHeader,
+    40→  DialogTitle,
+    41→} from '@/components/ui/dialog'
+    42→import { FileUpload } from '@/components/app/file-upload'
+    43→import { useAppStore } from '@/lib/store'
+    44→import { toast } from 'sonner'
+    45→
+    46→const statusConfig: Record<string, { label: string; color: string }> = {
+    47→  PENDIENTE: { label: 'Pendiente', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+    48→  APROBADA: { label: 'Aprobada', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    49→  RECHAZADA: { label: 'Rechazada', color: 'bg-red-50 text-red-700 border-red-200' },
+    50→  EN_COMPRA: { label: 'En Compra', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+    51→  COMPRADA: { label: 'Comprada', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+    52→  CANCELADA: { label: 'Cancelada', color: 'bg-gray-100 text-gray-600 border-gray-200' },
+    53→}
+    54→
+    55→const priorityConfig: Record<string, { label: string; color: string; dot: string }> = {
+    56→  BAJA: { label: 'Baja', color: 'text-gray-600', dot: 'bg-gray-400' },
+    57→  MEDIA: { label: 'Media', color: 'text-blue-600', dot: 'bg-blue-500' },
+    58→  ALTA: { label: 'Alta', color: 'text-orange-600', dot: 'bg-orange-500' },
+    59→  URGENTE: { label: 'Urgente', color: 'text-red-600', dot: 'bg-red-500' },
+    60→}
+    61→
+    62→interface Quote {
+    63→  id: string
+    64→  providerName: string
+    65→  amount: number
+    66→  currency: string
+    67→  fileName?: string | null
+    68→  fileData?: string | null
+    69→  fileType?: string | null
+    70→  notes?: string | null
+    71→  isWinner: boolean
+    72→  createdAt: string
+    73→}
+    74→
+    75→export function PurchaseRequestDetail() {
+    76→  const { data: session } = useSession()
+    77→  const { selectedPurchaseRequestId, setCurrentView } = useAppStore()
+    78→  const queryClient = useQueryClient()
+    79→  const isAdmin = session?.user?.role === 'ADMIN'
+    80→
+    81→  const [showQuoteDialog, setShowQuoteDialog] = useState(false)
+    82→  const [showReviewDialog, setShowReviewDialog] = useState(false)
+    83→  const [showImageDialog, setShowImageDialog] = useState(false)
+    84→
+    85→  // Quote form
+    86→  const [quoteProvider, setQuoteProvider] = useState('')
+    87→  const [quoteAmount, setQuoteAmount] = useState('')
+    88→  const [quoteFile, setQuoteFile] = useState<{ name: string; data: string; type: string } | null>(null)
+    89→  const [quoteNotes, setQuoteNotes] = useState('')
+    90→  const [isSavingQuote, setIsSavingQuote] = useState(false)
+    91→
+    92→  // Review form
+    93→  const [reviewStatus, setReviewStatus] = useState('PENDIENTE')
+    94→  const [reviewNote, setReviewNote] = useState('')
+    95→  const [isSavingReview, setIsSavingReview] = useState(false)
+    96→
+    97→  // Delete
+    98→  const [deleteQuoteId, setDeleteQuoteId] = useState<string | null>(null)
+    99→  const [isDeletingQuote, setIsDeletingQuote] = useState(false)
+   100→
+   101→  const { data: pr, isLoading } = useQuery({
+   102→    queryKey: ['purchase-request', selectedPurchaseRequestId],
+   103→    queryFn: async () => {
+   104→      const res = await fetch(`/api/purchase-requests/${selectedPurchaseRequestId}`)
+   105→      if (!res.ok) throw new Error('Error')
+   106→      return res.json()
+   107→    },
+   108→    enabled: !!selectedPurchaseRequestId,
+   109→  })
+   110→
+   111→  useEffect(() => {
+   112→    if (pr) {
+   113→      setReviewStatus(pr.status)
+   114→      setReviewNote(pr.reviewNote || '')
+   115→    }
+   116→  }, [pr])
+   117→
+   118→  if (isLoading || !pr) {
+   119→    return (
+   120→      <div className="flex items-center justify-center py-20">
+   121→        <Loader2 className="h-8 w-8 text-emerald-600 animate-spin" />
+   122→      </div>
+   123→    )
+   124→  }
+   125→
+   126→  const status = statusConfig[pr.status] || statusConfig.PENDIENTE
+   127→  const priority = priorityConfig[pr.priority] || priorityConfig.MEDIA
+   128→  const isOwner = pr.userId === session?.user?.id
+   129→  const canEdit = isOwner && pr.status === 'PENDIENTE'
+   130→
+   131→  const handleSaveQuote = async () => {
+   132→    if (!quoteProvider.trim()) { toast.error('El proveedor es requerido'); return }
+   133→    if (!quoteAmount || isNaN(parseFloat(quoteAmount))) {
+   134→      toast.error('El monto es requerido y debe ser un número')
+   135→      return
+   136→    }
+   137→    setIsSavingQuote(true)
+   138→    try {
+   139→      const res = await fetch(`/api/purchase-requests/${pr.id}/quotes`, {
+   140→        method: 'POST',
+   141→        headers: { 'Content-Type': 'application/json' },
+   142→        body: JSON.stringify({
+   143→          providerName: quoteProvider.trim(),
+   144→          amount: parseFloat(quoteAmount),
+   145→          currency: 'CLP',
+   146→          fileName: quoteFile?.name,
+   147→          fileData: quoteFile?.data,
+   148→          fileType: quoteFile?.type,
+   149→          notes: quoteNotes.trim(),
+   150→        }),
+   151→      })
+   152→      if (!res.ok) {
+   153→        const data = await res.json()
+   154→        throw new Error(data.error || 'Error')
+   155→      }
+   156→      toast.success('Cotización agregada correctamente')
+   157→      setQuoteProvider(''); setQuoteAmount(''); setQuoteFile(null); setQuoteNotes('')
+   158→      setShowQuoteDialog(false)
+   159→      queryClient.invalidateQueries({ queryKey: ['purchase-request', pr.id] })
+   160→      queryClient.invalidateQueries({ queryKey: ['purchase-requests'] })
+   161→    } catch (err: any) {
+   162→      toast.error(err.message || 'Error al guardar cotización')
+   163→    } finally {
+   164→      setIsSavingQuote(false)
+   165→    }
+   166→  }
+   167→
+   168→  const handleSetWinner = async (quoteId: string, isWinner: boolean) => {
+   169→    try {
+   170→      const res = await fetch(`/api/purchase-requests/${pr.id}/quotes/${quoteId}`, {
+   171→        method: 'PUT',
+   172→        headers: { 'Content-Type': 'application/json' },
+   173→        body: JSON.stringify({ isWinner }),
+   174→      })
+   175→      if (!res.ok) throw new Error('Error')
+   176→      toast.success(isWinner ? 'Cotización marcada como ganadora' : 'Selección eliminada')
+   177→      queryClient.invalidateQueries({ queryKey: ['purchase-request', pr.id] })
+   178→      queryClient.invalidateQueries({ queryKey: ['purchase-requests'] })
+   179→    } catch (err: any) {
+   180→      toast.error('Error al actualizar cotización')
+   181→    }
+   182→  }
+   183→
+   184→  const handleDeleteQuote = async () => {
+   185→    if (!deleteQuoteId) return
+   186→    setIsDeletingQuote(true)
+   187→    try {
+   188→      const res = await fetch(`/api/purchase-requests/${pr.id}/quotes/${deleteQuoteId}`, {
+   189→        method: 'DELETE',
+   190→      })
+   191→      if (!res.ok) throw new Error('Error')
+   192→      toast.success('Cotización eliminada')
+   193→      setDeleteQuoteId(null)
+   194→      queryClient.invalidateQueries({ queryKey: ['purchase-request', pr.id] })
+   195→      queryClient.invalidateQueries({ queryKey: ['purchase-requests'] })
+   196→    } catch (err: any) {
+   197→      toast.error('Error al eliminar cotización')
+   198→    } finally {
+   199→      setIsDeletingQuote(false)
+   200→    }
+   201→  }
+   202→
+   203→  const handleReview = async () => {
+   204→    setIsSavingReview(true)
+   205→    try {
+   206→      const res = await fetch(`/api/purchase-requests/${pr.id}`, {
+   207→        method: 'PUT',
+   208→        headers: { 'Content-Type': 'application/json' },
+   209→        body: JSON.stringify({
+   210→          action: 'review',
+   211→          status: reviewStatus,
+   212→          reviewNote: reviewNote.trim(),
+   213→        }),
+   214→      })
+   215→      if (!res.ok) {
+   216→        const data = await res.json()
+   217→        throw new Error(data.error || 'Error')
+   218→      }
+   219→      toast.success('Solicitud revisada correctamente')
+   220→      setShowReviewDialog(false)
+   221→      queryClient.invalidateQueries({ queryKey: ['purchase-request', pr.id] })
+   222→      queryClient.invalidateQueries({ queryKey: ['purchase-requests'] })
+   223→    } catch (err: any) {
+   224→      toast.error(err.message || 'Error al revisar')
+   225→    } finally {
+   226→      setIsSavingReview(false)
+   227→    }
+   228→  }
+   229→
+   230→  const handleDelete = async () => {
+   231→    if (!confirm('¿Eliminar esta solicitud de compra? Esta acción no se puede deshacer.')) return
+   232→    try {
+   233→      const res = await fetch(`/api/purchase-requests/${pr.id}`, { method: 'DELETE' })
+   234→      if (!res.ok) throw new Error('Error')
+   235→      toast.success('Solicitud eliminada')
+   236→      setCurrentView('purchase-requests')
+   237→    } catch (err: any) {
+   238→      toast.error('Error al eliminar')
+   239→    }
+   240→  }
+   241→
+   242→  const quotes: Quote[] = pr.quotes || []
+   243→  const winnerQuote = quotes.find((q) => q.isWinner)
+   244→  const minQuote = quotes.length > 0
+   245→    ? quotes.reduce((min, q) => (q.amount < min.amount ? q : min), quotes[0])
+   246→    : null
+   247→
+   248→  return (
+   249→    <div className="max-w-4xl mx-auto space-y-4">
+   250→      {/* Header */}
+   251→      <div className="flex items-center gap-3">
+   252→        <Button variant="ghost" size="icon" onClick={() => setCurrentView('purchase-requests')}>
+   253→          <ArrowLeft className="h-4 w-4" />
+   254→        </Button>
+   255→        <div className="flex-1 min-w-0">
+   256→          <div className="flex items-center gap-2 flex-wrap">
+   257→            <h2 className="text-xl font-bold flex items-center gap-2">
+   258→              <ShoppingCart className="h-5 w-5 text-emerald-600" />
+   259→              SC-{String(pr.correlativeNumber).padStart(3, '0')}
+   260→            </h2>
+   261→            <Badge variant="outline" className={`text-[10px] ${status.color}`}>
+   262→              {status.label}
+   263→            </Badge>
+   264→            <Badge variant="outline" className={`text-[10px] ${priority.color} bg-muted/30`}>
+   265→              <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${priority.dot}`} />
+   266→              {priority.label}
+   267→            </Badge>
+   268→          </div>
+   269→          <p className="text-sm text-muted-foreground mt-0.5">
+   270→            Creada el {new Date(pr.createdAt).toLocaleString('es-CL')}
+   271→            {pr.user && ` por ${pr.user.name}`}
+   272→          </p>
+   273→        </div>
+   274→        {canEdit && (
+   275→          <Button
+   276→            variant="outline"
+   277→            size="sm"
+   278→            onClick={() => setCurrentView('edit-purchase-request')}
+   279→          >
+   280→            <Edit className="h-3.5 w-3.5 mr-1" />
+   281→            Editar
+   282→          </Button>
+   283→        )}
+   284→      </div>
+   285→
+   286→      {/* Main info card */}
+   287→      <motion.div
+   288→        initial={{ opacity: 0, y: 10 }}
+   289→        animate={{ opacity: 1, y: 0 }}
+   290→        transition={{ duration: 0.3 }}
+   291→      >
+   292→        <Card className="shadow-sm">
+   293→          <CardHeader>
+   294→            <CardTitle className="text-base flex items-center gap-2">
+   295→              <Package className="h-4 w-4 text-emerald-600" />
+   296→              Detalle del Producto
+   297→            </CardTitle>
+   298→          </CardHeader>
+   299→          <CardContent className="space-y-4">
+   300→            {/* Description */}
+   301→            <div>
+   302→              <Label className="text-xs text-muted-foreground">Descripción del producto</Label>
+   303→              <p className="text-sm mt-1 whitespace-pre-wrap">{pr.productDescription}</p>
+   304→            </div>
+   305→
+   306→            {/* Grid: brand, quantity, link, provider */}
+   307→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   308→              {pr.brand && (
+   309→                <div className="flex items-center gap-2">
+   310→                  <Tag className="h-4 w-4 text-muted-foreground shrink-0" />
+   311→                  <div>
+   312→                    <p className="text-[10px] text-muted-foreground">Marca</p>
+   313→                    <p className="text-sm font-medium">{pr.brand}</p>
+   314→                  </div>
+   315→                </div>
+   316→              )}
+   317→              <div className="flex items-center gap-2">
+   318→                <Package className="h-4 w-4 text-muted-foreground shrink-0" />
+   319→                <div>
+   320→                  <p className="text-[10px] text-muted-foreground">Cantidad</p>
+   321→                  <p className="text-sm font-medium">{pr.quantity} unidad{pr.quantity !== 1 ? 'es' : ''}</p>
+   322→                </div>
+   323→              </div>
+   324→              {pr.directProvider && (
+   325→                <div className="flex items-center gap-2 sm:col-span-2">
+   326→                  <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+   327→                  <div className="min-w-0">
+   328→                    <p className="text-[10px] text-muted-foreground">Proveedor Directo</p>
+   329→                    <p className="text-sm font-medium whitespace-pre-wrap break-words">{pr.directProvider}</p>
+   330→                  </div>
+   331→                </div>
+   332→              )}
+   333→            </div>
+   334→
+   335→            {/* Link */}
+   336→            {pr.productLink && (
+   337→              <div>
+   338→                <Label className="text-xs text-muted-foreground">Link del producto</Label>
+   339→                <a
+   340→                  href={pr.productLink}
+   341→                  target="_blank"
+   342→                  rel="noopener noreferrer"
+   343→                  className="flex items-center gap-2 text-sm text-blue-600 hover:underline mt-1 break-all"
+   344→                >
+   345→                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+   346→                  {pr.productLink}
+   347→                </a>
+   348→              </div>
+   349→            )}
+   350→
+   351→            {/* Reference Photo */}
+   352→            {pr.referencePhotoUrl && (
+   353→              <div>
+   354→                <Label className="text-xs text-muted-foreground">Fotografía de Referencia</Label>
+   355→                <button
+   356→                  type="button"
+   357→                  onClick={() => setShowImageDialog(true)}
+   358→                  className="block mt-1"
+   359→                >
+   360→                  <img
+   361→                    src={pr.referencePhotoUrl}
+   362→                    alt="Referencia"
+   363→                    className="w-32 h-32 object-cover rounded-lg border hover:opacity-90 transition-opacity"
+   364→                  />
+   365→                </button>
+   366→              </div>
+   367→            )}
+   368→
+   369→            {/* Notes */}
+   370→            {pr.notes && (
+   371→              <div>
+   372→                <Label className="text-xs text-muted-foreground">Notas</Label>
+   373→                <p className="text-sm mt-1 whitespace-pre-wrap p-3 bg-muted/30 rounded-lg">
+   374→                  {pr.notes}
+   375→                </p>
+   376→              </div>
+   377→            )}
+   378→
+   379→            {/* Review info */}
+   380→            {pr.reviewedBy && pr.reviewedAt && (
+   381→              <div className="pt-3 border-t">
+   382→                <p className="text-xs text-muted-foreground">
+   383→                  Revisada por <span className="font-medium">{pr.reviewedBy}</span> el{' '}
+   384→                  {new Date(pr.reviewedAt).toLocaleString('es-CL')}
+   385→                </p>
+   386→                {pr.reviewNote && (
+   387→                  <p className="text-xs mt-1 p-2 bg-muted/30 rounded">
+   388→                    <span className="font-medium">Comentario: </span>{pr.reviewNote}
+   389→                  </p>
+   390→                )}
+   391→              </div>
+   392→            )}
+   393→          </CardContent>
+   394→        </Card>
+   395→      </motion.div>
+   396→
+   397→      {/* Quotes section */}
+   398→      <motion.div
+   399→        initial={{ opacity: 0, y: 10 }}
+   400→        animate={{ opacity: 1, y: 0 }}
+   401→        transition={{ duration: 0.3, delay: 0.1 }}
+   402→      >
+   403→        <Card className="shadow-sm">
+   404→          <CardHeader className="pb-3">
+   405→            <div className="flex items-center justify-between">
+   406→              <CardTitle className="text-base flex items-center gap-2">
+   407→                <FileText className="h-4 w-4 text-emerald-600" />
+   408→                Cotizaciones ({quotes.length})
+   409→              </CardTitle>
+   410→              <Button
+   411→                variant="outline"
+   412→                size="sm"
+   413→                onClick={() => setShowQuoteDialog(true)}
+   414→                className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+   415→              >
+   416→                <Plus className="h-4 w-4 mr-1" />
+   417→                Agregar Cotización
+   418→              </Button>
+   419→            </div>
+   420→          </CardHeader>
+   421→          <CardContent>
+   422→            {quotes.length === 0 ? (
+   423→              <div className="text-center py-8">
+   424→                <FileText className="h-10 w-10 mx-auto text-muted-foreground/30 mb-2" />
+   425→                <p className="text-sm text-muted-foreground">No hay cotizaciones registradas</p>
+   426→                <p className="text-xs text-muted-foreground/60 mt-1">
+   427→                  Agregue cotizaciones en PDF, Excel, Word o imágenes
+   428→                </p>
+   429→              </div>
+   430→            ) : (
+   431→              <div className="space-y-2">
+   432→                {quotes.map((quote) => (
+   433→                  <div
+   434→                    key={quote.id}
+   435→                    className={`flex items-start gap-3 p-3 border rounded-lg transition-colors ${
+   436→                      quote.isWinner
+   437→                        ? 'border-emerald-300 bg-emerald-50/50'
+   438→                        : 'border-border hover:bg-muted/30'
+   439→                    }`}
+   440→                  >
+   441→                    {/* Winner badge */}
+   442→                    {quote.isWinner && (
+   443→                      <div className="absolute -mt-1 -ml-1">
+   444→                        <Badge className="text-[9px] bg-emerald-600 text-white">
+   445→                          <Award className="h-2.5 w-2.5 mr-0.5" />
+   446→                          Ganadora
+   447→                        </Badge>
+   448→                      </div>
+   449→                    )}
+   450→
+   451→                    <div className="flex-1 min-w-0">
+   452→                      <div className="flex items-start justify-between gap-2">
+   453→                        <div className="flex-1 min-w-0">
+   454→                          <p className="text-sm font-medium truncate">{quote.providerName}</p>
+   455→                          <p className="text-lg font-bold text-emerald-700">
+   456→                            {formatCLP(quote.amount)}
+   457→                            <span className="text-xs text-muted-foreground ml-1">{quote.currency}</span>
+   458→                          </p>
+   459→                          {quote.notes && (
+   460→                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{quote.notes}</p>
+   461→                          )}
+   462→                          {quote.fileName && (
+   463→                            <button
+   464→                              type="button"
+   465→                              onClick={() => {
+   466→                                const link = document.createElement('a')
+   467→                                link.href = quote.fileData!
+   468→                                link.download = quote.fileName!
+   469→                                document.body.appendChild(link)
+   470→                                link.click()
+   471→                                document.body.removeChild(link)
+   472→                              }}
+   473→                              className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline mt-1"
+   474→                            >
+   475→                              <Download className="h-3 w-3" />
+   476→                              {quote.fileName}
+   477→                            </button>
+   478→                          )}
+   479→                        </div>
+   480→                        <div className="flex items-center gap-1 shrink-0">
+   481→                          {isAdmin && !quote.isWinner && (
+   482→                            <Button
+   483→                              variant="ghost"
+   484→                              size="sm"
+   485→                              className="h-7 text-emerald-600 hover:bg-emerald-50 text-xs"
+   486→                              onClick={() => handleSetWinner(quote.id, true)}
+   487→                              title="Marcar como cotización ganadora"
+   488→                            >
+   489→                              <Check className="h-3.5 w-3.5 mr-1" />
+   490→                              Seleccionar
+   491→                            </Button>
+   492→                          )}
+   493→                          {isAdmin && quote.isWinner && (
+   494→                            <Button
+   495→                              variant="ghost"
+   496→                              size="sm"
+   497→                              className="h-7 text-muted-foreground hover:bg-muted text-xs"
+   498→                              onClick={() => handleSetWinner(quote.id, false)}
+   499→                            >
+   500→                              <X className="h-3.5 w-3.5 mr-1" />
+   501→                              Quitar
+   502→                            </Button>
+   503→                          )}
+   504→                          {(isAdmin || isOwner) && (
+   505→                            <Button
+   506→                              variant="ghost"
+   507→                              size="icon"
+   508→                              className="h-7 w-7 text-red-600 hover:bg-red-50"
+   509→                              onClick={() => setDeleteQuoteId(quote.id)}
+   510→                            >
+   511→                              <Trash2 className="h-3.5 w-3.5" />
+   512→                            </Button>
+   513→                          )}
+   514→                        </div>
+   515→                      </div>
+   516→                    </div>
+   517→                  </div>
+   518→                ))}
+   519→
+   520→                {/* Summary */}
+   521→                {quotes.length > 1 && (
+   522→                  <div className="pt-2 mt-2 border-t flex items-center justify-between text-xs">
+   523→                    <span className="text-muted-foreground">
+   524→                      {quotes.length} cotizaciones · Mejor: {formatCLP(minQuote?.amount || 0)} ({minQuote?.providerName})
+   525→                    </span>
+   526→                    {winnerQuote && (
+   527→                      <span className="text-emerald-600 font-medium">
+   528→                        Seleccionada: {formatCLP(winnerQuote.amount)}
+   529→                      </span>
+   530→                    )}
+   531→                  </div>
+   532→                )}
+   533→              </div>
+   534→            )}
+   535→          </CardContent>
+   536→        </Card>
+   537→      </motion.div>
+   538→
+   539→      {/* Admin review section */}
+   540→      {isAdmin && (
+   541→        <motion.div
+   542→          initial={{ opacity: 0, y: 10 }}
+   543→          animate={{ opacity: 1, y: 0 }}
+   544→          transition={{ duration: 0.3, delay: 0.2 }}
+   545→        >
+   546→          <Card className="shadow-sm border-blue-200">
+   547→            <CardHeader className="pb-3">
+   548→              <CardTitle className="text-base flex items-center gap-2">
+   549→                <AlertCircle className="h-4 w-4 text-blue-600" />
+   550→                Revisión de Administrador
+   551→              </CardTitle>
+   552→            </CardHeader>
+   553→            <CardContent>
+   554→              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+   555→                <div className="flex-1">
+   556→                  <p className="text-xs text-muted-foreground mb-1">Estado actual</p>
+   557→                  <Badge variant="outline" className={`text-[10px] ${status.color}`}>
+   558→                    {status.label}
+   559→                  </Badge>
+   560→                </div>
+   561→                <Button
+   562→                  onClick={() => setShowReviewDialog(true)}
+   563→                  className="bg-blue-600 hover:bg-blue-700 text-white"
+   564→                >
+   565→                  <Edit className="h-4 w-4 mr-1" />
+   566→                  Revisar Solicitud
+   567→                </Button>
+   568→              </div>
+   569→            </CardContent>
+   570→          </Card>
+   571→        </motion.div>
+   572→      )}
+   573→
+   574→      {/* Delete button (owner if pendiente, or admin) */}
+   575→      {(canEdit || isAdmin) && (
+   576→        <div className="flex justify-end pt-2">
+   577→          <Button
+   578→            variant="ghost"
+   579→            className="text-red-600 hover:bg-red-50 text-sm"
+   580→            onClick={handleDelete}
+   581→          >
+   582→            <Trash2 className="h-4 w-4 mr-2" />
+   583→            Eliminar Solicitud
+   584→          </Button>
+   585→        </div>
+   586→      )}
+   587→
+   588→      {/* Add Quote Dialog */}
+   589→      <Dialog open={showQuoteDialog} onOpenChange={setShowQuoteDialog}>
+   590→        <DialogContent className="sm:max-w-md">
+   591→          <DialogHeader>
+   592→            <DialogTitle className="flex items-center gap-2">
+   593→              <FileText className="h-5 w-5 text-emerald-600" />
+   594→              Agregar Cotización
+   595→            </DialogTitle>
+   596→            <DialogDescription>
+   597→              Registre una cotización del proveedor. Puede adjuntar archivos en PDF, Word, Excel o imágenes.
+   598→            </DialogDescription>
+   599→          </DialogHeader>
+   600→          <div className="space-y-4 py-2">
+   601→            <div className="space-y-2">
+   602→              <Label>Proveedor *</Label>
+   603→              <Input
+   604→                placeholder="Ej: Distribuidora XYZ SpA"
+   605→                value={quoteProvider}
+   606→                onChange={(e) => setQuoteProvider(e.target.value)}
+   607→              />
+   608→            </div>
+   609→            <div className="space-y-2">
+   610→              <Label>Monto (CLP) *</Label>
+   611→              <Input
+   612→                type="number"
+   613→                placeholder="0"
+   614→                value={quoteAmount}
+   615→                onChange={(e) => setQuoteAmount(e.target.value)}
+   616→              />
+   617→            </div>
+   618→            <div className="space-y-2">
+   619→              <Label>Archivo de cotización (opcional)</Label>
+   620→              <FileUpload
+   621→                value={quoteFile}
+   622→                onChange={setQuoteFile}
+   623→                accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png,.gif,.zip"
+   624→              />
+   625→            </div>
+   626→            <div className="space-y-2">
+   627→              <Label>Notas (opcional)</Label>
+   628→              <Textarea
+   629→                placeholder="Ej: Válido por 15 días, incluye despacho..."
+   630→                value={quoteNotes}
+   631→                onChange={(e) => setQuoteNotes(e.target.value)}
+   632→                rows={2}
+   633→              />
+   634→            </div>
+   635→          </div>
+   636→          <DialogFooter className="gap-2">
+   637→            <Button variant="outline" onClick={() => setShowQuoteDialog(false)} disabled={isSavingQuote}>
+   638→              Cancelar
+   639→            </Button>
+   640→            <Button
+   641→              onClick={handleSaveQuote}
+   642→              disabled={isSavingQuote}
+   643→              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+   644→            >
+   645→              {isSavingQuote ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+   646→              Agregar
+   647→            </Button>
+   648→          </DialogFooter>
+   649→        </DialogContent>
+   650→      </Dialog>
+   651→
+   652→      {/* Review Dialog */}
+   653→      <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
+   654→        <DialogContent className="sm:max-w-md">
+   655→          <DialogHeader>
+   656→            <DialogTitle>Revisar Solicitud de Compra</DialogTitle>
+   657→            <DialogDescription>
+   658→              Cambie el estado de la solicitud y deje un comentario para el solicitante
+   659→            </DialogDescription>
+   660→          </DialogHeader>
+   661→          <div className="space-y-4 py-2">
+   662→            <div className="space-y-2">
+   663→              <Label>Estado</Label>
+   664→              <Select value={reviewStatus} onValueChange={setReviewStatus}>
+   665→                <SelectTrigger><SelectValue /></SelectTrigger>
+   666→                <SelectContent>
+   667→                  <SelectItem value="PENDIENTE">Pendiente</SelectItem>
+   668→                  <SelectItem value="APROBADA">Aprobada</SelectItem>
+   669→                  <SelectItem value="EN_COMPRA">En Compra</SelectItem>
+   670→                  <SelectItem value="COMPRADA">Comprada</SelectItem>
+   671→                  <SelectItem value="RECHAZADA">Rechazada</SelectItem>
+   672→                  <SelectItem value="CANCELADA">Cancelada</SelectItem>
+   673→                </SelectContent>
+   674→              </Select>
+   675→            </div>
+   676→            <div className="space-y-2">
+   677→              <Label>Comentario (opcional)</Label>
+   678→              <Textarea
+   679→                placeholder="Ej: Aprobado. Proceder con la compra del proveedor X."
+   680→                value={reviewNote}
+   681→                onChange={(e) => setReviewNote(e.target.value)}
+   682→                rows={3}
+   683→              />
+   684→            </div>
+   685→          </div>
+   686→          <DialogFooter className="gap-2">
+   687→            <Button variant="outline" onClick={() => setShowReviewDialog(false)} disabled={isSavingReview}>
+   688→              Cancelar
+   689→            </Button>
+   690→            <Button
+   691→              onClick={handleReview}
+   692→              disabled={isSavingReview}
+   693→              className="bg-blue-600 hover:bg-blue-700 text-white"
+   694→            >
+   695→              {isSavingReview ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+   696→              Guardar Revisión
+   697→            </Button>
+   698→          </DialogFooter>
+   699→        </DialogContent>
+   700→      </Dialog>
+   701→
+   702→      {/* Image Preview Dialog */}
+   703→      <Dialog open={showImageDialog} onOpenChange={setShowImageDialog}>
+   704→        <DialogContent className="sm:max-w-2xl">
+   705→          <DialogHeader>
+   706→            <DialogTitle>Fotografía de Referencia</DialogTitle>
+   707→          </DialogHeader>
+   708→          {pr.referencePhotoUrl && (
+   709→            <img
+   710→              src={pr.referencePhotoUrl}
+   711→              alt="Referencia"
+   712→              className="w-full h-auto rounded-lg"
+   713→            />
+   714→          )}
+   715→        </DialogContent>
+   716→      </Dialog>
+   717→
+   718→      {/* Delete Quote Dialog */}
+   719→      <Dialog open={!!deleteQuoteId} onOpenChange={(open) => !open && setDeleteQuoteId(null)}>
+   720→        <DialogContent className="sm:max-w-sm">
+   721→          <DialogHeader>
+   722→            <DialogTitle>Eliminar Cotización</DialogTitle>
+   723→            <DialogDescription>
+   724→              ¿Está seguro de que desea eliminar esta cotización? Esta acción no se puede deshacer.
+   725→            </DialogDescription>
+   726→          </DialogHeader>
+   727→          <DialogFooter className="gap-2">
+   728→            <Button variant="outline" onClick={() => setDeleteQuoteId(null)} disabled={isDeletingQuote}>
+   729→              Cancelar
+   730→            </Button>
+   731→            <Button variant="destructive" onClick={handleDeleteQuote} disabled={isDeletingQuote}>
+   732→              {isDeletingQuote && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+   733→              Eliminar
+   734→            </Button>
+   735→          </DialogFooter>
+   736→        </DialogContent>
+   737→      </Dialog>
+   738→    </div>
+   739→  )
+   740→}
+   741→

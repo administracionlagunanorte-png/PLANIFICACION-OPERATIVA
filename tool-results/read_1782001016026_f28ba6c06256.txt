@@ -1,0 +1,698 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState } from 'react'
+     4→     4→import { useQuery } from '@tanstack/react-query'
+     5→     5→import { formatCLP } from '@/lib/format-currency'
+     6→     6→import { motion } from 'framer-motion'
+     7→     7→import {
+     8→     8→  FileText,
+     9→     9→  Clock,
+    10→    10→  CheckCircle2,
+    11→    11→  XCircle,
+    12→    12→  DollarSign,
+    13→    13→  Users,
+    14→    14→  Download,
+    15→    15→  AlertTriangle,
+    16→    16→  FileEdit,
+    17→    17→  TrendingUp,
+    18→    18→  Eye,
+    19→    19→  PlusCircle,
+    20→    20→  Wallet,
+    21→    21→  User,
+    22→    22→  Timer,
+    23→    23→  Zap,
+    24→    24→  Hourglass,
+    25→    25→  Search,
+    26→    26→  ShoppingCart,
+    27→    27→} from 'lucide-react'
+    28→    28→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    29→    29→import { Button } from '@/components/ui/button'
+    30→    30→import { Badge } from '@/components/ui/badge'
+    31→    31→import { Skeleton } from '@/components/ui/skeleton'
+    32→    32→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    33→    33→import { Input } from '@/components/ui/input'
+    34→    34→import { Label } from '@/components/ui/label'
+    35→    35→import { useAppStore } from '@/lib/store'
+    36→    36→import { toast } from 'sonner'
+    37→    37→
+    38→    38→const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+    39→    39→  DRAFT: { label: 'Borrador', color: 'bg-gray-100 text-gray-700 border-gray-200', icon: <FileEdit className="h-3 w-3" /> },
+    40→    40→  SUBMITTED: { label: 'Enviado', color: 'bg-amber-50 text-amber-700 border-amber-200', icon: <Clock className="h-3 w-3" /> },
+    41→    41→  APPROVED: { label: 'Aprobado', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: <CheckCircle2 className="h-3 w-3" /> },
+    42→    42→  REJECTED: { label: 'Rechazado', color: 'bg-red-50 text-red-700 border-red-200', icon: <XCircle className="h-3 w-3" /> },
+    43→    43→  MODIFICATION_REQUESTED: { label: 'Modificación', color: 'bg-orange-50 text-orange-700 border-orange-200', icon: <AlertTriangle className="h-3 w-3" /> },
+    44→    44→}
+    45→    45→
+    46→    46→function formatHours(hours: number): string {
+    47→    47→  if (hours === 0) return '-'
+    48→    48→  if (hours < 1) return `${Math.round(hours * 60)} min`
+    49→    49→  if (hours < 24) return `${Math.round(hours * 10) / 10} hrs`
+    50→    50→  const days = Math.round((hours / 24) * 10) / 10
+    51→    51→  return `${days} días`
+    52→    52→}
+    53→    53→
+    54→    54→export function AdminDashboard() {
+    55→    55→  const { filters, setFilters, resetFilters, setCurrentView } = useAppStore()
+    56→    56→  const [search, setSearch] = useState('')
+    57→    57→
+    58→    58→  const { data: stats, isLoading: statsLoading } = useQuery({
+    59→    59→    queryKey: ['stats'],
+    60→    60→    queryFn: async () => {
+    61→    61→      const res = await fetch('/api/stats')
+    62→    62→      if (!res.ok) throw new Error('Error')
+    63→    63→      return res.json()
+    64→    64→    },
+    65→    65→  })
+    66→    66→
+    67→    67→  const { data: pendingData, isLoading: pendingLoading } = useQuery({
+    68→    68→    queryKey: ['pending-reports'],
+    69→    69→    queryFn: async () => {
+    70→    70→      const res = await fetch('/api/reports?status=SUBMITTED&pageSize=10')
+    71→    71→      if (!res.ok) throw new Error('Error')
+    72→    72→      return res.json()
+    73→    73→    },
+    74→    74→  })
+    75→    75→
+    76→    76→  // Fetch pending purchase requests
+    77→    77→  const { data: pendingPurchases, isLoading: purchasesLoading } = useQuery({
+    78→    78→    queryKey: ['pending-purchase-requests'],
+    79→    79→    queryFn: async () => {
+    80→    80→      const res = await fetch('/api/purchase-requests?status=PENDIENTE&pageSize=5')
+    81→    81→      if (!res.ok) throw new Error('Error')
+    82→    82→      return res.json()
+    83→    83→    },
+    84→    84→  })
+    85→    85→
+    86→    86→  // Filter pending and recent reports by search
+    87→    87→  const filteredPendingReports = search
+    88→    88→    ? pendingData?.reports?.filter((report: any) =>
+    89→    89→        report.title.toLowerCase().includes(search.toLowerCase()) ||
+    90→    90→        (report.correlativeNumber != null && String(report.correlativeNumber).includes(search)) ||
+    91→    91→        report.user?.name?.toLowerCase().includes(search.toLowerCase())
+    92→    92→      )
+    93→    93→    : pendingData?.reports
+    94→    94→
+    95→    95→  // Fetch users with budget data for the control panel
+    96→    96→  const { data: budgetData, isLoading: budgetLoading } = useQuery({
+    97→    97→    queryKey: ['admin-budget'],
+    98→    98→    queryFn: async () => {
+    99→    99→      const res = await fetch('/api/users?withBudget=true')
+   100→   100→      if (!res.ok) throw new Error('Error')
+   101→   101→      return res.json()
+   102→   102→    },
+   103→   103→  })
+   104→   104→
+   105→   105→  const handleExportAll = async () => {
+   106→   106→    try {
+   107→   107→      const params = new URLSearchParams()
+   108→   108→      if (filters.status) params.set('status', filters.status)
+   109→   109→      if (filters.userId) params.set('userId', filters.userId)
+   110→   110→      if (filters.dateFrom) params.set('dateFrom', filters.dateFrom)
+   111→   111→      if (filters.dateTo) params.set('dateTo', filters.dateTo)
+   112→   112→
+   113→   113→      const url = `/api/export/excel?${params.toString()}`
+   114→   114→      const res = await fetch(url)
+   115→   115→      if (!res.ok) throw new Error('Error al exportar')
+   116→   116→      const blob = await res.blob()
+   117→   117→      const downloadUrl = URL.createObjectURL(blob)
+   118→   118→      const a = document.createElement('a')
+   119→   119→      a.href = downloadUrl
+   120→   120→      a.download = 'rendiciones.xlsx'
+   121→   121→      a.click()
+   122→   122→      URL.revokeObjectURL(downloadUrl)
+   123→   123→      toast.success('Exportación completada')
+   124→   124→    } catch {
+   125→   125→      toast.error('Error al exportar los datos')
+   126→   126→    }
+   127→   127→  }
+   128→   128→
+   129→   129→  // Compute budget totals
+   130→   130→  const totalAsignado = budgetData?.users?.reduce((sum: number, u: any) => sum + (u.montoAsignado || 0), 0) || 0
+   131→   131→  const totalAprobado = budgetData?.users?.reduce((sum: number, u: any) => sum + (u.montoAprobado || 0), 0) || 0
+   132→   132→  const totalRendido = budgetData?.users?.reduce((sum: number, u: any) => sum + (u.montoRendido || 0), 0) || 0
+   133→   133→  const totalRestante = budgetData?.users?.reduce((sum: number, u: any) => sum + (u.montoRestante || 0), 0) || 0
+   134→   134→
+   135→   135→  const statCards = [
+   136→   136→    {
+   137→   137→      title: 'Total Rendiciones',
+   138→   138→      value: stats?.totalReports ?? 0,
+   139→   139→      icon: <FileText className="h-5 w-5" />,
+   140→   140→      color: 'text-emerald-600',
+   141→   141→      bg: 'bg-emerald-50',
+   142→   142→    },
+   143→   143→    {
+   144→   144→      title: 'Pendientes Revisión',
+   145→   145→      value: stats?.pendingReports ?? 0,
+   146→   146→      icon: <Clock className="h-5 w-5" />,
+   147→   147→      color: 'text-amber-600',
+   148→   148→      bg: 'bg-amber-50',
+   149→   149→    },
+   150→   150→    {
+   151→   151→      title: 'Aprobadas',
+   152→   152→      value: stats?.approvedReports ?? 0,
+   153→   153→      icon: <CheckCircle2 className="h-5 w-5" />,
+   154→   154→      color: 'text-emerald-600',
+   155→   155→      bg: 'bg-emerald-50',
+   156→   156→    },
+   157→   157→    {
+   158→   158→      title: 'Rechazadas',
+   159→   159→      value: stats?.rejectedReports ?? 0,
+   160→   160→      icon: <XCircle className="h-5 w-5" />,
+   161→   161→      color: 'text-red-600',
+   162→   162→      bg: 'bg-red-50',
+   163→   163→    },
+   164→   164→    {
+   165→   165→      title: 'Usuarios',
+   166→   166→      value: stats?.totalUsers ?? 0,
+   167→   167→      icon: <Users className="h-5 w-5" />,
+   168→   168→      color: 'text-emerald-600',
+   169→   169→      bg: 'bg-emerald-50',
+   170→   170→    },
+   171→   171→    {
+   172→   172→      title: 'Monto Aprobado',
+   173→   173→      value: formatCLP(stats?.totalAmountApproved ?? 0),
+   174→   174→      icon: <DollarSign className="h-5 w-5" />,
+   175→   175→      color: 'text-emerald-700',
+   176→   176→      bg: 'bg-emerald-50',
+   177→   177→    },
+   178→   178→  ]
+   179→   179→
+   180→   180→  return (
+   181→   181→    <div className="space-y-6">
+   182→   182→      {/* Header */}
+   183→   183→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+   184→   184→        <div>
+   185→   185→          <h2 className="text-2xl font-bold">Panel de Administración</h2>
+   186→   186→          <p className="text-muted-foreground mt-1">Gestiona y revisa todas las rendiciones de gastos</p>
+   187→   187→        </div>
+   188→   188→        <div className="flex items-center gap-2">
+   189→   189→          <Button
+   190→   190→            onClick={() => setCurrentView('create-report')}
+   191→   191→            className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+   192→   192→          >
+   193→   193→            <PlusCircle className="mr-2 h-4 w-4" />
+   194→   194→            Nueva Rendición
+   195→   195→          </Button>
+   196→   196→          <Button onClick={handleExportAll} variant="outline" className="shadow-sm">
+   197→   197→            <Download className="mr-2 h-4 w-4" />
+   198→   198→            Exportar Todo
+   199→   199→          </Button>
+   200→   200→        </div>
+   201→   201→      </div>
+   202→   202→
+   203→   203→      {/* Search Bar */}
+   204→   204→      <div className="relative">
+   205→   205→        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   206→   206→        <Input
+   207→   207→          placeholder="Buscar por título, número o usuario..."
+   208→   208→          value={search}
+   209→   209→          onChange={(e) => setSearch(e.target.value)}
+   210→   210→          className="pl-9 h-10"
+   211→   211→        />
+   212→   212→      </div>
+   213→   213→
+   214→   214→      {/* Stats Cards */}
+   215→   215→      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+   216→   216→        {statCards.map((stat, i) => (
+   217→   217→          <motion.div
+   218→   218→            key={stat.title}
+   219→   219→            initial={{ opacity: 0, y: 20 }}
+   220→   220→            animate={{ opacity: 1, y: 0 }}
+   221→   221→            transition={{ duration: 0.3, delay: i * 0.05 }}
+   222→   222→          >
+   223→   223→            <Card className="shadow-sm hover:shadow-md transition-shadow">
+   224→   224→              <CardContent className="p-4">
+   225→   225→                {statsLoading ? (
+   226→   226→                  <div className="space-y-2">
+   227→   227→                    <Skeleton className="h-4 w-20" />
+   228→   228→                    <Skeleton className="h-7 w-14" />
+   229→   229→                  </div>
+   230→   230→                ) : (
+   231→   231→                  <>
+   232→   232→                    <div className="flex items-center justify-between mb-2">
+   233→   233→                      <span className="text-xs font-medium text-muted-foreground">{stat.title}</span>
+   234→   234→                      <div className={`p-1.5 rounded-lg ${stat.bg}`}>
+   235→   235→                        <span className={stat.color}>{stat.icon}</span>
+   236→   236→                      </div>
+   237→   237→                    </div>
+   238→   238→                    <p className="text-xl font-bold">{stat.value}</p>
+   239→   239→                  </>
+   240→   240→                )}
+   241→   241→              </CardContent>
+   242→   242→            </Card>
+   243→   243→          </motion.div>
+   244→   244→        ))}
+   245→   245→      </div>
+   246→   246→
+   247→   247→      {/* Time Statistics Card */}
+   248→   248→      <Card className="shadow-sm border-emerald-200">
+   249→   249→        <CardHeader className="pb-3">
+   250→   250→          <CardTitle className="text-base flex items-center gap-2">
+   251→   251→            <Timer className="h-4 w-4 text-emerald-600" />
+   252→   252→            Estadísticas de Tiempo
+   253→   253→          </CardTitle>
+   254→   254→        </CardHeader>
+   255→   255→        <CardContent>
+   256→   256→          {statsLoading ? (
+   257→   257→            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   258→   258→              {[1, 2, 3].map((i) => (
+   259→   259→                <Skeleton key={i} className="h-20 w-full" />
+   260→   260→              ))}
+   261→   261→            </div>
+   262→   262→          ) : stats?.timeStats?.count > 0 ? (
+   263→   263→            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   264→   264→              <div className="p-4 bg-emerald-50 rounded-lg text-center">
+   265→   265→                <div className="flex items-center justify-center gap-2 mb-2">
+   266→   266→                  <Clock className="h-4 w-4 text-emerald-600" />
+   267→   267→                  <span className="text-xs font-medium text-emerald-600">Tiempo Promedio</span>
+   268→   268→                </div>
+   269→   269→                <p className="text-2xl font-bold text-emerald-700">
+   270→   270→                  {formatHours(stats.timeStats.avgApprovalHours)}
+   271→   271→                </p>
+   272→   272→                <p className="text-[10px] text-emerald-500 mt-1">desde envío hasta aprobación</p>
+   273→   273→              </div>
+   274→   274→              <div className="p-4 bg-blue-50 rounded-lg text-center">
+   275→   275→                <div className="flex items-center justify-center gap-2 mb-2">
+   276→   276→                  <Zap className="h-4 w-4 text-blue-600" />
+   277→   277→                  <span className="text-xs font-medium text-blue-600">Aprobación Más Rápida</span>
+   278→   278→                </div>
+   279→   279→                <p className="text-2xl font-bold text-blue-700">
+   280→   280→                  {formatHours(stats.timeStats.fastestApprovalHours)}
+   281→   281→                </p>
+   282→   282→                <p className="text-[10px] text-blue-500 mt-1">menor tiempo de aprobación</p>
+   283→   283→              </div>
+   284→   284→              <div className="p-4 bg-amber-50 rounded-lg text-center">
+   285→   285→                <div className="flex items-center justify-center gap-2 mb-2">
+   286→   286→                  <Hourglass className="h-4 w-4 text-amber-600" />
+   287→   287→                  <span className="text-xs font-medium text-amber-600">Aprobación Más Lenta</span>
+   288→   288→                </div>
+   289→   289→                <p className="text-2xl font-bold text-amber-700">
+   290→   290→                  {formatHours(stats.timeStats.slowestApprovalHours)}
+   291→   291→                </p>
+   292→   292→                <p className="text-[10px] text-amber-500 mt-1">mayor tiempo de aprobación</p>
+   293→   293→              </div>
+   294→   294→            </div>
+   295→   295→          ) : (
+   296→   296→            <div className="text-center py-6">
+   297→   297→              <Timer className="h-10 w-10 mx-auto text-muted-foreground/30 mb-2" />
+   298→   298→              <p className="text-sm text-muted-foreground">No hay datos de tiempo de aprobación aún</p>
+   299→   299→              <p className="text-xs text-muted-foreground mt-1">Los datos aparecerán cuando se aprueben rendiciones enviadas</p>
+   300→   300→            </div>
+   301→   301→          )}
+   302→   302→        </CardContent>
+   303→   303→      </Card>
+   304→   304→
+   305→   305→      {/* Worker Statistics Card */}
+   306→   306→      <Card className="shadow-sm">
+   307→   307→        <CardHeader className="pb-3">
+   308→   308→          <CardTitle className="text-base flex items-center gap-2">
+   309→   309→            <Users className="h-4 w-4 text-emerald-600" />
+   310→   310→            Estadísticas por Trabajador
+   311→   311→          </CardTitle>
+   312→   312→        </CardHeader>
+   313→   313→        <CardContent>
+   314→   314→          {statsLoading ? (
+   315→   315→            <div className="space-y-3">
+   316→   316→              {[1, 2, 3].map((i) => (
+   317→   317→                <Skeleton key={i} className="h-10 w-full" />
+   318→   318→              ))}
+   319→   319→            </div>
+   320→   320→          ) : stats?.workerStats?.length > 0 ? (
+   321→   321→            <div className="overflow-x-auto">
+   322→   322→              <table className="w-full text-sm">
+   323→   323→                <thead>
+   324→   324→                  <tr className="border-b">
+   325→   325→                    <th className="text-left py-2 px-2 text-xs font-medium text-muted-foreground">Trabajador</th>
+   326→   326→                    <th className="text-right py-2 px-2 text-xs font-medium text-muted-foreground">Rendiciones</th>
+   327→   327→                    <th className="text-right py-2 px-2 text-xs font-medium text-muted-foreground">Compras</th>
+   328→   328→                    <th className="text-right py-2 px-2 text-xs font-medium text-muted-foreground">Total Rendido</th>
+   329→   329→                    <th className="text-right py-2 px-2 text-xs font-medium text-muted-foreground">Tiempo Prom. Aprobación</th>
+   330→   330→                  </tr>
+   331→   331→                </thead>
+   332→   332→                <tbody>
+   333→   333→                  {stats.workerStats.map((worker: any) => (
+   334→   334→                    <tr key={worker.userId} className="border-b hover:bg-muted/30 transition-colors">
+   335→   335→                      <td className="py-3 px-2">
+   336→   336→                        <div className="flex items-center gap-2">
+   337→   337→                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-semibold bg-emerald-100 text-emerald-700">
+   338→   338→                            {worker.userName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+   339→   339→                          </div>
+   340→   340→                          <div>
+   341→   341→                            <p className="font-medium text-sm">{worker.userName}</p>
+   342→   342→                            <p className="text-[10px] text-muted-foreground">{worker.userEmail}</p>
+   343→   343→                          </div>
+   344→   344→                        </div>
+   345→   345→                      </td>
+   346→   346→                      <td className="py-3 px-2 text-right">
+   347→   347→                        <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
+   348→   348→                          {worker.rendicionesCount}
+   349→   349→                        </Badge>
+   350→   350→                      </td>
+   351→   351→                      <td className="py-3 px-2 text-right">
+   352→   352→                        <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">
+   353→   353→                          {worker.comprasCount}
+   354→   354→                        </Badge>
+   355→   355→                      </td>
+   356→   356→                      <td className="py-3 px-2 text-right font-medium text-emerald-700">
+   357→   357→                        {formatCLP(worker.totalRendido)}
+   358→   358→                      </td>
+   359→   359→                      <td className="py-3 px-2 text-right">
+   360→   360→                        <span className="text-xs text-muted-foreground">
+   361→   361→                          {formatHours(worker.avgApprovalHours)}
+   362→   362→                        </span>
+   363→   363→                      </td>
+   364→   364→                    </tr>
+   365→   365→                  ))}
+   366→   366→                </tbody>
+   367→   367→              </table>
+   368→   368→            </div>
+   369→   369→          ) : (
+   370→   370→            <div className="text-center py-6">
+   371→   371→              <Users className="h-10 w-10 mx-auto text-muted-foreground/30 mb-2" />
+   372→   372→              <p className="text-sm text-muted-foreground">No hay datos de trabajadores</p>
+   373→   373→            </div>
+   374→   374→          )}
+   375→   375→        </CardContent>
+   376→   376→      </Card>
+   377→   377→
+   378→   378→      {/* Budget Control Summary */}
+   379→   379→      <Card className="shadow-sm border-blue-200">
+   380→   380→        <CardHeader className="pb-3">
+   381→   381→          <div className="flex items-center justify-between">
+   382→   382→            <CardTitle className="text-base flex items-center gap-2">
+   383→   383→              <Wallet className="h-4 w-4 text-blue-600" />
+   384→   384→              Control de Presupuestos
+   385→   385→            </CardTitle>
+   386→   386→            <Button
+   387→   387→              variant="ghost"
+   388→   388→              size="sm"
+   389→   389→              className="text-blue-600 hover:text-blue-700 text-xs"
+   390→   390→              onClick={() => setCurrentView('users-panel')}
+   391→   391→            >
+   392→   392→              Ver detalle <TrendingUp className="ml-1 h-3 w-3" />
+   393→   393→            </Button>
+   394→   394→          </div>
+   395→   395→        </CardHeader>
+   396→   396→        <CardContent>
+   397→   397→          {budgetLoading ? (
+   398→   398→            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+   399→   399→              {[1, 2, 3, 4].map((i) => (
+   400→   400→                <Skeleton key={i} className="h-16 w-full" />
+   401→   401→              ))}
+   402→   402→            </div>
+   403→   403→          ) : (
+   404→   404→            <>
+   405→   405→              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+   406→   406→                <div className="p-3 bg-blue-50 rounded-lg">
+   407→   407→                  <span className="text-xs text-blue-600 font-medium">Total Asignado</span>
+   408→   408→                  <p className="text-lg font-bold text-blue-700">{formatCLP(totalAsignado)}</p>
+   409→   409→                </div>
+   410→   410→                <div className="p-3 bg-emerald-50 rounded-lg">
+   411→   411→                  <span className="text-xs text-emerald-600 font-medium">Total Aprobado</span>
+   412→   412→                  <p className="text-lg font-bold text-emerald-700">{formatCLP(totalAprobado)}</p>
+   413→   413→                </div>
+   414→   414→                <div className="p-3 bg-amber-50 rounded-lg">
+   415→   415→                  <span className="text-xs text-amber-600 font-medium">Total Rendido</span>
+   416→   416→                  <p className="text-lg font-bold text-amber-700">{formatCLP(totalRendido)}</p>
+   417→   417→                </div>
+   418→   418→                <div className={`p-3 rounded-lg ${totalRestante >= 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
+   419→   419→                  <span className={`text-xs font-medium ${totalRestante >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>Total Restante</span>
+   420→   420→                  <p className={`text-lg font-bold ${totalRestante >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{formatCLP(totalRestante)}</p>
+   421→   421→                </div>
+   422→   422→              </div>
+   423→   423→
+   424→   424→              {/* Quick user budget list */}
+   425→   425→              {budgetData?.users?.length > 0 && (
+   426→   426→                <div className="space-y-2">
+   427→   427→                  <p className="text-xs font-medium text-muted-foreground">Resumen por usuario:</p>
+   428→   428→                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+   429→   429→                    {budgetData.users.map((user: any) => {
+   430→   430→                      const restante = user.montoRestante || 0
+   431→   431→                      const isOver = restante < 0
+   432→   432→                      const pct = user.montoAsignado > 0 ? Math.round((user.montoRendido / user.montoAsignado) * 100) : 0
+   433→   433→                      return (
+   434→   434→                        <div key={user.id} className="flex items-center gap-3 py-1.5 px-2 rounded hover:bg-muted/30 text-xs">
+   435→   435→                          <div className="flex items-center gap-2 min-w-[140px]">
+   436→   436→                            <User className="h-3 w-3 text-muted-foreground" />
+   437→   437→                            <span className="font-medium truncate">{user.name}</span>
+   438→   438→                          </div>
+   439→   439→                          <div className="flex-1">
+   440→   440→                            <div className="w-full bg-muted rounded-full h-1.5">
+   441→   441→                              <div
+   442→   442→                                className={`h-1.5 rounded-full ${isOver ? 'bg-red-500' : pct > 80 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+   443→   443→                                style={{ width: `${Math.min(100, pct)}%` }}
+   444→   444→                              />
+   445→   445→                            </div>
+   446→   446→                          </div>
+   447→   447→                          <div className="flex items-center gap-3 shrink-0 text-[11px]">
+   448→   448→                            <span className="text-blue-600">{formatCLP(user.montoAsignado || 0)}</span>
+   449→   449→                            <span className="text-amber-600">{formatCLP(user.montoRendido || 0)}</span>
+   450→   450→                            <span className={`font-medium ${isOver ? 'text-red-600' : 'text-emerald-600'}`}>
+   451→   451→                              {formatCLP(restante)}
+   452→   452→                            </span>
+   453→   453→                          </div>
+   454→   454→                        </div>
+   455→   455→                      )
+   456→   456→                    })}
+   457→   457→                  </div>
+   458→   458→                </div>
+   459→   459→              )}
+   460→   460→            </>
+   461→   461→          )}
+   462→   462→        </CardContent>
+   463→   463→      </Card>
+   464→   464→
+   465→   465→      {/* Pending Review Section */}
+   466→   466→      <Card className="shadow-sm">
+   467→   467→        <CardHeader className="pb-3">
+   468→   468→          <div className="flex items-center justify-between">
+   469→   469→            <div className="flex items-center gap-2">
+   470→   470→              <CardTitle className="text-base">Pendientes de Revisión</CardTitle>
+   471→   471→              {stats?.pendingReports > 0 && (
+   472→   472→                <Badge className="bg-amber-500 text-white border-0 text-[10px]">
+   473→   473→                  {stats.pendingReports}
+   474→   474→                </Badge>
+   475→   475→              )}
+   476→   476→            </div>
+   477→   477→            <Button
+   478→   478→              variant="ghost"
+   479→   479→              size="sm"
+   480→   480→              className="text-emerald-600 hover:text-emerald-700 text-xs"
+   481→   481→              onClick={() => {
+   482→   482→                setFilters({ status: 'SUBMITTED' })
+   483→   483→                setCurrentView('dashboard')
+   484→   484→              }}
+   485→   485→            >
+   486→   486→              Ver todas <TrendingUp className="ml-1 h-3 w-3" />
+   487→   487→            </Button>
+   488→   488→          </div>
+   489→   489→        </CardHeader>
+   490→   490→        <CardContent>
+   491→   491→          {pendingLoading ? (
+   492→   492→            <div className="space-y-3">
+   493→   493→              {[1, 2, 3].map((i) => (
+   494→   494→                <div key={i} className="flex items-center justify-between">
+   495→   495→                  <Skeleton className="h-4 w-48" />
+   496→   496→                  <Skeleton className="h-5 w-24" />
+   497→   497→                </div>
+   498→   498→              ))}
+   499→   499→            </div>
+   500→   500→          ) : filteredPendingReports?.length === 0 ? (
+   501→   501→            <div className="text-center py-6">
+   502→   502→              <CheckCircle2 className="h-10 w-10 mx-auto text-emerald-300 mb-2" />
+   503→   503→              <p className="text-sm text-muted-foreground">{search ? 'No hay resultados para la búsqueda' : 'No hay rendiciones pendientes de revisión'}</p>
+   504→   504→            </div>
+   505→   505→          ) : (
+   506→   506→            <div className="space-y-3">
+   507→   507→              {filteredPendingReports?.map((report: any) => (
+   508→   508→                <div
+   509→   509→                  key={report.id}
+   510→   510→                  className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors border border-transparent hover:border-emerald-100"
+   511→   511→                  onClick={() => {
+   512→   512→                    useAppStore.getState().setSelectedReportId(report.id)
+   513→   513→                    setCurrentView('report-detail')
+   514→   514→                  }}
+   515→   515→                >
+   516→   516→                  <div className="flex-1 min-w-0">
+   517→   517→                    <div className="flex items-center gap-2">
+   518→   518→                      {report.correlativeNumber != null && (
+   519→   519→                        <Badge variant="outline" className="text-[9px] bg-emerald-50 text-emerald-700 border-emerald-200 shrink-0 px-1">
+   520→   520→                          R-{String(report.correlativeNumber).padStart(3, '0')}
+   521→   521→                        </Badge>
+   522→   522→                      )}
+   523→   523→                      <p className="text-sm font-medium truncate">{report.title}</p>
+   524→   524→                    </div>
+   525→   525→                    <p className="text-xs text-muted-foreground">
+   526→   526→                      {report.user?.name} · {new Date(report.createdAt).toLocaleDateString('es-CL')} · {formatCLP(report.totalAmount)}
+   527→   527→                    </p>
+   528→   528→                  </div>
+   529→   529→                  <div className="flex items-center gap-2 ml-2">
+   530→   530→                    <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
+   531→   531→                      <Clock className="h-3 w-3 mr-1" />
+   532→   532→                      Pendiente
+   533→   533→                    </Badge>
+   534→   534→                    <Button variant="ghost" size="sm" className="h-7 text-emerald-600">
+   535→   535→                      <Eye className="h-3.5 w-3.5" />
+   536→   536→                    </Button>
+   537→   537→                  </div>
+   538→   538→                </div>
+   539→   539→              ))}
+   540→   540→            </div>
+   541→   541→          )}
+   542→   542→        </CardContent>
+   543→   543→      </Card>
+   544→   544→
+   545→   545→      {/* Pending Purchase Requests */}
+   546→   546→      <Card className="shadow-sm border-blue-200">
+   547→   547→        <CardHeader className="pb-3">
+   548→   548→          <div className="flex items-center justify-between">
+   549→   549→            <div className="flex items-center gap-2">
+   550→   550→              <CardTitle className="text-base flex items-center gap-2">
+   551→   551→                <ShoppingCart className="h-4 w-4 text-blue-600" />
+   552→   552→                Solicitudes de Compra Pendientes
+   553→   553→              </CardTitle>
+   554→   554→              {pendingPurchases?.pagination?.total > 0 && (
+   555→   555→                <Badge className="bg-blue-500 text-white border-0 text-[10px]">
+   556→   556→                  {pendingPurchases.pagination.total}
+   557→   557→                </Badge>
+   558→   558→              )}
+   559→   559→            </div>
+   560→   560→            <Button
+   561→   561→              variant="ghost"
+   562→   562→              size="sm"
+   563→   563→              className="text-blue-600 hover:text-blue-700 text-xs"
+   564→   564→              onClick={() => setCurrentView('purchase-requests')}
+   565→   565→            >
+   566→   566→              Ver todas <TrendingUp className="ml-1 h-3 w-3" />
+   567→   567→            </Button>
+   568→   568→          </div>
+   569→   569→        </CardHeader>
+   570→   570→        <CardContent>
+   571→   571→          {purchasesLoading ? (
+   572→   572→            <div className="space-y-3">
+   573→   573→              {[1, 2, 3].map((i) => (
+   574→   574→                <div key={i} className="flex items-center justify-between">
+   575→   575→                  <Skeleton className="h-4 w-48" />
+   576→   576→                  <Skeleton className="h-5 w-24" />
+   577→   577→                </div>
+   578→   578→              ))}
+   579→   579→            </div>
+   580→   580→          ) : pendingPurchases?.requests?.length === 0 ? (
+   581→   581→            <div className="text-center py-6">
+   582→   582→              <CheckCircle2 className="h-10 w-10 mx-auto text-emerald-300 mb-2" />
+   583→   583→              <p className="text-sm text-muted-foreground">No hay solicitudes de compra pendientes</p>
+   584→   584→            </div>
+   585→   585→          ) : (
+   586→   586→            <div className="space-y-3">
+   587→   587→              {pendingPurchases?.requests?.map((req: any) => (
+   588→   588→                <div
+   589→   589→                  key={req.id}
+   590→   590→                  className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors border border-transparent hover:border-blue-100"
+   591→   591→                  onClick={() => {
+   592→   592→                    useAppStore.getState().setSelectedPurchaseRequestId(req.id)
+   593→   593→                    setCurrentView('purchase-request-detail')
+   594→   594→                  }}
+   595→   595→                >
+   596→   596→                  <div className="flex-1 min-w-0">
+   597→   597→                    <div className="flex items-center gap-2">
+   598→   598→                      <Badge variant="outline" className="text-[9px] bg-blue-50 text-blue-700 border-blue-200 shrink-0 px-1">
+   599→   599→                        SC-{String(req.correlativeNumber).padStart(3, '0')}
+   600→   600→                      </Badge>
+   601→   601→                      {req.priority === 'URGENTE' && (
+   602→   602→                        <Badge className="bg-red-500 text-white border-0 text-[9px] px-1">URGENTE</Badge>
+   603→   603→                      )}
+   604→   604→                      {req.priority === 'ALTA' && (
+   605→   605→                        <Badge className="bg-orange-500 text-white border-0 text-[9px] px-1">ALTA</Badge>
+   606→   606→                      )}
+   607→   607→                      <p className="text-sm font-medium truncate">{req.productDescription}</p>
+   608→   608→                    </div>
+   609→   609→                    <p className="text-xs text-muted-foreground">
+   610→   610→                      {req.user?.name} · {new Date(req.createdAt).toLocaleDateString('es-CL')} · {req.quantity} unid.
+   611→   611→                      {req.brand && ` · ${req.brand}`}
+   612→   612→                      {req.quotes?.length > 0 && ` · ${req.quotes.length} cotiz.`}
+   613→   613→                    </p>
+   614→   614→                  </div>
+   615→   615→                  <div className="flex items-center gap-2 ml-2">
+   616→   616→                    <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
+   617→   617→                      <Clock className="h-3 w-3 mr-1" />
+   618→   618→                      Pendiente
+   619→   619→                    </Badge>
+   620→   620→                    <Button variant="ghost" size="sm" className="h-7 text-blue-600">
+   621→   621→                      <Eye className="h-3.5 w-3.5" />
+   622→   622→                    </Button>
+   623→   623→                  </div>
+   624→   624→                </div>
+   625→   625→              ))}
+   626→   626→            </div>
+   627→   627→          )}
+   628→   628→        </CardContent>
+   629→   629→      </Card>
+   630→   630→
+   631→   631→      {/* Recent Activity */}
+   632→   632→      <Card className="shadow-sm">
+   633→   633→        <CardHeader className="pb-3">
+   634→   634→          <CardTitle className="text-base">Actividad Reciente</CardTitle>
+   635→   635→        </CardHeader>
+   636→   636→        <CardContent>
+   637→   637→          {statsLoading ? (
+   638→   638→            <div className="space-y-3">
+   639→   639→              {[1, 2, 3].map((i) => (
+   640→   640→                <Skeleton key={i} className="h-4 w-full" />
+   641→   641→              ))}
+   642→   642→            </div>
+   643→   643→          ) : (stats?.recentReports || []).filter((report: any) => {
+   644→   644→              if (!search) return true
+   645→   645→              return report.title.toLowerCase().includes(search.toLowerCase()) ||
+   646→   646→                (report.correlativeNumber != null && String(report.correlativeNumber).includes(search)) ||
+   647→   647→                report.user?.name?.toLowerCase().includes(search.toLowerCase())
+   648→   648→            }).length === 0 ? (
+   649→   649→            <div className="text-center py-6">
+   650→   650→              <FileText className="h-10 w-10 mx-auto text-muted-foreground/30 mb-2" />
+   651→   651→              <p className="text-sm text-muted-foreground">{search ? 'No hay resultados para la búsqueda' : 'No hay actividad reciente'}</p>
+   652→   652→            </div>
+   653→   653→          ) : (
+   654→   654→            <div className="space-y-3">
+   655→   655→              {(stats?.recentReports || []).filter((report: any) => {
+   656→   656→                if (!search) return true
+   657→   657→                return report.title.toLowerCase().includes(search.toLowerCase()) ||
+   658→   658→                  (report.correlativeNumber != null && String(report.correlativeNumber).includes(search)) ||
+   659→   659→                  report.user?.name?.toLowerCase().includes(search.toLowerCase())
+   660→   660→              }).map((report: any) => {
+   661→   661→                const st = statusConfig[report.status] || statusConfig.DRAFT
+   662→   662→                return (
+   663→   663→                  <div
+   664→   664→                    key={report.id}
+   665→   665→                    className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+   666→   666→                    onClick={() => {
+   667→   667→                      useAppStore.getState().setSelectedReportId(report.id)
+   668→   668→                      setCurrentView('report-detail')
+   669→   669→                    }}
+   670→   670→                  >
+   671→   671→                    <div className="flex-1 min-w-0">
+   672→   672→                      <div className="flex items-center gap-2">
+   673→   673→                        {report.correlativeNumber != null && (
+   674→   674→                          <Badge variant="outline" className="text-[9px] bg-emerald-50 text-emerald-700 border-emerald-200 shrink-0 px-1">
+   675→   675→                            R-{String(report.correlativeNumber).padStart(3, '0')}
+   676→   676→                          </Badge>
+   677→   677→                        )}
+   678→   678→                        <p className="text-sm font-medium truncate">{report.title}</p>
+   679→   679→                      </div>
+   680→   680→                      <p className="text-xs text-muted-foreground">
+   681→   681→                        {report.user?.name} · {new Date(report.createdAt).toLocaleDateString('es-CL')}
+   682→   682→                      </p>
+   683→   683→                    </div>
+   684→   684→                    <Badge variant="outline" className={`text-[10px] ml-2 shrink-0 ${st.color}`}>
+   685→   685→                      {st.icon}
+   686→   686→                      <span className="ml-1">{st.label}</span>
+   687→   687→                    </Badge>
+   688→   688→                  </div>
+   689→   689→                )
+   690→   690→              })}
+   691→   691→            </div>
+   692→   692→          )}
+   693→   693→        </CardContent>
+   694→   694→      </Card>
+   695→   695→    </div>
+   696→   696→  )
+   697→   697→}
+   698→   698→

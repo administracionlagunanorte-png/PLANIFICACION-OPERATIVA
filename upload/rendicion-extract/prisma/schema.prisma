@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String           @id @default(cuid())
+  email          String           @unique
+  name           String
+  password       String
+  role           String           @default("USER")
+  avatar         String?
+  montoAsignado  Float            @default(0)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  reports        ExpenseReport[]
+  notifications  Notification[]
+  purchaseRequests PurchaseRequest[]
+}
+
+model ExpenseReport {
+  id                String        @id @default(cuid())
+  correlativeNumber Int           @unique
+  title             String
+  description       String?
+  status            String        @default("DRAFT")
+  totalAmount       Float         @default(0)
+  userId            String
+  user              User          @relation(fields: [userId], references: [id])
+  items             ExpenseItem[]
+  reviewNote        String?
+  reviewedBy        String?
+  reviewedAt        DateTime?
+  submittedAt       DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@map("expense_reports")
+}
+
+model ExpenseItem {
+  id             String        @id @default(cuid())
+  description    String
+  numeroBoleta   String
+  montoRendir    Float
+  category       String
+  expenseDate    DateTime
+  imageBoletaUrl String        @db.Text
+  imageCompraUrl String        @db.Text
+  reportId       String
+  report         ExpenseReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@map("expense_items")
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  icon      String   @default("📦")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("categories")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("INFO")
+  read      Boolean  @default(false)
+  reportId  String?
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
+
+model PurchaseRequest {
+  id                String             @id @default(cuid())
+  correlativeNumber Int                @unique
+  productDescription String
+  brand             String?
+  quantity          Int                @default(1)
+  priority          String             @default("MEDIA")
+  productLink       String?
+  referencePhotoUrl String?            @db.Text
+  directProvider    String?
+  notes             String?
+  status            String             @default("PENDIENTE")
+  userId            String
+  user              User               @relation(fields: [userId], references: [id])
+  reviewedBy        String?
+  reviewedAt        DateTime?
+  reviewNote        String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  quotes            PurchaseQuote[]
+
+  @@map("purchase_requests")
+}
+
+model PurchaseQuote {
+  id                String           @id @default(cuid())
+  purchaseRequestId String
+  purchaseRequest   PurchaseRequest  @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  providerName      String
+  amount            Float
+  currency          String           @default("CLP")
+  fileName          String?
+  fileData          String?          @db.Text
+  fileType          String?
+  notes             String?
+  isWinner          Boolean          @default(false)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@map("purchase_quotes")
+}
