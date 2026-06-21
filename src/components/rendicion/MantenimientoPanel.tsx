@@ -260,14 +260,25 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
     setCurrentView('day')
   }
 
-  const openLV = (id: string) => {
+  const openLV = (id: string, fromCalendar: boolean = false) => {
+    if (fromCalendar) {
+      // Find the LV to get its date, so "back" returns to the right day
+      const lv = allLVs.find(l => l.id === id)
+      if (lv?.scheduledDate) {
+        setSelectedDate(lv.scheduledDate.substring(0, 10))
+      }
+    }
     fetchLVDetail(id)
     setCurrentView('detail')
   }
 
   const goBack = () => {
     if (currentView === 'detail') {
-      setCurrentView('day')
+      if (selectedDate) {
+        setCurrentView('day')
+      } else {
+        setCurrentView('calendar')
+      }
       setSelectedLV(null)
     } else if (currentView === 'day') {
       setCurrentView('calendar')
@@ -663,17 +674,22 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
                     <div className="space-y-0.5">
                       {dayLVs.slice(0, 4).map(lv => {
                         const gc = freqGroupColors[lv.frecuencia] || freqGroupColors['Mensual']
+                        const isDone = lv.status === 'COMPLETADA'
+                        const isPending = lv.status === 'PENDIENTE'
                         return (
                           <div key={lv.id}
-                            className={`truncate rounded px-1 py-0.5 text-[10px] font-medium ${gc.bg} text-white`}
-                            title={`${lv.codigo} — ${lv.nombre} (${lv.frecuencia}, ${lv.progress}%)`}
+                            className={`truncate rounded px-1 py-0.5 text-[10px] font-medium ${gc.bg} text-white cursor-pointer hover:brightness-110 hover:shadow-sm transition-all flex items-center gap-0.5 ${isDone ? 'opacity-70 line-through decoration-1' : ''} ${isPending ? 'ring-1 ring-white/50' : ''}`}
+                            title={`${lv.codigo} — ${lv.nombre} (${lv.frecuencia}, ${lv.progress}%) - Clic para revisar`}
+                            onClick={(e) => { e.stopPropagation(); openLV(lv.id, true) }}
                           >
+                            {isDone && <CheckCircle className="h-2.5 w-2.5 shrink-0" />}
+                            {isPending && <Clock className="h-2.5 w-2.5 shrink-0" />}
                             {lv.codigo}
                           </div>
                         )
                       })}
                       {dayLVs.length > 4 && (
-                        <div className="text-[10px] text-teal-600 font-semibold">+{dayLVs.length - 4} más</div>
+                        <div className="text-[10px] text-teal-600 font-semibold cursor-pointer hover:text-teal-800" onClick={(e) => { e.stopPropagation(); openDay(dateStr) }}>+{dayLVs.length - 4} más</div>
                       )}
                     </div>
                   </div>
@@ -691,7 +707,7 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
                   </div>
                 )
               })}
-              <div className="flex items-center gap-1 ml-auto text-teal-600">Haz clic en un día con LVs para verlas</div>
+              <div className="flex items-center gap-1 ml-auto text-teal-600">Clic en una LV para revisión directa · Clic en día para ver todas</div>
             </div>
           </CardContent>
         </Card>
@@ -715,19 +731,24 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
                 const fc = freqColors[lv.frecuencia] || freqColors['Mensual']
                 const StatusIcon = sc.icon
                 return (
-                  <Card key={lv.id} className="border-l-4 border-l-teal-400 hover:shadow-md transition-all cursor-pointer"
+                  <Card key={lv.id} className={`border-l-4 hover:shadow-lg transition-all cursor-pointer group ${lv.status === 'COMPLETADA' ? 'border-l-emerald-500 bg-emerald-50/30' : lv.status === 'EN_PROGRESO' ? 'border-l-blue-500 bg-blue-50/20' : 'border-l-amber-500 bg-amber-50/20'}`}
                     onClick={() => openLV(lv.id)}>
                     <CardContent className="px-4 py-3">
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
-                          <Badge className={`${fc.bg} ${fc.text} text-xs font-bold shrink-0`}>{lv.codigo}</Badge>
+                          <div className={`shrink-0 flex items-center justify-center w-10 h-10 rounded-lg ${fc.bg} ${fc.text}`}>
+                            <span className="text-[10px] font-black leading-none">{lv.codigo.replace('LV-', '')}</span>
+                          </div>
                           <div className="min-w-0">
-                            <div className="font-semibold text-sm text-slate-800 truncate">{lv.nombre}</div>
-                            <div className="text-xs text-slate-500">{lv.sector} · {lv.frecuencia}</div>
+                            <div className="font-semibold text-sm text-slate-800 truncate group-hover:text-teal-700 transition-colors">{lv.nombre}</div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-xs text-slate-500">{lv.sector}</span>
+                              <Badge className={`${fc.bg} ${fc.text} ${fc.border} text-[10px] px-1.5 py-0 border`}>{lv.frecuencia}</Badge>
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          {/* Status toggle buttons */}
+                          {/* Quick action buttons */}
                           {canEdit && (
                             <div className="flex gap-1">
                               <Button
@@ -736,15 +757,7 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
                                 className={`h-7 text-xs gap-1 ${lv.status === 'COMPLETADA' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'border-emerald-300 text-emerald-700'}`}
                                 onClick={(e) => { e.stopPropagation(); handleQuickStatus(lv.id, 'COMPLETADA') }}
                               >
-                                <CheckCircle className="h-3 w-3" /> Realizado
-                              </Button>
-                              <Button
-                                variant={lv.status === 'PENDIENTE' ? 'default' : 'outline'}
-                                size="sm"
-                                className={`h-7 text-xs gap-1 ${lv.status === 'PENDIENTE' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'border-amber-300 text-amber-700'}`}
-                                onClick={(e) => { e.stopPropagation(); openLV(lv.id) }}
-                              >
-                                <Clock className="h-3 w-3" /> Pendiente
+                                <CheckCircle className="h-3 w-3" /> OK
                               </Button>
                             </div>
                           )}
@@ -755,7 +768,10 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
                               <div className={`h-full rounded-full transition-all ${getProgressBg(lv.progress)}`} style={{ width: `${lv.progress}%` }} />
                             </div>
                           </div>
-                          <Eye className="h-4 w-4 text-slate-400" />
+                          <div className="flex items-center gap-1 text-teal-600 group-hover:text-teal-800 transition-colors">
+                            <Eye className="h-4 w-4" />
+                            <span className="text-[10px] font-semibold hidden sm:inline">Revisar</span>
+                          </div>
                         </div>
                       </div>
                       {/* Show motivo if pending */}

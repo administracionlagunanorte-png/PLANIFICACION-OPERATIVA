@@ -1,0 +1,1028 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useEffect, useRef, useCallback } from 'react'
+     4→     4→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+     5→     5→import { Button } from '@/components/ui/button'
+     6→     6→import { Input } from '@/components/ui/input'
+     7→     7→import { Label } from '@/components/ui/label'
+     8→     8→import { Textarea } from '@/components/ui/textarea'
+     9→     9→import { Badge } from '@/components/ui/badge'
+    10→    10→import { Progress } from '@/components/ui/progress'
+    11→    11→import {
+    12→    12→  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+    13→    13→} from '@/components/ui/dialog'
+    14→    14→import {
+    15→    15→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    16→    16→} from '@/components/ui/select'
+    17→    17→import {
+    18→    18→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    19→    19→} from '@/components/ui/table'
+    20→    20→import {
+    21→    21→  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    22→    22→  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+    23→    23→} from '@/components/ui/alert-dialog'
+    24→    24→import {
+    25→    25→  Wrench, ChevronLeft, CheckCircle, XCircle, Clock,
+    26→    26→  Printer, Upload, Calendar, ChevronRight,
+    27→    27→  RefreshCw, Map, FileText, Trash2, AlertTriangle,
+    28→    28→  Eye, Save, MessageSquare, Paperclip,
+    29→    29→} from 'lucide-react'
+    30→    30→import { useToast } from '@/hooks/use-toast'
+    31→    31→
+    32→    32→// ============================================================
+    33→    33→// Types
+    34→    34→// ============================================================
+    35→    35→interface MantenimientoItem {
+    36→    36→  id?: string
+    37→    37→  category: string
+    38→    38→  description: string
+    39→    39→  status: string  // PENDIENTE, OK, NO_OK, N/A
+    40→    40→  value?: string | null
+    41→    41→  observation?: string | null
+    42→    42→  order: number
+    43→    43→}
+    44→    44→
+    45→    45→interface MantenimientoLV {
+    46→    46→  id: string
+    47→    47→  codigo: string
+    48→    48→  nombre: string
+    49→    49→  sector: string
+    50→    50→  frecuencia: string
+    51→    51→  status: string
+    52→    52→  progress: number
+    53→    53→  scheduledDate: string | null
+    54→    54→  completedDate: string | null
+    55→    55→  responsable: string | null
+    56→    56→  turno: string | null
+    57→    57→  observations: string | null
+    58→    58→  motivoPendiente: string | null
+    59→    59→  attachments: string
+    60→    60→  createdBy: string | null
+    61→    61→  createdAt: string
+    62→    62→  updatedAt: string
+    63→    63→  items: MantenimientoItem[]
+    64→    64→  _count?: { items: number }
+    65→    65→}
+    66→    66→
+    67→    67→// Frequency colors - CALENDAR uses these group colors
+    68→    68→const freqGroupColors: Record<string, { bg: string; text: string; dot: string; label: string }> = {
+    69→    69→  'Diaria': { bg: 'bg-blue-500', text: 'text-blue-700', dot: 'bg-blue-400', label: 'Diaria' },
+    70→    70→  '3x Semanal': { bg: 'bg-sky-500', text: 'text-sky-700', dot: 'bg-sky-400', label: '3x Semanal' },
+    71→    71→  'Semanal': { bg: 'bg-purple-500', text: 'text-purple-700', dot: 'bg-purple-400', label: 'Semanal' },
+    72→    72→  'Quincenal': { bg: 'bg-cyan-500', text: 'text-cyan-700', dot: 'bg-cyan-400', label: 'Quincenal' },
+    73→    73→  'Mensual': { bg: 'bg-amber-500', text: 'text-amber-700', dot: 'bg-amber-400', label: 'Mensual' },
+    74→    74→  'Trimestral': { bg: 'bg-orange-500', text: 'text-orange-700', dot: 'bg-orange-400', label: 'Trimestral' },
+    75→    75→  'Semestral': { bg: 'bg-rose-500', text: 'text-rose-700', dot: 'bg-rose-400', label: 'Semestral' },
+    76→    76→  'Anual': { bg: 'bg-red-600', text: 'text-red-700', dot: 'bg-red-500', label: 'Anual' },
+    77→    77→}
+    78→    78→
+    79→    79→// Frequency colors for badges/cards
+    80→    80→const freqColors: Record<string, { bg: string; text: string; border: string }> = {
+    81→    81→  'Diaria': { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-300' },
+    82→    82→  '3x Semanal': { bg: 'bg-sky-100', text: 'text-sky-700', border: 'border-sky-300' },
+    83→    83→  'Semanal': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300' },
+    84→    84→  'Quincenal': { bg: 'bg-cyan-100', text: 'text-cyan-700', border: 'border-cyan-300' },
+    85→    85→  'Mensual': { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-300' },
+    86→    86→  'Trimestral': { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300' },
+    87→    87→  'Semestral': { bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-300' },
+    88→    88→  'Anual': { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300' },
+    89→    89→}
+    90→    90→
+    91→    91→const statusConfig: Record<string, { bg: string; text: string; label: string; icon: typeof CheckCircle }> = {
+    92→    92→  'PENDIENTE': { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Pendiente', icon: Clock },
+    93→    93→  'EN_PROGRESO': { bg: 'bg-blue-100', text: 'text-blue-700', label: 'En Progreso', icon: RefreshCw },
+    94→    94→  'COMPLETADA': { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'Realizado', icon: CheckCircle },
+    95→    95→}
+    96→    96→
+    97→    97→// ============================================================
+    98→    98→// Props
+    99→    99→// ============================================================
+   100→   100→interface MantenimientoPanelProps {
+   101→   101→  userRole?: string
+   102→   102→  initialStatusFilter?: string
+   103→   103→  onStatusFilterConsumed?: () => void
+   104→   104→}
+   105→   105→
+   106→   106→// ============================================================
+   107→   107→// Component
+   108→   108→// ============================================================
+   109→   109→export default function MantenimientoPanel({ userRole = 'USER', initialStatusFilter, onStatusFilterConsumed }: MantenimientoPanelProps) {
+   110→   110→  const { toast } = useToast()
+   111→   111→  const canEdit = userRole === 'ADMIN' || userRole === 'SUPERVISOR'
+   112→   112→
+   113→   113→  // --- View state ---
+   114→   114→  const [currentView, setCurrentView] = useState<'calendar' | 'day' | 'detail'>('calendar')
+   115→   115→  const [allLVs, setAllLVs] = useState<MantenimientoLV[]>([])
+   116→   116→  const [selectedLV, setSelectedLV] = useState<MantenimientoLV | null>(null)
+   117→   117→  const [selectedDate, setSelectedDate] = useState<string>('')
+   118→   118→  const [loading, setLoading] = useState(false)
+   119→   119→  const [generating, setGenerating] = useState(false)
+   120→   120→  const [saving, setSaving] = useState(false)
+   121→   121→
+   122→   122→  // --- Calendar state ---
+   123→   123→  const [calYear, setCalYear] = useState(new Date().getFullYear())
+   124→   124→  const [calMonth, setCalMonth] = useState(new Date().getMonth())
+   125→   125→
+   126→   126→  // --- Detail edit state ---
+   127→   127→  const [editStatus, setEditStatus] = useState<string>('')
+   128→   128→  const [editMotivoPendiente, setEditMotivoPendiente] = useState<string>('')
+   129→   129→  const [editObservations, setEditObservations] = useState<string>('')
+   130→   130→  const [editItems, setEditItems] = useState<MantenimientoItem[]>([])
+   131→   131→
+   132→   132→  // --- Dialogs ---
+   133→   133→  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+   134→   134→  const [deleteId, setDeleteId] = useState<string | null>(null)
+   135→   135→
+   136→   136→  // --- Attach upload ---
+   137→   137→  const fileInputRef = useRef<HTMLInputElement>(null)
+   138→   138→  const [uploading, setUploading] = useState(false)
+   139→   139→
+   140→   140→  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+   141→   141→
+   142→   142→  // ============================================================
+   143→   143→  // React to filter from parent
+   144→   144→  // ============================================================
+   145→   145→  useEffect(() => {
+   146→   146→    if (initialStatusFilter && initialStatusFilter !== 'all') {
+   147→   147→      if (onStatusFilterConsumed) onStatusFilterConsumed()
+   148→   148→    }
+   149→   149→  }, [initialStatusFilter])
+   150→   150→
+   151→   151→  // ============================================================
+   152→   152→  // Data fetching - only LVs from today onwards
+   153→   153→  // ============================================================
+   154→   154→  const fetchLVs = useCallback(async () => {
+   155→   155→    setLoading(true)
+   156→   156→    try {
+   157→   157→      // Get LVs from today onwards for the current calendar month
+   158→   158→      const today = new Date()
+   159→   159→      const fromStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+   160→   160→      // Fetch for 3 months ahead to cover calendar navigation
+   161→   161→      const futureDate = new Date(today)
+   162→   162→      futureDate.setMonth(futureDate.getMonth() + 3)
+   163→   163→      const toStr = `${futureDate.getFullYear()}-${String(futureDate.getMonth() + 1).padStart(2, '0')}-${String(futureDate.getDate()).padStart(2, '0')}`
+   164→   164→
+   165→   165→      const params = new URLSearchParams()
+   166→   166→      params.set('from', fromStr)
+   167→   167→      params.set('to', toStr)
+   168→   168→      const res = await fetch(`/api/mantenimiento-lv?${params.toString()}`)
+   169→   169→      if (res.ok) {
+   170→   170→        const data = await res.json()
+   171→   171→        // Filter: only from today onwards
+   172→   172→        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+   173→   173→        const filtered = data.filter((lv: MantenimientoLV) => {
+   174→   174→          const date = (lv.scheduledDate || '').substring(0, 10)
+   175→   175→          return date >= todayStr
+   176→   176→        })
+   177→   177→        setAllLVs(filtered)
+   178→   178→      }
+   179→   179→    } catch (err) {
+   180→   180→      console.error(err)
+   181→   181→      toast({ title: 'Error', description: 'No se pudieron cargar las listas', variant: 'destructive' })
+   182→   182→    } finally {
+   183→   183→      setLoading(false)
+   184→   184→    }
+   185→   185→  }, [toast])
+   186→   186→
+   187→   187→  const fetchLVDetail = async (id: string) => {
+   188→   188→    try {
+   189→   189→      const res = await fetch(`/api/mantenimiento-lv/${id}`)
+   190→   190→      if (res.ok) {
+   191→   191→        const data = await res.json()
+   192→   192→        setSelectedLV(data)
+   193→   193→        setEditStatus(data.status)
+   194→   194→        setEditMotivoPendiente(data.motivoPendiente || '')
+   195→   195→        setEditObservations(data.observations || '')
+   196→   196→        setEditItems([...data.items])
+   197→   197→      }
+   198→   198→    } catch (err) {
+   199→   199→      console.error(err)
+   200→   200→    }
+   201→   201→  }
+   202→   202→
+   203→   203→  useEffect(() => { fetchLVs() }, [fetchLVs])
+   204→   204→
+   205→   205→  // ============================================================
+   206→   206→  // Auto-generate LVs for current and next month
+   207→   207→  // ============================================================
+   208→   208→  const handleGenerate = async () => {
+   209→   209→    setGenerating(true)
+   210→   210→    try {
+   211→   211→      const now = new Date()
+   212→   212→      // Generate for current month
+   213→   213→      await fetch('/api/mantenimiento-generate', {
+   214→   214→        method: 'POST',
+   215→   215→        headers: { 'Content-Type': 'application/json' },
+   216→   216→        body: JSON.stringify({ year: now.getFullYear(), month: now.getMonth() }),
+   217→   217→      })
+   218→   218→      // Generate for next month too
+   219→   219→      const next = new Date(now)
+   220→   220→      next.setMonth(next.getMonth() + 1)
+   221→   221→      await fetch('/api/mantenimiento-generate', {
+   222→   222→        method: 'POST',
+   223→   223→        headers: { 'Content-Type': 'application/json' },
+   224→   224→        body: JSON.stringify({ year: next.getFullYear(), month: next.getMonth() }),
+   225→   225→      })
+   226→   226→      fetchLVs()
+   227→   227→      toast({ title: 'Listas generadas', description: 'Se generaron las listas de verificación pendientes' })
+   228→   228→    } catch {
+   229→   229→      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+   230→   230→    } finally {
+   231→   231→      setGenerating(false)
+   232→   232→    }
+   233→   233→  }
+   234→   234→
+   235→   235→  // Auto-generate on first load
+   236→   236→  useEffect(() => {
+   237→   237→    handleGenerate()
+   238→   238→    // eslint-disable-next-line react-hooks/exhaustive-deps
+   239→   239→  }, [])
+   240→   240→
+   241→   241→  // ============================================================
+   242→   242→  // Calendar helpers
+   243→   243→  // ============================================================
+   244→   244→  const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate()
+   245→   245→  const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay()
+   246→   246→
+   247→   247→  const getLVsForDate = (day: number) => {
+   248→   248→    const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+   249→   249→    return allLVs.filter(lv => lv.scheduledDate && lv.scheduledDate.startsWith(dateStr))
+   250→   250→  }
+   251→   251→
+   252→   252→  // LVs for the selected day (in day view)
+   253→   253→  const dayLVs = selectedDate ? allLVs.filter(lv => lv.scheduledDate && lv.scheduledDate.startsWith(selectedDate)) : []
+   254→   254→
+   255→   255→  // ============================================================
+   256→   256→  // Open day / Open LV
+   257→   257→  // ============================================================
+   258→   258→  const openDay = (dateStr: string) => {
+   259→   259→    setSelectedDate(dateStr)
+   260→   260→    setCurrentView('day')
+   261→   261→  }
+   262→   262→
+   263→   263→  const openLV = (id: string) => {
+   264→   264→    fetchLVDetail(id)
+   265→   265→    setCurrentView('detail')
+   266→   266→  }
+   267→   267→
+   268→   268→  const goBack = () => {
+   269→   269→    if (currentView === 'detail') {
+   270→   270→      setCurrentView('day')
+   271→   271→      setSelectedLV(null)
+   272→   272→    } else if (currentView === 'day') {
+   273→   273→      setCurrentView('calendar')
+   274→   274→      setSelectedDate('')
+   275→   275→    }
+   276→   276→  }
+   277→   277→
+   278→   278→  // ============================================================
+   279→   279→  // Save changes
+   280→   280→  // ============================================================
+   281→   281→  const handleSave = async () => {
+   282→   282→    if (!selectedLV) return
+   283→   283→    setSaving(true)
+   284→   284→    try {
+   285→   285→      const res = await fetch(`/api/mantenimiento-lv/${selectedLV.id}`, {
+   286→   286→        method: 'PUT',
+   287→   287→        headers: { 'Content-Type': 'application/json' },
+   288→   288→        body: JSON.stringify({
+   289→   289→          items: editItems,
+   290→   290→          observations: editObservations,
+   291→   291→          motivoPendiente: editStatus === 'PENDIENTE' ? editMotivoPendiente : '',
+   292→   292→          status: editStatus,
+   293→   293→        }),
+   294→   294→      })
+   295→   295→      if (res.ok) {
+   296→   296→        const data = await res.json()
+   297→   297→        setSelectedLV({ ...selectedLV, ...data })
+   298→   298→        fetchLVs()
+   299→   299→        toast({ title: 'Guardado', description: 'Cambios guardados exitosamente' })
+   300→   300→      } else {
+   301→   301→        toast({ title: 'Error', description: 'No se pudo guardar', variant: 'destructive' })
+   302→   302→      }
+   303→   303→    } catch {
+   304→   304→      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+   305→   305→    } finally {
+   306→   306→      setSaving(false)
+   307→   307→    }
+   308→   308→  }
+   309→   309→
+   310→   310→  // Quick status change (from day view)
+   311→   311→  const handleQuickStatus = async (lvId: string, newStatus: string) => {
+   312→   312→    try {
+   313→   313→      const res = await fetch(`/api/mantenimiento-lv/${lvId}`, {
+   314→   314→        method: 'PUT',
+   315→   315→        headers: { 'Content-Type': 'application/json' },
+   316→   316→        body: JSON.stringify({ status: newStatus }),
+   317→   317→      })
+   318→   318→      if (res.ok) {
+   319→   319→        fetchLVs()
+   320→   320→        toast({ title: 'Estado actualizado' })
+   321→   321→      }
+   322→   322→    } catch {
+   323→   323→      toast({ title: 'Error', description: 'No se pudo actualizar', variant: 'destructive' })
+   324→   324→    }
+   325→   325→  }
+   326→   326→
+   327→   327→  // ============================================================
+   328→   328→  // Item status change
+   329→   329→  // ============================================================
+   330→   330→  const handleItemStatusChange = (itemId: string, newStatus: string) => {
+   331→   331→    const updated = editItems.map(item =>
+   332→   332→      item.id === itemId ? { ...item, status: newStatus } : item
+   333→   333→    )
+   334→   334→    setEditItems(updated)
+   335→   335→  }
+   336→   336→
+   337→   337→  const handleItemFieldChange = (itemId: string, field: 'value' | 'observation', val: string) => {
+   338→   338→    const updated = editItems.map(item =>
+   339→   339→      item.id === itemId ? { ...item, [field]: val } : item
+   340→   340→    )
+   341→   341→    setEditItems(updated)
+   342→   342→  }
+   343→   343→
+   344→   344→  // ============================================================
+   345→   345→  // Delete
+   346→   346→  // ============================================================
+   347→   347→  const handleDelete = async () => {
+   348→   348→    if (!deleteId) return
+   349→   349→    try {
+   350→   350→      await fetch(`/api/mantenimiento-lv/${deleteId}`, { method: 'DELETE' })
+   351→   351→      toast({ title: 'Eliminado', description: 'Lista eliminada exitosamente' })
+   352→   352→      fetchLVs()
+   353→   353→      goBack()
+   354→   354→    } catch {
+   355→   355→      toast({ title: 'Error', description: 'No se pudo eliminar', variant: 'destructive' })
+   356→   356→    } finally {
+   357→   357→      setDeleteDialogOpen(false); setDeleteId(null)
+   358→   358→    }
+   359→   359→  }
+   360→   360→
+   361→   361→  // ============================================================
+   362→   362→  // Print
+   363→   363→  // ============================================================
+   364→   364→  const handlePrint = (lv: MantenimientoLV) => {
+   365→   365→    const w = window.open('', '_blank')
+   366→   366→    if (!w) return
+   367→   367→    const categories = [...new Set(lv.items.map(i => i.category))]
+   368→   368→    const categoryLabels: Record<string, string> = { A: 'A. EPP / Materiales', B: 'B. Verificación de Tareas', C: 'C. Inspección / Registros', D: 'D. Dosificaciones / Limpieza' }
+   369→   369→    const logoUrl = `${window.location.origin}/logo-laguna-norte.jpg`
+   370→   370→
+   371→   371→    w.document.write(`<!DOCTYPE html><html><head><title>${lv.codigo} — ${lv.nombre}</title>
+   372→   372→    <style>
+   373→   373→      @page{size:A4;margin:8mm}
+   374→   374→      *{box-sizing:border-box}
+   375→   375→      body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;font-size:8.5px;color:#1e293b;line-height:1.25}
+   376→   376→      .header{display:flex;align-items:center;justify-content:space-between;border-bottom:2.5px solid #0d9488;padding-bottom:5px;margin-bottom:4px}
+   377→   377→      .header-left{display:flex;align-items:center;gap:8px}
+   378→   378→      .header-left img{height:42px;width:auto;object-fit:contain}
+   379→   379→      .header-info h1{font-size:13px;margin:0 0 1px;color:#0f172a;font-weight:800;line-height:1.2}
+   380→   380→      .header-info .sub{font-size:8px;color:#64748b;margin:0}
+   381→   381→      .header-info .org{font-size:9px;color:#0d9488;font-weight:700;margin:0 0 1px}
+   382→   382→      .header-right{text-align:right;font-size:8px}
+   383→   383→      .status-badge{display:inline-block;padding:1px 7px;border-radius:3px;font-weight:700;font-size:8px;letter-spacing:.3px}
+   384→   384→      .pendiente{background:#fef3c7;color:#92400e}.completada{background:#d1fae5;color:#065f46}.progreso{background:#dbeafe;color:#1e40af}
+   385→   385→      .progress-bar{height:10px;background:#e2e8f0;border-radius:3px;overflow:hidden;margin:2px 0;width:100px;display:inline-block;vertical-align:middle}
+   386→   386→      .progress-fill{height:100%;background:#0d9488;border-radius:3px}
+   387→   387→      .meta{display:flex;gap:12px;font-size:8px;margin-bottom:5px;flex-wrap:wrap;padding:3px 0;border-bottom:1px dashed #cbd5e1}
+   388→   388→      .meta b{color:#475569}
+   389→   389→      .cat-title{font-size:9.5px;font-weight:700;margin:5px 0 2px;padding:2px 5px;background:#f1f5f9;border-left:3px solid #0d9488;color:#334155}
+   390→   390→      table{width:100%;border-collapse:collapse;margin-bottom:3px}
+   391→   391→      th{background:#f8fafc;padding:2px 4px;text-align:left;border:1px solid #cbd5e1;font-size:7.5px;font-weight:700;color:#475569;white-space:nowrap}
+   392→   392→      td{padding:1.5px 4px;border:1px solid #e2e8f0;font-size:7.5px;vertical-align:middle}
+   393→   393→      tr:nth-child(even){background:#fafbfc}
+   394→   394→      .ok{color:#16a34a;font-weight:700}.no{color:#dc2626;font-weight:700}
+   395→   395→      .obs-section{margin-top:4px;padding:3px 5px;background:#fefce8;border:1px solid #fde68a;border-radius:3px;font-size:8px}
+   396→   396→      .motivo-section{margin-top:3px;padding:3px 5px;background:#fef2f2;border:1px solid #fecaca;border-radius:3px;font-size:8px;color:#991b1b}
+   397→   397→      .signatures{display:flex;justify-content:space-between;margin-top:8px;font-size:7.5px;padding-top:4px}
+   398→   398→      .sig-line{border-top:1px solid #000;width:44%;padding-top:2px;margin-top:18px;text-align:center}
+   399→   399→      @media print{body{margin:0;padding:0}.no-print{display:none}}
+   400→   400→    </style></head><body>
+   401→   401→    <div class="header">
+   402→   402→      <div class="header-left">
+   403→   403→        <img src="${logoUrl}" alt="Logo" />
+   404→   404→        <div class="header-info">
+   405→   405→          <div class="org">Asesorías Integrales CyJ</div>
+   406→   406→          <h1>${lv.codigo} — ${lv.nombre}</h1>
+   407→   407→          <div class="sub">Condominio Laguna Norte — Lampa, Santiago</div>
+   408→   408→        </div>
+   409→   409→      </div>
+   410→   410→      <div class="header-right">
+   411→   411→        <div class="status-badge ${lv.status === 'COMPLETADA' ? 'completada' : lv.status === 'EN_PROGRESO' ? 'progreso' : 'pendiente'}">${lv.status === 'COMPLETADA' ? 'REALIZADO' : lv.status === 'EN_PROGRESO' ? 'EN PROGRESO' : 'PENDIENTE'}</div>
+   412→   412→        <div style="margin-top:2px">Avance: <b>${lv.progress}%</b></div>
+   413→   413→        <div class="progress-bar"><div class="progress-fill" style="width:${lv.progress}%"></div></div>
+   414→   414→      </div>
+   415→   415→    </div>
+   416→   416→    <div class="meta">
+   417→   417→      <div><b>Sector:</b> ${lv.sector}</div>
+   418→   418→      <div><b>Frecuencia:</b> ${lv.frecuencia}</div>
+   419→   419→      <div><b>Responsable:</b> ${lv.responsable || '-'}</div>
+   420→   420→      <div><b>Fecha:</b> ${lv.scheduledDate ? new Date(lv.scheduledDate).toLocaleDateString('es-CL') : '-'}</div>
+   421→   421→      <div><b>Turno:</b> ${lv.turno || '-'}</div>
+   422→   422→    </div>
+   423→   423→    ${categories.map(cat => {
+   424→   424→      const catItems = lv.items.filter(i => i.category === cat)
+   425→   425→      return `<div class="cat-title">${categoryLabels[cat] || cat}</div>
+   426→   426→      <table>
+   427→   427→        <colgroup><col style="width:4%"><col style="width:42%"><col style="width:9%"><col style="width:14%"><col style="width:31%"></colgroup>
+   428→   428→        <tr><th>N°</th><th>Descripción</th><th>Estado</th><th>Valor</th><th>Observación</th></tr>
+   429→   429→        ${catItems.map((item, idx) => `<tr><td style="text-align:center">${idx + 1}</td><td>${item.description}</td><td class="${item.status === 'OK' ? 'ok' : item.status === 'NO_OK' ? 'no' : ''}" style="text-align:center">${item.status === 'OK' ? '&#10003; OK' : item.status === 'NO_OK' ? '&#10007; NO OK' : item.status === 'N/A' ? 'N/A' : '&#9634; Pend.'}</td><td>${item.value || ''}</td><td>${item.observation || ''}</td></tr>`).join('')}
+   430→   430→      </table>`
+   431→   431→    }).join('')}
+   432→   432→    ${lv.observations ? `<div class="obs-section"><b>Observaciones:</b> ${lv.observations}</div>` : ''}
+   433→   433→    ${lv.motivoPendiente ? `<div class="motivo-section"><b>Motivo Pendiente:</b> ${lv.motivoPendiente}</div>` : ''}
+   434→   434→    <div class="signatures">
+   435→   435→      <div class="sig-line">Responsable — Nombre, Firma, RUT, Fecha</div>
+   436→   436→      <div class="sig-line">Supervisor — Nombre, Firma, RUT, Fecha</div>
+   437→   437→    </div>
+   438→   438→    </body></html>`)
+   439→   439→    w.document.close()
+   440→   440→    setTimeout(() => w.print(), 600)
+   441→   441→  }
+   442→   442→
+   443→   443→  // ============================================================
+   444→   444→  // Upload attachment
+   445→   445→  // ============================================================
+   446→   446→  const handleUploadAttachment = async (e: React.ChangeEvent<HTMLInputElement>) => {
+   447→   447→    const file = e.target.files?.[0]
+   448→   448→    if (!file || !selectedLV) return
+   449→   449→    setUploading(true)
+   450→   450→    try {
+   451→   451→      const formData = new FormData()
+   452→   452→      formData.append('file', file)
+   453→   453→      const res = await fetch('/api/upload', { method: 'POST', body: formData })
+   454→   454→      if (res.ok) {
+   455→   455→        const { url } = await res.json()
+   456→   456→        const currentAttachments = JSON.parse(selectedLV.attachments || '[]')
+   457→   457→        const newAttachments = [...currentAttachments, url]
+   458→   458→        await fetch(`/api/mantenimiento-lv/${selectedLV.id}`, {
+   459→   459→          method: 'PUT',
+   460→   460→          headers: { 'Content-Type': 'application/json' },
+   461→   461→          body: JSON.stringify({ attachments: JSON.stringify(newAttachments) }),
+   462→   462→        })
+   463→   463→        fetchLVDetail(selectedLV.id)
+   464→   464→        fetchLVs()
+   465→   465→        toast({ title: 'Archivo adjuntado', description: file.name })
+   466→   466→      }
+   467→   467→    } catch {
+   468→   468→      toast({ title: 'Error', description: 'No se pudo subir el archivo', variant: 'destructive' })
+   469→   469→    } finally {
+   470→   470→      setUploading(false)
+   471→   471→      if (fileInputRef.current) fileInputRef.current.value = ''
+   472→   472→    }
+   473→   473→  }
+   474→   474→
+   475→   475→  // ============================================================
+   476→   476→  // Format helpers
+   477→   477→  // ============================================================
+   478→   478→  const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '-'
+   479→   479→  const formatDateShort = (d: string | null) => d ? new Date(d).toLocaleDateString('es-CL') : '-'
+   480→   480→
+   481→   481→  // Stats for current calendar month
+   482→   482→  const monthLVs = allLVs.filter(lv => {
+   483→   483→    if (!lv.scheduledDate) return false
+   484→   484→    const d = new Date(lv.scheduledDate)
+   485→   485→    return d.getFullYear() === calYear && d.getMonth() === calMonth
+   486→   486→  })
+   487→   487→  const pendientes = monthLVs.filter(l => l.status === 'PENDIENTE').length
+   488→   488→  const enProgreso = monthLVs.filter(l => l.status === 'EN_PROGRESO').length
+   489→   489→  const completadas = monthLVs.filter(l => l.status === 'COMPLETADA').length
+   490→   490→  const avgProgress = monthLVs.length > 0 ? Math.round(monthLVs.reduce((s, l) => s + l.progress, 0) / monthLVs.length) : 0
+   491→   491→
+   492→   492→  // Stats by frequency group
+   493→   493→  const freqGroups = ['Diaria', '3x Semanal', 'Semanal', 'Quincenal', 'Mensual', 'Trimestral', 'Semestral', 'Anual']
+   494→   494→  const freqStats = freqGroups.map(freq => {
+   495→   495→    const groupLVs = monthLVs.filter(l => l.frecuencia === freq)
+   496→   496→    const total = groupLVs.length
+   497→   497→    const done = groupLVs.filter(l => l.status === 'COMPLETADA').length
+   498→   498→    const pending = groupLVs.filter(l => l.status === 'PENDIENTE').length
+   499→   499→    const progress = total > 0 ? Math.round(groupLVs.reduce((s, l) => s + l.progress, 0) / total) : 0
+   500→   500→    return { freq, total, done, pending, progress }
+   501→   501→  }).filter(f => f.total > 0)
+   502→   502→
+   503→   503→  const getProgressColor = (progress: number) => {
+   504→   504→    if (progress === 100) return 'text-emerald-600'
+   505→   505→    if (progress >= 50) return 'text-blue-600'
+   506→   506→    if (progress > 0) return 'text-amber-600'
+   507→   507→    return 'text-slate-400'
+   508→   508→  }
+   509→   509→
+   510→   510→  const getProgressBg = (progress: number) => {
+   511→   511→    if (progress === 100) return 'bg-emerald-500'
+   512→   512→    if (progress >= 50) return 'bg-blue-500'
+   513→   513→    if (progress > 0) return 'bg-amber-500'
+   514→   514→    return 'bg-slate-300'
+   515→   515→  }
+   516→   516→
+   517→   517→  // ============================================================
+   518→   518→  // RENDER
+   519→   519→  // ============================================================
+   520→   520→  return (
+   521→   521→    <div className="space-y-4">
+   522→   522→      {/* Stats bar */}
+   523→   523→      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+   524→   524→        <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm text-center">
+   525→   525→          <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Total</div>
+   526→   526→          <div className="text-2xl font-bold text-slate-800">{monthLVs.length}</div>
+   527→   527→        </div>
+   528→   528→        <div className="bg-white rounded-xl p-3 border border-amber-200 shadow-sm text-center">
+   529→   529→          <div className="text-xs text-amber-600 uppercase tracking-wider font-semibold">Pendientes</div>
+   530→   530→          <div className="text-2xl font-bold text-amber-700">{pendientes}</div>
+   531→   531→        </div>
+   532→   532→        <div className="bg-white rounded-xl p-3 border border-blue-200 shadow-sm text-center">
+   533→   533→          <div className="text-xs text-blue-600 uppercase tracking-wider font-semibold">En Progreso</div>
+   534→   534→          <div className="text-2xl font-bold text-blue-700">{enProgreso}</div>
+   535→   535→        </div>
+   536→   536→        <div className="bg-white rounded-xl p-3 border border-emerald-200 shadow-sm text-center">
+   537→   537→          <div className="text-xs text-emerald-600 uppercase tracking-wider font-semibold">Realizadas</div>
+   538→   538→          <div className="text-2xl font-bold text-emerald-700">{completadas}</div>
+   539→   539→        </div>
+   540→   540→        <div className="bg-white rounded-xl p-3 border border-teal-200 shadow-sm text-center">
+   541→   541→          <div className="text-xs text-teal-600 uppercase tracking-wider font-semibold">Avance</div>
+   542→   542→          <div className="text-2xl font-bold text-teal-700">{avgProgress}%</div>
+   543→   543→          <Progress value={avgProgress} className="h-2 mt-1" />
+   544→   544→        </div>
+   545→   545→      </div>
+   546→   546→
+   547→   547→      {/* Summary by frequency type */}
+   548→   548→      {freqStats.length > 0 && (
+   549→   549→        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+   550→   550→          {freqStats.map(fs => {
+   551→   551→            const gc = freqGroupColors[fs.freq] || freqGroupColors['Mensual']
+   552→   552→            return (
+   553→   553→              <div key={fs.freq} className="bg-white rounded-lg p-2.5 border border-slate-200 shadow-sm">
+   554→   554→                <div className="flex items-center gap-1.5 mb-1.5">
+   555→   555→                  <div className={`w-2.5 h-2.5 rounded-full ${gc.dot}`} />
+   556→   556→                  <span className="text-[10px] font-bold text-slate-600 uppercase">{fs.freq}</span>
+   557→   557→                </div>
+   558→   558→                <div className="flex items-end justify-between">
+   559→   559→                  <div>
+   560→   560→                    <span className="text-lg font-bold text-slate-800">{fs.total}</span>
+   561→   561→                    <span className="text-[10px] text-slate-400 ml-0.5">LVs</span>
+   562→   562→                  </div>
+   563→   563→                  <div className="text-right">
+   564→   564→                    <div className={`text-sm font-bold ${fs.progress === 100 ? 'text-emerald-600' : fs.progress >= 50 ? 'text-blue-600' : 'text-amber-600'}`}>
+   565→   565→                      {fs.progress}%
+   566→   566→                    </div>
+   567→   567→                    <div className="w-12 h-1 rounded-full bg-slate-200 overflow-hidden">
+   568→   568→                      <div className={`h-full rounded-full ${fs.progress === 100 ? 'bg-emerald-500' : fs.progress >= 50 ? 'bg-blue-500' : 'bg-amber-500'}`} style={{ width: `${fs.progress}%` }} />
+   569→   569→                    </div>
+   570→   570→                  </div>
+   571→   571→                </div>
+   572→   572→                <div className="flex gap-2 mt-1 text-[9px]">
+   573→   573→                  <span className="text-emerald-600">{fs.done} ok</span>
+   574→   574→                  <span className="text-amber-600">{fs.pending} pend</span>
+   575→   575→                </div>
+   576→   576→              </div>
+   577→   577→            )
+   578→   578→          })}
+   579→   579→        </div>
+   580→   580→      )}
+   581→   581→
+   582→   582→      {/* Header with navigation */}
+   583→   583→      <div className="flex items-center justify-between">
+   584→   584→        <div className="flex items-center gap-3">
+   585→   585→          {currentView !== 'calendar' && (
+   586→   586→            <Button variant="ghost" size="sm" onClick={goBack} className="gap-1">
+   587→   587→              <ChevronLeft className="h-4 w-4" /> Volver
+   588→   588→            </Button>
+   589→   589→          )}
+   590→   590→          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+   591→   591→            <Wrench className="h-5 w-5 text-teal-600" />
+   592→   592→            Mantenimiento
+   593→   593→          </h2>
+   594→   594→          {currentView === 'day' && selectedDate && (
+   595→   595→            <Badge className="bg-teal-100 text-teal-700 text-sm">
+   596→   596→              {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}
+   597→   597→            </Badge>
+   598→   598→          )}
+   599→   599→        </div>
+   600→   600→        <div className="flex items-center gap-2">
+   601→   601→          {currentView === 'calendar' && (
+   602→   602→            <Button
+   603→   603→              variant="outline"
+   604→   604→              size="sm"
+   605→   605→              className="gap-1 border-teal-300 text-teal-700 hover:bg-teal-50"
+   606→   606→              onClick={handleGenerate}
+   607→   607→              disabled={generating}
+   608→   608→            >
+   609→   609→              <RefreshCw className={`h-4 w-4 ${generating ? 'animate-spin' : ''}`} />
+   610→   610→              {generating ? 'Generando...' : 'Generar'}
+   611→   611→            </Button>
+   612→   612→          )}
+   613→   613→        </div>
+   614→   614→      </div>
+   615→   615→
+   616→   616→      {/* ============================================================ */}
+   617→   617→      {/* CALENDAR VIEW                                                 */}
+   618→   618→      {/* ============================================================ */}
+   619→   619→      {currentView === 'calendar' && (
+   620→   620→        <Card className="border-teal-200">
+   621→   621→          <CardHeader className="pb-2 bg-gradient-to-r from-teal-50 to-white border-b border-teal-100">
+   622→   622→            <div className="flex items-center justify-between">
+   623→   623→              <Button variant="ghost" size="sm" onClick={() => { if (calMonth === 0) { setCalMonth(11); setCalYear(calYear - 1) } else setCalMonth(calMonth - 1) }} className="text-teal-700 hover:text-teal-900">
+   624→   624→                <ChevronLeft className="h-5 w-5" />
+   625→   625→              </Button>
+   626→   626→              <CardTitle className="text-lg font-bold text-teal-900">{monthNames[calMonth]} {calYear}</CardTitle>
+   627→   627→              <Button variant="ghost" size="sm" onClick={() => { if (calMonth === 11) { setCalMonth(0); setCalYear(calYear + 1) } else setCalMonth(calMonth + 1) }} className="text-teal-700 hover:text-teal-900">
+   628→   628→                <ChevronRight className="h-5 w-5" />
+   629→   629→              </Button>
+   630→   630→            </div>
+   631→   631→          </CardHeader>
+   632→   632→          <CardContent className="p-3">
+   633→   633→            <div className="grid grid-cols-7 gap-1">
+   634→   634→              {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (
+   635→   635→                <div key={d} className="text-center text-xs font-bold text-teal-700 py-2 bg-teal-50 rounded-t">{d}</div>
+   636→   636→              ))}
+   637→   637→              {Array.from({ length: getFirstDayOfMonth(calYear, calMonth) }, (_, i) => (
+   638→   638→                <div key={`empty-${i}`} className="min-h-[90px] bg-slate-50 rounded" />
+   639→   639→              ))}
+   640→   640→              {Array.from({ length: getDaysInMonth(calYear, calMonth) }, (_, i) => {
+   641→   641→                const day = i + 1
+   642→   642→                const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+   643→   643→                const dayLVs = getLVsForDate(day)
+   644→   644→                const isToday = calYear === new Date().getFullYear() && calMonth === new Date().getMonth() && day === new Date().getDate()
+   645→   645→                const isPast = new Date(dateStr + 'T12:00:00') < new Date(new Date().toDateString())
+   646→   646→                const allComplete = dayLVs.length > 0 && dayLVs.every(lv => lv.status === 'COMPLETADA')
+   647→   647→                const hasPending = dayLVs.some(lv => lv.status === 'PENDIENTE')
+   648→   648→                const dayProgress = dayLVs.length > 0 ? Math.round(dayLVs.reduce((s, l) => s + l.progress, 0) / dayLVs.length) : 0
+   649→   649→
+   650→   650→                return (
+   651→   651→                  <div key={day}
+   652→   652→                    className={`min-h-[90px] border rounded-lg p-1.5 text-xs overflow-hidden cursor-pointer transition-all hover:shadow-md ${isToday ? 'border-teal-400 bg-teal-50/30 ring-2 ring-teal-300' : allComplete ? 'border-emerald-300 bg-emerald-50/20' : hasPending && isPast ? 'border-amber-300 bg-amber-50/20' : 'border-slate-200 hover:border-teal-300'}`}
+   653→   653→                    onClick={() => { if (dayLVs.length > 0) openDay(dateStr) }}
+   654→   654→                  >
+   655→   655→                    <div className="flex items-center justify-between mb-1">
+   656→   656→                      <span className={`font-bold text-sm ${isToday ? 'text-teal-700 bg-teal-200 rounded-full w-7 h-7 flex items-center justify-center' : 'text-slate-700'}`}>{day}</span>
+   657→   657→                      {dayLVs.length > 0 && (
+   658→   658→                        <span className={`text-[10px] font-bold ${allComplete ? 'text-emerald-600' : hasPending && isPast ? 'text-amber-600' : 'text-slate-500'}`}>
+   659→   659→                          {dayProgress}%
+   660→   660→                        </span>
+   661→   661→                      )}
+   662→   662→                    </div>
+   663→   663→                    <div className="space-y-0.5">
+   664→   664→                      {dayLVs.slice(0, 4).map(lv => {
+   665→   665→                        const gc = freqGroupColors[lv.frecuencia] || freqGroupColors['Mensual']
+   666→   666→                        return (
+   667→   667→                          <div key={lv.id}
+   668→   668→                            className={`truncate rounded px-1 py-0.5 text-[10px] font-medium ${gc.bg} text-white`}
+   669→   669→                            title={`${lv.codigo} — ${lv.nombre} (${lv.frecuencia}, ${lv.progress}%)`}
+   670→   670→                          >
+   671→   671→                            {lv.codigo}
+   672→   672→                          </div>
+   673→   673→                        )
+   674→   674→                      })}
+   675→   675→                      {dayLVs.length > 4 && (
+   676→   676→                        <div className="text-[10px] text-teal-600 font-semibold">+{dayLVs.length - 4} más</div>
+   677→   677→                      )}
+   678→   678→                    </div>
+   679→   679→                  </div>
+   680→   680→                )
+   681→   681→              })}
+   682→   682→            </div>
+   683→   683→            {/* Legend - colors by frequency */}
+   684→   684→            <div className="flex flex-wrap gap-3 mt-3 text-xs p-2 bg-slate-50 rounded-lg">
+   685→   685→              {freqGroups.filter(f => monthLVs.some(l => l.frecuencia === f)).map(f => {
+   686→   686→                const gc = freqGroupColors[f]
+   687→   687→                return (
+   688→   688→                  <div key={f} className="flex items-center gap-1">
+   689→   689→                    <div className={`w-3 h-3 rounded ${gc.dot}`} />
+   690→   690→                    <span className="text-slate-600">{f}</span>
+   691→   691→                  </div>
+   692→   692→                )
+   693→   693→              })}
+   694→   694→              <div className="flex items-center gap-1 ml-auto text-teal-600">Haz clic en un día con LVs para verlas</div>
+   695→   695→            </div>
+   696→   696→          </CardContent>
+   697→   697→        </Card>
+   698→   698→      )}
+   699→   699→
+   700→   700→      {/* ============================================================ */}
+   701→   701→      {/* DAY VIEW — Shows all LVs for the selected date              */}
+   702→   702→      {/* ============================================================ */}
+   703→   703→      {currentView === 'day' && selectedDate && (
+   704→   704→        <div className="space-y-3">
+   705→   705→          {dayLVs.length === 0 ? (
+   706→   706→            <div className="text-center py-12 text-slate-400">
+   707→   707→              <Calendar className="h-12 w-12 mx-auto mb-3 opacity-40" />
+   708→   708→              <p className="text-lg font-medium">No hay listas para este día</p>
+   709→   709→            </div>
+   710→   710→          ) : (
+   711→   711→            dayLVs
+   712→   712→              .sort((a, b) => a.codigo.localeCompare(b.codigo))
+   713→   713→              .map(lv => {
+   714→   714→                const sc = statusConfig[lv.status] || statusConfig['PENDIENTE']
+   715→   715→                const fc = freqColors[lv.frecuencia] || freqColors['Mensual']
+   716→   716→                const StatusIcon = sc.icon
+   717→   717→                return (
+   718→   718→                  <Card key={lv.id} className="border-l-4 border-l-teal-400 hover:shadow-md transition-all cursor-pointer"
+   719→   719→                    onClick={() => openLV(lv.id)}>
+   720→   720→                    <CardContent className="px-4 py-3">
+   721→   721→                      <div className="flex items-center justify-between gap-3">
+   722→   722→                        <div className="flex items-center gap-3 min-w-0">
+   723→   723→                          <Badge className={`${fc.bg} ${fc.text} text-xs font-bold shrink-0`}>{lv.codigo}</Badge>
+   724→   724→                          <div className="min-w-0">
+   725→   725→                            <div className="font-semibold text-sm text-slate-800 truncate">{lv.nombre}</div>
+   726→   726→                            <div className="text-xs text-slate-500">{lv.sector} · {lv.frecuencia}</div>
+   727→   727→                          </div>
+   728→   728→                        </div>
+   729→   729→                        <div className="flex items-center gap-2 shrink-0">
+   730→   730→                          {/* Status toggle buttons */}
+   731→   731→                          {canEdit && (
+   732→   732→                            <div className="flex gap-1">
+   733→   733→                              <Button
+   734→   734→                                variant={lv.status === 'COMPLETADA' ? 'default' : 'outline'}
+   735→   735→                                size="sm"
+   736→   736→                                className={`h-7 text-xs gap-1 ${lv.status === 'COMPLETADA' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'border-emerald-300 text-emerald-700'}`}
+   737→   737→                                onClick={(e) => { e.stopPropagation(); handleQuickStatus(lv.id, 'COMPLETADA') }}
+   738→   738→                              >
+   739→   739→                                <CheckCircle className="h-3 w-3" /> Realizado
+   740→   740→                              </Button>
+   741→   741→                              <Button
+   742→   742→                                variant={lv.status === 'PENDIENTE' ? 'default' : 'outline'}
+   743→   743→                                size="sm"
+   744→   744→                                className={`h-7 text-xs gap-1 ${lv.status === 'PENDIENTE' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'border-amber-300 text-amber-700'}`}
+   745→   745→                                onClick={(e) => { e.stopPropagation(); openLV(lv.id) }}
+   746→   746→                              >
+   747→   747→                                <Clock className="h-3 w-3" /> Pendiente
+   748→   748→                              </Button>
+   749→   749→                            </div>
+   750→   750→                          )}
+   751→   751→                          {/* Progress */}
+   752→   752→                          <div className="w-20">
+   753→   753→                            <div className={`text-xs text-right font-bold ${getProgressColor(lv.progress)}`}>{lv.progress}%</div>
+   754→   754→                            <div className="h-1.5 rounded-full bg-slate-200 mt-0.5 overflow-hidden">
+   755→   755→                              <div className={`h-full rounded-full transition-all ${getProgressBg(lv.progress)}`} style={{ width: `${lv.progress}%` }} />
+   756→   756→                            </div>
+   757→   757→                          </div>
+   758→   758→                          <Eye className="h-4 w-4 text-slate-400" />
+   759→   759→                        </div>
+   760→   760→                      </div>
+   761→   761→                      {/* Show motivo if pending */}
+   762→   762→                      {lv.status === 'PENDIENTE' && lv.motivoPendiente && (
+   763→   763→                        <div className="mt-2 flex items-start gap-2 bg-amber-50 rounded-lg px-3 py-2 border border-amber-200">
+   764→   764→                          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+   765→   765→                          <p className="text-xs text-amber-700"><span className="font-semibold">Motivo pendiente:</span> {lv.motivoPendiente}</p>
+   766→   766→                        </div>
+   767→   767→                      )}
+   768→   768→                    </CardContent>
+   769→   769→                  </Card>
+   770→   770→                )
+   771→   771→              })
+   772→   772→          )}
+   773→   773→        </div>
+   774→   774→      )}
+   775→   775→
+   776→   776→      {/* ============================================================ */}
+   777→   777→      {/* DETAIL VIEW — Single LV with full checklist                  */}
+   778→   778→      {/* ============================================================ */}
+   779→   779→      {currentView === 'detail' && selectedLV && (
+   780→   780→        <div className="space-y-4">
+   781→   781→          {/* Header */}
+   782→   782→          <Card className="border-teal-200 overflow-hidden">
+   783→   783→            <CardHeader className="bg-gradient-to-r from-teal-50 to-white border-b border-teal-100 pb-3">
+   784→   784→              <div className="flex items-start justify-between gap-3">
+   785→   785→                <div>
+   786→   786→                  <div className="flex items-center gap-2 mb-1">
+   787→   787→                    <Badge className={`${freqColors[selectedLV.frecuencia]?.bg || 'bg-slate-100'} ${freqColors[selectedLV.frecuencia]?.text || 'text-slate-700'} text-xs font-bold`}>
+   788→   788→                      {selectedLV.codigo}
+   789→   789→                    </Badge>
+   790→   790→                    <Badge className={`${freqColors[selectedLV.frecuencia]?.bg || 'bg-slate-100'} ${freqColors[selectedLV.frecuencia]?.text || 'text-slate-700'} text-xs`}>
+   791→   791→                      {selectedLV.frecuencia}
+   792→   792→                    </Badge>
+   793→   793→                  </div>
+   794→   794→                  <h3 className="text-lg font-bold text-slate-800">{selectedLV.nombre}</h3>
+   795→   795→                  <p className="text-sm text-slate-500 mt-0.5">
+   796→   796→                    {selectedLV.sector} · {formatDateShort(selectedLV.scheduledDate)} · {selectedLV.responsable || 'Sin responsable'}
+   797→   797→                  </p>
+   798→   798→                </div>
+   799→   799→                {/* Progress circle */}
+   800→   800→                <div className="text-center shrink-0">
+   801→   801→                  <div className="relative w-16 h-16">
+   802→   802→                    <svg className="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
+   803→   803→                      <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e2e8f0" strokeWidth="3" />
+   804→   804→                      <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke={selectedLV.progress === 100 ? '#10b981' : selectedLV.progress >= 50 ? '#3b82f6' : '#f59e0b'} strokeWidth="3" strokeDasharray={`${selectedLV.progress}, 100`} strokeLinecap="round" />
+   805→   805→                    </svg>
+   806→   806→                    <span className={`absolute inset-0 flex items-center justify-center text-sm font-bold ${getProgressColor(selectedLV.progress)}`}>{selectedLV.progress}%</span>
+   807→   807→                  </div>
+   808→   808→                </div>
+   809→   809→              </div>
+   810→   810→            </CardHeader>
+   811→   811→            <CardContent className="p-4">
+   812→   812→              {/* Action buttons */}
+   813→   813→              <div className="flex items-center gap-2 flex-wrap">
+   814→   814→                <Button variant="outline" size="sm" className="gap-1" onClick={() => handlePrint(selectedLV)}>
+   815→   815→                  <Printer className="h-4 w-4" /> Imprimir
+   816→   816→                </Button>
+   817→   817→                <Button variant="outline" size="sm" className="gap-1" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+   818→   818→                  <Upload className="h-4 w-4" /> {uploading ? 'Subiendo...' : 'Adjuntar Respaldo'}
+   819→   819→                </Button>
+   820→   820→                <input ref={fileInputRef} type="file" className="hidden" onChange={handleUploadAttachment} accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xlsx" />
+   821→   821→                {canEdit && (
+   822→   822→                  <Button size="sm" className="gap-1 bg-teal-600 hover:bg-teal-700 text-white ml-auto" onClick={handleSave} disabled={saving}>
+   823→   823→                    <Save className="h-4 w-4" /> {saving ? 'Guardando...' : 'Guardar Cambios'}
+   824→   824→                  </Button>
+   825→   825→                )}
+   826→   826→                {canEdit && (
+   827→   827→                  <Button variant="ghost" size="sm" className="text-red-500" onClick={() => { setDeleteId(selectedLV.id); setDeleteDialogOpen(true) }}>
+   828→   828→                    <Trash2 className="h-4 w-4" />
+   829→   829→                  </Button>
+   830→   830→                )}
+   831→   831→              </div>
+   832→   832→
+   833→   833→              {/* Status selector */}
+   834→   834→              <div className="mt-4 p-3 bg-slate-50 rounded-lg border">
+   835→   835→                <div className="flex items-center gap-4">
+   836→   836→                  <Label className="text-sm font-semibold text-slate-700 shrink-0">Estado:</Label>
+   837→   837→                  {canEdit ? (
+   838→   838→                    <div className="flex gap-2">
+   839→   839→                      <Button
+   840→   840→                        variant={editStatus === 'COMPLETADA' ? 'default' : 'outline'}
+   841→   841→                        size="sm"
+   842→   842→                        className={`gap-1 ${editStatus === 'COMPLETADA' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'border-emerald-300 text-emerald-700'}`}
+   843→   843→                        onClick={() => setEditStatus('COMPLETADA')}
+   844→   844→                      >
+   845→   845→                        <CheckCircle className="h-4 w-4" /> Realizado
+   846→   846→                      </Button>
+   847→   847→                      <Button
+   848→   848→                        variant={editStatus === 'EN_PROGRESO' ? 'default' : 'outline'}
+   849→   849→                        size="sm"
+   850→   850→                        className={`gap-1 ${editStatus === 'EN_PROGRESO' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'border-blue-300 text-blue-700'}`}
+   851→   851→                        onClick={() => setEditStatus('EN_PROGRESO')}
+   852→   852→                      >
+   853→   853→                        <RefreshCw className="h-4 w-4" /> En Progreso
+   854→   854→                      </Button>
+   855→   855→                      <Button
+   856→   856→                        variant={editStatus === 'PENDIENTE' ? 'default' : 'outline'}
+   857→   857→                        size="sm"
+   858→   858→                        className={`gap-1 ${editStatus === 'PENDIENTE' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'border-amber-300 text-amber-700'}`}
+   859→   859→                        onClick={() => setEditStatus('PENDIENTE')}
+   860→   860→                      >
+   861→   861→                        <Clock className="h-4 w-4" /> Pendiente
+   862→   862→                      </Button>
+   863→   863→                    </div>
+   864→   864→                  ) : (
+   865→   865→                    <Badge className={`${statusConfig[selectedLV.status]?.bg} ${statusConfig[selectedLV.status]?.text} gap-1`}>
+   866→   866→                      {(() => { const Icon = statusConfig[selectedLV.status]?.icon || Clock; return <Icon className="h-3 w-3" /> })()}
+   867→   867→                      {statusConfig[selectedLV.status]?.label}
+   868→   868→                    </Badge>
+   869→   869→                  )}
+   870→   870→                </div>
+   871→   871→
+   872→   872→                {/* Motivo pendiente - only shows when status is PENDIENTE */}
+   873→   873→                {editStatus === 'PENDIENTE' && (
+   874→   874→                  <div className="mt-3">
+   875→   875→                    <Label className="text-sm font-semibold text-amber-700 flex items-center gap-1.5">
+   876→   876→                      <AlertTriangle className="h-4 w-4" /> Motivo por el que no se realizó
+   877→   877→                    </Label>
+   878→   878→                    <Textarea
+   879→   879→                      value={editMotivoPendiente}
+   880→   880→                      onChange={(e) => setEditMotivoPendiente(e.target.value)}
+   881→   881→                      placeholder="Indique el motivo por el cual esta lista queda pendiente..."
+   882→   882→                      rows={2}
+   883→   883→                      className="mt-1 border-amber-300 focus:border-amber-500"
+   884→   884→                    />
+   885→   885→                  </div>
+   886→   886→                )}
+   887→   887→              </div>
+   888→   888→
+   889→   889→              {/* Attachments */}
+   890→   890→              {JSON.parse(selectedLV.attachments || '[]').length > 0 && (
+   891→   891→                <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+   892→   892→                  <div className="text-xs text-blue-600 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
+   893→   893→                    <Paperclip className="h-3.5 w-3.5" /> Documentos Adjuntos (Respaldos)
+   894→   894→                  </div>
+   895→   895→                  <div className="flex gap-2 flex-wrap">
+   896→   896→                    {JSON.parse(selectedLV.attachments).map((url: string, idx: number) => (
+   897→   897→                      <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 bg-white px-2.5 py-1.5 rounded-lg border border-blue-200 hover:border-blue-400 transition-all">
+   898→   898→                        <FileText className="h-3.5 w-3.5" />
+   899→   899→                        Documento {idx + 1}
+   900→   900→                      </a>
+   901→   901→                    ))}
+   902→   902→                  </div>
+   903→   903→                </div>
+   904→   904→              )}
+   905→   905→            </CardContent>
+   906→   906→          </Card>
+   907→   907→
+   908→   908→          {/* Checklist preview */}
+   909→   909→          {(() => {
+   910→   910→            const categories = [...new Set(editItems.map(i => i.category))]
+   911→   911→            const categoryLabels: Record<string, string> = { A: 'A. EPP / Materiales', B: 'B. Verificación de Tareas', C: 'C. Inspección / Registros', D: 'D. Dosificaciones / Limpieza' }
+   912→   912→            return categories.map(cat => {
+   913→   913→              const catItems = editItems.filter(i => i.category === cat)
+   914→   914→              const catOk = catItems.filter(i => i.status === 'OK' || i.status === 'N/A').length
+   915→   915→              const catProgress = catItems.length > 0 ? Math.round((catOk / catItems.length) * 100) : 0
+   916→   916→              return (
+   917→   917→                <Card key={cat} className="border border-slate-200">
+   918→   918→                  <CardHeader className="py-2 px-4 bg-slate-50">
+   919→   919→                    <div className="flex items-center justify-between">
+   920→   920→                      <CardTitle className="text-sm font-bold text-slate-700">{categoryLabels[cat] || `Sección ${cat}`}</CardTitle>
+   921→   921→                      <div className="flex items-center gap-2">
+   922→   922→                        <span className="text-xs text-slate-500">{catOk}/{catItems.length}</span>
+   923→   923→                        <div className="w-16 h-1.5 rounded-full bg-slate-200 overflow-hidden">
+   924→   924→                          <div className={`h-full rounded-full ${getProgressBg(catProgress)}`} style={{ width: `${catProgress}%` }} />
+   925→   925→                        </div>
+   926→   926→                      </div>
+   927→   927→                    </div>
+   928→   928→                  </CardHeader>
+   929→   929→                  <CardContent className="p-0">
+   930→   930→                    <Table>
+   931→   931→                      <TableHeader>
+   932→   932→                        <TableRow>
+   933→   933→                          <TableHead className="w-[30px] text-center px-2 py-1 text-xs">N°</TableHead>
+   934→   934→                          <TableHead className="px-2 py-1 text-xs">Descripción</TableHead>
+   935→   935→                          <TableHead className="w-[90px] text-center px-2 py-1 text-xs">Estado</TableHead>
+   936→   936→                          <TableHead className="w-[100px] px-2 py-1 text-xs">Valor</TableHead>
+   937→   937→                          <TableHead className="w-[120px] px-2 py-1 text-xs">Observación</TableHead>
+   938→   938→                        </TableRow>
+   939→   939→                      </TableHeader>
+   940→   940→                      <TableBody>
+   941→   941→                        {catItems.map((item, idx) => (
+   942→   942→                          <TableRow key={item.id || idx} className={item.status === 'OK' ? 'bg-emerald-50/50' : item.status === 'NO_OK' ? 'bg-red-50/50' : ''}>
+   943→   943→                            <TableCell className="text-center text-xs text-slate-400 px-2 py-1">{idx + 1}</TableCell>
+   944→   944→                            <TableCell className="text-xs px-2 py-1 text-slate-700">{item.description}</TableCell>
+   945→   945→                            <TableCell className="text-center px-2 py-1">
+   946→   946→                              {canEdit ? (
+   947→   947→                                <Select value={item.status} onValueChange={(v) => handleItemStatusChange(item.id!, v)}>
+   948→   948→                                  <SelectTrigger className="h-7 text-xs w-[80px]">
+   949→   949→                                    <SelectValue />
+   950→   950→                                  </SelectTrigger>
+   951→   951→                                  <SelectContent>
+   952→   952→                                    <SelectItem value="PENDIENTE">☐ Pendiente</SelectItem>
+   953→   953→                                    <SelectItem value="OK">✓ OK</SelectItem>
+   954→   954→                                    <SelectItem value="NO_OK">✗ NO OK</SelectItem>
+   955→   955→                                    <SelectItem value="N/A">N/A</SelectItem>
+   956→   956→                                  </SelectContent>
+   957→   957→                                </Select>
+   958→   958→                              ) : (
+   959→   959→                                <Badge className={`text-xs ${item.status === 'OK' ? 'bg-emerald-100 text-emerald-700' : item.status === 'NO_OK' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
+   960→   960→                                  {item.status === 'OK' ? '✓ OK' : item.status === 'NO_OK' ? '✗ NO' : item.status === 'N/A' ? 'N/A' : '☐'}
+   961→   961→                                </Badge>
+   962→   962→                              )}
+   963→   963→                            </TableCell>
+   964→   964→                            <TableCell className="px-2 py-1">
+   965→   965→                              {canEdit ? (
+   966→   966→                                <Input className="h-7 text-xs" value={item.value || ''} onChange={(e) => handleItemFieldChange(item.id!, 'value', e.target.value)} placeholder="Valor" />
+   967→   967→                              ) : <span className="text-xs">{item.value || '-'}</span>}
+   968→   968→                            </TableCell>
+   969→   969→                            <TableCell className="px-2 py-1">
+   970→   970→                              {canEdit ? (
+   971→   971→                                <Input className="h-7 text-xs" value={item.observation || ''} onChange={(e) => handleItemFieldChange(item.id!, 'observation', e.target.value)} placeholder="Obs." />
+   972→   972→                              ) : <span className="text-xs">{item.observation || '-'}</span>}
+   973→   973→                            </TableCell>
+   974→   974→                          </TableRow>
+   975→   975→                        ))}
+   976→   976→                      </TableBody>
+   977→   977→                    </Table>
+   978→   978→                  </CardContent>
+   979→   979→                </Card>
+   980→   980→              )
+   981→   981→            })
+   982→   982→          })()}
+   983→   983→
+   984→   984→          {/* Observations */}
+   985→   985→          <Card className="border border-slate-200">
+   986→   986→            <CardHeader className="py-2 px-4 bg-slate-50">
+   987→   987→              <CardTitle className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+   988→   988→                <MessageSquare className="h-4 w-4" /> Comentarios / Observaciones
+   989→   989→              </CardTitle>
+   990→   990→            </CardHeader>
+   991→   991→            <CardContent className="p-4">
+   992→   992→              {canEdit ? (
+   993→   993→                <Textarea value={editObservations} onChange={(e) => setEditObservations(e.target.value)} placeholder="Ingrese comentarios u observaciones..." rows={3} />
+   994→   994→              ) : (
+   995→   995→                <p className="text-sm text-slate-600">{selectedLV.observations || 'Sin observaciones'}</p>
+   996→   996→              )}
+   997→   997→            </CardContent>
+   998→   998→          </Card>
+   999→   999→
+  1000→  1000→          {/* Save button at bottom */}
+  1001→  1001→          {canEdit && (
+  1002→  1002→            <div className="flex justify-end gap-2 pt-2">
+  1003→  1003→              <Button variant="outline" onClick={goBack}>Cancelar</Button>
+  1004→  1004→              <Button className="gap-1.5 bg-teal-600 hover:bg-teal-700 text-white" onClick={handleSave} disabled={saving}>
+  1005→  1005→                <Save className="h-4 w-4" /> {saving ? 'Guardando...' : 'Guardar Todos los Cambios'}
+  1006→  1006→              </Button>
+  1007→  1007→            </div>
+  1008→  1008→          )}
+  1009→  1009→        </div>
+  1010→  1010→      )}
+  1011→  1011→
+  1012→  1012→      {/* Delete dialog */}
+  1013→  1013→      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+  1014→  1014→        <AlertDialogContent>
+  1015→  1015→          <AlertDialogHeader>
+  1016→  1016→            <AlertDialogTitle>¿Eliminar esta lista?</AlertDialogTitle>
+  1017→  1017→            <AlertDialogDescription>Se eliminará la lista de verificación y todos sus items. Esta acción no se puede deshacer.</AlertDialogDescription>
+  1018→  1018→          </AlertDialogHeader>
+  1019→  1019→          <AlertDialogFooter>
+  1020→  1020→            <AlertDialogCancel onClick={() => setDeleteId(null)}>Cancelar</AlertDialogCancel>
+  1021→  1021→            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white">Eliminar</AlertDialogAction>
+  1022→  1022→          </AlertDialogFooter>
+  1023→  1023→        </AlertDialogContent>
+  1024→  1024→      </AlertDialog>
+  1025→  1025→    </div>
+  1026→  1026→  )
+  1027→  1027→}
+  1028→  1028→
