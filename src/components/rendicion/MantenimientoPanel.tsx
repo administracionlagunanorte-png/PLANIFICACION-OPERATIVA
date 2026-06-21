@@ -111,10 +111,11 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
   const canEdit = userRole === 'ADMIN' || userRole === 'SUPERVISOR'
 
   // --- View state ---
-  const [currentView, setCurrentView] = useState<'calendar' | 'day' | 'detail'>('calendar')
+  const [currentView, setCurrentView] = useState<'calendar' | 'day' | 'detail' | 'frequency'>('calendar')
   const [allLVs, setAllLVs] = useState<MantenimientoLV[]>([])
   const [selectedLV, setSelectedLV] = useState<MantenimientoLV | null>(null)
   const [selectedDate, setSelectedDate] = useState<string>('')
+  const [selectedFrequency, setSelectedFrequency] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -260,6 +261,11 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
     setCurrentView('day')
   }
 
+  const openFrequency = (freq: string) => {
+    setSelectedFrequency(freq)
+    setCurrentView('frequency')
+  }
+
   const openLV = (id: string, fromCalendar: boolean = false) => {
     if (fromCalendar) {
       // Find the LV to get its date, so "back" returns to the right day
@@ -268,13 +274,19 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
         setSelectedDate(lv.scheduledDate.substring(0, 10))
       }
     }
+    // When coming from frequency view, keep selectedDate empty so goBack returns to frequency
+    if (currentView === 'frequency') {
+      setSelectedDate('')
+    }
     fetchLVDetail(id)
     setCurrentView('detail')
   }
 
   const goBack = () => {
     if (currentView === 'detail') {
-      if (selectedDate) {
+      if (selectedFrequency && !selectedDate) {
+        setCurrentView('frequency')
+      } else if (selectedDate) {
         setCurrentView('day')
       } else {
         setCurrentView('calendar')
@@ -283,6 +295,9 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
     } else if (currentView === 'day') {
       setCurrentView('calendar')
       setSelectedDate('')
+    } else if (currentView === 'frequency') {
+      setCurrentView('calendar')
+      setSelectedFrequency('')
     }
   }
 
@@ -561,14 +576,15 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
           {freqStats.map(fs => {
             const gc = freqGroupColors[fs.freq] || freqGroupColors['Mensual']
             return (
-              <div key={fs.freq} className="bg-white rounded-lg p-2.5 border border-slate-200 shadow-sm">
+              <div key={fs.freq} className="bg-white rounded-lg p-2.5 border border-slate-200 shadow-sm cursor-pointer hover:shadow-md hover:border-slate-300 transition-all group"
+                onClick={() => openFrequency(fs.freq)}>
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <div className={`w-2.5 h-2.5 rounded-full ${gc.dot}`} />
                   <span className="text-[10px] font-bold text-slate-600 uppercase">{fs.freq}</span>
                 </div>
                 <div className="flex items-end justify-between">
                   <div>
-                    <span className="text-lg font-bold text-slate-800">{fs.total}</span>
+                    <span className="text-lg font-bold text-slate-800 group-hover:text-teal-700 transition-colors">{fs.total}</span>
                     <span className="text-[10px] text-slate-400 ml-0.5">LVs</span>
                   </div>
                   <div className="text-right">
@@ -607,6 +623,14 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
               {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}
             </Badge>
           )}
+          {currentView === 'frequency' && selectedFrequency && (() => {
+            const gc = freqGroupColors[selectedFrequency]
+            return (
+              <Badge className={`${gc?.bg || 'bg-slate-500'} text-white text-sm`}>
+                {selectedFrequency}
+              </Badge>
+            )
+          })()}
         </div>
         <div className="flex items-center gap-2">
           {currentView === 'calendar' && (
@@ -786,6 +810,150 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
                 )
               })
           )}
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* FREQUENCY VIEW — Shows all LVs for a selected frequency      */}
+      {/* ============================================================ */}
+      {currentView === 'frequency' && selectedFrequency && (
+        <div className="space-y-3">
+          {(() => {
+            const freqLVs = allLVs
+              .filter(lv => lv.frecuencia === selectedFrequency)
+              .sort((a, b) => {
+                // Sort by status: pendientes first, then en progreso, then completadas
+                const statusOrder: Record<string, number> = { 'PENDIENTE': 0, 'EN_PROGRESO': 1, 'COMPLETADA': 2 }
+                const statusDiff = (statusOrder[a.status] || 0) - (statusOrder[b.status] || 0)
+                if (statusDiff !== 0) return statusDiff
+                // Then by date
+                return (a.scheduledDate || '').localeCompare(b.scheduledDate || '')
+              })
+            const gc = freqGroupColors[selectedFrequency] || freqGroupColors['Mensual']
+            const fc = freqColors[selectedFrequency] || freqColors['Mensual']
+            const totalLVs = freqLVs.length
+            const doneLVs = freqLVs.filter(l => l.status === 'COMPLETADA').length
+            const pendingLVs = freqLVs.filter(l => l.status === 'PENDIENTE').length
+            const progressLVs = freqLVs.filter(l => l.status === 'EN_PROGRESO').length
+            const avgProg = totalLVs > 0 ? Math.round(freqLVs.reduce((s, l) => s + l.progress, 0) / totalLVs) : 0
+
+            return (
+              <>
+                {/* Frequency summary header */}
+                <Card className={`border-l-4 ${fc.border} overflow-hidden`}>
+                  <CardContent className="px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`flex items-center justify-center w-12 h-12 rounded-xl ${gc.bg} text-white`}>
+                          <Wrench className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-slate-800">Listas de Verificación — {selectedFrequency}</h3>
+                          <p className="text-sm text-slate-500">{totalLVs} LVs en este período</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-amber-600">{pendingLVs}</div>
+                          <div className="text-[10px] text-slate-500 uppercase font-semibold">Pendientes</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-blue-600">{progressLVs}</div>
+                          <div className="text-[10px] text-slate-500 uppercase font-semibold">En Progreso</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-emerald-600">{doneLVs}</div>
+                          <div className="text-[10px] text-slate-500 uppercase font-semibold">Realizadas</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-teal-700">{avgProg}%</div>
+                          <div className="text-[10px] text-slate-500 uppercase font-semibold">Avance</div>
+                          <div className="w-16 h-1.5 rounded-full bg-slate-200 mt-1 overflow-hidden">
+                            <div className={`h-full rounded-full ${avgProg === 100 ? 'bg-emerald-500' : avgProg >= 50 ? 'bg-blue-500' : 'bg-amber-500'}`} style={{ width: `${avgProg}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {freqLVs.length === 0 ? (
+                  <div className="text-center py-12 text-slate-400">
+                    <Calendar className="h-12 w-12 mx-auto mb-3 opacity-40" />
+                    <p className="text-lg font-medium">No hay listas para esta frecuencia</p>
+                  </div>
+                ) : (
+                  freqLVs.map(lv => {
+                    const lvFc = freqColors[lv.frecuencia] || freqColors['Mensual']
+                    return (
+                      <Card key={lv.id} className={`border-l-4 hover:shadow-lg transition-all cursor-pointer group ${lv.status === 'COMPLETADA' ? 'border-l-emerald-500 bg-emerald-50/30' : lv.status === 'EN_PROGRESO' ? 'border-l-blue-500 bg-blue-50/20' : 'border-l-amber-500 bg-amber-50/20'}`}
+                        onClick={() => openLV(lv.id)}>
+                        <CardContent className="px-4 py-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={`shrink-0 flex items-center justify-center w-10 h-10 rounded-lg ${lvFc.bg} ${lvFc.text}`}>
+                                <span className="text-[10px] font-black leading-none">{lv.codigo.replace('LV-', '')}</span>
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-semibold text-sm text-slate-800 truncate group-hover:text-teal-700 transition-colors">{lv.nombre}</div>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-xs text-slate-500">{lv.sector}</span>
+                                  <span className="text-xs text-slate-400">·</span>
+                                  <span className="text-xs text-slate-500">{lv.scheduledDate ? new Date(lv.scheduledDate + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short' }) : '-'}</span>
+                                  {lv.responsable && (
+                                    <>
+                                      <span className="text-xs text-slate-400">·</span>
+                                      <span className="text-xs text-slate-500">{lv.responsable}</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {/* Quick complete button */}
+                              {canEdit && lv.status !== 'COMPLETADA' && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                  onClick={(e) => { e.stopPropagation(); handleQuickStatus(lv.id, 'COMPLETADA') }}
+                                >
+                                  <CheckCircle className="h-3 w-3" /> OK
+                                </Button>
+                              )}
+                              {/* Status badge */}
+                              <Badge className={`${statusConfig[lv.status]?.bg || 'bg-slate-100'} ${statusConfig[lv.status]?.text || 'text-slate-600'} text-[10px] gap-1`}>
+                                {(() => { const Icon = statusConfig[lv.status]?.icon || Clock; return <Icon className="h-3 w-3" /> })()}
+                                {statusConfig[lv.status]?.label}
+                              </Badge>
+                              {/* Progress */}
+                              <div className="w-20">
+                                <div className={`text-xs text-right font-bold ${getProgressColor(lv.progress)}`}>{lv.progress}%</div>
+                                <div className="h-1.5 rounded-full bg-slate-200 mt-0.5 overflow-hidden">
+                                  <div className={`h-full rounded-full transition-all ${getProgressBg(lv.progress)}`} style={{ width: `${lv.progress}%` }} />
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 text-teal-600 group-hover:text-teal-800 transition-colors">
+                                <Eye className="h-4 w-4" />
+                                <span className="text-[10px] font-semibold hidden sm:inline">Revisar</span>
+                              </div>
+                            </div>
+                          </div>
+                          {/* Show motivo if pending */}
+                          {lv.status === 'PENDIENTE' && lv.motivoPendiente && (
+                            <div className="mt-2 flex items-start gap-2 bg-amber-50 rounded-lg px-3 py-2 border border-amber-200">
+                              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                              <p className="text-xs text-amber-700"><span className="font-semibold">Motivo pendiente:</span> {lv.motivoPendiente}</p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )
+                  })
+                )}
+              </>
+            )
+          })()}
         </div>
       )}
 
