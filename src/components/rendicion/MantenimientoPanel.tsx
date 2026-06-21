@@ -25,7 +25,7 @@ import {
   Wrench, ChevronLeft, CheckCircle, XCircle, Clock,
   Printer, Upload, Calendar, ChevronRight,
   RefreshCw, Map, FileText, Trash2, AlertTriangle,
-  Eye, Save, MessageSquare, Paperclip,
+  Eye, Save, MessageSquare, Paperclip, Pencil, Plus, X,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -130,6 +130,15 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
   const [editObservations, setEditObservations] = useState<string>('')
   const [editItems, setEditItems] = useState<MantenimientoItem[]>([])
 
+  // --- LV field edit state ---
+  const [editNombre, setEditNombre] = useState<string>('')
+  const [editSector, setEditSector] = useState<string>('')
+  const [editFrecuencia, setEditFrecuencia] = useState<string>('')
+  const [editScheduledDate, setEditScheduledDate] = useState<string>('')
+  const [editResponsable, setEditResponsable] = useState<string>('')
+  const [editTurno, setEditTurno] = useState<string>('')
+  const [isEditingLV, setIsEditingLV] = useState(false)
+
   // --- Dialogs ---
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -195,6 +204,14 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
         setEditMotivoPendiente(data.motivoPendiente || '')
         setEditObservations(data.observations || '')
         setEditItems([...data.items])
+        // Initialize LV field edits
+        setEditNombre(data.nombre || '')
+        setEditSector(data.sector || '')
+        setEditFrecuencia(data.frecuencia || '')
+        setEditScheduledDate(data.scheduledDate ? data.scheduledDate.substring(0, 10) : '')
+        setEditResponsable(data.responsable || '')
+        setEditTurno(data.turno || '')
+        setIsEditingLV(false)
       }
     } catch (err) {
       console.error(err)
@@ -316,12 +333,19 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
           observations: editObservations,
           motivoPendiente: editStatus === 'PENDIENTE' ? editMotivoPendiente : '',
           status: editStatus,
+          nombre: editNombre,
+          sector: editSector,
+          frecuencia: editFrecuencia,
+          scheduledDate: editScheduledDate || undefined,
+          responsable: editResponsable || null,
+          turno: editTurno || null,
         }),
       })
       if (res.ok) {
         const data = await res.json()
         setSelectedLV({ ...selectedLV, ...data })
         fetchLVs()
+        setIsEditingLV(false)
         toast({ title: 'Guardado', description: 'Cambios guardados exitosamente' })
       } else {
         toast({ title: 'Error', description: 'No se pudo guardar', variant: 'destructive' })
@@ -360,11 +384,29 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
     setEditItems(updated)
   }
 
-  const handleItemFieldChange = (itemId: string, field: 'value' | 'observation', val: string) => {
+  const handleItemFieldChange = (itemId: string, field: 'value' | 'observation' | 'description' | 'category', val: string) => {
     const updated = editItems.map(item =>
       item.id === itemId ? { ...item, [field]: val } : item
     )
     setEditItems(updated)
+  }
+
+  const handleAddItem = (category: string) => {
+    const catItems = editItems.filter(i => i.category === category)
+    const newItem: MantenimientoItem = {
+      id: `new-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      category,
+      description: '',
+      status: 'PENDIENTE',
+      value: null,
+      observation: null,
+      order: catItems.length,
+    }
+    setEditItems([...editItems, newItem])
+  }
+
+  const handleRemoveItem = (itemId: string) => {
+    setEditItems(editItems.filter(item => item.id !== itemId))
   }
 
   // ============================================================
@@ -966,22 +1008,88 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
           <Card className="border-teal-200 overflow-hidden">
             <CardHeader className="bg-gradient-to-r from-teal-50 to-white border-b border-teal-100 pb-3">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge className={`${freqColors[selectedLV.frecuencia]?.bg || 'bg-slate-100'} ${freqColors[selectedLV.frecuencia]?.text || 'text-slate-700'} text-xs font-bold`}>
-                      {selectedLV.codigo}
-                    </Badge>
-                    <Badge className={`${freqColors[selectedLV.frecuencia]?.bg || 'bg-slate-100'} ${freqColors[selectedLV.frecuencia]?.text || 'text-slate-700'} text-xs`}>
-                      {selectedLV.frecuencia}
-                    </Badge>
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-800">{selectedLV.nombre}</h3>
-                  <p className="text-sm text-slate-500 mt-0.5">
-                    {selectedLV.sector} · {formatDateShort(selectedLV.scheduledDate)} · {selectedLV.responsable || 'Sin responsable'}
-                  </p>
+                <div className="flex-1 min-w-0">
+                  {isEditingLV && canEdit ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Badge className={`${freqColors[editFrecuencia]?.bg || 'bg-slate-100'} ${freqColors[editFrecuencia]?.text || 'text-slate-700'} text-xs font-bold`}>
+                          {selectedLV.codigo}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs text-teal-700 border-teal-300 bg-teal-50">
+                          <Pencil className="h-3 w-3 mr-1" /> Editando
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs font-semibold text-slate-600">Nombre</Label>
+                          <Input className="h-8 text-sm mt-1" value={editNombre} onChange={(e) => setEditNombre(e.target.value)} placeholder="Nombre de la LV" />
+                        </div>
+                        <div>
+                          <Label className="text-xs font-semibold text-slate-600">Sector</Label>
+                          <Input className="h-8 text-sm mt-1" value={editSector} onChange={(e) => setEditSector(e.target.value)} placeholder="Sector" />
+                        </div>
+                        <div>
+                          <Label className="text-xs font-semibold text-slate-600">Frecuencia</Label>
+                          <Select value={editFrecuencia} onValueChange={setEditFrecuencia}>
+                            <SelectTrigger className="h-8 text-sm mt-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Diaria">Diaria</SelectItem>
+                              <SelectItem value="3x Semanal">3x Semanal</SelectItem>
+                              <SelectItem value="Semanal">Semanal</SelectItem>
+                              <SelectItem value="Quincenal">Quincenal</SelectItem>
+                              <SelectItem value="Mensual">Mensual</SelectItem>
+                              <SelectItem value="Trimestral">Trimestral</SelectItem>
+                              <SelectItem value="Semestral">Semestral</SelectItem>
+                              <SelectItem value="Anual">Anual</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-xs font-semibold text-slate-600">Fecha Programada</Label>
+                          <Input type="date" className="h-8 text-sm mt-1" value={editScheduledDate} onChange={(e) => setEditScheduledDate(e.target.value)} />
+                        </div>
+                        <div>
+                          <Label className="text-xs font-semibold text-slate-600">Responsable</Label>
+                          <Input className="h-8 text-sm mt-1" value={editResponsable} onChange={(e) => setEditResponsable(e.target.value)} placeholder="Nombre del responsable" />
+                        </div>
+                        <div>
+                          <Label className="text-xs font-semibold text-slate-600">Turno</Label>
+                          <Select value={editTurno} onValueChange={setEditTurno}>
+                            <SelectTrigger className="h-8 text-sm mt-1">
+                              <SelectValue placeholder="Seleccionar turno" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Mañana">Mañana</SelectItem>
+                              <SelectItem value="Tarde">Tarde</SelectItem>
+                              <SelectItem value="Noche">Noche</SelectItem>
+                              <SelectItem value="">Sin turno</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge className={`${freqColors[selectedLV.frecuencia]?.bg || 'bg-slate-100'} ${freqColors[selectedLV.frecuencia]?.text || 'text-slate-700'} text-xs font-bold`}>
+                          {selectedLV.codigo}
+                        </Badge>
+                        <Badge className={`${freqColors[selectedLV.frecuencia]?.bg || 'bg-slate-100'} ${freqColors[selectedLV.frecuencia]?.text || 'text-slate-700'} text-xs`}>
+                          {selectedLV.frecuencia}
+                        </Badge>
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-800">{selectedLV.nombre}</h3>
+                      <p className="text-sm text-slate-500 mt-0.5">
+                        {selectedLV.sector} · {formatDateShort(selectedLV.scheduledDate)} · {selectedLV.responsable || 'Sin responsable'}
+                        {selectedLV.turno && <span> · {selectedLV.turno}</span>}
+                      </p>
+                    </>
+                  )}
                 </div>
-                {/* Progress circle */}
-                <div className="text-center shrink-0">
+                {/* Progress circle + edit toggle */}
+                <div className="flex flex-col items-center gap-2 shrink-0">
                   <div className="relative w-16 h-16">
                     <svg className="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
                       <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e2e8f0" strokeWidth="3" />
@@ -989,6 +1097,24 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
                     </svg>
                     <span className={`absolute inset-0 flex items-center justify-center text-sm font-bold ${getProgressColor(selectedLV.progress)}`}>{selectedLV.progress}%</span>
                   </div>
+                  {canEdit && !isEditingLV && (
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1 border-teal-300 text-teal-700" onClick={() => setIsEditingLV(true)}>
+                      <Pencil className="h-3 w-3" /> Modificar
+                    </Button>
+                  )}
+                  {isEditingLV && canEdit && (
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1 border-slate-300 text-slate-600" onClick={() => {
+                      setIsEditingLV(false)
+                      setEditNombre(selectedLV.nombre || '')
+                      setEditSector(selectedLV.sector || '')
+                      setEditFrecuencia(selectedLV.frecuencia || '')
+                      setEditScheduledDate(selectedLV.scheduledDate ? selectedLV.scheduledDate.substring(0, 10) : '')
+                      setEditResponsable(selectedLV.responsable || '')
+                      setEditTurno(selectedLV.turno || '')
+                    }}>
+                      Cancelar
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardHeader>
@@ -1107,6 +1233,11 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
                         <div className="w-16 h-1.5 rounded-full bg-slate-200 overflow-hidden">
                           <div className={`h-full rounded-full ${getProgressBg(catProgress)}`} style={{ width: `${catProgress}%` }} />
                         </div>
+                        {canEdit && (
+                          <Button variant="ghost" size="sm" className="h-6 text-xs gap-0.5 text-teal-600 hover:text-teal-800 hover:bg-teal-50" onClick={() => handleAddItem(cat)}>
+                            <Plus className="h-3 w-3" /> Item
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardHeader>
@@ -1119,13 +1250,18 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
                           <TableHead className="w-[90px] text-center px-2 py-1 text-xs">Estado</TableHead>
                           <TableHead className="w-[100px] px-2 py-1 text-xs">Valor</TableHead>
                           <TableHead className="w-[120px] px-2 py-1 text-xs">Observación</TableHead>
+                          {canEdit && <TableHead className="w-[36px] px-1 py-1 text-xs"></TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {catItems.map((item, idx) => (
                           <TableRow key={item.id || idx} className={item.status === 'OK' ? 'bg-emerald-50/50' : item.status === 'NO_OK' ? 'bg-red-50/50' : ''}>
                             <TableCell className="text-center text-xs text-slate-400 px-2 py-1">{idx + 1}</TableCell>
-                            <TableCell className="text-xs px-2 py-1 text-slate-700">{item.description}</TableCell>
+                            <TableCell className="px-2 py-1">
+                              {canEdit ? (
+                                <Input className="h-7 text-xs" value={item.description} onChange={(e) => handleItemFieldChange(item.id!, 'description', e.target.value)} placeholder="Descripción del item" />
+                              ) : <span className="text-xs text-slate-700">{item.description}</span>}
+                            </TableCell>
                             <TableCell className="text-center px-2 py-1">
                               {canEdit ? (
                                 <Select value={item.status} onValueChange={(v) => handleItemStatusChange(item.id!, v)}>
@@ -1155,6 +1291,13 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
                                 <Input className="h-7 text-xs" value={item.observation || ''} onChange={(e) => handleItemFieldChange(item.id!, 'observation', e.target.value)} placeholder="Obs." />
                               ) : <span className="text-xs">{item.observation || '-'}</span>}
                             </TableCell>
+                            {canEdit && (
+                              <TableCell className="px-1 py-1">
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleRemoveItem(item.id!)}>
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </TableCell>
+                            )}
                           </TableRow>
                         ))}
                       </TableBody>
