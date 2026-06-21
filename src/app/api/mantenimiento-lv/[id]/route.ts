@@ -23,19 +23,23 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params
     const body = await req.json()
 
+    // Extract fields that should NOT be spread directly
+    const { items, ...simpleFields } = body
+
     // If items are provided, update them
-    if (body.items) {
+    if (items) {
       // Delete existing items and recreate
       await db.mantenimientoItem.deleteMany({ where: { lvId: id } })
 
       const lv = await db.mantenimientoLV.update({
         where: { id },
         data: {
-          ...body,
-          scheduledDate: body.scheduledDate ? new Date(body.scheduledDate) : undefined,
-          completedDate: body.completedDate ? new Date(body.completedDate) : undefined,
+          ...simpleFields,
+          scheduledDate: simpleFields.scheduledDate ? new Date(simpleFields.scheduledDate) : undefined,
+          completedDate: simpleFields.completedDate ? new Date(simpleFields.completedDate) : undefined,
+          motivoPendiente: simpleFields.motivoPendiente !== undefined ? simpleFields.motivoPendiente : undefined,
           items: {
-            create: body.items.map((item: any, idx: number) => ({
+            create: items.map((item: any, idx: number) => ({
               category: item.category || 'A',
               description: item.description || '',
               status: item.status || 'PENDIENTE',
@@ -52,24 +56,53 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const totalItems = lv.items.length
       const completedItems = lv.items.filter(i => i.status === 'OK' || i.status === 'N/A').length
       const progress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0
-      const status = progress === 100 ? 'COMPLETADA' : progress > 0 ? 'EN_PROGRESO' : 'PENDIENTE'
+      
+      // Determine status based on progress or explicit status
+      let status: string
+      if (progress === 100) {
+        status = 'COMPLETADA'
+      } else if (progress > 0) {
+        status = 'EN_PROGRESO'
+      } else {
+        status = simpleFields.status || 'PENDIENTE'
+      }
+
+      // Clear motivoPendiente if status is not PENDIENTE
+      const motivoPendiente = status !== 'PENDIENTE' ? null : (simpleFields.motivoPendiente || lv.motivoPendiente)
 
       await db.mantenimientoLV.update({
         where: { id },
         data: {
           progress,
           status,
-          completedDate: progress === 100 ? new Date() : null,
+          completedDate: status === 'COMPLETADA' ? new Date() : null,
+          motivoPendiente,
         },
       })
 
-      return NextResponse.json({ ...lv, progress, status })
+      return NextResponse.json({ ...lv, progress, status, motivoPendiente })
     }
 
-    // Simple update without items
+    // Simple update without items (status change, comments, etc.)
+    const updateData: any = { ...simpleFields }
+    if (simpleFields.scheduledDate) updateData.scheduledDate = new Date(simpleFields.scheduledDate)
+    if (simpleFields.completedDate) updateData.completedDate = new Date(simpleFields.completedDate)
+    
+    // If status is being changed
+    if (simpleFields.status) {
+      // Clear motivo if no longer pending
+      if (simpleFields.status !== 'PENDIENTE') {
+        updateData.motivoPendiente = null
+      }
+      if (simpleFields.status === 'COMPLETADA') {
+        updateData.completedDate = new Date()
+        updateData.progress = 100
+      }
+    }
+
     const lv = await db.mantenimientoLV.update({
       where: { id },
-      data: body,
+      data: updateData,
     })
     return NextResponse.json(lv)
   } catch (error) {

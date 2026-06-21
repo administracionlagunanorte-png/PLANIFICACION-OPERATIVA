@@ -280,7 +280,7 @@ model MantenimientoLV {
   codigo          String              // LV-01, LV-02, etc.
   nombre          String              // Nombre de la lista de verificación
   sector          String              // Sector
-  frecuencia      String              // Diaria, Semanal, Quincenal, Mensual, Trimestral, Semestral, Anual
+  frecuencia      String              // Diaria, 3x Semanal, Semanal, Quincenal, Mensual, Trimestral, Semestral, Anual
   status          String   @default("PENDIENTE")  // PENDIENTE, EN_PROGRESO, COMPLETADA
   progress        Int      @default(0)  // 0-100 percentage
   scheduledDate   DateTime?           // Fecha programada
@@ -288,6 +288,7 @@ model MantenimientoLV {
   responsable     String?             // Responsable
   turno           String?             // Turno
   observations    String?             // Observaciones generales
+  motivoPendiente String?             // Motivo por el que no se realizó (si está pendiente)
   attachments     String   @default("[]") @db.Text  // JSON array of file URLs
   createdBy       String?
   createdAt       DateTime @default(now())
