@@ -85,6 +85,7 @@ import {
   User,
   ArrowRight,
   Wallet,
+  Wrench,
 } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import ExcelJS from 'exceljs'
@@ -92,6 +93,7 @@ import SolicitudesCompra from '@/components/rendicion/SolicitudesCompra'
 import { useToast } from '@/hooks/use-toast'
 import RendicionGastos from '@/components/rendicion/RendicionGastos'
 import AnticiposPanel from '@/components/rendicion/AnticiposPanel'
+import MantenimientoPanel from '@/components/rendicion/MantenimientoPanel'
 import { useAuth } from '@/lib/auth-context'
 import UsersPanel from '@/components/auth/UsersPanel'
 
@@ -204,12 +206,14 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
     expenses: { total: number; byStatus: Record<string, number>; approvedAmount: number }
     purchases: { total: number; byStatus: Record<string, number> }
     anticipos: { total: number; byStatus: Record<string, number>; totalAmount: number; pagadoAmount: number }
+    mantenimiento: { total: number; pendientes: number; enProgreso: number; completadas: number; avgProgress: number }
   } | null>(null)
   // Navigation: when user clicks a dashboard card, navigate to the section with a pre-filtered status
   const [expenseStatusFilter, setExpenseStatusFilter] = useState<string>('')
   const [purchaseStatusFilter, setPurchaseStatusFilter] = useState<string>('')
   const [anticipoStatusFilter, setAnticipoStatusFilter] = useState<string>('')
-  const [view, setView] = useState<'dashboard' | 'table' | 'cards' | 'gantt' | 'materials' | 'rendicion' | 'solicitudes' | 'anticipos' | 'users'>('dashboard')
+  const [mantenimientoStatusFilter, setMantenimientoStatusFilter] = useState<string>('')
+  const [view, setView] = useState<'dashboard' | 'table' | 'cards' | 'gantt' | 'materials' | 'rendicion' | 'solicitudes' | 'anticipos' | 'mantenimiento' | 'users'>('dashboard')
   const [filterSector, setFilterSector] = useState('all')
   const [filterPriority, setFilterPriority] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
@@ -3328,6 +3332,14 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
             >
               <Wallet className="h-4 w-4" /> Anticipos
             </Button>
+            <Button
+              variant={view === 'mantenimiento' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setView('mantenimiento')}
+              className="gap-1"
+            >
+              <Wrench className="h-4 w-4" /> Mantenimiento
+            </Button>
             {(session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERVISOR') && (
               <Button
                 variant={view === 'users' ? 'default' : 'ghost'}
@@ -3341,7 +3353,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
           </div>
 
           {/* Filters */}
-          {view !== 'rendicion' && view !== 'solicitudes' && view !== 'anticipos' && view !== 'users' && (
+          {view !== 'rendicion' && view !== 'solicitudes' && view !== 'anticipos' && view !== 'mantenimiento' && view !== 'users' && (
           <div className="flex items-center gap-2 flex-wrap max-w-full">
             <Select value={filterSector} onValueChange={setFilterSector}>
               <SelectTrigger className="w-[120px] sm:w-[140px] h-8 text-xs">
@@ -3767,6 +3779,61 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
                       </div>
                     </div>
                   )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════ */}
+            {/* SECCIÓN 5: MANTENIMIENTO                                   */}
+            {/* ═══════════════════════════════════════════════════════════ */}
+            {dashboardStats && (
+              <Card className="border-teal-200 bg-gradient-to-r from-teal-50 to-white overflow-hidden">
+                <CardHeader className="pb-3 pt-4 px-5 border-b border-teal-100 bg-teal-50/50">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg font-bold text-teal-900 flex items-center gap-2.5 cursor-pointer hover:text-teal-700" onClick={() => { setMantenimientoStatusFilter('all'); setView('mantenimiento'); }}>
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-600 text-white">
+                        <Wrench className="h-4.5 w-4.5" />
+                      </div>
+                      Mantenimiento
+                      <ArrowRight className="h-4 w-4 opacity-50" />
+                    </CardTitle>
+                    <Badge className="text-sm font-bold bg-teal-100 text-teal-800 border-teal-300 hover:bg-teal-100">
+                      {dashboardStats.mantenimiento.total} LVs
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-5 pb-5 pt-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div
+                      className="bg-white rounded-xl p-4 border border-amber-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-amber-400 transition-all duration-200 hover:scale-105"
+                      onClick={() => { setMantenimientoStatusFilter('PENDIENTE'); setView('mantenimiento'); }}
+                      title="Ver LVs Pendientes"
+                    >
+                      <div className="text-xs text-amber-600 uppercase tracking-wider font-semibold mb-1">Pendientes</div>
+                      <div className="text-3xl font-bold text-amber-700">{dashboardStats.mantenimiento.pendientes}</div>
+                    </div>
+                    <div
+                      className="bg-white rounded-xl p-4 border border-blue-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-blue-400 transition-all duration-200 hover:scale-105"
+                      onClick={() => { setMantenimientoStatusFilter('EN_PROGRESO'); setView('mantenimiento'); }}
+                      title="Ver LVs En Progreso"
+                    >
+                      <div className="text-xs text-blue-600 uppercase tracking-wider font-semibold mb-1">En Progreso</div>
+                      <div className="text-3xl font-bold text-blue-700">{dashboardStats.mantenimiento.enProgreso}</div>
+                    </div>
+                    <div
+                      className="bg-white rounded-xl p-4 border border-emerald-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-emerald-400 transition-all duration-200 hover:scale-105"
+                      onClick={() => { setMantenimientoStatusFilter('COMPLETADA'); setView('mantenimiento'); }}
+                      title="Ver LVs Completadas"
+                    >
+                      <div className="text-xs text-emerald-600 uppercase tracking-wider font-semibold mb-1">Completadas</div>
+                      <div className="text-3xl font-bold text-emerald-700">{dashboardStats.mantenimiento.completadas}</div>
+                    </div>
+                    <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm text-center">
+                      <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Avance Promedio</div>
+                      <div className="text-3xl font-bold text-teal-700">{Math.round(dashboardStats.mantenimiento.avgProgress)}%</div>
+                      <Progress value={dashboardStats.mantenimiento.avgProgress} className="h-2 mt-1" />
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -4560,6 +4627,14 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
             userRole={userRole}
             initialStatusFilter={anticipoStatusFilter}
             onStatusFilterConsumed={() => setAnticipoStatusFilter('')}
+          />
+        )}
+
+        {view === 'mantenimiento' && (
+          <MantenimientoPanel
+            userRole={userRole}
+            initialStatusFilter={mantenimientoStatusFilter}
+            onStatusFilterConsumed={() => setMantenimientoStatusFilter('')}
           />
         )}
 

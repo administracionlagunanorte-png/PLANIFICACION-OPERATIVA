@@ -270,3 +270,45 @@ model Anticipo {
 
   @@map("anticipos")
 }
+
+// ============================================================
+// MANTENIMIENTO
+// ============================================================
+
+model MantenimientoLV {
+  id              String   @id @default(cuid())
+  codigo          String              // LV-01, LV-02, etc.
+  nombre          String              // Nombre de la lista de verificación
+  sector          String              // Sector
+  frecuencia      String              // Diaria, Semanal, Quincenal, Mensual, Trimestral, Semestral, Anual
+  status          String   @default("PENDIENTE")  // PENDIENTE, EN_PROGRESO, COMPLETADA
+  progress        Int      @default(0)  // 0-100 percentage
+  scheduledDate   DateTime?           // Fecha programada
+  completedDate   DateTime?           // Fecha completada
+  responsable     String?             // Responsable
+  turno           String?             // Turno
+  observations    String?             // Observaciones generales
+  attachments     String   @default("[]") @db.Text  // JSON array of file URLs
+  createdBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  items           MantenimientoItem[]
+
+  @@map("mantenimiento_lv")
+}
+
+model MantenimientoItem {
+  id          String         @id @default(cuid())
+  lvId        String
+  lv          MantenimientoLV @relation(fields: [lvId], references: [id], onDelete: Cascade)
+  category    String         // A, B, C, D sub-section
+  description String         // Task description
+  status      String  @default("PENDIENTE")  // PENDIENTE, OK, NO_OK, N/A
+  value       String?        // For measurements (pH, temp, etc.)
+  observation String?
+  order       Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("mantenimiento_items")
+}

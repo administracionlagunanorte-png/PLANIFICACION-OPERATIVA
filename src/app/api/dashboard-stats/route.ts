@@ -70,6 +70,13 @@ export async function GET() {
         totalAmount: anticipoTotalAmount._sum.monto || 0,
         pagadoAmount: anticipoPagadoAmount._sum.monto || 0,
       },
+      mantenimiento: {
+        total: await db.mantenimientoLV.count(),
+        pendientes: await db.mantenimientoLV.count({ where: { status: 'PENDIENTE' } }),
+        enProgreso: await db.mantenimientoLV.count({ where: { status: 'EN_PROGRESO' } }),
+        completadas: await db.mantenimientoLV.count({ where: { status: 'COMPLETADA' } }),
+        avgProgress: (await db.mantenimientoLV.aggregate({ _avg: { progress: true } }))._avg.progress || 0,
+      },
     })
   } catch (error) {
     console.error('[DASHBOARD_STATS_GET]', error)

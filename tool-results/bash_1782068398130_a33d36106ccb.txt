@@ -1,0 +1,1149 @@
+P38 [Normal]: ÍNDICE DE LISTAS DE VERIFICACIÓN
+P43 [Normal]: A. VERIFICACIÓN DE DOTACIÓN DE PERSONAL
+P64 [Normal]: B. VERIFICACIÓN DE EPP POR PUESTO
+P73 [Normal]: C. NOVEDADES DE INICIO DE JORNADA
+P78 [Normal]: A. EPP Y MATERIALES REQUERIDOS
+P80 [Normal]: B. MEDICIONES DE CALIDAD DEL AGUA (3 PUNTOS)
+P82 [Normal]: C. INSPECCIÓN VISUAL PERIMETRAL LAGUNA
+P84 [Normal]: D. DOSIFICACIONES REALIZADAS
+P90 [Normal]: A. EPP Y EQUIPOS REQUERIDOS
+P92 [Normal]: B. MEDICIÓN DE PARÁMETROS — MAÑANA (08:30 hrs)
+P94 [Normal]: C. MEDICIÓN DE PARÁMETROS — TARDE (15:00 hrs)
+P112 [Normal]: D. LIMPIEZA DIARIA — VERIFICACIÓN POR PISCINA
+P118 [Normal]: A. HERRAMIENTAS Y MATERIALES
+P120 [Normal]: B. LISTA DE VERIFICACIÓN DE TAREAS — POR PLAYA
+P126 [Normal]: A. INSUMOS Y HERRAMIENTAS DE ASEO
+P128 [Normal]: B. VERIFICACIÓN DE TAREAS — OPERARIO ASEO A (Club House)
+P140 [Normal]: C. VERIFICACIÓN DE TAREAS — OPERARIO ASEO B (Exteriores)
+P146 [Normal]: A. MATERIALES REQUERIDOS PARA LA INSPECCIÓN
+P148 [Normal]: B. INSPECCIÓN POR SECTOR — SEGURIDAD INMEDIATA
+P150 [Normal]: ⚠  IMPORTANTE: Si se detecta cualquier riesgo de seguridad, ACORDONAR EL SECTOR INMEDIATAMENTE con cinta y cartel. NO habilitar hasta que el Jefe de Mantenimiento autorice la reapertura.
+P152 [Normal]: C. SECTORES CON CIERRE PREVENTIVO HOY
+P164 [Normal]: A. EPP Y HERRAMIENTAS SEMANA
+P166 [Normal]: B. TAREAS SEMANALES — LAGUNA
+P175 [Normal]: C. REGISTRO DE PARÁMETROS SEMANA (TENDENCIA)
+P181 [Normal]: A. HERRAMIENTAS Y MATERIALES SEMANA
+P183 [Normal]: B. RETROLAVADO DE FILTROS (Lunes o cuando presión sube >0,5 bar)
+P185 [Normal]: C. OTRAS TAREAS SEMANALES
+P191 [Normal]: A. MAQUINARIA Y HERRAMIENTAS — VERIFICACIÓN PRE-JORNADA
+P193 [Normal]: B. TAREAS DE CORTE Y BORDEADO POR SECTOR
+P213 [Normal]: C. VERIFICACIÓN SISTEMA DE RIEGO (supervisión diaria incluida)
+P219 [Normal]: A. HERRAMIENTAS Y MATERIALES
+P221 [Normal]: B. VERIFICACIÓN DE TAREAS SEMANALES
+P224 [Normal]: C. MAPA DE DAÑOS DETECTADOS EN PAVIMENTO
+P233 [Normal]: A. EQUIPOS Y HERRAMIENTAS
+P235 [Normal]: B. MUELLES, EMBARCADERO Y RACK DE BOTES
+P237 [Normal]: C. ILUMINACIÓN EXTERIOR — CIRCUITO NOCTURNO (recorrido de noche)
+P239 [Normal]: D. CIERROS, PORTONES Y ACCESOS
+P245 [Normal]: A. MATERIALES Y EQUIPOS
+P247 [Normal]: B. ANÁLISIS COMPLETO DE PARÁMETROS
+P249 [Normal]: C. REVISIÓN DOSIFICADORES AUTOMÁTICOS
+P262 [Normal]: A. MATERIALES E INSUMOS DEL MES
+P264 [Normal]: B. ESTADO DE PRADOS POR SECTOR — EVALUACIÓN MENSUAL
+P266 [Normal]: C. REVISIÓN ÁRBOLES Y ARBUSTOS
+P274 [Normal]: A. EQUIPOS Y HERRAMIENTAS PARA REVISIÓN
+P276 [Normal]: B. VERIFICACIÓN EQUIPOS SALA DE MÁQUINAS
+P288 [Normal]: A. MATERIALES PARA MANTENCIÓN MENSUAL
+P290 [Normal]: B. VERIFICACIÓN INSTALACIONES ELÉCTRICAS CLUB HOUSE
+P300 [Normal]: C. VERIFICACIÓN INSTALACIONES SANITARIAS Y CIVIL
+P306 [Normal]: A. HERRAMIENTAS DE INSPECCIÓN TÉCNICA
+P308 [Normal]: B. INSPECCIÓN TÉCNICA ESTRUCTURAL — POR SECTOR
+P315 [Normal]: C. LUBRICACIÓN DE ARTICULACIONES
+P317 [Normal]: ⚠  RECORDATORIO: La certificación técnica formal NCh 2926 debe realizarse ANUALMENTE por empresa certificadora externa. Verificar vigencia del último certificado. Próximo vencimiento: _________________
+P323 [Normal]: A. HERRAMIENTAS Y MATERIALES
+P325 [Normal]: B. VERIFICACIÓN MENSUAL
+P331 [Normal]: A. PERSONAL Y EMPRESAS CONVOCADAS
+P333 [Normal]: B. LAGUNA — ACTIVIDADES TRIMESTRALES
+P336 [Normal]: C. PISCINAS — ACTIVIDADES TRIMESTRALES
+P344 [Normal]: D. JUEGOS INFANTILES — ACTIVIDADES TRIMESTRALES
+P350 [Normal]: A. CERTIFICACIONES Y SERVICIOS EXTERNOS — VERIFICACIÓN SEMESTRAL
+P352 [Normal]: B. ESTADO DE CONSERVACIÓN POR SECTOR (escala 1=deficiente, 4=excelente)
+P354 [Normal]: C. PRESUPUESTO SEMESTRAL — EJECUCIÓN vs. PLANIFICADO
+P360 [Normal]: A. CERTIFICACIONES OBLIGATORIAS — VIGENCIA AL 31 DE DICIEMBRE
+P363 [Normal]: B. KPIs ANUALES — RESULTADOS FINALES
+P365 [Normal]: C. REVISIÓN Y APROBACIÓN DEL PLAN PARA EL PRÓXIMO AÑO
+
+=== TABLE 0 ===
+  Row 0: ['ASESORÍAS INTEGRALES CyJ\nGestión Profesional de Condominios\nLISTAS DE VERIFICACIÓN\nPLAN DE MANTENIMIENTO INTEGRAL\nCondominio Laguna Norte,  ·  Lampa, Santiago\nPersonal  ·  EPP  ·  Herramientas  ·  Materiales  ·  Verificación de Tareas\n──────────────────────────────────────\nVersión 1.0  |  Año 2026  |  Uso Interno — Confidencial']
+
+=== TABLE 1 ===
+  Row 0: ['CÓDIGO', 'LISTA DE VERIFICACIÓN', 'SECTOR', 'FRECUENCIA', 'PÁG.']
+  Row 1: ['LV-01', 'Dotación diaria de personal y EPP', 'General — Todos los sectores', 'Diaria', '']
+  Row 2: ['LV-02', 'Laguna artificial — Control diario de agua', 'Laguna', 'Diaria', '']
+  Row 3: ['LV-03', 'Piscinas (1–2-3) — Control diario de agua', 'Piscinas 1–2-3', 'Diaria', '']
+  Row 4: ['LV-04', 'Playas y rastrillado de arena', 'Playas 1–2–3', 'Diaria', '']
+  Row 5: ['LV-05', 'Aseo y limpieza áreas comunes', 'Club House / Ciclovía / Estac.', 'Diaria', '']
+  Row 6: ['LV-06', 'Inspección visual juegos infantiles', 'Juegos Infantiles (5 sectores)', 'Diaria', '']
+  Row 7: ['LV-07', 'Laguna — Control semanal técnico', 'Laguna', 'Semanal', '']
+  Row 8: ['LV-08', 'Piscinas — Mantenimiento semanal', 'Piscinas 1–2-3', 'Semanal', '']
+  Row 9: ['LV-09', 'Áreas verdes — Tareas semanales', 'Jardines / Prados', 'Semanal', '']
+  Row 10: ['LV-10', 'Ciclovía y sendero — Mantenimiento', 'Ciclovía / Sendero Peatonal', 'Semanal', '']
+  Row 11: ['LV-11', 'Inspección quincenal infraestructura', 'Ciclovía / Muelles / Iluminación', 'Quincenal', '']
+  Row 12: ['LV-12', 'Piscinas — Control quincenal completo', 'Piscinas 1–2-3', 'Quincenal', '']
+  Row 13: ['LV-13', 'Áreas verdes — Mantenimiento mensual', 'Jardines / Prados', 'Mensual', '']
+  Row 14: ['LV-14', 'Laguna — Revisión mensual sala de máquinas', 'Laguna / Sala de máquinas', 'Mensual', '']
+  Row 15: ['LV-15', 'Club House — Mantención mensual integral', 'Club House / Canchas / Quinchos', 'Mensual', '']
+  Row 16: ['LV-16', 'Juegos infantiles — Inspección técnica mensual', 'Juegos Infantiles', 'Mensual', '']
+  Row 17: ['LV-17', 'Estacionamientos — Mantención mensual', 'Estacionamientos / Acceso', 'Mensual', '']
+  Row 18: ['LV-18', 'Mantención mayor trimestral', 'Todos los sectores críticos', 'Trimestral', '']
+  Row 19: ['LV-19', 'Revisión semestral completa', 'Condominio completo', 'Semestral', '']
+  Row 20: ['LV-20', 'Revisión anual — Certificaciones y estado', 'Condominio completo', 'Anual', '']
+
+=== TABLE 2 ===
+  Row 0: ['', 'ASESORÍAS INTEGRALES CyJ\nCondominio Laguna Norte  |  Lampa, Santiago', 'LV-01\nDOTACIÓN DIARIA DE PERSONAL Y EPP\nVersión 1.0  |  2026']
+
+=== TABLE 3 ===
+  Row 0: ['Sector', 'General — Todos los sectores del condominio', 'Frecuencia', 'Diaria — Inicio de jornada (07:00 hrs)']
+  Row 1: ['Responsable', 'Jefe de Mantenimiento', 'Turno / Fecha', '__________________  |  Hora: __________']
+
+=== TABLE 4 ===
+  Row 0: ['N°', 'CARGO', 'NOMBRE', 'PRESENTE', 'TURNO', 'OBSERVACIÓN']
+  Row 1: ['1', 'Jefe De Operaciones', 'Luis García', '☐', '', '']
+  Row 2: ['2', 'Supervisor De Operaciones', 'Alfredo Muñoz', '☐', '', '']
+  Row 3: ['3', 'Auxiliar De Servicios Generales', 'Luis Torres', '☐', '', '']
+  Row 4: ['4', 'Auxiliar De Aseo Full Time', 'Cesar Adasme', '☐', '', '']
+  Row 5: ['5', 'Auxiliar De Aseo Full Time', 'Erik Arteaga', '☐', '', '']
+  Row 6: ['6', 'Auxiliar De Servicios Generales', 'Jeantelus Fleurissaint', '☐', '', '']
+  Row 7: ['7', 'Auxiliar De Aseo Full Time', 'Chris Godoy', '☐', '', '']
+  Row 8: ['8', 'Auxiliar De Servicios Generales', 'Paulo Toro', '☐', '', '']
+  Row 9: ['9', 'Auxiliar De Aseo Full Time', 'Marie Dorne', '☐', '', '']
+  Row 10: ['10', 'Lagunero', 'Macario Manríquez', '☐', '', '']
+  Row 11: ['11', 'Mantención Electricista', 'Francisco Fuentes', '☐', '', '']
+  Row 12: ['12', 'Mantención A', 'Jose Venegas', '☐', '', '']
+  Row 13: ['13', 'Mantención B', 'Carlos Zamorano', '☐', '', '']
+
+=== TABLE 5 ===
+  Row 0: ['Cargo / Operario', 'Guantes Cuero', 'Guantes Nitrilo', 'Antiparras', 'Prot. Auditivo', 'Mascarilla', 'Chaleco Reflec.', 'Botas Seg.', 'Prot. Solar', 'Epp Completo']
+  Row 1: ['Jefe De Operaciones', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐']
+  Row 2: ['Supervisor De Operaciones', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐']
+  Row 3: ['Auxiliar De Servicios Generales', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐']
+  Row 4: ['Auxiliar De Aseo Full Time', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐']
+  Row 5: ['Auxiliar De Aseo Full Time', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐']
+  Row 6: ['Auxiliar De Servicios Generales', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐']
+  Row 7: ['Auxiliar De Aseo Full Time', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐']
+  Row 8: ['Auxiliar De Servicios Generales', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐']
+  Row 9: ['Auxiliar De Aseo Full Time', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐']
+  Row 10: ['Lagunero', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐']
+  Row 11: ['Mantención Electricista', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐']
+  Row 12: ['Mantención A', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐']
+  Row 13: ['Mantención B', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐']
+  Row 14: ['Jefe De Operaciones', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐', '☐']
+
+=== TABLE 6 ===
+  Row 0: ['ÍTEM', 'ESTADO', 'DESCRIPCIÓN / ACCIÓN']
+  Row 1: ['Personal con baja / ausencia', '☐ OK   ☐ NO', '']
+  Row 2: ['EPP deteriorado o faltante', '☐ OK   ☐ NO', '']
+  Row 3: ['Equipos o maquinaria con falla', '☐ OK   ☐ NO', '']
+  Row 4: ['Incidencias reportadas de jornada anterior', '☐ OK   ☐ NO', '']
+  Row 5: ['Zonas con acceso restringido hoy', '☐ OK   ☐ NO', '']
+  Row 6: ['Trabajos de terceros en condominio hoy', '☐ OK   ☐ NO', '']
+
+=== TABLE 7 ===
+  Row 0: ['Jefe de Mantenimiento', 'Supervisor de Turno']
+  Row 1: ['', '']
+  Row 2: ['________________________________', '________________________________']
+  Row 3: ['Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha']
+
+=== TABLE 8 ===
+  Row 0: ['', 'ASESORÍAS INTEGRALES CyJ\nCondominio Laguna Norte  |  Lampa, Santiago', 'LV-02\nLAGUNA ARTIFICIAL — CONTROL DIARIO DE AGUA\nVersión 1.0  |  2026']
+
+=== TABLE 9 ===
+  Row 0: ['Sector', 'Laguna artificial 33.706,50 m² + Playas 1–2–3', 'Frecuencia', 'Diaria — 08:00 hrs (antes aperturas residentes)']
+  Row 1: ['Personal requerido', '1 Operario de Laguna (c/ EPP químico)', 'Turno / Fecha', '______Condición climática: __________']
+
+=== TABLE 10 ===
+  Row 0: ['ÍTEM', 'CANTIDAD', 'DISPONIBLE', 'EN BUEN ESTADO', 'OBSERVACIÓN']
+  Row 1: ['Guantes de nitrilo (par)', '1 par', '☐', '☐', '']
+  Row 2: ['Antiparras de seguridad', '1', '☐', '☐', '']
+  Row 3: ['Chaleco reflectante', '1', '☐', '☐', '']
+  Row 4: ['Botas de hule caña alta (par)', '1 par', '☐', '☐', '']
+  Row 5: ['Mascarilla N95', '1', '☐', '☐', '']
+  Row 6: ['Protector solar SPF 50+', 'c/u', '☐', '☐', '']
+  Row 7: ['pH-metro digital (calibrado)', '1', '☐', '☐', '']
+  Row 8: ['Turbidímetro portátil', '1', '☐', '☐', '']
+  Row 9: ['Termómetro digital agua', '1', '☐', '☐', '']
+  Row 10: ['Planilla de registro (clip)', '1', '☐', '☐', '']
+  Row 11: ['Sacos compostables 240L', '4', '☐', '☐', '']
+  Row 12: ['Rastrillo de playa largo (fibra)', '1', '☐', '☐', '']
+
+=== TABLE 11 ===
+  Row 0: ['PARÁMETRO', 'RANGO ÓPTIMO', 'PUNTO NORTE', 'PUNTO CENTRO', 'PUNTO SUR', 'PROMEDIO', 'ESTADO', 'ACCIÓN']
+  Row 1: ['pH', '7,2 – 8,0', '', '', '', '', '☐ OK   ☐ NO', '']
+  Row 2: ['Turbidez (NTU)', '< 10 NTU', '', '', '', '', '☐ OK   ☐ NO', '']
+  Row 3: ['Temperatura (°C)', '15 – 28°C', '', '', '', '', '☐ OK   ☐ NO', '']
+  Row 4: ['Oxígeno disuelto', '≥ 5 mg/L', '', '', '', '', '☐ OK   ☐ NO', '']
+  Row 5: ['Aspecto visual', 'Claro, sin espuma', '', '', '', '', '☐ OK   ☐ NO', '']
+
+=== TABLE 12 ===
+  Row 0: ['ÍTEM A VERIFICAR', 'OK', 'NO OK', 'SECTOR / OBSERVACIÓN']
+  Row 1: ['Color del agua normal (sin tonalidades verdes intensas, pardas o rojizas)', '☐', '☐', '']
+  Row 2: ['Ausencia de espuma o películas en superficie', '☐', '☐', '']
+  Row 3: ['Ausencia de olores inusuales (tierra mojada, sulfuro, putrefacción)', '☐', '☐', '']
+  Row 4: ['Bordes y muretes del perímetro sin grietas ni desprendimientos visibles', '☐', '☐', '']
+  Row 5: ['Cierros perimetrales laguna en buen estado y sin roturas', '☐', '☐', '']
+  Row 6: ['Área de embarcadero y muelle sin daños visibles ni elementos sueltos', '☐', '☐', '']
+  Row 7: ['Rack de botes en buen estado, botes asegurados correctamente', '☐', '☐', '']
+  Row 8: ['Playas sin residuos peligrosos (vidrio, metales, excrementos)', '☐', '☐', '']
+  Row 9: ['Señalética de seguridad laguna completa y legible', '☐', '☐', '']
+  Row 10: ['Sin presencia de fauna muerta (peces, aves) en orillas o superficie', '☐', '☐', '']
+  Row 11: ['Sistema de aireación/circulación funcionando (ruido de bombas audible)', '☐', '☐', '']
+
+=== TABLE 13 ===
+  Row 0: ['PRODUCTO', 'DOSIS APLICADA', 'UNIDAD', 'PUNTO DE APLICACIÓN', 'HORA', 'OPERARIO']
+  Row 1: ['Floculante (según turbidez)', '', '', '', '', '']
+  Row 2: ['Algicida preventivo (si corresponde)', '', '', '', '', '']
+  Row 3: ['Otros (especificar)', '', '', '', '', '']
+
+=== TABLE 14 ===
+  Row 0: ['OBSERVACIONES / ACCIONES CORRECTIVAS:']
+  Row 1: ['']
+  Row 2: ['']
+  Row 3: ['']
+
+=== TABLE 15 ===
+  Row 0: ['Operario Laguna', 'Supervisor / Jefe de Mantenimiento']
+  Row 1: ['', '']
+  Row 2: ['________________________________', '________________________________']
+  Row 3: ['Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha']
+
+=== TABLE 16 ===
+  Row 0: ['', 'ASESORÍAS INTEGRALES CyJ\nCondominio Laguna Norte  |  Lampa, Santiago', 'LV-03\nPISCINAS 1–3 — CONTROL DIARIO DE AGUA Y LIMPIEZA\nVersión 1.0  |  2026']
+
+=== TABLE 17 ===
+  Row 0: ['Sector', 'Piscinas 1 (184m²) · 2 (189m²) ·\n 3 (196m²) ·', 'Frecuencia', 'Diaria — medición 08:30 hrs y 15:00 hrs']
+  Row 1: ['Personal requerido', '1 Operario de Piscinas', 'Turno / Fecha', '______|  Temp. ambiente: ____°C']
+
+=== TABLE 18 ===
+  Row 0: ['ÍTEM', 'CANT.', 'DISP.', 'BUEN ESTADO', 'OBSERVACIÓN']
+  Row 1: ['Guantes de nitrilo', '2 pares', '☐', '☐', '']
+  Row 2: ['Antiparras', '1', '☐', '☐', '']
+  Row 3: ['Mascarilla N95', '1', '☐', '☐', '']
+  Row 4: ['Colorímetro DPD cloro (calibrado)', '1', '☐', '☐', '']
+  Row 5: ['pH-metro digital', '1', '☐', '☐', '']
+  Row 6: ['Termómetro agua', '1', '☐', '☐', '']
+  Row 7: ['Cepillo piscina nylon 45cm', '5', '☐', '☐', '']
+  Row 8: ['Mango telescópico 1,5–3m', '5', '☐', '☐', '']
+  Row 9: ['Skimmer manual (red)', '5', '☐', '☐', '']
+  Row 10: ['Robot aspirador (uno por pisicna)', '5', '☐', '☐', '']
+  Row 11: ['Planilla de registro', '1', '☐', '☐', '']
+
+=== TABLE 19 ===
+  Row 0: ['PARÁMETRO', 'RANGO', 'P-1', 'P-2', 'P-3', 'ACCIÓN CORRECTIVA']
+  Row 1: ['pH', '7,2 – 7,6', '', '', '', '']
+  Row 2: ['Cloro libre (ppm)', '1,0 – 3,0', '', '', '', '']
+  Row 3: ['Temperatura (°C)', '24 – 28', '', '', '', '']
+
+=== TABLE 20 ===
+  Row 0: ['PARÁMETRO', 'RANGO', 'P-1', 'P-2', 'P-3', 'ACCIÓN CORRECTIVA']
+  Row 1: ['pH', '7,2 – 7,6', '', '', '', '']
+  Row 2: ['Cloro libre (ppm)', '1,0 – 3,0', '', '', '', '']
+  Row 3: ['Temperatura (°C)', '24 – 28', '', '', '', '']
+
+=== TABLE 21 ===
+  Row 0: ['TAREA', 'P-1', 'P-2', 'P-3', 'P-4', 'P-5', 'OBSERVACIONES']
+  Row 1: ['Robot aspirador operando (ciclo nocturno ejecutado)', '☐', '☐', '☐', '☐', '☐', '']
+  Row 2: ['Cepillado manual paredes y bordes', '☐', '☐', '☐', '☐', '☐', '']
+  Row 3: ['Vaciado y limpieza cesta prefiltro bomba', '☐', '☐', '☐', '☐', '☐', '']
+  Row 4: ['Retiro debris flotante (skimmer manual)', '☐', '☐', '☐', '☐', '☐', '']
+  Row 5: ['Limpieza cesto skimmer de pared', '☐', '☐', '☐', '☐', '☐', '']
+  Row 6: ['Limpieza borde perimetral y escalas', '☐', '☐', '☐', '☐', '☐', '']
+  Row 7: ['Piscina habilitada para uso residentes', '☐', '☐', '☐', '☐', '☐', '']
+
+=== TABLE 22 ===
+  Row 0: ['OBSERVACIONES / ACCIONES CORRECTIVAS:']
+  Row 1: ['']
+  Row 2: ['']
+  Row 3: ['']
+
+=== TABLE 23 ===
+  Row 0: ['Operario Piscinas', 'Supervisor / Jefe de Operaciones']
+  Row 1: ['', '']
+  Row 2: ['________________________________', '________________________________']
+  Row 3: ['Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha']
+
+=== TABLE 24 ===
+  Row 0: ['', 'ASESORÍAS INTEGRALES CyJ\nCondominio Laguna Norte  |  Lampa, Santiago', 'LV-04\nPLAYAS ARTIFICIALES — RASTRILLADO Y LIMPIEZA DIARIA\nVersión 1.0  |  2026']
+
+=== TABLE 25 ===
+  Row 0: ['Sector', 'Playa 1 (547m²) · Playa 2 (541m²) · Playa 3 (501m²)', 'Frecuencia', '3 veces/semana (Lunes · Miércoles · Viernes)']
+  Row 1: ['Personal requerido', '1 Operario Laguna + 1 Jardinero General', 'Turno / Fecha', '__________________  |  Hora inicio: ________']
+
+=== TABLE 26 ===
+  Row 0: ['ÍTEM', 'CANT. REQUERIDA', 'CANT. DISPONIBLE', 'ESTADO', 'OBSERVACIÓN']
+  Row 1: ['Rastrillo de playa (fibra, 20 dientes)', '2', '', '☐ OK   ☐ NO', '']
+  Row 2: ['Rastrillo metálico jardín', '1', '', '☐ OK   ☐ NO', '']
+  Row 3: ['Sacos compostables 240L', '6', '', '☐ OK   ☐ NO', '']
+  Row 4: ['Guantes de trabajo (par)', '2 pares', '', '☐ OK   ☐ NO', '']
+  Row 5: ['Chaleco reflectante', '2', '', '☐ OK   ☐ NO', '']
+  Row 6: ['Botas de hule (par)', '2 pares', '', '☐ OK   ☐ NO', '']
+  Row 7: ['Carretilla galvanizada', '1', '', '☐ OK   ☐ NO', '']
+  Row 8: ['Cinta señalización (si hay zona cerrada)', '1 rollo', '', '☐ OK   ☐ NO', '']
+
+=== TABLE 27 ===
+  Row 0: ['TAREA A EJECUTAR', 'PLAYA 1', 'PLAYA 2', 'PLAYA 3', 'HORA TÉRMINO', 'OBSERVACIONES']
+  Row 1: ['Rastrillado profundo de toda la superficie de arena', '☐', '☐', '☐', '', '']
+  Row 2: ['Retiro manual de residuos sólidos (papeles, plásticos, orgánicos)', '☐', '☐', '☐', '', '']
+  Row 3: ['Inspección: ausencia de vidrios, metales u objetos cortantes', '☐', '☐', '☐', '', '']
+  Row 4: ['Nivelación de arena en bordes (sin montículos ni depresiones >5cm)', '☐', '☐', '☐', '', '']
+  Row 5: ['Verificación nivel de arena (mínimo 30cm de profundidad en zona caída)', '☐', '☐', '☐', '', '']
+  Row 6: ['Limpieza de accesos y bordes perimetrales de cada playa', '☐', '☐', '☐', '', '']
+  Row 7: ['Verificación señalética de playa (horarios, reglas, profundidad)', '☐', '☐', '☐', '', '']
+  Row 8: ['Inspección estado de reposeras y mobiliario cercano', '☐', '☐', '☐', '', '']
+  Row 9: ['Sin presencia de fauna nociva (ratas, insectos en masa)', '☐', '☐', '☐', '', '']
+
+=== TABLE 28 ===
+  Row 0: ['OBSERVACIONES / ACCIONES CORRECTIVAS:']
+  Row 1: ['']
+  Row 2: ['']
+  Row 3: ['']
+
+=== TABLE 29 ===
+  Row 0: ['Operario Laguna', 'Supervisor General', 'Jefe de Operaciones']
+  Row 1: ['', '', '']
+  Row 2: ['________________________________', '________________________________', '________________________________']
+  Row 3: ['Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha']
+
+=== TABLE 30 ===
+  Row 0: ['', 'ASESORÍAS INTEGRALES CyJ\nCondominio Laguna Norte  |  Lampa, Santiago', 'LV-05\nASEO Y LIMPIEZA — ÁREAS COMUNES DIARIA\nVersión 1.0  |  2026']
+
+=== TABLE 31 ===
+  Row 0: ['Sector', 'Club House · Baños · Ciclovia · Estacionamientos · Acceso', 'Frecuencia', 'Diaria (mínimo 2 turnos: 09:00 y 14:00 hrs)']
+  Row 1: ['Personal requerido', 'Operario Aseo A (Club House) + Operario Aseo B (Exteriores)', 'Turno / Fecha', 'Turno: ___  |  Fecha: ___________  |  Hora: _______']
+
+=== TABLE 32 ===
+  Row 0: ['ÍTEM', 'CANT.', 'DISPONIBLE', 'SECTOR USO', 'OBSERVACIÓN']
+  Row 1: ['Escoba de cerdas blandas', '3', '☐', 'Club House interior', '']
+  Row 2: ['Escoba metálica', '2', '☐', 'Ciclovia / estacionamientos', '']
+  Row 3: ['Trapeador / mopa', '2', '☐', 'Pisos Club House', '']
+  Row 4: ['Balde 18L', '4', '☐', 'Aseo general', '']
+  Row 5: ['Detergente multiusos (litros)', '500ml', '☐', 'Club House / quinchos', '']
+  Row 6: ['Desinfectante amonio cuaternario', '250ml', '☐', 'Baños / superficies contacto', '']
+  Row 7: ['Limpiavidrios', '200ml', '☐', 'Club House / portería', '']
+  Row 8: ['Papel higiénico (rollos)', '6', '☐', 'Baños Club House', '']
+  Row 9: ['Jabón de manos (recarga)', '2', '☐', 'Baños Club House', '']
+  Row 10: ['Sacos basura negros 120L', '10', '☐', 'Todos los sectores', '']
+  Row 11: ['Soplador a gasolina/ Eléctrico', '1', '☐', 'Ciclovia / sendero / estac.', '']
+  Row 12: ['Escobillón WC con desinfectante', '3', '☐', 'Baños Club House', '']
+
+=== TABLE 33 ===
+  Row 0: ['TAREA', 'T1 09:00', 'T2 14:00', 'OBSERVACIÓN']
+  Row 1: ['Barrido y fregado de pisos interiores Club House', '☐', '☐', '']
+  Row 2: ['Limpieza y desinfección de mesones y superficies de trabajo', '☐', '☐', '']
+  Row 3: ['Limpieza y desinfección completa de baños (inodoros, lavamanos, duchas)', '☐', '☐', '']
+  Row 4: ['Reposición de papel higiénico y jabón en baños', '☐', '☐', '']
+  Row 5: ['Vaciado y limpieza de papeleras interiores', '☐', '☐', '']
+  Row 6: ['Limpieza de vidrios y espejos Club House', '☐', '☐', '']
+  Row 7: ['Aseo de quinchos (post-uso): parrillas, mesas, pisos', '☐', '☐', '']
+  Row 8: ['Limpieza de cocina y área de servicios Club House', '☐', '☐', '']
+  Row 9: ['Desinfección de pomos de puertas e interruptores (puntos de contacto)', '☐', '☐', '']
+
+=== TABLE 34 ===
+  Row 0: ['TAREA', 'REALIZADA', 'HORA', 'OBSERVACIÓN']
+  Row 1: ['Barrido ciclovia completa con soplador (restos vegetales, polvo)', '☐', '', '']
+  Row 2: ['Barrido sendero peatonal completo', '☐', '', '']
+  Row 3: ['Retiro de residuos en papeleras del circuito perimetral', '☐', '', '']
+  Row 4: ['Limpieza de acceso principal y portería exterior', '☐', '', '']
+  Row 5: ['Barrido estacionamientos (zona de acceso + plazas)', '☐', '', '']
+  Row 6: ['Limpieza zona de acopio de basura (hostigamiento y residuos)', '☐', '', '']
+  Row 7: ['Retiro de hojas y restos en zonas de juegos infantiles (alrededores)', '☐', '', '']
+
+=== TABLE 35 ===
+  Row 0: ['OBSERVACIONES / ACCIONES CORRECTIVAS:']
+  Row 1: ['']
+  Row 2: ['']
+  Row 3: ['']
+
+=== TABLE 36 ===
+  Row 0: ['Operario Aseo A', 'Operario Aseo B', 'Supervisor']
+  Row 1: ['', '', '']
+  Row 2: ['________________________________', '________________________________', '________________________________']
+  Row 3: ['Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha']
+
+=== TABLE 37 ===
+  Row 0: ['', 'ASESORÍAS INTEGRALES CyJ\nCondominio Laguna Norte  |  Lampa, Santiago', 'LV-06\nJUEGOS INFANTILES — INSPECCIÓN VISUAL DIARIA\nVersión 1.0  |  2026']
+
+=== TABLE 38 ===
+  Row 0: ['Sector', 'Sectores Juegos Infantiles', 'Frecuencia', 'Diaria — antes apertura 08:30 hrs (OBLIGATORIO)']
+  Row 1: ['Personal requerido', '1 Mantención (asignado a juegos)', 'Fecha / Hora inicio', '__________________  |  Hora: ________']
+
+=== TABLE 39 ===
+  Row 0: ['ÍTEM', 'CANT.', 'DISPONIBLE', 'OBSERVACIÓN']
+  Row 1: ['Checklist de inspección (este documento)', '1', '☐', '']
+  Row 2: ['Guantes de trabajo', '1 par', '☐', '']
+  Row 3: ['Linterna (inspección partes bajas)', '1', '☐', '']
+  Row 4: ['Cinta de señalización roja', '1 rollo', '☐', '']
+  Row 5: ["Cartel 'ZONA CERRADA — NO INGRESAR'", '2', '☐', '']
+  Row 6: ['Cámara / teléfono para fotografía', '1', '☐', '']
+  Row 7: ['Rastrillo (verificar zona de caída)', '1', '☐', '']
+
+=== TABLE 40 ===
+  Row 0: ['ÍTEM A VERIFICAR', 'J1', 'J2', 'J3', 'ACCIÓN / OBSERVACIÓN']
+  Row 1: ['Ausencia de residuos peligrosos (vidrios, agujas, excrementos)', '☐', '☐', '☐', '']
+  Row 2: ['Ausencia de objetos cortantes o filosos en el área', '☐', '☐', '☐', '']
+  Row 3: ['Zona de caída sin objetos duros enterrados', '☐', '☐', '☐', '']
+  Row 4: ['Todas las piezas metálicas visibles sin bordes cortantes ni astillas', '☐', '☐', '☐', '']
+  Row 5: ['Toboganes sin grietas, bordes rotos o astillas', '☐', '☐', '☐', '']
+  Row 6: ['Balancines: resortes presentes, sin fracturas visibles', '☐', '☐', '☐', '']
+  Row 7: ['Escaleras de acceso: peldaños firmes y antideslizantes', '☐', '☐', '☐', '']
+  Row 8: ['Barandas y pasamanos firmes (sin movimiento al jalón manual)', '☐', '☐', '☐', '']
+  Row 9: ['Señalética de seguridad del sector presente y legible', '☐', '☐', '☐', '']
+  Row 10: ['Sin presencia de animales o nidos en estructura', '☐', '☐', '☐', '']
+  Row 11: ['SECTOR HABILITADO para uso de niños', '☐', '☐', '☐', '']
+
+=== TABLE 41 ===
+  Row 0: ['SECTOR', 'MOTIVO DEL CIERRE', 'HORA CIERRE', 'FECHA EST. REAPERTURA', 'AUTORIZA REAPERTURA']
+  Row 1: ['', '', '', '', '']
+  Row 2: ['', '', '', '', '']
+
+=== TABLE 42 ===
+  Row 0: ['DESCRIPCIÓN DE HALLAZGOS Y ACCIONES TOMADAS:']
+  Row 1: ['']
+  Row 2: ['']
+  Row 3: ['']
+
+=== TABLE 43 ===
+  Row 0: ['Inspector Mantención', 'Jefe de Mantenimiento']
+  Row 1: ['', '']
+  Row 2: ['________________________________', '________________________________']
+  Row 3: ['Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha']
+
+=== TABLE 44 ===
+  Row 0: ['', 'ASESORÍAS INTEGRALES CyJ\nCondominio Laguna Norte  |  Lampa, Santiago', 'LV-07\nLAGUNA ARTIFICIAL — CONTROL TÉCNICO SEMANAL\nVersión 1.0  |  2026']
+
+=== TABLE 45 ===
+  Row 0: ['Sector', 'Laguna + Sala de máquinas + Muelles + Playas', 'Frecuencia', 'Semanal — Lunes (preferentemente 07:00 hrs)']
+  Row 1: ['Personal requerido', '02 Lagunero', 'Semana N°', '_____ Fecha: ___________  |  Supervisor: _____________']
+
+=== TABLE 46 ===
+  Row 0: ['ÍTEM', 'CANT.', 'DISPONIBLE', 'OBSERVACIÓN']
+  Row 1: ['Guantes nitrilo (pares)', '2', '☐', '']
+  Row 2: ['Antiparras', '2', '☐', '']
+  Row 3: ['Mascarilla N95', '2', '☐', '']
+  Row 4: ['Botas de hule', '2 pares', '☐', '']
+  Row 5: ['Traje Tyvek (si aplica algicida)', '2', '☐', '']
+  Row 6: ['Red de retiro algas (palo largo)', '1', '☐', '']
+  Row 7: ['Rastrillo largo (fibra)', '2', '☐', '']
+  Row 8: ['Bidón floculante dosificado', '1', '☐', '']
+  Row 9: ['Bomba dosificadora manual', '1', '☐', '']
+  Row 10: ['pH-metro calibrado', '1', '☐', '']
+  Row 11: ['Turbidímetro', '1', '☐', '']
+  Row 12: ['Cámara fotográfica o teléfono', '1', '☐', '']
+  Row 13: ['Sacos compostables 240L', '8', '☐', '']
+
+=== TABLE 47 ===
+  Row 0: ['TAREA', 'REALIZADA', 'TIEMPO EMPLEADO', 'PERSONAL', 'OBSERVACIÓN']
+  Row 1: ['Medición pH, turbidez y temperatura (3 puntos)', '☐', '', 'Lagunero', '']
+  Row 2: ['Retiro de algas flotantes con red en toda la orilla', '☐', '', 'Lagunero', '']
+  Row 3: ['Retiro de macroalgas del fondo (cerca de bordes)', '☐', '', 'Lagunero', '']
+  Row 4: ['Dosificación de floculante (calcular según turbidez)', '☐', '', 'Lagunero', '']
+  Row 5: ['Inspección visual completa del perímetro (fotografiar anomalías)', '☐', '', 'Lagunero', '']
+  Row 6: ['Verificación funcionamiento bomba de circulación (ruido, presión)', '☐', '', 'Lagunero', '']
+  Row 7: ['Limpieza de reja de filtro de entrada (si aplica)', '☐', '', 'Lagunero', '']
+  Row 8: ['Rastrillado profundo playas 1–2–3', '☐', '', 'Lagunero', '']
+  Row 9: ['Registro de todos los parámetros en planilla semanal', '☐', '', 'Lagunero', '']
+
+=== TABLE 48 ===
+  Row 0: ['DÍA', 'pH', 'Turbidez (NTU)', 'Temp. (°C)', 'OD (mg/L)', 'Observación visual']
+  Row 1: ['Lunes', '', '', '', '', '']
+  Row 2: ['Martes', '', '', '', '', '']
+  Row 3: ['Miércoles', '', '', '', '', '']
+  Row 4: ['Jueves', '', '', '', '', '']
+  Row 5: ['Viernes', '', '', '', '', '']
+  Row 6: ['Sábado', '', '', '', '', '']
+  Row 7: ['Domingo', '', '', '', '', '']
+
+=== TABLE 49 ===
+  Row 0: ['OBSERVACIONES / ACCIONES CORRECTIVAS:']
+  Row 1: ['']
+  Row 2: ['']
+  Row 3: ['']
+
+=== TABLE 50 ===
+  Row 0: ['Operario Laguna', 'Lagunero', 'Jefe de Mantenimiento']
+  Row 1: ['', '', '']
+  Row 2: ['________________________________', '________________________________', '________________________________']
+  Row 3: ['Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha']
+
+=== TABLE 51 ===
+  Row 0: ['', 'ASESORÍAS INTEGRALES CyJ\nCondominio Laguna Norte  |  Lampa, Santiago', 'LV-08\nPISCINAS 1-2-3 — MANTENIMIENTO SEMANAL\nVersión 1.0  |  2026']
+
+=== TABLE 52 ===
+  Row 0: ['Sector', 'Piscinas 1-2-3 + Sala de máquinas', 'Frecuencia', 'Semanal — Lunes (retrolavado) + revisión semanal']
+  Row 1: ['Personal requerido', '02 Lagunero', 'Semana N°', '___  |  Fecha: ___________  |  Hora inicio: _______']
+
+=== TABLE 53 ===
+  Row 0: ['ÍTEM', 'CANT.', 'DISPONIBLE', 'OBSERVACIÓN']
+  Row 1: ['Cepillo piscina nylon 45cm (por piscina)', '5', '☐', '']
+  Row 2: ['Mango telescópico 1,5–3m', '5', '☐', '']
+  Row 3: ['Guantes nitrilo (pares)', '2 pares', '☐', '']
+  Row 4: ['Antiparras', '1', '☐', '']
+  Row 5: ['Colorímetro DPD', '1', '☐', '']
+  Row 6: ['pH-metro', '1', '☐', '']
+  Row 7: ['Termómetro agua', '1', '☐', '']
+  Row 8: ['Manguera drenaje retrolavado', '1 (fija)', '☐', '']
+  Row 9: ['Llaves ajuste válvula multivía', '1 juego', '☐', '']
+  Row 10: ['Cloro granulado (dosis semana)', 'según cálculo', '☐', '']
+  Row 11: ['Hipoclorito (si aplica choque semanal)', 'según cálculo', '☐', '']
+  Row 12: ['Lubricante O-ring bomba (si aplica)', '1', '☐', '']
+
+=== TABLE 54 ===
+  Row 0: ['PASO', 'PROCEDIMIENTO', 'P-1', 'P-2', 'P-3', 'OBS.']
+  Row 1: ['1', 'Girar válvula multivía a posición BACKWASH', '☐', '☐', '☐', '']
+  Row 2: ['2', 'Encender bomba — esperar 3–5 min hasta agua clara en visor', '☐', '☐', '☐', '']
+  Row 3: ['3', 'Girar a ENJUAGUE — 30 segundos', '☐', '☐', '☐', '']
+  Row 4: ['4', 'Volver a posición FILTRO — verificar presión normal', '☐', '☐', '☐', '']
+  Row 5: ['5', 'Registrar presión de trabajo post-retrolavado (bar)', '☐', '☐', '☐', '']
+
+=== TABLE 55 ===
+  Row 0: ['TAREA', 'P-1', 'P-2', 'P-3', 'HORA / OBSERVACIÓN']
+  Row 1: ['Cepillado a fondo de paredes, escalas y fondo', '☐', '☐', '☐', '']
+  Row 2: ['Verificación dosificador automático (calibración visual)', '☐', '☐', '☐', '']
+  Row 3: ['Revisión mangueras y uniones — sin fugas', '☐', '☐', '☐', '']
+  Row 4: ['Verificación presión bomba en manómetro (anotar valor)', '☐', '☐', '☐', '']
+  Row 5: ['Limpieza prefiltro bomba (además de diaria)', '☐', '☐', '☐', '']
+  Row 6: ['Inspección borde piscina: sin grietas, losetas firmes', '☐', '☐', '☐', '']
+  Row 7: ['Verificación sistema de iluminación piscina (nocturno)', '☐', '☐', '☐', '']
+
+=== TABLE 56 ===
+  Row 0: ['OBSERVACIONES / ACCIONES CORRECTIVAS:']
+  Row 1: ['']
+  Row 2: ['']
+  Row 3: ['']
+
+=== TABLE 57 ===
+  Row 0: ['Lagunero', 'Jefe de Mantenimiento']
+  Row 1: ['', '']
+  Row 2: ['________________________________', '________________________________']
+  Row 3: ['Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha']
+
+=== TABLE 58 ===
+  Row 0: ['', 'ASESORÍAS INTEGRALES CyJ\nCondominio Laguna Norte  |  Lampa, Santiago', 'LV-09\nÁREAS VERDES — TAREAS SEMANALES\nVersión 1.0  |  2026']
+
+=== TABLE 59 ===
+  Row 0: ['Sectores', 'Áreas Verdes', 'Frecuencia', 'Semanal (Oct–Mar corte semanal; Abr–Sep quincenal)']
+  Row 1: ['Personal requerido', 'Sup. Operaciones + 2 Jardineros', 'Semana N°', '_______  |  Fecha: ___________  |  Condición climática: _______']
+
+=== TABLE 60 ===
+  Row 0: ['EQUIPO / HERRAMIENTA', 'CANT.', 'OPERATIVO', 'EPP ASIGNADO', 'OBSERVACIÓN']
+  Row 1: ['Cortacésped', '1', '☐', 'Casco, antiparras, guantes', '']
+  Row 2: ['Soplador de mochila', '2', '☐', 'Antiparras, auditivo, mascarilla', '']
+  Row 3: ['Bordeadora Stihl FS120 (gasolina)', '3', '☐', 'Antiparras, auditivo, guantes', '']
+  Row 4: ['Tijeras de poda manual', '6', '☐', 'Guantes cuero', '']
+  Row 5: ['Tijeron poda largo alcance', '4', '☐', 'Guantes, antiparras', '']
+  Row 6: ['Carretillas galvanizadas', '4', '☐', 'Guantes', '']
+  Row 7: ['Rastrillo metálico jardín', '6', '☐', 'Guantes', '']
+  Row 8: ['Mangueras 50m reforzadas', '6', '☐', '—', '']
+  Row 9: ['Boquillas multipropósito', '10', '☐', '—', '']
+
+=== TABLE 61 ===
+  Row 0: ['SECTOR', 'CORTE CÉSPED', 'BORDEADO', 'DESMALEZADO', 'RETIRO RESTOS', 'OPERARIO ASIG.', 'HORA INICIO', 'HORA FIN', 'OBS.']
+  Row 1: ['', '☐', '☐', '☐', '☐', '', '', '', '']
+  Row 2: ['', '☐', '☐', '☐', '☐', '', '', '', '']
+  Row 3: ['', '☐', '☐', '☐', '☐', '', '', '', '']
+  Row 4: ['', '☐', '☐', '☐', '☐', '', '', '', '']
+  Row 5: ['', '☐', '☐', '☐', '☐', '', '', '', '']
+  Row 6: ['', '☐', '☐', '☐', '☐', '', '', '', '']
+  Row 7: ['', '☐', '☐', '☐', '☐', '', '', '', '']
+  Row 8: ['', '☐', '☐', '☐', '☐', '', '', '', '']
+
+=== TABLE 62 ===
+  Row 0: ['ÍTEM A VERIFICAR', 'OK', 'NO OK', 'ZONA / SECTOR', 'ACCIÓN INMEDIATA']
+  Row 1: ['Programador encendido y con batería OK', '☐', '☐', '', '']
+  Row 2: ['Todas las zonas regadas (sin zonas secas al pasar la mano por el prado)', '☐', '☐', '', '']
+  Row 3: ['Sin cabezales rotos o girando en dirección incorrecta', '☐', '☐', '', '']
+  Row 4: ['Sin fugas visibles en las líneas de conducción', '☐', '☐', '', '']
+  Row 5: ['Presión de agua aparentemente normal en cabezales', '☐', '☐', '', '']
+  Row 6: ['Cobertura uniforme: sin zonas sin riego ni encharcadas', '☐', '☐', '', '']
+
+=== TABLE 63 ===
+  Row 0: ['OBSERVACIONES / ACCIONES CORRECTIVAS:']
+  Row 1: ['']
+  Row 2: ['']
+  Row 3: ['']
+
+=== TABLE 64 ===
+  Row 0: ['Jardinero', 'Jefe de Mantenimiento']
+  Row 1: ['', '']
+  Row 2: ['________________________________', '________________________________']
+  Row 3: ['Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha']
+
+=== TABLE 65 ===
+  Row 0: ['', 'ASESORÍAS INTEGRALES CyJ\nCondominio Laguna Norte  |  Lampa, Santiago', 'LV-10\nCICLOVIA Y SENDERO PEATONAL — MANTENIMIENTO SEMANAL\nVersión 1.0  |  2026']
+
+=== TABLE 66 ===
+  Row 0: ['Sector', 'Ciclovia 1,5m ancho · Sendero peatonal 1,5m · ~4.800ml c/u', 'Frecuencia', 'Barrido diario / Inspección y tareas adicionales semanal']
+  Row 1: ['Personal requerido', 'Auxiliar de aseo Full Time+ Auxiliar de servicios generales', 'Semana N°', '_______  |  Fecha: ___________  |  Hora: _______']
+
+=== TABLE 67 ===
+  Row 0: ['ÍTEM', 'CANT.', 'DISPONIBLE', 'OBSERVACIÓN']
+  Row 1: ['Soplador de mochila', '1', '☐', '']
+  Row 2: ['Escoba metálica 60cm', '2', '☐', '']
+  Row 3: ['Escoba cerdas blandas', '1', '☐', '']
+  Row 4: ['Recogedor grande', '2', '☐', '']
+  Row 5: ['Sacos compostables 240L', '6', '☐', '']
+  Row 6: ['Guantes de trabajo (par)', '2 pares', '☐', '']
+  Row 7: ['Chaleco reflectante', '2', '☐', '']
+  Row 8: ['Cinta señalización (si hay falla pavimento)', '1 rollo', '☐', '']
+  Row 9: ['Cámara / teléfono (registro daños)', '1', '☐', '']
+  Row 10: ['Llave para sumideros', '1', '☐', '']
+
+=== TABLE 68 ===
+  Row 0: ['TAREA', 'REALIZADA', 'TRAMO / SECTOR', 'HORA', 'OBSERVACIÓN']
+  Row 1: ['Barrido completo ciclovía con soplador (restos, hojas, polvo)', '☐', 'Circuito completo', '', '']
+  Row 2: ['Barrido sendero peatonal (escobas blandas)', '☐', 'Circuito completo', '', '']
+  Row 3: ['Limpieza de rejillas y sumideros (retiro sedimentos)', '☐', 'Todos los sumideros', '', '']
+  Row 4: ['Inspección pavimento: grietas, hundimientos, losetas sueltas', '☐', 'Tramo completo', '', '']
+  Row 5: ['Verificación demarcación visible (líneas separación, flechas)', '☐', 'Circuito completo', '', '']
+  Row 6: ['Inspección mobiliaria: escaños, banquetas (tornillos, estado)', '☐', 'Todos los escaños', '', '']
+  Row 7: ['Registro fotográfico de anomalías detectadas', '☐', 'Puntos con daño', '', '']
+
+=== TABLE 69 ===
+  Row 0: ['N° DAÑO', 'TIPO (grieta/hundimiento/otro)', 'UBICACIÓN / TRAMO', 'DIMENSIÓN APROX.', 'RIESGO', 'ACCIÓN REQUERIDA']
+  Row 1: ['1', '', '', '', '☐ OK   ☐ NO', '']
+  Row 2: ['2', '', '', '', '☐ OK   ☐ NO', '']
+  Row 3: ['3', '', '', '', '☐ OK   ☐ NO', '']
+
+=== TABLE 70 ===
+  Row 0: ['OBSERVACIONES / ACCIONES CORRECTIVAS:']
+  Row 1: ['']
+  Row 2: ['']
+  Row 3: ['']
+
+=== TABLE 71 ===
+  Row 0: ['Operario Aseo', 'Jefe de Mantenimiento']
+  Row 1: ['', '']
+  Row 2: ['________________________________', '________________________________']
+  Row 3: ['Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha']
+
+=== TABLE 72 ===
+  Row 0: ['', 'ASESORÍAS INTEGRALES CyJ\nCondominio Laguna Norte  |  Lampa, Santiago', 'LV-11\nINSPECCIÓN QUINCENAL DE INFRAESTRUCTURA\nVersión 1.0  |  2026']
+
+=== TABLE 73 ===
+  Row 0: ['Sector', 'Muelles · Ciclovia · Iluminación · Accesos · Cierros', 'Frecuencia', 'Quincenal (días 1 y 15 del mes, o lunes semanas 2 y 4)']
+  Row 1: ['Personal requerido', 'Jefe de Mantenimiento + Electricista', 'N° Quincena', '_______  |  Fecha: ___________  |  Duración estimada: 3 hrs']
+
+=== TABLE 74 ===
+  Row 0: ['ÍTEM', 'CANT.', 'DISPONIBLE', 'OBSERVACIÓN']
+  Row 1: ['Llave de torque (juego completo)', '1', '☐', '']
+  Row 2: ['Martillo de inspección (de percusión)', '1', '☐', '']
+  Row 3: ['Linterna LED de alta potencia', '1', '☐', '']
+  Row 4: ['Cámara fotográfica / teléfono', '1', '☐', '']
+  Row 5: ['Multímetro digital (electricista)', '1', '☐', '']
+  Row 6: ['Tester de enchufes', '1', '☐', '']
+  Row 7: ['Cinta métrica 10m', '1', '☐', '']
+  Row 8: ['Checklist (este documento)', '1', '☐', '']
+  Row 9: ['Guantes cuero', '1 par', '☐', '']
+  Row 10: ['Antiparras', '1', '☐', '']
+  Row 11: ['Escalera aluminio 4 peldaños', '1', '☐', '']
+
+=== TABLE 75 ===
+  Row 0: ['ÍTEM A VERIFICAR', 'OK', 'NO OK', 'FOTOGRAFÍA', 'OBSERVACIÓN / ACCIÓN']
+  Row 1: ['Tablones del muelle sin astillas, grietas ni madera podrida', '☐', '☐', '☐', '']
+  Row 2: ['Tornillos y pernos de unión: todos presentes y apretados (torque manual)', '☐', '☐', '☐', '']
+  Row 3: ['Anclajes del muelle al suelo o muro firmes, sin movimiento', '☐', '☐', '☐', '']
+  Row 4: ['Protección anticorrosiva de estructura metálica en buen estado', '☐', '☐', '☐', '']
+  Row 5: ['Señalización de carga máxima visible y legible', '☐', '☐', '☐', '']
+  Row 6: ['Embarcadero: superficie antideslizante en buen estado', '☐', '☐', '☐', '']
+  Row 7: ['Rack de botes: estructura firme, soportes sin deformaciones', '☐', '☐', '☐', '']
+  Row 8: ['Botes almacenados correctamente asegurados', '☐', '☐', '☐', '']
+
+=== TABLE 76 ===
+  Row 0: ['ZONA / TRAMO', 'N° LUMINARIAS', 'OPERATIVAS', 'APAGADAS', 'PARPADEANTES', 'ACCIÓN']
+  Row 1: ['Ciclovia tramo norte', '', '', '', '', '']
+  Row 2: ['Ciclovia tramo sur', '', '', '', '', '']
+  Row 3: ['Sendero peatonal', '', '', '', '', '']
+  Row 4: ['Estacionamientos', '', '', '', '', '']
+  Row 5: ['Acceso principal', '', '', '', '', '']
+  Row 6: ['Club House exterior', '', '', '', '', '']
+  Row 7: ['Borde laguna', '', '', '', '', '']
+  Row 8: ['Juegos infantiles', '', '', '', '', '']
+
+=== TABLE 77 ===
+  Row 0: ['ELEMENTO', 'OK', 'NO OK', 'OBSERVACIÓN']
+  Row 1: ['Portón acceso vehicular principal (motor, fin de carrera, sensores)', '☐', '☐', '']
+  Row 2: ['Portón/puerta peatonal acceso principal', '☐', '☐', '']
+  Row 3: ['Cierro perimetral laguna (malla, tubería) sin roturas ni aperturas', '☐', '☐', '']
+  Row 4: ['Cierre Club House sin daños', '☐', '☐', '']
+  Row 5: ['Acceso sala de máquinas laguna: bajo llave y sin daños', '☐', '☐', '']
+  Row 6: ['Control de acceso (lector, interfono, cámara): operativo', '☐', '☐', '']
+
+=== TABLE 78 ===
+  Row 0: ['OBSERVACIONES / ACCIONES CORRECTIVAS:']
+  Row 1: ['']
+  Row 2: ['']
+  Row 3: ['']
+
+=== TABLE 79 ===
+  Row 0: ['Jefe de Mantenimiento', 'Electricista', 'Administrador']
+  Row 1: ['', '', '']
+  Row 2: ['________________________________', '________________________________', '________________________________']
+  Row 3: ['Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha']
+
+=== TABLE 80 ===
+  Row 0: ['', 'ASESORÍAS INTEGRALES CyJ\nCondominio Laguna Norte  |  Lampa, Santiago', 'LV-12\nPISCINAS 1–5 — ANÁLISIS QUINCENAL COMPLETO\nVersión 1.0  |  2026']
+
+=== TABLE 81 ===
+  Row 0: ['Sector', 'Piscinas 1-2-3 + Dosificadores + Sala de máquinas', 'Frecuencia', 'Quincenal (días 1 y 15 del mes)']
+  Row 1: ['Personal requerido', 'Operario Piscinas + Jefe de Mantenimiento', 'N° Quincena / Fecha', '_______  |  Fecha: ___________  |  Hora: _______']
+
+=== TABLE 82 ===
+  Row 0: ['ÍTEM', 'CANT.', 'DISPONIBLE', 'OBSERVACIÓN']
+  Row 1: ['Kit análisis completo (KH, dureza, CYA, Br)', '2 kits', '☐', '']
+  Row 2: ['pH-metro calibrado con soluciones patrón', '1', '☐', '']
+  Row 3: ['Colorímetro DPD calibrado', '1', '☐', '']
+  Row 4: ['Termómetro agua', '1', '☐', '']
+  Row 5: ['Tabla de dosificación (impresa)', '1', '☐', '']
+  Row 6: ['Sulfato de cobre (algicida, si corresponde)', 'según cálculo', '☐', '']
+  Row 7: ['Bicarbonato de sodio (ajuste KH)', 'según cálculo', '☐', '']
+  Row 8: ['Ácido cianúrico (si CYA < 30 ppm)', 'según cálculo', '☐', '']
+  Row 9: ['Cloruro cálcico (si dureza < 200 ppm)', 'según cálculo', '☐', '']
+  Row 10: ['Planilla de análisis quincenal', '1', '☐', '']
+
+=== TABLE 83 ===
+  Row 0: ['PARÁMETRO', 'META', 'P-1', 'P-2', 'P-3', 'AJUSTE REQUERIDO']
+  Row 1: ['pH', '7,2 – 7,6', '', '', '', '']
+  Row 2: ['Cloro libre (ppm)', '1,0 – 3,0', '', '', '', '']
+  Row 3: ['Cloro combinado (ppm)', '< 0,5', '', '', '', '']
+  Row 4: ['Alcalinidad total KH (ppm)', '80 – 150', '', '', '', '']
+  Row 5: ['Dureza cálcica (ppm)', '200 – 400', '', '', '', '']
+  Row 6: ['CYA (estabilizador, ppm)', '30 – 80', '', '', '', '']
+  Row 7: ['Sal (ppm, si aplica)', '< 1500', '', '', '', '']
+  Row 8: ['Temperatura (°C)', '24 – 28', '', '', '', '']
+
+=== TABLE 84 ===
+  Row 0: ['DOSIFICADOR', 'CALIBRACIÓN CORRECTA', 'SENSOR LIMPIO', 'NIVEL PRODUCTO', 'ALARMAS ACTIVAS', 'OBSERVACIÓN']
+  Row 1: ['P-1', '☐', '☐', '☐ OK   ☐ NO', '☐ OK   ☐ NO', '']
+  Row 2: ['P-2', '☐', '☐', '☐ OK   ☐ NO', '☐ OK   ☐ NO', '']
+  Row 3: ['P-3', '☐', '☐', '☐ OK   ☐ NO', '☐ OK   ☐ NO', '']
+
+=== TABLE 85 ===
+  Row 0: ['AJUSTES REALIZADOS Y PRODUCTOS APLICADOS:']
+  Row 1: ['']
+  Row 2: ['']
+  Row 3: ['']
+
+=== TABLE 86 ===
+  Row 0: ['Operario Piscinas', 'Jefe de Mantenimiento']
+  Row 1: ['', '']
+  Row 2: ['________________________________', '________________________________']
+  Row 3: ['Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha']
+
+=== TABLE 87 ===
+  Row 0: ['', 'ASESORÍAS INTEGRALES CyJ\nCondominio Laguna Norte  |  Lampa, Santiago', 'LV-13\nÁREAS VERDES — MANTENIMIENTO MENSUAL\nVersión 1.0  |  2026']
+
+=== TABLE 88 ===
+  Row 0: ['Sector', 'Todos los jardines, prados, arbustos y árboles', 'Frecuencia', 'Mensual (primera semana de cada mes)']
+  Row 1: ['Personal requerido', 'Supervisor Jardinería + 2 Jardineros Esp. + 2 Gral.', 'Mes / Año', '_______________________  |  Firma planif.: ______________']
+
+=== TABLE 89 ===
+  Row 0: ['ÍTEM', 'CANT. PRESUPUESTADA', 'CANT. UTILIZADA', 'UNIDAD', 'STOCK RESTANTE', 'SOLICITAR COMPRA']
+  Row 1: ['Fertilizante NPK 15-15-15', '30 kg/ha', '', 'sacos 25kg', '', '☐']
+  Row 2: ['Herbicida selectivo MCPA 750SL', 'según cálculo', '', 'litros', '', '☐']
+  Row 3: ['Fungicida (si aplica)', 'según diagnóstico', '', 'kg/L', '', '☐']
+  Row 4: ['Insecticida (si aplica)', 'según diagnóstico', '', 'litros', '', '☐']
+  Row 5: ['Tierra de hoja compostada', 'según resiembra', '', 'm³', '', '☐']
+  Row 6: ['Semilla Rye-Fescue', 'según resiembra', '', 'kg', '', '☐']
+  Row 7: ['Plantas de temporada', 'según diseño', '', 'unidades', '', '☐']
+  Row 8: ['Arena playas (si hay reposición)', 'según medición', '', 'm³', '', '☐']
+
+=== TABLE 90 ===
+  Row 0: ['SECTOR', '% COBERTURA EST.', 'ESTADO (1–4)', 'MALEZA', 'RIEGO OK', 'FERTILIZACIÓN APLICADA', 'FERTILIZACIÓN APLICADA', 'RESIEMBRA NECESARIA', 'OBSERVACIÓN']
+  Row 1: ['', '', '', '☐ OK   ☐ NO', '☐ OK   ☐ NO', '☐ OK   ☐ NO', '☐', '☐', '']
+  Row 2: ['', '', '', '☐ OK   ☐ NO', '☐ OK   ☐ NO', '☐ OK   ☐ NO', '☐', '☐', '']
+  Row 3: ['', '', '', '☐ OK   ☐ NO', '☐ OK   ☐ NO', '☐ OK   ☐ NO', '☐', '☐', '']
+  Row 4: ['', '', '', '☐ OK   ☐ NO', '☐ OK   ☐ NO', '☐ OK   ☐ NO', '☐', '☐', '']
+  Row 5: ['', '', '', '☐ OK   ☐ NO', '☐ OK   ☐ NO', '☐ OK   ☐ NO', '☐', '☐', '']
+  Row 6: ['', '', '', '☐ OK   ☐ NO', '☐ OK   ☐ NO', '☐ OK   ☐ NO', '☐', '☐', '']
+  Row 7: ['', '', '', '☐ OK   ☐ NO', '☐ OK   ☐ NO', '☐ OK   ☐ NO', '☐', '☐', '']
+  Row 8: ['', '', '', '☐ OK   ☐ NO', '☐ OK   ☐ NO', '☐ OK   ☐ NO', '☐', '☐', '']
+
+=== TABLE 91 ===
+  Row 0: ['TAREA', 'REALIZADA', 'SECTOR', 'OBSERVACIÓN']
+  Row 1: ['Poda de formación de arbustos y setos (mantener forma)', '☐', 'Todos', '']
+  Row 2: ['Retiro de ramas secas en arbustos ornamentales', '☐', 'Todos', '']
+  Row 3: ['Inspección árboles: ramas peligrosas o secas (anotar sector)', '☐', 'Todos', '']
+  Row 4: ['Tratamiento de heridas de poda (pasta cicatrizante)', '☐', 'Donde se podó', '']
+  Row 5: ['Verificación tutores y amarras en árboles jóvenes', '☐', 'Árboles nuevos', '']
+  Row 6: ['Aplicación pesticida si se detectó plaga (con EPP completo)', '☐', 'Sector afectado', '']
+  Row 7: ['Fertilización foliar en ornamentales (si corresponde al mes)', '☐', 'Sector asignado', '']
+
+=== TABLE 92 ===
+  Row 0: ['OBSERVACIONES / ACCIONES CORRECTIVAS:']
+  Row 1: ['']
+  Row 2: ['']
+  Row 3: ['']
+
+=== TABLE 93 ===
+  Row 0: ['Supervisor de Jardinería', 'Jefe de Mantenimiento', 'Administrador']
+  Row 1: ['', '', '']
+  Row 2: ['________________________________', '________________________________', '________________________________']
+  Row 3: ['Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha']
+
+=== TABLE 94 ===
+  Row 0: ['', 'ASESORÍAS INTEGRALES CyJ\nCondominio Laguna Norte  |  Lampa, Santiago', 'LV-14\nLAGUNA — REVISIÓN MENSUAL SALA DE MÁQUINAS\nVersión 1.0  |  2026']
+
+=== TABLE 95 ===
+  Row 0: ['Sector', 'Sala de máquinas laguna + sistema de circulación', 'Frecuencia', 'Mensual (última semana del mes)']
+  Row 1: ['Personal requerido', 'Operario Laguna + Electricista', 'Mes / Fecha', '_______________________  |  Hora inicio: _______']
+
+=== TABLE 96 ===
+  Row 0: ['ÍTEM', 'CANT.', 'DISPONIBLE', 'OBSERVACIÓN']
+  Row 1: ['Multímetro digital', '1', '☐', '']
+  Row 2: ['Termómetro infrarrojo', '1', '☐', '']
+  Row 3: ['Llave de torque', '1 juego', '☐', '']
+  Row 4: ['Juego de destornilladores', '1', '☐', '']
+  Row 5: ['Linterna LED', '1', '☐', '']
+  Row 6: ['Guantes dieléctricos (electricista)', '1 par', '☐', '']
+  Row 7: ['Antiparras', '1', '☐', '']
+  Row 8: ['Lubricante mecánico (si aplica)', 'c/n', '☐', '']
+  Row 9: ['Planilla de inspección mensual sala de máquinas', '1', '☐', '']
+
+=== TABLE 97 ===
+  Row 0: ['EQUIPO / ELEMENTO', 'ÍTEM A VERIFICAR', 'OK', 'NO OK', 'VALOR MEDIDO', 'OBSERVACIÓN']
+  Row 1: ['Bomba de circulación principal', 'Ruido anormal al operar', '☐', '☐', '', '']
+  Row 2: ['Bomba de circulación principal', 'Temperatura carcasa (máx. 70°C con IR)', '☐', '☐', '', '']
+  Row 3: ['Bomba de circulación principal', 'Presión manómetro salida (anotar valor)', '☐', '☐', '', '']
+  Row 4: ['Bomba de circulación principal', 'Sin vibraciones excesivas', '☐', '☐', '', '']
+  Row 5: ['Filtros de línea', 'Limpieza / ausencia de obstrucción', '☐', '☐', '', '']
+  Row 6: ['Cuadro eléctrico sala', 'Disyuntores todos operativos', '☐', '☐', '', '']
+  Row 7: ['Cuadro eléctrico sala', 'Sin signos de recalentamiento (olor, color)', '☐', '☐', '', '']
+  Row 8: ['Instrumentación (sensores pH/OD)', 'Calibración vigente, sin alarmas activas', '☐', '☐', '', '']
+  Row 9: ['Bomba dosificadora floculante', 'Caudal entregado correcto', '☐', '☐', '', '']
+  Row 10: ['Área sala de máquinas', 'Limpieza y orden general del área', '☐', '☐', '', '']
+  Row 11: ['Área sala de máquinas', 'Sin acumulación de agua en el piso', '☐', '☐', '', '']
+  Row 12: ['Ventilación sala', 'Ventilación funciona / rejillas libres', '☐', '☐', '', '']
+
+=== TABLE 98 ===
+  Row 0: ['ANOMALÍAS DETECTADAS Y ACCIONES TOMADAS:']
+  Row 1: ['']
+  Row 2: ['']
+  Row 3: ['']
+
+=== TABLE 99 ===
+  Row 0: ['Operario Laguna', 'Electricista', 'Jefe de Mantenimiento']
+  Row 1: ['', '', '']
+  Row 2: ['________________________________', '________________________________', '________________________________']
+  Row 3: ['Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha']
+
+=== TABLE 100 ===
+  Row 0: ['', 'ASESORÍAS INTEGRALES CyJ\nCondominio Laguna Norte  |  Lampa, Santiago', 'LV-15\nCLUB HOUSE — MANTENCIÓN MENSUAL INTEGRAL\nVersión 1.0  |  2026']
+
+=== TABLE 101 ===
+  Row 0: ['Sector', 'Club House · Baños · Multicancha · Canchas · Quinchos', 'Frecuencia', 'Mensual (segunda semana de cada mes)']
+  Row 1: ['Personal requerido', 'Electricista + Aseo A + Operario General', 'Mes / Fecha', '_______________________  |  Firma supervisor: ____________']
+
+=== TABLE 102 ===
+  Row 0: ['ÍTEM', 'CANT.', 'DISPONIBLE', 'OBSERVACIÓN']
+  Row 1: ['Cepillo stiff pasto sintético (canchas)', '1', '☐', '']
+  Row 2: ['Arena infill (si reposición cancha)', 'según medición', '☐', '']
+  Row 3: ['Grasa PTFE spray (cerraduras/bisagras)', '1', '☐', '']
+  Row 4: ['WD-40 multifunción', '1', '☐', '']
+  Row 5: ['Multímetro (electricista)', '1', '☐', '']
+  Row 6: ['Tester de enchufes', '1', '☐', '']
+  Row 7: ['Ampolletas LED 30W (repuesto)', '5', '☐', '']
+  Row 8: ['Masilla / sellante silicona', '1', '☐', '']
+  Row 9: ['Llave torque y destornilladores', '1 juego', '☐', '']
+  Row 10: ['Línea de verificación fontanería', '—', '☐', '']
+  Row 11: ['Detergente desengrasante (cocina)', '500ml', '☐', '']
+  Row 12: ['Antiparras + guantes electricista', '1 par', '☐', '']
+
+=== TABLE 103 ===
+  Row 0: ['ÍTEM', 'OK', 'NO OK', 'VALOR / OBSERVACIÓN']
+  Row 1: ['Tablero principal Club House: todos los disyuntores operativos', '☐', '☐', '']
+  Row 2: ['Diferencial (interruptor de falla a tierra): prueba botón TEST operativa', '☐', '☐', '']
+  Row 3: ['Tomacorrientes interiores: tensión correcta (220V ± 5%) con tester', '☐', '☐', '']
+  Row 4: ['Luminarias interiores: 100% funcionales', '☐', '☐', '']
+  Row 5: ['Luminarias exteriores Club House: 100% funcionales', '☐', '☐', '']
+  Row 6: ['Calefacción / ventilación: operativa y sin ruidos anormales', '☐', '☐', '']
+  Row 7: ['Sistema de alarma (si existe): activo y sin alarmas pendientes', '☐', '☐', '']
+  Row 8: ['Cámara de seguridad (si existe): imagen activa', '☐', '☐', '']
+
+=== TABLE 104 ===
+  Row 0: ['ÍTEM', 'OK', 'NO OK', 'OBSERVACIÓN']
+  Row 1: ['Grifería de baños: sin fugas, presión normal', '☐', '☐', '']
+  Row 2: ['Cisternas: llenado correcto, sin goteo continuo', '☐', '☐', '']
+  Row 3: ['Desagües baños: sin obstrucciones ni malos olores', '☐', '☐', '']
+  Row 4: ['Ducha: limpias y sin cal excesiva', '☐', '☐', '']
+  Row 5: ['Grifería cocina Club House: funcional y sin fugas', '☐', '☐', '']
+  Row 6: ['Piso multicancha (radier): sin grietas nuevas, limpio', '☐', '☐', '']
+  Row 7: ['Pasto sintético baby fútbol: cepillado y relleno uniforme', '☐', '☐', '']
+  Row 8: ['Cerraduras y pomos: funcionan sin trabas', '☐', '☐', '']
+  Row 9: ['Bisagras puertas y portones: lubricadas, sin chirridos', '☐', '☐', '']
+
+=== TABLE 105 ===
+  Row 0: ['OBSERVACIONES / ACCIONES CORRECTIVAS:']
+  Row 1: ['']
+  Row 2: ['']
+  Row 3: ['']
+
+=== TABLE 106 ===
+  Row 0: ['Electricista', 'Aseo A', 'Jefe de Mantenimiento']
+  Row 1: ['', '', '']
+  Row 2: ['________________________________', '________________________________', '________________________________']
+  Row 3: ['Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha']
+
+=== TABLE 107 ===
+  Row 0: ['', 'ASESORÍAS INTEGRALES CyJ\nCondominio Laguna Norte  |  Lampa, Santiago', 'LV-16\nJUEGOS INFANTILES — INSPECCIÓN TÉCNICA MENSUAL\nVersión 1.0  |  2026']
+
+=== TABLE 108 ===
+  Row 0: ['Sector', 'Juegos Infantiles', 'Frecuencia', 'Mensual — OBLIGATORIO conforme NCh 2926']
+  Row 1: ['Personal requerido', 'Jefe de Mantenimiento (inspector técnico)', 'Mes / Fecha', '_______________________  |  Hora: _______  |  Duración: 2 hrs']
+
+=== TABLE 109 ===
+  Row 0: ['ÍTEM', 'CANT.', 'DISPONIBLE', 'OBSERVACIÓN']
+  Row 1: ['Llave de torque calibrada (Nm)', '1', '☐', '']
+  Row 2: ['Martillo de percusión inspección', '1', '☐', '']
+  Row 3: ['Linterna LED de inspección', '1', '☐', '']
+  Row 4: ['Cámara fotográfica', '1', '☐', '']
+  Row 5: ['Grasa seca PTFE spray', '2', '☐', '']
+  Row 6: ['Guantes cuero', '1 par', '☐', '']
+  Row 7: ['Pintura anticorrosiva (si aplica)', 'c/n', '☐', '']
+  Row 8: ['Checklist NCh 2926 (este doc.)', '1', '☐', '']
+  Row 9: ['Hormigón rápido (si refuerzo anclaje)', 'c/n', '☐', '']
+
+=== TABLE 110 ===
+  Row 0: ['COMPONENTE A INSPECCIONAR', 'J1', 'J2', 'J3', 'J4', 'J5', 'OBSERVACIÓN / ACCIÓN']
+  Row 1: ['Tornillos y pernos de unión: todos presentes y con torque correcto', '☐', '☐', '☐', '☐', '☐', '']
+  Row 2: ['Soldaduras visibles: sin grietas, fisuras ni corrosión activa', '☐', '☐', '☐', '☐', '☐', '']
+  Row 3: ['Anclajes al suelo: sin movimiento al jalón con ambas manos', '☐', '☐', '☐', '☐', '☐', '']
+  Row 4: ['Cadenas: sin eslabones abiertos, elongados o con corrosión roja', '☐', '☐', '☐', '☐', '☐', '']
+  Row 5: ['Resortes balancines: sin fatiga (no doblados), sin grietas', '☐', '☐', '☐', '☐', '☐', '']
+  Row 6: ['Plataformas y pisos: sin deformaciones, agujeros ni astillas', '☐', '☐', '☐', '☐', '☐', '']
+  Row 7: ['Tobogán: superficie sin grietas, borde de salida redondeado', '☐', '☐', '☐', '☐', '☐', '']
+  Row 8: ['Escaleras: peldaños firmes y antideslizantes', '☐', '☐', '☐', '☐', '☐', '']
+  Row 9: ['Barandas y pasamanos: firmeza al jalón horizontal', '☐', '☐', '☐', '☐', '☐', '']
+  Row 10: ['Piezas plásticas: sin astillas, bordes cortantes ni deformaciones', '☐', '☐', '☐', '☐', '☐', '']
+  Row 11: ['Zona de caída: profundidad ≥ 30 cm (medir con regla)', '☐', '☐', '☐', '☐', '☐', '']
+  Row 12: ['Pintura anticorrosiva: sin descascaramiento activo', '☐', '☐', '☐', '☐', '☐', '']
+
+=== TABLE 111 ===
+  Row 0: ['ELEMENTO', 'J1', 'J2', 'J3', 'J4', 'J5', 'LUBRICANTE USADO']
+  Row 1: ['Pivotes de balancines', '☐', '☐', '☐', '☐', '☐', '']
+  Row 2: ['Articulaciones de cadenas', '☐', '☐', '☐', '☐', '☐', '']
+  Row 3: ['Bisagras puertas modulares', '☐', '☐', '☐', '☐', '☐', '']
+  Row 4: ['Otros (especificar)', '☐', '☐', '☐', '☐', '☐', '']
+
+=== TABLE 112 ===
+  Row 0: ['NO CONFORMIDADES DETECTADAS Y PLAZO DE SUBSANACIÓN:']
+  Row 1: ['']
+  Row 2: ['']
+  Row 3: ['']
+
+=== TABLE 113 ===
+  Row 0: ['Jefe de Mantenimiento', 'Administrador']
+  Row 1: ['', '']
+  Row 2: ['________________________________', '________________________________']
+  Row 3: ['Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha']
+
+=== TABLE 114 ===
+  Row 0: ['', 'ASESORÍAS INTEGRALES CyJ\nCondominio Laguna Norte  |  Lampa, Santiago', 'LV-17\nESTACIONAMIENTOS Y ACCESO — MANTENCIÓN MENSUAL\nVersión 1.0  |  2026']
+
+=== TABLE 115 ===
+  Row 0: ['Sector', 'Control acceso + Estacionamiento', 'Frecuencia', 'Mensual (primera semana de cada mes)']
+  Row 1: ['Personal requerido', 'Aseo B + Electricista + Jefe de Mantenimiento', 'Mes / Fecha', '_______________________  |  Hora: _______']
+
+=== TABLE 116 ===
+  Row 0: ['ÍTEM', 'CANT.', 'DISPONIBLE', 'OBSERVACIÓN']
+  Row 1: ['Hidrolavadora', '1', '☐', '']
+  Row 2: ['Manguera conexión 30m', '1', '☐', '']
+  Row 3: ['Detergente desengrasante industrial', '1L', '☐', '']
+  Row 4: ['Escoba metálica', '2', '☐', '']
+  Row 5: ['Soplador de mochila', '1', '☐', '']
+  Row 6: ['Chaleco reflectante', '2', '☐', '']
+  Row 7: ['Conos de señalización', '4', '☐', '']
+  Row 8: ['Cámara / teléfono registro', '1', '☐', '']
+  Row 9: ['Llave torque (control de acceso)', '1 juego', '☐', '']
+  Row 10: ['Grasa PTFE (portón y cremallera)', '1 spray', '☐', '']
+
+=== TABLE 117 ===
+  Row 0: ['ÍTEM', 'OK', 'NO OK', 'ACCIÓN / OBSERVACIÓN']
+  Row 1: ['Pavimento estacionamientos sin grietas nuevas (inspección visual)', '☐', '☐', '']
+  Row 2: ['Hidrolavado completo del pavimento (manchas aceite eliminadas)', '☐', '☐', '']
+  Row 3: ['Demarcación de plazas visible y completa', '☐', '☐', '']
+  Row 4: ['Numeración de plazas legible', '☐', '☐', '']
+  Row 5: ['Señal plaza(s) discapacitados presente y legible', '☐', '☐', '']
+  Row 6: ['Señalética de sentido de circulación correcta', '☐', '☐', '']
+  Row 7: ['Iluminación estacionamientos: todas las luminarias operativas', '☐', '☐', '']
+  Row 8: ['Control de acceso vehicular (motor portón): funcional, sin ruidos', '☐', '☐', '']
+  Row 9: ['Sensor de seguridad portón (anti-aplastamiento): operativo', '☐', '☐', '']
+  Row 10: ['Mando a distancia portón: funciona en rango normal', '☐', '☐', '']
+  Row 11: ['Caseta de portería: limpia, vidrios limpios, equipo funcionando', '☐', '☐', '']
+  Row 12: ['Acopio de basura: limpio, contenedores en buen estado', '☐', '☐', '']
+  Row 13: ['Señalética de acopio de basura (diferenciación reciclaje) legible', '☐', '☐', '']
+  Row 14: ['Veredas y solera perimetral estacionamientos: sin daños', '☐', '☐', '']
+
+=== TABLE 118 ===
+  Row 0: ['OBSERVACIONES / ACCIONES CORRECTIVAS:']
+  Row 1: ['']
+  Row 2: ['']
+  Row 3: ['']
+
+=== TABLE 119 ===
+  Row 0: ['Aseo B', 'Electricista', 'Jefe de Mantenimiento']
+  Row 1: ['', '', '']
+  Row 2: ['________________________________', '________________________________', '________________________________']
+  Row 3: ['Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha']
+
+=== TABLE 120 ===
+  Row 0: ['', 'ASESORÍAS INTEGRALES CyJ\nCondominio Laguna Norte  |  Lampa, Santiago', 'LV-18\nMANTENCIÓN MAYOR TRIMESTRAL — TODOS LOS SECTORES\nVersión 1.0  |  2026']
+
+=== TABLE 121 ===
+  Row 0: ['Sectores', 'Laguna · Piscinas · Juegos · Ciclovia · Club House · General', 'Frecuencia', 'Trimestral (Enero · Abril · Julio · Octubre)']
+  Row 1: ['Personal requerido', 'Equipo completo + Empresas externas especializadas', 'Trimestre / Fecha inicio', 'Q___  |  Fecha: ___________  |  Duración estimada: 3 días']
+
+=== TABLE 122 ===
+  Row 0: ['ROL / EMPRESA', 'CONFIRMADO', 'FECHA VISITA', 'CONTACTO', 'COSTO EST. CLP']
+  Row 1: ['Jefe de Mantenimiento (coordinador)', '☐', '', '', '']
+  Row 2: ['Supervisor de Jardinería', '☐', '', '', '']
+  Row 3: ['Operario Piscinas + Operario Laguna', '☐', '', '', '']
+  Row 4: ['Electricista', '☐', '', '', '']
+  Row 5: ['Empresa técnica piscinas (mantenimiento trimestral)', '☐', '', '', '']
+  Row 6: ['Empresa buzos limpieza fondo laguna (Trim. 1 y 3)', '☐', '', '', '']
+  Row 7: ['Empresa control de plagas (bimestral coincidente)', '☐', '', '', '']
+  Row 8: ['Arborista / poda de altura (si corresponde al trimestre)', '☐', '', '', '']
+
+=== TABLE 123 ===
+  Row 0: ['TAREA', 'REALIZADA', 'EMPRESA/PERSONAL', 'OBSERVACIÓN']
+  Row 1: ['Limpieza fondo laguna (buzos) — Q1 y Q3', '☐', 'Empresa buzos', '']
+  Row 2: ['Inspección técnica equipos sala de máquinas', '☐', 'Op. Laguna + Electricista', '']
+  Row 3: ['Revisión anclajes y tornillería muelles y embarcadero', '☐', 'Jefe de Mantenimiento', '']
+  Row 4: ['Reposición arena playas (si nivel < mínimo)', '☐', '2 Jardineros', '']
+  Row 5: ['Análisis de laboratorio completo + informe', '☐', 'Laboratorio SISS', '']
+
+=== TABLE 124 ===
+  Row 0: ['TAREA', 'P1', 'P2', 'P3', 'OBSERVACIÓN']
+  Row 1: ['Mantención técnica especializada (empresa externa)', '☐', '☐', '☐', '']
+  Row 2: ['Revisión integral bombas y motores (rodamiento, sello)', '☐', '☐', '☐', '']
+  Row 3: ['Revisión y limpieza de prefiltros y conexiones', '☐', '☐', '☐', '']
+  Row 4: ['Inspección sistema eléctrico sala de máquinas piscinas', '☐', '☐', '☐', '']
+  Row 5: ['Inspección integridad de recubrimiento interior piscina', '☐', '☐', '☐', '']
+  Row 6: ['Verificación anclajes escalas y barras de apoyo', '☐', '☐', '☐', '']
+
+=== TABLE 125 ===
+  Row 0: ['TAREA', 'J1', 'J2', 'J3', 'J4', 'J5', 'OBSERVACIÓN']
+  Row 1: ['Inspección y torque de anclajes al suelo (taladro + llave torque)', '☐', '☐', '☐', '☐', '☐', '']
+  Row 2: ['Reposición de material zona de caída (grava/arena certificada)', '☐', '☐', '☐', '☐', '☐', '']
+  Row 3: ['Revisión integridad estructural completa (soldaduras, tubería, uniones)', '☐', '☐', '☐', '☐', '☐', '']
+
+=== TABLE 126 ===
+  Row 0: ['RESUMEN TRIMESTRAL — INVERSIÓN EJECUTADA Y HALLAZGOS PRINCIPALES:']
+  Row 1: ['']
+  Row 2: ['']
+  Row 3: ['']
+
+=== TABLE 127 ===
+  Row 0: ['Jefe de Operaciones', 'Administrador', 'Comité de Admin.']
+  Row 1: ['', '', '']
+  Row 2: ['________________________________', '________________________________', '________________________________']
+  Row 3: ['Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha']
+
+=== TABLE 128 ===
+  Row 0: ['', 'ASESORÍAS INTEGRALES CyJ\nCondominio Laguna Norte  |  Lampa, Santiago', 'LV-19\nREVISIÓN SEMESTRAL COMPLETA — CONDOMINIO LAGUNA NORTE\nVersión 1.0  |  2026']
+
+=== TABLE 129 ===
+  Row 0: ['Alcance', 'Todos los sectores y sistemas del condominio', 'Frecuencia', 'Semestral (Junio / Diciembre)']
+  Row 1: ['Personal requerido', 'Jefe Mantenimiento + Supervisor Jardinería + Electricista + Empresa SEC', 'Semestre', 'S___ / 2026  |  Fecha inicio: ___________  |  Duración: 2 días']
+
+=== TABLE 130 ===
+  Row 0: ['SERVICIO / CERTIFICACIÓN', 'PROGRAMADO', 'EJECUTADO', 'N° INFORME / CERT.', 'FECHA PROX. VENC.', 'COSTO CLP']
+  Row 1: ['Revisión instalaciones eléctricas BT (empresa habilitada SEC)', '☐', '☐', '', '', '']
+  Row 2: ['Recarga y certificación extintores', '☐', '☐', '', '', '']
+  Row 3: ['Control de plagas jardines + laguna (empresa sanitaria)', '☐', '☐', '', '', '']
+  Row 4: ['Retrolavado profundo con ácido filtros piscinas (empresa técnica)', '☐', '☐', '', '', '']
+  Row 5: ['Inspección eléctrica sala de máquinas laguna', '☐', '☐', '', '', '']
+
+=== TABLE 131 ===
+  Row 0: ['SECTOR', 'ESTADO (1–4)', 'TENDENCIA vs. sem. anterior', 'ACCIÓN PRIORITARIA PRÓX. SEMESTRE']
+  Row 1: ['Laguna artificial', '', '', '']
+  Row 2: ['Piscinas 1–5', '', '', '']
+  Row 3: ['Áreas verdes / prados', '', '', '']
+  Row 4: ['Arbustos y árboles', '', '', '']
+  Row 5: ['Ciclovia y sendero', '', '', '']
+  Row 6: ['Club House interior', '', '', '']
+  Row 7: ['Club House exterior', '', '', '']
+  Row 8: ['Multicancha y canchas', '', '', '']
+  Row 9: ['Juegos infantiles (5 sectores)', '', '', '']
+  Row 10: ['Estacionamientos', '', '', '']
+  Row 11: ['Iluminación exterior', '', '', '']
+  Row 12: ['Cierros y portones', '', '', '']
+
+=== TABLE 132 ===
+  Row 0: ['CATEGORÍA', 'PRESUPUESTO SEMESTRE CLP', 'EJECUTADO CLP', 'VARIACIÓN %', 'COMENTARIO']
+  Row 1: ['Personal fijo', '', '', '', '']
+  Row 2: ['Personal rotativo', '', '', '', '']
+  Row 3: ['Servicios externos', '', '', '', '']
+  Row 4: ['Insumos químicos', '', '', '', '']
+  Row 5: ['Insumos agrícolas', '', '', '', '']
+  Row 6: ['Materiales y repuestos', '', '', '', '']
+  Row 7: ['EPP y seguridad', '', '', '', '']
+  Row 8: ['Imprevistos', '', '', '', '']
+
+=== TABLE 133 ===
+  Row 0: ['RECOMENDACIONES PARA EL PRÓXIMO SEMESTRE:']
+  Row 1: ['']
+  Row 2: ['']
+  Row 3: ['']
+
+=== TABLE 134 ===
+  Row 0: ['Jefe de Operaciones', 'Administrador', 'Comité de Admin.']
+  Row 1: ['', '', '']
+  Row 2: ['________________________________', '________________________________', '________________________________']
+  Row 3: ['Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha']
+
+=== TABLE 135 ===
+  Row 0: ['', 'ASESORÍAS INTEGRALES CyJ\nCondominio Laguna Norte  |  Lampa, Santiago', 'LV-20\nREVISIÓN ANUAL — CERTIFICACIONES Y ESTADO GENERAL\nVersión 1.0  |  2026']
+
+=== TABLE 136 ===
+  Row 0: ['Alcance', 'Certificaciones legales · Estado de activos · Revisión del plan', 'Frecuencia', 'Anual (Enero de cada año)']
+  Row 1: ['Convoca', 'Administrador + Comité de Administración + Jefe de Mantenimiento', 'Año', '2026  |  Fecha de revisión: ___________  |  Próxima: Enero 2027']
+
+=== TABLE 137 ===
+  Row 0: ['CERTIFICACIÓN', 'N° CERTIFICADO', 'EMPRESA EMISORA', 'FECHA EMISIÓN', 'VIGENCIA HASTA', 'ESTADO', 'RENOVAR']
+  Row 1: ['NCh 2926 — Juegos Infantiles (5 sectores)', '', '', '', '', '☐ OK   ☐ NO', '☐']
+  Row 2: ['Extintores — Revisión y recarga semestral (último semestre)', '', '', '', '', '☐ OK   ☐ NO', '☐']
+  Row 3: ['Instalaciones eléctricas BT (empresa SEC Sem. 2)', '', '', '', '', '☐ OK   ☐ NO', '☐']
+  Row 4: ['Control de plagas (último informe empresa sanitaria)', '', '', '', '', '☐ OK   ☐ NO', '☐']
+  Row 5: ['Póliza seguro responsabilidad civil condominio', '', '', '', '', '☐ OK   ☐ NO', '☐']
+  Row 6: ['Inscripción Mutual de Seguridad (personal)', '', '', '', '', '☐ OK   ☐ NO', '☐']
+  Row 7: ['Resolución SEREMI Salud (si aplica laguna recreativa)', '', '', '', '', '☐ OK   ☐ NO', '☐']
+  Row 8: ['Contratos laborales personal vigentes', '', '', '', '', '☐ OK   ☐ NO', '☐']
+
+=== TABLE 138 ===
+  Row 0: ['KPI', 'DESCRIPCIÓN', 'META', 'RESULTADO REAL', 'CUMPLIDO', 'OBSERVACIÓN']
+  Row 1: ['KPI-01', '% Cobertura vegetal óptima', '>92%', '', '☐', '']
+  Row 2: ['KPI-02', '% días pH laguna en rango', '>95%', '', '☐', '']
+  Row 3: ['KPI-03', '% turbidez laguna <10 NTU', '>90%', '', '☐', '']
+  Row 4: ['KPI-04', '% pH piscinas en rango', '>95%', '', '☐', '']
+  Row 5: ['KPI-05', '% cloro libre piscinas en rango', '>95%', '', '☐', '']
+  Row 6: ['KPI-06', 'Tiempo respuesta incidencias', '<4 hrs', '', '☐', '']
+  Row 7: ['KPI-07', 'Accidentes laborales con tiempo perdido', '0', '', '☐', '']
+  Row 8: ['KPI-08', '% cumplimiento plan mensual', '>95%', '', '☐', '']
+  Row 9: ['KPI-09', 'Satisfacción residentes (1–5)', '>4,0', '', '☐', '']
+  Row 10: ['KPI-10', '% certificaciones vigentes', '100%', '', '☐', '']
+  Row 11: ['KPI-11', 'Consumo agua riego (vs año anterior)', '<110%', '', '☐', '']
+  Row 12: ['KPI-12', 'Ejecución presupuestaria', '85–105%', '', '☐', '']
+
+=== TABLE 139 ===
+  Row 0: ['ÍTEM', 'REVISADO', 'ACTUALIZADO', 'APROBADO', 'RESPONSABLE']
+  Row 1: ['Plan de mantenimiento 2026 → 2027 (actualización)', '☐', '☐', '☐', 'Jefe de Mantenimiento']
+  Row 2: ['Presupuesto anual (ajuste remuneraciones y precios mercado)', '☐', '☐', '☐', 'Administrador']
+  Row 3: ['Dotación de personal (altas, bajas, cambios de cargo)', '☐', '☐', '☐', 'Administrador']
+  Row 4: ['Inventario de maquinaria y herramientas (altas y bajas)', '☐', '☐', '☐', 'Jefe de Mantenimiento']
+  Row 5: ['Contratos de servicios externos (renovación o licitación)', '☐', '☐', '☐', 'Administrador']
+  Row 6: ['KPIs: revisión de metas para el nuevo año', '☐', '☐', '☐', 'Comité de Administración']
+  Row 7: ['Aprobación del plan en Asamblea de Copropietarios', '☐', '☐', '☐', 'Administrador + Comité']
+
+=== TABLE 140 ===
+  Row 0: ['OBSERVACIONES FINALES Y COMPROMISOS PARA EL AÑO SIGUIENTE:']
+  Row 1: ['']
+  Row 2: ['']
+  Row 3: ['']
+
+=== TABLE 141 ===
+  Row 0: ['Jefe de Operaciones', 'Administrador', 'Presidente Comité Admin.']
+  Row 1: ['', '', '']
+  Row 2: ['________________________________', '________________________________', '________________________________']
+  Row 3: ['Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha', 'Nombre  |  Firma  |  RUT  |  Fecha']
+
+=== TABLE 142 ===
+  Row 0: ['ASESORÍAS INTEGRALES CyJ\nListas de Verificación — Plan de Mantenimiento Integral — Condominio Laguna Norte\nVersión 1.0  |  2026  |  Uso Interno — Confidencial  |  20 Listas de Verificación']
