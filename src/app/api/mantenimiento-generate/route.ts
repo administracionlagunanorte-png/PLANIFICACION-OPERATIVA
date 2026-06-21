@@ -297,6 +297,25 @@ const LV_TEMPLATES: LVTemplateDef[] = [
   },
 ]
 
+// Helper: adjust a date to the nearest weekday (Mon-Fri)
+// If Saturday -> move to Monday, if Sunday -> move to Monday
+function adjustToWeekday(date: Date): Date {
+  const d = new Date(date)
+  const dow = d.getDay()
+  if (dow === 0) { // Sunday -> Monday
+    d.setDate(d.getDate() + 1)
+  } else if (dow === 6) { // Saturday -> Monday
+    d.setDate(d.getDate() + 2)
+  }
+  return d
+}
+
+// Helper: check if a date is a weekday (Mon-Fri)
+function isWeekday(date: Date): boolean {
+  const dow = date.getDay()
+  return dow >= 1 && dow <= 5
+}
+
 // Helper: get the nth occurrence of a specific weekday in a month
 function getNthWeekdayOfMonth(year: number, month: number, weekday: number, n: number): Date {
   const firstDay = new Date(year, month, 1)
@@ -356,9 +375,12 @@ export async function POST(req: NextRequest) {
 
       switch (template.scheduleRule) {
         case 'daily': {
-          // Every day of the month
+          // Every weekday (Mon-Fri) of the month — NO weekends
           for (let d = 1; d <= daysInMonth; d++) {
-            scheduledDates.push(new Date(y, m, d))
+            const date = new Date(y, m, d)
+            if (isWeekday(date)) {
+              scheduledDates.push(date)
+            }
           }
           break
         }
@@ -379,10 +401,12 @@ export async function POST(req: NextRequest) {
           break
         }
         case 'biweekly': {
-          // Days 1 and 15 of the month (or closest weekday)
-          scheduledDates.push(new Date(y, m, 1))
+          // Days 1 and 15 of the month, adjusted to nearest weekday if weekend
+          const d1 = adjustToWeekday(new Date(y, m, 1))
+          scheduledDates.push(d1)
           if (daysInMonth >= 15) {
-            scheduledDates.push(new Date(y, m, 15))
+            const d15 = adjustToWeekday(new Date(y, m, 15))
+            scheduledDates.push(d15)
           }
           break
         }
