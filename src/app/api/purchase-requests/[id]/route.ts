@@ -1,9 +1,9 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 
-const VALID_STATUSES = ['PENDIENTE', 'APROBADA', 'RECHAZADA', 'EN_COMPRA', 'COMPRADA', 'CANCELADA']
+const VALID_STATUSES = ['PENDIENTE', 'APROBADA_SUPERVISOR', 'APROBADA', 'RECHAZADA', 'EN_COMPRA', 'COMPRADA', 'CANCELADA']
 const VALID_PRIORITIES = ['BAJA', 'MEDIA', 'ALTA', 'URGENTE']
-const REVIEW_STATUSES = ['APROBADA', 'RECHAZADA']
+const REVIEW_STATUSES = ['APROBADA_SUPERVISOR', 'APROBADA', 'RECHAZADA', 'EN_COMPRA', 'COMPRADA']
 
 export async function GET(
   _request: NextRequest,

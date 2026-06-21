@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
-import { Plus, Pencil, Trash2, Eye, ArrowLeft, Upload, X, CheckCircle, XCircle, Clock, FileText, FileSpreadsheet, Download, Camera, Send, Star, ShoppingBag, ExternalLink } from 'lucide-react'
+import { Plus, Pencil, Trash2, Eye, ArrowLeft, Upload, X, CheckCircle, XCircle, Clock, FileText, FileSpreadsheet, Download, Camera, Send, Star, ShoppingBag, ExternalLink, ShieldCheck, Shield } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { jsPDF } from 'jspdf'
 import ExcelJS from 'exceljs'
@@ -66,7 +66,8 @@ const formatCLP = (amount: number | null | undefined): string => {
 
 const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
   PENDIENTE: { label: 'Pendiente', color: 'text-amber-600', bgColor: 'bg-amber-100' },
-  APROBADA: { label: 'Aprobada', color: 'text-green-600', bgColor: 'bg-green-100' },
+  APROBADA_SUPERVISOR: { label: 'Aprobada (Supervisor)', color: 'text-blue-600', bgColor: 'bg-blue-100' },
+  APROBADA: { label: 'Aprobada (Admin)', color: 'text-green-600', bgColor: 'bg-green-100' },
   RECHAZADA: { label: 'Rechazada', color: 'text-red-600', bgColor: 'bg-red-100' },
   EN_COMPRA: { label: 'En Compra', color: 'text-blue-600', bgColor: 'bg-blue-100' },
   COMPRADA: { label: 'Comprada', color: 'text-emerald-600', bgColor: 'bg-emerald-100' },
@@ -83,6 +84,7 @@ const priorityConfig: Record<string, { label: string; color: string }> = {
 const statusIcon = (status: string) => {
   switch (status) {
     case 'PENDIENTE': return <Clock className="h-3.5 w-3.5" />
+    case 'APROBADA_SUPERVISOR': return <ShieldCheck className="h-3.5 w-3.5" />
     case 'APROBADA': return <CheckCircle className="h-3.5 w-3.5" />
     case 'RECHAZADA': return <XCircle className="h-3.5 w-3.5" />
     case 'EN_COMPRA': return <ShoppingBag className="h-3.5 w-3.5" />
@@ -123,8 +125,16 @@ const handleFileUpload = async (file: File): Promise<string | null> => {
 // Component
 // ============================================================
 
-export default function SolicitudesCompra() {
+interface SolicitudesCompraProps {
+  userRole?: string
+}
+
+export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesCompraProps) {
   const { toast } = useToast()
+  const isAdmin = userRole === 'ADMIN'
+  const isSupervisor = userRole === 'SUPERVISOR'
+  const canApprove = isAdmin || isSupervisor
+  const canEditAll = isAdmin || isSupervisor
 
   // --- View state ---
   const [view, setView] = useState<'list' | 'detail'>('list')
@@ -148,7 +158,7 @@ export default function SolicitudesCompra() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'request' | 'quote'; id: string } | null>(null)
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
-  const [reviewAction, setReviewAction] = useState<'APROBADA' | 'RECHAZADA' | 'EN_COMPRA' | 'COMPRADA' | null>(null)
+  const [reviewAction, setReviewAction] = useState<'APROBADA' | 'APROBADA_SUPERVISOR' | 'RECHAZADA' | 'EN_COMPRA' | 'COMPRADA' | null>(null)
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
   const [previewImageUrl, setPreviewImageUrl] = useState('')
 
@@ -504,7 +514,7 @@ export default function SolicitudesCompra() {
   // Review / Status change handlers
   // ============================================================
 
-  const openReviewDialog = (action: 'APROBADA' | 'RECHAZADA' | 'EN_COMPRA' | 'COMPRADA') => {
+  const openReviewDialog = (action: 'APROBADA' | 'APROBADA_SUPERVISOR' | 'RECHAZADA' | 'EN_COMPRA' | 'COMPRADA') => {
     setReviewAction(action)
     setReviewNote('')
     setReviewedBy('')
@@ -516,7 +526,7 @@ export default function SolicitudesCompra() {
 
     try {
       let res: Response
-      if (reviewAction === 'APROBADA' || reviewAction === 'RECHAZADA') {
+      if (reviewAction === 'APROBADA' || reviewAction === 'APROBADA_SUPERVISOR' || reviewAction === 'RECHAZADA') {
         res = await fetch(`/api/purchase-requests/${selectedRequest.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -849,7 +859,7 @@ export default function SolicitudesCompra() {
                 <Card
                   key={req.id}
                   className="cursor-pointer hover:shadow-md transition-shadow border-l-4"
-                  style={{ borderLeftColor: req.status === 'COMPRADA' ? '#10b981' : req.status === 'APROBADA' ? '#22c55e' : req.status === 'RECHAZADA' ? '#ef4444' : req.status === 'EN_COMPRA' ? '#3b82f6' : req.status === 'URGENTE' ? '#ef4444' : '#f59e0b' }}
+                  style={{ borderLeftColor: req.status === 'COMPRADA' ? '#10b981' : req.status === 'APROBADA' ? '#22c55e' : req.status === 'APROBADA_SUPERVISOR' ? '#3b82f6' : req.status === 'RECHAZADA' ? '#ef4444' : req.status === 'EN_COMPRA' ? '#3b82f6' : req.status === 'URGENTE' ? '#ef4444' : '#f59e0b' }}
                   onClick={() => goToDetail(req)}
                 >
                   <CardHeader className="pb-2 pt-4 px-4">
@@ -1053,19 +1063,40 @@ export default function SolicitudesCompra() {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2 flex-wrap">
-          {req.status === 'PENDIENTE' && (
+          {req.status === 'PENDIENTE' && canApprove && (
             <>
-              <Button size="sm" className="gap-1 bg-green-600 hover:bg-green-700" onClick={() => openReviewDialog('APROBADA')}>
-                <CheckCircle className="h-4 w-4" /> Aprobar
-              </Button>
+              {isSupervisor && (
+                <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700" onClick={() => openReviewDialog('APROBADA_SUPERVISOR')}>
+                  <ShieldCheck className="h-4 w-4" /> Aprobar (Supervisor)
+                </Button>
+              )}
+              {isAdmin && (
+                <Button size="sm" className="gap-1 bg-green-600 hover:bg-green-700" onClick={() => openReviewDialog('APROBADA')}>
+                  <CheckCircle className="h-4 w-4" /> Aprobar (Admin)
+                </Button>
+              )}
               <Button size="sm" variant="destructive" className="gap-1" onClick={() => openReviewDialog('RECHAZADA')}>
                 <XCircle className="h-4 w-4" /> Rechazar
               </Button>
+            </>
+          )}
+          {req.status === 'PENDIENTE' && canEditAll && (
+            <>
               <Button size="sm" variant="outline" className="gap-1" onClick={() => openEditForm(req)}>
                 <Pencil className="h-4 w-4" /> Editar
               </Button>
               <Button size="sm" variant="outline" className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => { setDeleteTarget({ type: 'request', id: req.id }); setDeleteDialogOpen(true) }}>
                 <Trash2 className="h-4 w-4" /> Eliminar
+              </Button>
+            </>
+          )}
+          {req.status === 'APROBADA_SUPERVISOR' && isAdmin && (
+            <>
+              <Button size="sm" className="gap-1 bg-green-600 hover:bg-green-700" onClick={() => openReviewDialog('APROBADA')}>
+                <CheckCircle className="h-4 w-4" /> Aprobar (Admin)
+              </Button>
+              <Button size="sm" variant="destructive" className="gap-1" onClick={() => openReviewDialog('RECHAZADA')}>
+                <XCircle className="h-4 w-4" /> Rechazar
               </Button>
             </>
           )}
@@ -1480,7 +1511,8 @@ export default function SolicitudesCompra() {
 
   const renderReviewDialog = () => {
     const actionLabels: Record<string, string> = {
-      APROBADA: 'Aprobar',
+      APROBADA: 'Aprobar (Admin)',
+      APROBADA_SUPERVISOR: 'Aprobar (Supervisor)',
       RECHAZADA: 'Rechazar',
       EN_COMPRA: 'Marcar En Compra',
       COMPRADA: 'Marcar Comprada',

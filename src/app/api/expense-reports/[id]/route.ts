@@ -14,10 +14,11 @@ async function recalcTotal(reportId: string) {
   })
 }
 
-// Valid status transitions
+// Valid status transitions with approval chain: User→Supervisor→Admin
 const VALID_TRANSITIONS: Record<string, string[]> = {
   BORRADOR: ['ENVIADO'],
-  ENVIADO: ['APROBADO', 'RECHAZADO', 'MODIFICACIÓN SOLICITADA'],
+  ENVIADO: ['APROBADO_SUPERVISOR', 'RECHAZADO', 'MODIFICACIÓN SOLICITADA'],
+  APROBADO_SUPERVISOR: ['APROBADO', 'RECHAZADO', 'MODIFICACIÓN SOLICITADA'],
   APROBADO: [],
   RECHAZADO: [],
   'MODIFICACIÓN SOLICITADA': ['BORRADOR'],
@@ -118,7 +119,7 @@ export async function PATCH(
     }
 
     // Set reviewedAt and review fields when transitioning to review statuses
-    if (status === 'APROBADO' || status === 'RECHAZADO' || status === 'MODIFICACIÓN SOLICITADA') {
+    if (status === 'APROBADO' || status === 'APROBADO_SUPERVISOR' || status === 'RECHAZADO' || status === 'MODIFICACIÓN SOLICITADA') {
       data.reviewedAt = new Date()
       if (reviewNote !== undefined) data.reviewNote = reviewNote?.trim() || null
       if (reviewedBy !== undefined) data.reviewedBy = reviewedBy?.trim() || null

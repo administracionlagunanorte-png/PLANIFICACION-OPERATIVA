@@ -1,0 +1,1598 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useEffect, useRef } from 'react'
+     4→     4→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
+     5→     5→import { Button } from '@/components/ui/button'
+     6→     6→import { Input } from '@/components/ui/input'
+     7→     7→import { Label } from '@/components/ui/label'
+     8→     8→import { Textarea } from '@/components/ui/textarea'
+     9→     9→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    10→    10→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    11→    11→import { Badge } from '@/components/ui/badge'
+    12→    12→import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+    13→    13→import { Plus, Pencil, Trash2, Eye, ArrowLeft, Upload, X, CheckCircle, XCircle, Clock, FileText, FileSpreadsheet, Download, Camera, Send, Star, ShoppingBag, ExternalLink } from 'lucide-react'
+    14→    14→import { useToast } from '@/hooks/use-toast'
+    15→    15→import { jsPDF } from 'jspdf'
+    16→    16→import ExcelJS from 'exceljs'
+    17→    17→
+    18→    18→// ============================================================
+    19→    19→// Types
+    20→    20→// ============================================================
+    21→    21→
+    22→    22→interface PurchaseRequest {
+    23→    23→  id: string
+    24→    24→  correlativeNumber: number
+    25→    25→  productDescription: string
+    26→    26→  brand: string | null
+    27→    27→  quantity: number
+    28→    28→  priority: string
+    29→    29→  productLink: string | null
+    30→    30→  referencePhotoUrl: string | null
+    31→    31→  directProvider: string | null
+    32→    32→  notes: string | null
+    33→    33→  status: string
+    34→    34→  responsible: string | null
+    35→    35→  reviewedBy: string | null
+    36→    36→  reviewedAt: string | null
+    37→    37→  reviewNote: string | null
+    38→    38→  createdAt: string
+    39→    39→  updatedAt: string
+    40→    40→  quotes?: PurchaseQuote[]
+    41→    41→}
+    42→    42→
+    43→    43→interface PurchaseQuote {
+    44→    44→  id: string
+    45→    45→  purchaseRequestId: string
+    46→    46→  providerName: string
+    47→    47→  amount: number
+    48→    48→  currency: string
+    49→    49→  fileName: string | null
+    50→    50→  fileUrl: string | null
+    51→    51→  fileType: string | null
+    52→    52→  notes: string | null
+    53→    53→  isWinner: boolean
+    54→    54→  createdAt: string
+    55→    55→  updatedAt: string
+    56→    56→}
+    57→    57→
+    58→    58→// ============================================================
+    59→    59→// Config & Helpers
+    60→    60→// ============================================================
+    61→    61→
+    62→    62→const formatCLP = (amount: number | null | undefined): string => {
+    63→    63→  if (amount == null || isNaN(amount)) return '$0'
+    64→    64→  return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(amount))
+    65→    65→}
+    66→    66→
+    67→    67→const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
+    68→    68→  PENDIENTE: { label: 'Pendiente', color: 'text-amber-600', bgColor: 'bg-amber-100' },
+    69→    69→  APROBADA: { label: 'Aprobada', color: 'text-green-600', bgColor: 'bg-green-100' },
+    70→    70→  RECHAZADA: { label: 'Rechazada', color: 'text-red-600', bgColor: 'bg-red-100' },
+    71→    71→  EN_COMPRA: { label: 'En Compra', color: 'text-blue-600', bgColor: 'bg-blue-100' },
+    72→    72→  COMPRADA: { label: 'Comprada', color: 'text-emerald-600', bgColor: 'bg-emerald-100' },
+    73→    73→  CANCELADA: { label: 'Cancelada', color: 'text-gray-600', bgColor: 'bg-gray-100' },
+    74→    74→}
+    75→    75→
+    76→    76→const priorityConfig: Record<string, { label: string; color: string }> = {
+    77→    77→  BAJA: { label: 'Baja', color: 'bg-gray-400' },
+    78→    78→  MEDIA: { label: 'Media', color: 'bg-blue-400' },
+    79→    79→  ALTA: { label: 'Alta', color: 'bg-amber-400' },
+    80→    80→  URGENTE: { label: 'Urgente', color: 'bg-red-500' },
+    81→    81→}
+    82→    82→
+    83→    83→const statusIcon = (status: string) => {
+    84→    84→  switch (status) {
+    85→    85→    case 'PENDIENTE': return <Clock className="h-3.5 w-3.5" />
+    86→    86→    case 'APROBADA': return <CheckCircle className="h-3.5 w-3.5" />
+    87→    87→    case 'RECHAZADA': return <XCircle className="h-3.5 w-3.5" />
+    88→    88→    case 'EN_COMPRA': return <ShoppingBag className="h-3.5 w-3.5" />
+    89→    89→    case 'COMPRADA': return <CheckCircle className="h-3.5 w-3.5" />
+    90→    90→    case 'CANCELADA': return <XCircle className="h-3.5 w-3.5" />
+    91→    91→    default: return <Clock className="h-3.5 w-3.5" />
+    92→    92→  }
+    93→    93→}
+    94→    94→
+    95→    95→const correlativeStr = (n: number) => `SC-${String(n).padStart(3, '0')}`
+    96→    96→
+    97→    97→const formatDate = (d: string) =>
+    98→    98→  new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    99→    99→
+   100→   100→const formatDateTime = (d: string) =>
+   101→   101→  new Date(d).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+   102→   102→
+   103→   103→// ============================================================
+   104→   104→// File upload helper
+   105→   105→// ============================================================
+   106→   106→
+   107→   107→const handleFileUpload = async (file: File): Promise<string | null> => {
+   108→   108→  const formData = new FormData()
+   109→   109→  formData.append('file', file)
+   110→   110→  try {
+   111→   111→    const res = await fetch('/api/upload', { method: 'POST', body: formData })
+   112→   112→    if (res.ok) {
+   113→   113→      const data = await res.json()
+   114→   114→      return data.url
+   115→   115→    }
+   116→   116→  } catch (err) {
+   117→   117→    console.error('Error uploading file:', err)
+   118→   118→  }
+   119→   119→  return null
+   120→   120→}
+   121→   121→
+   122→   122→// ============================================================
+   123→   123→// Component
+   124→   124→// ============================================================
+   125→   125→
+   126→   126→export default function SolicitudesCompra() {
+   127→   127→  const { toast } = useToast()
+   128→   128→
+   129→   129→  // --- View state ---
+   130→   130→  const [view, setView] = useState<'list' | 'detail'>('list')
+   131→   131→
+   132→   132→  // --- Data ---
+   133→   133→  const [requests, setRequests] = useState<PurchaseRequest[]>([])
+   134→   134→  const [totalPages, setTotalPages] = useState(1)
+   135→   135→  const [loading, setLoading] = useState(false)
+   136→   136→  const [selectedRequest, setSelectedRequest] = useState<PurchaseRequest | null>(null)
+   137→   137→
+   138→   138→  // --- Filters ---
+   139→   139→  const [filterStatus, setFilterStatus] = useState('all')
+   140→   140→  const [filterPriority, setFilterPriority] = useState('all')
+   141→   141→  const [searchTerm, setSearchTerm] = useState('')
+   142→   142→  const [page, setPage] = useState(1)
+   143→   143→
+   144→   144→  // --- Dialogs ---
+   145→   145→  const [formOpen, setFormOpen] = useState(false)
+   146→   146→  const [editingId, setEditingId] = useState<string | null>(null)
+   147→   147→  const [quoteDialogOpen, setQuoteDialogOpen] = useState(false)
+   148→   148→  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+   149→   149→  const [deleteTarget, setDeleteTarget] = useState<{ type: 'request' | 'quote'; id: string } | null>(null)
+   150→   150→  const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
+   151→   151→  const [reviewAction, setReviewAction] = useState<'APROBADA' | 'RECHAZADA' | 'EN_COMPRA' | 'COMPRADA' | null>(null)
+   152→   152→  const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
+   153→   153→  const [previewImageUrl, setPreviewImageUrl] = useState('')
+   154→   154→
+   155→   155→  // --- Form state ---
+   156→   156→  const [formData, setFormData] = useState({
+   157→   157→    productDescription: '',
+   158→   158→    brand: '',
+   159→   159→    quantity: '1',
+   160→   160→    priority: 'MEDIA',
+   161→   161→    productLink: '',
+   162→   162→    referencePhotoUrl: '',
+   163→   163→    directProvider: '',
+   164→   164→    notes: '',
+   165→   165→    responsible: '',
+   166→   166→  })
+   167→   167→  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+   168→   168→  const photoInputRef = useRef<HTMLInputElement>(null)
+   169→   169→
+   170→   170→  // --- Quote form state ---
+   171→   171→  const [quoteFormData, setQuoteFormData] = useState({
+   172→   172→    providerName: '',
+   173→   173→    amount: '',
+   174→   174→    currency: 'CLP',
+   175→   175→    notes: '',
+   176→   176→    fileUrl: '',
+   177→   177→    fileName: '',
+   178→   178→    fileType: '',
+   179→   179→  })
+   180→   180→  const [uploadingQuoteFile, setUploadingQuoteFile] = useState(false)
+   181→   181→  const quoteFileInputRef = useRef<HTMLInputElement>(null)
+   182→   182→
+   183→   183→  // --- Review form ---
+   184→   184→  const [reviewNote, setReviewNote] = useState('')
+   185→   185→  const [reviewedBy, setReviewedBy] = useState('')
+   186→   186→
+   187→   187→  // ============================================================
+   188→   188→  // Fetch data
+   189→   189→  // ============================================================
+   190→   190→
+   191→   191→  const fetchRequests = async () => {
+   192→   192→    setLoading(true)
+   193→   193→    try {
+   194→   194→      const params = new URLSearchParams()
+   195→   195→      if (filterStatus !== 'all') params.set('status', filterStatus)
+   196→   196→      if (filterPriority !== 'all') params.set('priority', filterPriority)
+   197→   197→      if (searchTerm.trim()) params.set('search', searchTerm.trim())
+   198→   198→      params.set('page', String(page))
+   199→   199→      params.set('limit', '20')
+   200→   200→
+   201→   201→      const res = await fetch(`/api/purchase-requests?${params}`)
+   202→   202→      if (res.ok) {
+   203→   203→        const data = await res.json()
+   204→   204→        setRequests(data.data || [])
+   205→   205→        setTotalPages(data.pagination?.totalPages || 1)
+   206→   206→      }
+   207→   207→    } catch (err) {
+   208→   208→      console.error('Error fetching purchase requests:', err)
+   209→   209→      toast({ title: 'Error', description: 'No se pudieron cargar las solicitudes', variant: 'destructive' })
+   210→   210→    } finally {
+   211→   211→      setLoading(false)
+   212→   212→    }
+   213→   213→  }
+   214→   214→
+   215→   215→  const fetchRequestDetail = async (id: string) => {
+   216→   216→    try {
+   217→   217→      const res = await fetch(`/api/purchase-requests/${id}`)
+   218→   218→      if (res.ok) {
+   219→   219→        const data = await res.json()
+   220→   220→        setSelectedRequest(data)
+   221→   221→      }
+   222→   222→    } catch (err) {
+   223→   223→      console.error('Error fetching request detail:', err)
+   224→   224→    }
+   225→   225→  }
+   226→   226→
+   227→   227→  useEffect(() => {
+   228→   228→    fetchRequests()
+   229→   229→  }, [filterStatus, filterPriority, page])
+   230→   230→
+   231→   231→  useEffect(() => {
+   232→   232→    const timer = setTimeout(() => {
+   233→   233→      if (page === 1) fetchRequests()
+   234→   234→      else setPage(1)
+   235→   235→    }, 400)
+   236→   236→    return () => clearTimeout(timer)
+   237→   237→  }, [searchTerm])
+   238→   238→
+   239→   239→  // ============================================================
+   240→   240→  // Form handlers
+   241→   241→  // ============================================================
+   242→   242→
+   243→   243→  const resetForm = () => {
+   244→   244→    setFormData({
+   245→   245→      productDescription: '',
+   246→   246→      brand: '',
+   247→   247→      quantity: '1',
+   248→   248→      priority: 'MEDIA',
+   249→   249→      productLink: '',
+   250→   250→      referencePhotoUrl: '',
+   251→   251→      directProvider: '',
+   252→   252→      notes: '',
+   253→   253→      responsible: '',
+   254→   254→    })
+   255→   255→    setEditingId(null)
+   256→   256→  }
+   257→   257→
+   258→   258→  const openCreateForm = () => {
+   259→   259→    resetForm()
+   260→   260→    setFormOpen(true)
+   261→   261→  }
+   262→   262→
+   263→   263→  const openEditForm = (req: PurchaseRequest) => {
+   264→   264→    setFormData({
+   265→   265→      productDescription: req.productDescription,
+   266→   266→      brand: req.brand || '',
+   267→   267→      quantity: String(req.quantity),
+   268→   268→      priority: req.priority,
+   269→   269→      productLink: req.productLink || '',
+   270→   270→      referencePhotoUrl: req.referencePhotoUrl || '',
+   271→   271→      directProvider: req.directProvider || '',
+   272→   272→      notes: req.notes || '',
+   273→   273→      responsible: req.responsible || '',
+   274→   274→    })
+   275→   275→    setEditingId(req.id)
+   276→   276→    setFormOpen(true)
+   277→   277→  }
+   278→   278→
+   279→   279→  const handleFormSubmit = async () => {
+   280→   280→    if (!formData.productDescription.trim()) {
+   281→   281→      toast({ title: 'Error', description: 'La descripción del producto es obligatoria', variant: 'destructive' })
+   282→   282→      return
+   283→   283→    }
+   284→   284→
+   285→   285→    try {
+   286→   286→      const body = {
+   287→   287→        productDescription: formData.productDescription.trim(),
+   288→   288→        brand: formData.brand.trim() || null,
+   289→   289→        quantity: parseInt(formData.quantity) || 1,
+   290→   290→        priority: formData.priority,
+   291→   291→        productLink: formData.productLink.trim() || null,
+   292→   292→        referencePhotoUrl: formData.referencePhotoUrl.trim() || null,
+   293→   293→        directProvider: formData.directProvider.trim() || null,
+   294→   294→        notes: formData.notes.trim() || null,
+   295→   295→        responsible: formData.responsible.trim() || null,
+   296→   296→      }
+   297→   297→
+   298→   298→      let res: Response
+   299→   299→      if (editingId) {
+   300→   300→        res = await fetch(`/api/purchase-requests/${editingId}`, {
+   301→   301→          method: 'PUT',
+   302→   302→          headers: { 'Content-Type': 'application/json' },
+   303→   303→          body: JSON.stringify(body),
+   304→   304→        })
+   305→   305→      } else {
+   306→   306→        res = await fetch('/api/purchase-requests', {
+   307→   307→          method: 'POST',
+   308→   308→          headers: { 'Content-Type': 'application/json' },
+   309→   309→          body: JSON.stringify(body),
+   310→   310→        })
+   311→   311→      }
+   312→   312→
+   313→   313→      if (res.ok) {
+   314→   314→        toast({ title: editingId ? 'Solicitud actualizada' : 'Solicitud creada', description: editingId ? 'La solicitud se actualizó correctamente' : 'La solicitud se creó correctamente' })
+   315→   315→        setFormOpen(false)
+   316→   316→        resetForm()
+   317→   317→        fetchRequests()
+   318→   318→        if (selectedRequest?.id === editingId) {
+   319→   319→          fetchRequestDetail(editingId)
+   320→   320→        }
+   321→   321→      } else {
+   322→   322→        const err = await res.json()
+   323→   323→        toast({ title: 'Error', description: err.error || 'No se pudo guardar la solicitud', variant: 'destructive' })
+   324→   324→      }
+   325→   325→    } catch {
+   326→   326→      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+   327→   327→    }
+   328→   328→  }
+   329→   329→
+   330→   330→  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+   331→   331→    const file = e.target.files?.[0]
+   332→   332→    if (!file) return
+   333→   333→    if (!file.type.startsWith('image/')) {
+   334→   334→      toast({ title: 'Error', description: 'Solo se permiten imágenes', variant: 'destructive' })
+   335→   335→      return
+   336→   336→    }
+   337→   337→    setUploadingPhoto(true)
+   338→   338→    const url = await handleFileUpload(file)
+   339→   339→    if (url) {
+   340→   340→      setFormData(prev => ({ ...prev, referencePhotoUrl: url }))
+   341→   341→    } else {
+   342→   342→      toast({ title: 'Error', description: 'No se pudo subir la imagen', variant: 'destructive' })
+   343→   343→    }
+   344→   344→    setUploadingPhoto(false)
+   345→   345→    if (photoInputRef.current) photoInputRef.current.value = ''
+   346→   346→  }
+   347→   347→
+   348→   348→  const removePhoto = () => {
+   349→   349→    setFormData(prev => ({ ...prev, referencePhotoUrl: '' }))
+   350→   350→  }
+   351→   351→
+   352→   352→  // ============================================================
+   353→   353→  // Quote handlers
+   354→   354→  // ============================================================
+   355→   355→
+   356→   356→  const resetQuoteForm = () => {
+   357→   357→    setQuoteFormData({
+   358→   358→      providerName: '',
+   359→   359→      amount: '',
+   360→   360→      currency: 'CLP',
+   361→   361→      notes: '',
+   362→   362→      fileUrl: '',
+   363→   363→      fileName: '',
+   364→   364→      fileType: '',
+   365→   365→    })
+   366→   366→  }
+   367→   367→
+   368→   368→  const openQuoteDialog = () => {
+   369→   369→    resetQuoteForm()
+   370→   370→    setQuoteDialogOpen(true)
+   371→   371→  }
+   372→   372→
+   373→   373→  const handleQuoteFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+   374→   374→    const file = e.target.files?.[0]
+   375→   375→    if (!file) return
+   376→   376→    setUploadingQuoteFile(true)
+   377→   377→    const url = await handleFileUpload(file)
+   378→   378→    if (url) {
+   379→   379→      setQuoteFormData(prev => ({
+   380→   380→        ...prev,
+   381→   381→        fileUrl: url,
+   382→   382→        fileName: file.name,
+   383→   383→        fileType: file.type,
+   384→   384→      }))
+   385→   385→    } else {
+   386→   386→      toast({ title: 'Error', description: 'No se pudo subir el archivo', variant: 'destructive' })
+   387→   387→    }
+   388→   388→    setUploadingQuoteFile(false)
+   389→   389→    if (quoteFileInputRef.current) quoteFileInputRef.current.value = ''
+   390→   390→  }
+   391→   391→
+   392→   392→  const removeQuoteFile = () => {
+   393→   393→    setQuoteFormData(prev => ({ ...prev, fileUrl: '', fileName: '', fileType: '' }))
+   394→   394→  }
+   395→   395→
+   396→   396→  const handleQuoteSubmit = async () => {
+   397→   397→    if (!selectedRequest) return
+   398→   398→    if (!quoteFormData.providerName.trim()) {
+   399→   399→      toast({ title: 'Error', description: 'El nombre del proveedor es obligatorio', variant: 'destructive' })
+   400→   400→      return
+   401→   401→    }
+   402→   402→    if (!quoteFormData.amount || parseFloat(quoteFormData.amount) <= 0) {
+   403→   403→      toast({ title: 'Error', description: 'El monto debe ser mayor a 0', variant: 'destructive' })
+   404→   404→      return
+   405→   405→    }
+   406→   406→
+   407→   407→    try {
+   408→   408→      const body = {
+   409→   409→        providerName: quoteFormData.providerName.trim(),
+   410→   410→        amount: parseFloat(quoteFormData.amount),
+   411→   411→        currency: quoteFormData.currency,
+   412→   412→        notes: quoteFormData.notes.trim() || null,
+   413→   413→        fileUrl: quoteFormData.fileUrl || null,
+   414→   414→        fileName: quoteFormData.fileName || null,
+   415→   415→        fileType: quoteFormData.fileType || null,
+   416→   416→      }
+   417→   417→
+   418→   418→      const res = await fetch(`/api/purchase-requests/${selectedRequest.id}/quotes`, {
+   419→   419→        method: 'POST',
+   420→   420→        headers: { 'Content-Type': 'application/json' },
+   421→   421→        body: JSON.stringify(body),
+   422→   422→      })
+   423→   423→
+   424→   424→      if (res.ok) {
+   425→   425→        toast({ title: 'Cotización agregada', description: 'La cotización se agregó correctamente' })
+   426→   426→        setQuoteDialogOpen(false)
+   427→   427→        resetQuoteForm()
+   428→   428→        fetchRequestDetail(selectedRequest.id)
+   429→   429→        fetchRequests()
+   430→   430→      } else {
+   431→   431→        const err = await res.json()
+   432→   432→        toast({ title: 'Error', description: err.error || 'No se pudo agregar la cotización', variant: 'destructive' })
+   433→   433→      }
+   434→   434→    } catch {
+   435→   435→      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+   436→   436→    }
+   437→   437→  }
+   438→   438→
+   439→   439→  const setWinner = async (quoteId: string) => {
+   440→   440→    if (!selectedRequest) return
+   441→   441→    try {
+   442→   442→      const res = await fetch(`/api/purchase-requests/${selectedRequest.id}/quotes/${quoteId}`, {
+   443→   443→        method: 'PUT',
+   444→   444→        headers: { 'Content-Type': 'application/json' },
+   445→   445→        body: JSON.stringify({ isWinner: true }),
+   446→   446→      })
+   447→   447→      if (res.ok) {
+   448→   448→        toast({ title: 'Cotización ganadora', description: 'Se seleccionó la cotización ganadora' })
+   449→   449→        fetchRequestDetail(selectedRequest.id)
+   450→   450→      }
+   451→   451→    } catch {
+   452→   452→      toast({ title: 'Error', description: 'No se pudo seleccionar la cotización', variant: 'destructive' })
+   453→   453→    }
+   454→   454→  }
+   455→   455→
+   456→   456→  const deleteQuote = async (quoteId: string) => {
+   457→   457→    if (!selectedRequest) return
+   458→   458→    try {
+   459→   459→      const res = await fetch(`/api/purchase-requests/${selectedRequest.id}/quotes/${quoteId}`, {
+   460→   460→        method: 'DELETE',
+   461→   461→      })
+   462→   462→      if (res.ok) {
+   463→   463→        toast({ title: 'Cotización eliminada', description: 'La cotización se eliminó correctamente' })
+   464→   464→        fetchRequestDetail(selectedRequest.id)
+   465→   465→        fetchRequests()
+   466→   466→      }
+   467→   467→    } catch {
+   468→   468→      toast({ title: 'Error', description: 'No se pudo eliminar la cotización', variant: 'destructive' })
+   469→   469→    }
+   470→   470→  }
+   471→   471→
+   472→   472→  // ============================================================
+   473→   473→  // Delete request
+   474→   474→  // ============================================================
+   475→   475→
+   476→   476→  const confirmDelete = async () => {
+   477→   477→    if (!deleteTarget) return
+   478→   478→    try {
+   479→   479→      if (deleteTarget.type === 'request') {
+   480→   480→        const res = await fetch(`/api/purchase-requests/${deleteTarget.id}`, { method: 'DELETE' })
+   481→   481→        if (res.ok) {
+   482→   482→          toast({ title: 'Solicitud eliminada', description: 'La solicitud se eliminó correctamente' })
+   483→   483→          if (selectedRequest?.id === deleteTarget.id) {
+   484→   484→            setView('list')
+   485→   485→            setSelectedRequest(null)
+   486→   486→          }
+   487→   487→          fetchRequests()
+   488→   488→        } else {
+   489→   489→          const err = await res.json()
+   490→   490→          toast({ title: 'Error', description: err.error || 'No se pudo eliminar', variant: 'destructive' })
+   491→   491→        }
+   492→   492→      } else if (deleteTarget.type === 'quote') {
+   493→   493→        await deleteQuote(deleteTarget.id)
+   494→   494→      }
+   495→   495→    } catch {
+   496→   496→      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+   497→   497→    } finally {
+   498→   498→      setDeleteDialogOpen(false)
+   499→   499→      setDeleteTarget(null)
+   500→   500→    }
+   501→   501→  }
+   502→   502→
+   503→   503→  // ============================================================
+   504→   504→  // Review / Status change handlers
+   505→   505→  // ============================================================
+   506→   506→
+   507→   507→  const openReviewDialog = (action: 'APROBADA' | 'RECHAZADA' | 'EN_COMPRA' | 'COMPRADA') => {
+   508→   508→    setReviewAction(action)
+   509→   509→    setReviewNote('')
+   510→   510→    setReviewedBy('')
+   511→   511→    setReviewDialogOpen(true)
+   512→   512→  }
+   513→   513→
+   514→   514→  const handleReviewSubmit = async () => {
+   515→   515→    if (!selectedRequest || !reviewAction) return
+   516→   516→
+   517→   517→    try {
+   518→   518→      let res: Response
+   519→   519→      if (reviewAction === 'APROBADA' || reviewAction === 'RECHAZADA') {
+   520→   520→        res = await fetch(`/api/purchase-requests/${selectedRequest.id}`, {
+   521→   521→          method: 'PUT',
+   522→   522→          headers: { 'Content-Type': 'application/json' },
+   523→   523→          body: JSON.stringify({
+   524→   524→            action: 'review',
+   525→   525→            status: reviewAction,
+   526→   526→            reviewNote: reviewNote.trim() || null,
+   527→   527→            reviewedBy: reviewedBy.trim() || null,
+   528→   528→          }),
+   529→   529→        })
+   530→   530→      } else {
+   531→   531→        // EN_COMPRA or COMPRADA — direct status update via review action
+   532→   532→        res = await fetch(`/api/purchase-requests/${selectedRequest.id}`, {
+   533→   533→          method: 'PUT',
+   534→   534→          headers: { 'Content-Type': 'application/json' },
+   535→   535→          body: JSON.stringify({
+   536→   536→            action: 'review',
+   537→   537→            status: reviewAction,
+   538→   538→            reviewNote: reviewNote.trim() || null,
+   539→   539→            reviewedBy: reviewedBy.trim() || null,
+   540→   540→          }),
+   541→   541→        })
+   542→   542→      }
+   543→   543→
+   544→   544→      if (res.ok) {
+   545→   545→        const actionLabels: Record<string, string> = {
+   546→   546→          APROBADA: 'aprobada',
+   547→   547→          RECHAZADA: 'rechazada',
+   548→   548→          EN_COMPRA: 'marcada en compra',
+   549→   549→          COMPRADA: 'marcada como comprada',
+   550→   550→        }
+   551→   551→        toast({ title: 'Estado actualizado', description: `La solicitud fue ${actionLabels[reviewAction]}` })
+   552→   552→        setReviewDialogOpen(false)
+   553→   553→        fetchRequestDetail(selectedRequest.id)
+   554→   554→        fetchRequests()
+   555→   555→      } else {
+   556→   556→        const err = await res.json()
+   557→   557→        toast({ title: 'Error', description: err.error || 'No se pudo actualizar', variant: 'destructive' })
+   558→   558→      }
+   559→   559→    } catch {
+   560→   560→      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+   561→   561→    }
+   562→   562→  }
+   563→   563→
+   564→   564→  // ============================================================
+   565→   565→  // Navigation
+   566→   566→  // ============================================================
+   567→   567→
+   568→   568→  const goToDetail = (req: PurchaseRequest) => {
+   569→   569→    setSelectedRequest(req)
+   570→   570→    setView('detail')
+   571→   571→    fetchRequestDetail(req.id)
+   572→   572→  }
+   573→   573→
+   574→   574→  const goToList = () => {
+   575→   575→    setView('list')
+   576→   576→    setSelectedRequest(null)
+   577→   577→  }
+   578→   578→
+   579→   579→  // ============================================================
+   580→   580→  // PDF Export
+   581→   581→  // ============================================================
+   582→   582→
+   583→   583→  const exportPDF = (req: PurchaseRequest) => {
+   584→   584→    const doc = new jsPDF()
+   585→   585→    const sc = correlativeStr(req.correlativeNumber)
+   586→   586→    const st = statusConfig[req.status] || { label: req.status }
+   587→   587→
+   588→   588→    // Header
+   589→   589→    doc.setFontSize(18)
+   590→   590→    doc.setTextColor(30, 64, 175)
+   591→   591→    doc.text(`Solicitud de Compra ${sc}`, 14, 22)
+   592→   592→
+   593→   593→    doc.setFontSize(10)
+   594→   594→    doc.setTextColor(100)
+   595→   595→    doc.text(`Fecha: ${formatDate(req.createdAt)}`, 14, 30)
+   596→   596→    doc.text(`Estado: ${st.label}`, 14, 36)
+   597→   597→
+   598→   598→    // Separator
+   599→   599→    doc.setDrawColor(200)
+   600→   600→    doc.line(14, 40, 196, 40)
+   601→   601→
+   602→   602→    // Info section
+   603→   603→    doc.setFontSize(12)
+   604→   604→    doc.setTextColor(30)
+   605→   605→    let y = 48
+   606→   606→
+   607→   607→    const addField = (label: string, value: string) => {
+   608→   608→      doc.setFontSize(10)
+   609→   609→      doc.setTextColor(100)
+   610→   610→      doc.text(`${label}:`, 14, y)
+   611→   611→      doc.setTextColor(30)
+   612→   612→      doc.text(value || '-', 60, y)
+   613→   613→      y += 7
+   614→   614→    }
+   615→   615→
+   616→   616→    addField('Producto', req.productDescription)
+   617→   617→    addField('Marca', req.brand || '-')
+   618→   618→    addField('Cantidad', String(req.quantity))
+   619→   619→    addField('Prioridad', priorityConfig[req.priority]?.label || req.priority)
+   620→   620→    addField('Proveedor Directo', req.directProvider || '-')
+   621→   621→    addField('Responsable', req.responsible || '-')
+   622→   622→    if (req.productLink) addField('Link', req.productLink.substring(0, 80))
+   623→   623→    if (req.notes) {
+   624→   624→      doc.setFontSize(10)
+   625→   625→      doc.setTextColor(100)
+   626→   626→      doc.text('Notas:', 14, y)
+   627→   627→      doc.setTextColor(30)
+   628→   628→      const lines = doc.splitTextToSize(req.notes, 130)
+   629→   629→      doc.text(lines, 60, y)
+   630→   630→      y += lines.length * 5
+   631→   631→    }
+   632→   632→
+   633→   633→    if (req.reviewNote) {
+   634→   634→      y += 4
+   635→   635→      addField('Nota Revisión', req.reviewNote)
+   636→   636→      addField('Revisado por', req.reviewedBy || '-')
+   637→   637→      if (req.reviewedAt) addField('Fecha Revisión', formatDateTime(req.reviewedAt))
+   638→   638→    }
+   639→   639→
+   640→   640→    // Quotes table
+   641→   641→    if (req.quotes && req.quotes.length > 0) {
+   642→   642→      y += 10
+   643→   643→      doc.setFontSize(12)
+   644→   644→      doc.setTextColor(30, 64, 175)
+   645→   645→      doc.text('Cotizaciones', 14, y)
+   646→   646→      y += 8
+   647→   647→
+   648→   648→      // Table header
+   649→   649→      doc.setFontSize(9)
+   650→   650→      doc.setFillColor(240, 240, 240)
+   651→   651→      doc.rect(14, y - 4, 182, 8, 'F')
+   652→   652→      doc.setTextColor(60)
+   653→   653→      doc.text('Proveedor', 16, y)
+   654→   654→      doc.text('Monto', 90, y)
+   655→   655→      doc.text('Moneda', 130, y)
+   656→   656→      doc.text('Ganadora', 155, y)
+   657→   657→      doc.text('Notas', 175, y)
+   658→   658→      y += 8
+   659→   659→
+   660→   660→      const winnerQuote = req.quotes.find(q => q.isWinner)
+   661→   661→      const bestPrice = !winnerQuote && req.quotes.length > 0
+   662→   662→        ? Math.min(...req.quotes.map(q => q.amount))
+   663→   663→        : null
+   664→   664→
+   665→   665→      req.quotes.forEach(q => {
+   666→   666→        if (y > 270) {
+   667→   667→          doc.addPage()
+   668→   668→          y = 20
+   669→   669→        }
+   670→   670→        const isWin = q.isWinner || (bestPrice !== null && q.amount === bestPrice)
+   671→   671→        doc.setTextColor(isWin ? 0 : 30)
+   672→   672→        doc.text(q.providerName.substring(0, 20), 16, y)
+   673→   673→        doc.text(formatCLP(q.amount), 90, y)
+   674→   674→        doc.text(q.currency, 130, y)
+   675→   675→        doc.text(q.isWinner ? '★' : bestPrice && q.amount === bestPrice ? '▸' : '', 158, y)
+   676→   676→        doc.text((q.notes || '').substring(0, 15), 175, y)
+   677→   677→        y += 7
+   678→   678→      })
+   679→   679→    }
+   680→   680→
+   681→   681→    doc.save(`solicitud-compra-${sc}.pdf`)
+   682→   682→  }
+   683→   683→
+   684→   684→  // ============================================================
+   685→   685→  // Excel Export
+   686→   686→  // ============================================================
+   687→   687→
+   688→   688→  const exportExcel = async (req: PurchaseRequest) => {
+   689→   689→    const workbook = new ExcelJS.Workbook()
+   690→   690→    const sc = correlativeStr(req.correlativeNumber)
+   691→   691→
+   692→   692→    // --- Sheet 1: Resumen ---
+   693→   693→    const ws1 = workbook.addWorksheet('Resumen')
+   694→   694→    ws1.columns = [
+   695→   695→      { header: 'Campo', key: 'campo', width: 25 },
+   696→   696→      { header: 'Valor', key: 'valor', width: 50 },
+   697→   697→    ]
+   698→   698→
+   699→   699→    const st = statusConfig[req.status] || { label: req.status }
+   700→   700→    const summaryRows = [
+   701→   701→      { campo: 'Correlativo', valor: sc },
+   702→   702→      { campo: 'Producto', valor: req.productDescription },
+   703→   703→      { campo: 'Marca', valor: req.brand || '-' },
+   704→   704→      { campo: 'Cantidad', valor: String(req.quantity) },
+   705→   705→      { campo: 'Prioridad', valor: priorityConfig[req.priority]?.label || req.priority },
+   706→   706→      { campo: 'Estado', valor: st.label },
+   707→   707→      { campo: 'Proveedor Directo', valor: req.directProvider || '-' },
+   708→   708→      { campo: 'Responsable', valor: req.responsible || '-' },
+   709→   709→      { campo: 'Link Producto', valor: req.productLink || '-' },
+   710→   710→      { campo: 'Notas', valor: req.notes || '-' },
+   711→   711→      { campo: 'Fecha Creación', valor: formatDateTime(req.createdAt) },
+   712→   712→      { campo: 'Revisado por', valor: req.reviewedBy || '-' },
+   713→   713→      { campo: 'Nota Revisión', valor: req.reviewNote || '-' },
+   714→   714→      { campo: 'Fecha Revisión', valor: req.reviewedAt ? formatDateTime(req.reviewedAt) : '-' },
+   715→   715→    ]
+   716→   716→    ws1.addRows(summaryRows)
+   717→   717→
+   718→   718→    // Style header
+   719→   719→    const headerRow = ws1.getRow(1)
+   720→   720→    headerRow.font = { bold: true, color: { argb: 'FF1E40AF' } }
+   721→   721→    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEF2FF' } }
+   722→   722→
+   723→   723→    // --- Sheet 2: Cotizaciones ---
+   724→   724→    const ws2 = workbook.addWorksheet('Cotizaciones')
+   725→   725→    ws2.columns = [
+   726→   726→      { header: 'Proveedor', key: 'provider', width: 25 },
+   727→   727→      { header: 'Monto', key: 'amount', width: 18 },
+   728→   728→      { header: 'Moneda', key: 'currency', width: 10 },
+   729→   729→      { header: 'Ganadora', key: 'winner', width: 12 },
+   730→   730→      { header: 'Notas', key: 'notes', width: 30 },
+   731→   731→      { header: 'Archivo', key: 'file', width: 20 },
+   732→   732→      { header: 'Fecha', key: 'date', width: 18 },
+   733→   733→    ]
+   734→   734→
+   735→   735→    if (req.quotes && req.quotes.length > 0) {
+   736→   736→      req.quotes.forEach(q => {
+   737→   737→        ws2.addRow({
+   738→   738→          provider: q.providerName,
+   739→   739→          amount: q.amount,
+   740→   740→          currency: q.currency,
+   741→   741→          winner: q.isWinner ? '★ Sí' : 'No',
+   742→   742→          notes: q.notes || '-',
+   743→   743→          file: q.fileName || '-',
+   744→   744→          date: formatDateTime(q.createdAt),
+   745→   745→        })
+   746→   746→      })
+   747→   747→    }
+   748→   748→
+   749→   749→    const headerRow2 = ws2.getRow(1)
+   750→   750→    headerRow2.font = { bold: true, color: { argb: 'FF1E40AF' } }
+   751→   751→    headerRow2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEF2FF' } }
+   752→   752→
+   753→   753→    // Format amount column
+   754→   754→    ws2.getColumn('amount').numFmt = '#,##0'
+   755→   755→
+   756→   756→    const buffer = await workbook.xlsx.writeBuffer()
+   757→   757→    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+   758→   758→    const url = URL.createObjectURL(blob)
+   759→   759→    const a = document.createElement('a')
+   760→   760→    a.href = url
+   761→   761→    a.download = `solicitud-compra-${sc}.xlsx`
+   762→   762→    a.click()
+   763→   763→    URL.revokeObjectURL(url)
+   764→   764→  }
+   765→   765→
+   766→   766→  // ============================================================
+   767→   767→  // Computed helpers
+   768→   768→  // ============================================================
+   769→   769→
+   770→   770→  const getBestQuoteAmount = (req: PurchaseRequest): string => {
+   771→   771→    if (!req.quotes || req.quotes.length === 0) return '-'
+   772→   772→    const winner = req.quotes.find(q => q.isWinner)
+   773→   773→    if (winner) return formatCLP(winner.amount)
+   774→   774→    const min = Math.min(...req.quotes.map(q => q.amount))
+   775→   775→    return formatCLP(min)
+   776→   776→  }
+   777→   777→
+   778→   778→  // ============================================================
+   779→   779→  // RENDER: List View
+   780→   780→  // ============================================================
+   781→   781→
+   782→   782→  const renderListView = () => (
+   783→   783→    <div className="space-y-4">
+   784→   784→      {/* Header & Filters */}
+   785→   785→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+   786→   786→        <div>
+   787→   787→          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+   788→   788→            <ShoppingBag className="h-5 w-5 text-blue-600" />
+   789→   789→            Solicitudes de Compra
+   790→   790→          </h2>
+   791→   791→          <p className="text-sm text-gray-500 mt-0.5">Gestiona las solicitudes de compra del proyecto</p>
+   792→   792→        </div>
+   793→   793→        <Button onClick={openCreateForm} className="gap-2 shrink-0">
+   794→   794→          <Plus className="h-4 w-4" />
+   795→   795→          Nueva Solicitud
+   796→   796→        </Button>
+   797→   797→      </div>
+   798→   798→
+   799→   799→      {/* Filters */}
+   800→   800→      <div className="flex items-center gap-2 flex-wrap">
+   801→   801→        <Input
+   802→   802→          placeholder="Buscar producto, marca, proveedor..."
+   803→   803→          value={searchTerm}
+   804→   804→          onChange={e => setSearchTerm(e.target.value)}
+   805→   805→          className="max-w-xs h-9 text-sm"
+   806→   806→        />
+   807→   807→        <Select value={filterStatus} onValueChange={v => { setFilterStatus(v); setPage(1) }}>
+   808→   808→          <SelectTrigger className="w-[140px] h-9 text-sm">
+   809→   809→            <SelectValue placeholder="Estado" />
+   810→   810→          </SelectTrigger>
+   811→   811→          <SelectContent>
+   812→   812→            <SelectItem value="all">Todos los estados</SelectItem>
+   813→   813→            {Object.entries(statusConfig).map(([k, v]) => (
+   814→   814→              <SelectItem key={k} value={k}>{v.label}</SelectItem>
+   815→   815→            ))}
+   816→   816→          </SelectContent>
+   817→   817→        </Select>
+   818→   818→        <Select value={filterPriority} onValueChange={v => { setFilterPriority(v); setPage(1) }}>
+   819→   819→          <SelectTrigger className="w-[130px] h-9 text-sm">
+   820→   820→            <SelectValue placeholder="Prioridad" />
+   821→   821→          </SelectTrigger>
+   822→   822→          <SelectContent>
+   823→   823→            <SelectItem value="all">Todas</SelectItem>
+   824→   824→            {Object.entries(priorityConfig).map(([k, v]) => (
+   825→   825→              <SelectItem key={k} value={k}>{v.label}</SelectItem>
+   826→   826→            ))}
+   827→   827→          </SelectContent>
+   828→   828→        </Select>
+   829→   829→      </div>
+   830→   830→
+   831→   831→      {/* Cards Grid */}
+   832→   832→      {loading ? (
+   833→   833→        <div className="flex items-center justify-center py-20">
+   834→   834→          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+   835→   835→        </div>
+   836→   836→      ) : requests.length === 0 ? (
+   837→   837→        <div className="text-center py-16 text-gray-400">
+   838→   838→          <ShoppingBag className="h-12 w-12 mx-auto mb-3 opacity-50" />
+   839→   839→          <p className="text-lg font-medium">No hay solicitudes</p>
+   840→   840→          <p className="text-sm">Crea una nueva solicitud de compra para comenzar</p>
+   841→   841→        </div>
+   842→   842→      ) : (
+   843→   843→        <>
+   844→   844→          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+   845→   845→            {requests.map(req => {
+   846→   846→              const st = statusConfig[req.status] || { label: req.status, color: 'text-gray-600', bgColor: 'bg-gray-100' }
+   847→   847→              const pr = priorityConfig[req.priority] || { label: req.priority, color: 'bg-gray-400' }
+   848→   848→              return (
+   849→   849→                <Card
+   850→   850→                  key={req.id}
+   851→   851→                  className="cursor-pointer hover:shadow-md transition-shadow border-l-4"
+   852→   852→                  style={{ borderLeftColor: req.status === 'COMPRADA' ? '#10b981' : req.status === 'APROBADA' ? '#22c55e' : req.status === 'RECHAZADA' ? '#ef4444' : req.status === 'EN_COMPRA' ? '#3b82f6' : req.status === 'URGENTE' ? '#ef4444' : '#f59e0b' }}
+   853→   853→                  onClick={() => goToDetail(req)}
+   854→   854→                >
+   855→   855→                  <CardHeader className="pb-2 pt-4 px-4">
+   856→   856→                    <div className="flex items-center justify-between gap-2">
+   857→   857→                      <span className="text-sm font-bold text-blue-700">{correlativeStr(req.correlativeNumber)}</span>
+   858→   858→                      <Badge className={`${st.bgColor} ${st.color} gap-1 text-[11px]`}>
+   859→   859→                        {statusIcon(req.status)}
+   860→   860→                        {st.label}
+   861→   861→                      </Badge>
+   862→   862→                    </div>
+   863→   863→                    <CardTitle className="text-sm font-semibold text-gray-800 leading-tight mt-1 line-clamp-2">
+   864→   864→                      {req.productDescription}
+   865→   865→                    </CardTitle>
+   866→   866→                  </CardHeader>
+   867→   867→                  <CardContent className="px-4 pb-4 pt-0">
+   868→   868→                    <div className="flex items-center gap-2 flex-wrap mt-2">
+   869→   869→                      {req.brand && (
+   870→   870→                        <Badge variant="outline" className="text-[11px] font-normal">{req.brand}</Badge>
+   871→   871→                      )}
+   872→   872→                      <Badge variant="outline" className="text-[11px] font-normal">Qty: {req.quantity}</Badge>
+   873→   873→                      <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full text-white ${pr.color}`}>
+   874→   874→                        {pr.label}
+   875→   875→                      </span>
+   876→   876→                    </div>
+   877→   877→                    <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
+   878→   878→                      <span>{formatDate(req.createdAt)}</span>
+   879→   879→                      <div className="flex items-center gap-3">
+   880→   880→                        {req.quotes && req.quotes.length > 0 && (
+   881→   881→                          <span className="flex items-center gap-1">
+   882→   882→                            <FileText className="h-3 w-3" />
+   883→   883→                            {req.quotes.length} cot.
+   884→   884→                          </span>
+   885→   885→                        )}
+   886→   886→                        <span className="font-semibold text-gray-700">{getBestQuoteAmount(req)}</span>
+   887→   887→                      </div>
+   888→   888→                    </div>
+   889→   889→                  </CardContent>
+   890→   890→                </Card>
+   891→   891→              )
+   892→   892→            })}
+   893→   893→          </div>
+   894→   894→
+   895→   895→          {/* Pagination */}
+   896→   896→          {totalPages > 1 && (
+   897→   897→            <div className="flex items-center justify-center gap-2 pt-2">
+   898→   898→              <Button
+   899→   899→                variant="outline"
+   900→   900→                size="sm"
+   901→   901→                disabled={page <= 1}
+   902→   902→                onClick={() => setPage(p => Math.max(1, p - 1))}
+   903→   903→              >
+   904→   904→                Anterior
+   905→   905→              </Button>
+   906→   906→              <span className="text-sm text-gray-500">
+   907→   907→                Página {page} de {totalPages}
+   908→   908→              </span>
+   909→   909→              <Button
+   910→   910→                variant="outline"
+   911→   911→                size="sm"
+   912→   912→                disabled={page >= totalPages}
+   913→   913→                onClick={() => setPage(p => p + 1)}
+   914→   914→              >
+   915→   915→                Siguiente
+   916→   916→              </Button>
+   917→   917→            </div>
+   918→   918→          )}
+   919→   919→        </>
+   920→   920→      )}
+   921→   921→    </div>
+   922→   922→  )
+   923→   923→
+   924→   924→  // ============================================================
+   925→   925→  // RENDER: Detail View
+   926→   926→  // ============================================================
+   927→   927→
+   928→   928→  const renderDetailView = () => {
+   929→   929→    if (!selectedRequest) return null
+   930→   930→    const req = selectedRequest
+   931→   931→    const st = statusConfig[req.status] || { label: req.status, color: 'text-gray-600', bgColor: 'bg-gray-100' }
+   932→   932→    const pr = priorityConfig[req.priority] || { label: req.priority, color: 'bg-gray-400' }
+   933→   933→
+   934→   934→    const winnerQuote = req.quotes?.find(q => q.isWinner)
+   935→   935→    const bestPrice = !winnerQuote && req.quotes && req.quotes.length > 0
+   936→   936→      ? Math.min(...req.quotes.map(q => q.amount))
+   937→   937→      : null
+   938→   938→
+   939→   939→    return (
+   940→   940→      <div className="space-y-5">
+   941→   941→        {/* Header */}
+   942→   942→        <div className="flex items-start gap-3">
+   943→   943→          <Button variant="ghost" size="sm" onClick={goToList} className="shrink-0 -ml-2">
+   944→   944→            <ArrowLeft className="h-4 w-4 mr-1" /> Volver
+   945→   945→          </Button>
+   946→   946→          <div className="flex-1 min-w-0">
+   947→   947→            <div className="flex items-center gap-2 flex-wrap">
+   948→   948→              <h2 className="text-xl font-bold text-gray-800">{correlativeStr(req.correlativeNumber)}</h2>
+   949→   949→              <Badge className={`${st.bgColor} ${st.color} gap-1`}>
+   950→   950→                {statusIcon(req.status)}
+   951→   951→                {st.label}
+   952→   952→              </Badge>
+   953→   953→              <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full text-white ${pr.color}`}>
+   954→   954→                {pr.label}
+   955→   955→              </span>
+   956→   956→            </div>
+   957→   957→            <p className="text-gray-600 mt-1">{req.productDescription}</p>
+   958→   958→          </div>
+   959→   959→          <div className="flex items-center gap-1 shrink-0">
+   960→   960→            <Button variant="outline" size="sm" onClick={() => exportPDF(req)} title="Exportar PDF">
+   961→   961→              <FileText className="h-4 w-4" />
+   962→   962→            </Button>
+   963→   963→            <Button variant="outline" size="sm" onClick={() => exportExcel(req)} title="Exportar Excel">
+   964→   964→              <FileSpreadsheet className="h-4 w-4" />
+   965→   965→            </Button>
+   966→   966→          </div>
+   967→   967→        </div>
+   968→   968→
+   969→   969→        {/* Info Card */}
+   970→   970→        <Card>
+   971→   971→          <CardContent className="p-5">
+   972→   972→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+   973→   973→              {req.brand && (
+   974→   974→                <div>
+   975→   975→                  <span className="text-xs text-gray-400 uppercase tracking-wide">Marca</span>
+   976→   976→                  <p className="text-sm font-medium text-gray-800">{req.brand}</p>
+   977→   977→                </div>
+   978→   978→              )}
+   979→   979→              <div>
+   980→   980→                <span className="text-xs text-gray-400 uppercase tracking-wide">Cantidad</span>
+   981→   981→                <p className="text-sm font-medium text-gray-800">{req.quantity}</p>
+   982→   982→              </div>
+   983→   983→              {req.directProvider && (
+   984→   984→                <div>
+   985→   985→                  <span className="text-xs text-gray-400 uppercase tracking-wide">Proveedor Directo</span>
+   986→   986→                  <p className="text-sm font-medium text-gray-800">{req.directProvider}</p>
+   987→   987→                </div>
+   988→   988→              )}
+   989→   989→              {req.responsible && (
+   990→   990→                <div>
+   991→   991→                  <span className="text-xs text-gray-400 uppercase tracking-wide">Responsable</span>
+   992→   992→                  <p className="text-sm font-medium text-gray-800">{req.responsible}</p>
+   993→   993→                </div>
+   994→   994→              )}
+   995→   995→              {req.productLink && (
+   996→   996→                <div className="sm:col-span-2">
+   997→   997→                  <span className="text-xs text-gray-400 uppercase tracking-wide">Link del Producto</span>
+   998→   998→                  <a
+   999→   999→                    href={req.productLink}
+  1000→  1000→                    target="_blank"
+  1001→  1001→                    rel="noopener noreferrer"
+  1002→  1002→                    className="text-sm text-blue-600 hover:underline flex items-center gap-1 mt-0.5"
+  1003→  1003→                  >
+  1004→  1004→                    {req.productLink.length > 60 ? req.productLink.substring(0, 60) + '...' : req.productLink}
+  1005→  1005→                    <ExternalLink className="h-3 w-3" />
+  1006→  1006→                  </a>
+  1007→  1007→                </div>
+  1008→  1008→              )}
+  1009→  1009→              {req.notes && (
+  1010→  1010→                <div className="sm:col-span-2">
+  1011→  1011→                  <span className="text-xs text-gray-400 uppercase tracking-wide">Notas</span>
+  1012→  1012→                  <p className="text-sm text-gray-700 mt-0.5 whitespace-pre-wrap">{req.notes}</p>
+  1013→  1013→                </div>
+  1014→  1014→              )}
+  1015→  1015→              {req.referencePhotoUrl && (
+  1016→  1016→                <div className="sm:col-span-2">
+  1017→  1017→                  <span className="text-xs text-gray-400 uppercase tracking-wide">Foto Referencia</span>
+  1018→  1018→                  <div className="mt-1.5">
+  1019→  1019→                    <img
+  1020→  1020→                      src={req.referencePhotoUrl}
+  1021→  1021→                      alt="Referencia"
+  1022→  1022→                      className="h-24 w-24 object-cover rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
+  1023→  1023→                      onClick={() => { setPreviewImageUrl(req.referencePhotoUrl!); setImagePreviewOpen(true) }}
+  1024→  1024→                    />
+  1025→  1025→                  </div>
+  1026→  1026→                </div>
+  1027→  1027→              )}
+  1028→  1028→              <div>
+  1029→  1029→                <span className="text-xs text-gray-400 uppercase tracking-wide">Fecha Creación</span>
+  1030→  1030→                <p className="text-sm text-gray-700">{formatDateTime(req.createdAt)}</p>
+  1031→  1031→              </div>
+  1032→  1032→              {req.reviewedBy && (
+  1033→  1033→                <div>
+  1034→  1034→                  <span className="text-xs text-gray-400 uppercase tracking-wide">Revisado por</span>
+  1035→  1035→                  <p className="text-sm text-gray-700">{req.reviewedBy}</p>
+  1036→  1036→                </div>
+  1037→  1037→              )}
+  1038→  1038→              {req.reviewNote && (
+  1039→  1039→                <div className="sm:col-span-2">
+  1040→  1040→                  <span className="text-xs text-gray-400 uppercase tracking-wide">Nota de Revisión</span>
+  1041→  1041→                  <p className="text-sm text-gray-700 mt-0.5 bg-amber-50 p-2 rounded border border-amber-200 whitespace-pre-wrap">{req.reviewNote}</p>
+  1042→  1042→                </div>
+  1043→  1043→              )}
+  1044→  1044→              {req.reviewedAt && (
+  1045→  1045→                <div>
+  1046→  1046→                  <span className="text-xs text-gray-400 uppercase tracking-wide">Fecha Revisión</span>
+  1047→  1047→                  <p className="text-sm text-gray-700">{formatDateTime(req.reviewedAt)}</p>
+  1048→  1048→                </div>
+  1049→  1049→              )}
+  1050→  1050→            </div>
+  1051→  1051→          </CardContent>
+  1052→  1052→        </Card>
+  1053→  1053→
+  1054→  1054→        {/* Action Buttons */}
+  1055→  1055→        <div className="flex items-center gap-2 flex-wrap">
+  1056→  1056→          {req.status === 'PENDIENTE' && (
+  1057→  1057→            <>
+  1058→  1058→              <Button size="sm" className="gap-1 bg-green-600 hover:bg-green-700" onClick={() => openReviewDialog('APROBADA')}>
+  1059→  1059→                <CheckCircle className="h-4 w-4" /> Aprobar
+  1060→  1060→              </Button>
+  1061→  1061→              <Button size="sm" variant="destructive" className="gap-1" onClick={() => openReviewDialog('RECHAZADA')}>
+  1062→  1062→                <XCircle className="h-4 w-4" /> Rechazar
+  1063→  1063→              </Button>
+  1064→  1064→              <Button size="sm" variant="outline" className="gap-1" onClick={() => openEditForm(req)}>
+  1065→  1065→                <Pencil className="h-4 w-4" /> Editar
+  1066→  1066→              </Button>
+  1067→  1067→              <Button size="sm" variant="outline" className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => { setDeleteTarget({ type: 'request', id: req.id }); setDeleteDialogOpen(true) }}>
+  1068→  1068→                <Trash2 className="h-4 w-4" /> Eliminar
+  1069→  1069→              </Button>
+  1070→  1070→            </>
+  1071→  1071→          )}
+  1072→  1072→          {req.status === 'APROBADA' && (
+  1073→  1073→            <>
+  1074→  1074→              <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700" onClick={() => openReviewDialog('EN_COMPRA')}>
+  1075→  1075→                <ShoppingBag className="h-4 w-4" /> Marcar En Compra
+  1076→  1076→              </Button>
+  1077→  1077→              <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700" onClick={() => openReviewDialog('COMPRADA')}>
+  1078→  1078→                <CheckCircle className="h-4 w-4" /> Marcar Comprada
+  1079→  1079→              </Button>
+  1080→  1080→            </>
+  1081→  1081→          )}
+  1082→  1082→          {req.status === 'EN_COMPRA' && (
+  1083→  1083→            <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700" onClick={() => openReviewDialog('COMPRADA')}>
+  1084→  1084→              <CheckCircle className="h-4 w-4" /> Marcar Comprada
+  1085→  1085→            </Button>
+  1086→  1086→          )}
+  1087→  1087→        </div>
+  1088→  1088→
+  1089→  1089→        {/* Quotes Section */}
+  1090→  1090→        <Card>
+  1091→  1091→          <CardHeader className="pb-3 pt-4 px-5">
+  1092→  1092→            <div className="flex items-center justify-between">
+  1093→  1093→              <CardTitle className="text-base font-semibold flex items-center gap-2">
+  1094→  1094→                <FileText className="h-4 w-4 text-blue-600" />
+  1095→  1095→                Cotizaciones
+  1096→  1096→                {req.quotes && req.quotes.length > 0 && (
+  1097→  1097→                  <Badge variant="secondary" className="text-xs">{req.quotes.length}</Badge>
+  1098→  1098→                )}
+  1099→  1099→              </CardTitle>
+  1100→  1100→              <Button size="sm" variant="outline" className="gap-1" onClick={openQuoteDialog}>
+  1101→  1101→                <Plus className="h-3.5 w-3.5" /> Agregar Cotización
+  1102→  1102→              </Button>
+  1103→  1103→            </div>
+  1104→  1104→          </CardHeader>
+  1105→  1105→          <CardContent className="px-5 pb-4">
+  1106→  1106→            {!req.quotes || req.quotes.length === 0 ? (
+  1107→  1107→              <div className="text-center py-8 text-gray-400">
+  1108→  1108→                <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+  1109→  1109→                <p className="text-sm">No hay cotizaciones registradas</p>
+  1110→  1110→                <p className="text-xs mt-1">Agrega cotizaciones de proveedores para esta solicitud</p>
+  1111→  1111→              </div>
+  1112→  1112→            ) : (
+  1113→  1113→              <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+  1114→  1114→                {req.quotes.map(q => {
+  1115→  1115→                  const isWinner = q.isWinner
+  1116→  1116→                  const isBestPrice = bestPrice !== null && q.amount === bestPrice
+  1117→  1117→                  return (
+  1118→  1118→                    <div
+  1119→  1119→                      key={q.id}
+  1120→  1120→                      className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
+  1121→  1121→                        isWinner ? 'bg-green-50 border-green-300' : isBestPrice ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200'
+  1122→  1122→                      }`}
+  1123→  1123→                    >
+  1124→  1124→                      {/* Star / Winner selector */}
+  1125→  1125→                      <button
+  1126→  1126→                        onClick={() => !isWinner && setWinner(q.id)}
+  1127→  1127→                        className={`mt-0.5 shrink-0 ${isWinner ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-400'} transition-colors`}
+  1128→  1128→                        title={isWinner ? 'Cotización ganadora' : 'Seleccionar como ganadora'}
+  1129→  1129→                      >
+  1130→  1130→                        <Star className={`h-5 w-5 ${isWinner ? 'fill-current' : ''}`} />
+  1131→  1131→                      </button>
+  1132→  1132→
+  1133→  1133→                      {/* Quote Info */}
+  1134→  1134→                      <div className="flex-1 min-w-0">
+  1135→  1135→                        <div className="flex items-center gap-2 flex-wrap">
+  1136→  1136→                          <span className="font-medium text-sm text-gray-800">{q.providerName}</span>
+  1137→  1137→                          {isWinner && (
+  1138→  1138→                            <Badge className="bg-green-100 text-green-700 text-[10px] gap-0.5">
+  1139→  1139→                              <CheckCircle className="h-3 w-3" /> Ganadora
+  1140→  1140→                            </Badge>
+  1141→  1141→                          )}
+  1142→  1142→                          {isBestPrice && !isWinner && (
+  1143→  1143→                            <Badge className="bg-blue-100 text-blue-700 text-[10px]">Mejor precio</Badge>
+  1144→  1144→                          )}
+  1145→  1145→                        </div>
+  1146→  1146→                        <div className="flex items-center gap-3 mt-1">
+  1147→  1147→                          <span className="text-lg font-bold text-gray-900">{formatCLP(q.amount)}</span>
+  1148→  1148→                          <span className="text-xs text-gray-400 uppercase">{q.currency}</span>
+  1149→  1149→                        </div>
+  1150→  1150→                        {q.notes && (
+  1151→  1151→                          <p className="text-xs text-gray-500 mt-1">{q.notes}</p>
+  1152→  1152→                        )}
+  1153→  1153→                        {q.fileName && (
+  1154→  1154→                          <a
+  1155→  1155→                            href={q.fileUrl || '#'}
+  1156→  1156→                            target="_blank"
+  1157→  1157→                            rel="noopener noreferrer"
+  1158→  1158→                            className="text-xs text-blue-500 hover:underline flex items-center gap-1 mt-1"
+  1159→  1159→                          >
+  1160→  1160→                            <Download className="h-3 w-3" /> {q.fileName}
+  1161→  1161→                          </a>
+  1162→  1162→                        )}
+  1163→  1163→                        <span className="text-[10px] text-gray-400 mt-1 block">{formatDateTime(q.createdAt)}</span>
+  1164→  1164→                      </div>
+  1165→  1165→
+  1166→  1166→                      {/* Delete quote */}
+  1167→  1167→                      <Button
+  1168→  1168→                        variant="ghost"
+  1169→  1169→                        size="sm"
+  1170→  1170→                        className="shrink-0 text-gray-400 hover:text-red-500 h-8 w-8 p-0"
+  1171→  1171→                        onClick={() => { setDeleteTarget({ type: 'quote', id: q.id }); setDeleteDialogOpen(true) }}
+  1172→  1172→                      >
+  1173→  1173→                        <Trash2 className="h-4 w-4" />
+  1174→  1174→                      </Button>
+  1175→  1175→                    </div>
+  1176→  1176→                  )
+  1177→  1177→                })}
+  1178→  1178→              </div>
+  1179→  1179→            )}
+  1180→  1180→          </CardContent>
+  1181→  1181→        </Card>
+  1182→  1182→      </div>
+  1183→  1183→    )
+  1184→  1184→  }
+  1185→  1185→
+  1186→  1186→  // ============================================================
+  1187→  1187→  // RENDER: Create / Edit Form Dialog
+  1188→  1188→  // ============================================================
+  1189→  1189→
+  1190→  1190→  const renderFormDialog = () => (
+  1191→  1191→    <Dialog open={formOpen} onOpenChange={v => { setFormOpen(v); if (!v) resetForm() }}>
+  1192→  1192→      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+  1193→  1193→        <DialogHeader>
+  1194→  1194→          <DialogTitle>{editingId ? 'Editar Solicitud' : 'Nueva Solicitud de Compra'}</DialogTitle>
+  1195→  1195→          <DialogDescription>
+  1196→  1196→            {editingId ? 'Modifica los campos de la solicitud' : 'Completa los datos para crear una nueva solicitud de compra'}
+  1197→  1197→          </DialogDescription>
+  1198→  1198→        </DialogHeader>
+  1199→  1199→
+  1200→  1200→        <div className="space-y-4 py-2">
+  1201→  1201→          {/* Product Description */}
+  1202→  1202→          <div className="space-y-1.5">
+  1203→  1203→            <Label htmlFor="productDescription" className="text-sm font-medium">
+  1204→  1204→              Descripción del Producto <span className="text-red-500">*</span>
+  1205→  1205→            </Label>
+  1206→  1206→            <Textarea
+  1207→  1207→              id="productDescription"
+  1208→  1208→              value={formData.productDescription}
+  1209→  1209→              onChange={e => setFormData(prev => ({ ...prev, productDescription: e.target.value }))}
+  1210→  1210→              placeholder="Describe el producto o servicio solicitado..."
+  1211→  1211→              rows={3}
+  1212→  1212→            />
+  1213→  1213→          </div>
+  1214→  1214→
+  1215→  1215→          {/* Brand & Quantity */}
+  1216→  1216→          <div className="grid grid-cols-2 gap-3">
+  1217→  1217→            <div className="space-y-1.5">
+  1218→  1218→              <Label htmlFor="brand" className="text-sm font-medium">Marca</Label>
+  1219→  1219→              <Input
+  1220→  1220→                id="brand"
+  1221→  1221→                value={formData.brand}
+  1222→  1222→                onChange={e => setFormData(prev => ({ ...prev, brand: e.target.value }))}
+  1223→  1223→                placeholder="Ej: Bosch, 3M..."
+  1224→  1224→              />
+  1225→  1225→            </div>
+  1226→  1226→            <div className="space-y-1.5">
+  1227→  1227→              <Label htmlFor="quantity" className="text-sm font-medium">Cantidad</Label>
+  1228→  1228→              <Input
+  1229→  1229→                id="quantity"
+  1230→  1230→                type="number"
+  1231→  1231→                min="1"
+  1232→  1232→                value={formData.quantity}
+  1233→  1233→                onChange={e => setFormData(prev => ({ ...prev, quantity: e.target.value }))}
+  1234→  1234→              />
+  1235→  1235→            </div>
+  1236→  1236→          </div>
+  1237→  1237→
+  1238→  1238→          {/* Priority */}
+  1239→  1239→          <div className="space-y-1.5">
+  1240→  1240→            <Label className="text-sm font-medium">Prioridad</Label>
+  1241→  1241→            <Select value={formData.priority} onValueChange={v => setFormData(prev => ({ ...prev, priority: v }))}>
+  1242→  1242→              <SelectTrigger>
+  1243→  1243→                <SelectValue />
+  1244→  1244→              </SelectTrigger>
+  1245→  1245→              <SelectContent>
+  1246→  1246→                {Object.entries(priorityConfig).map(([k, v]) => (
+  1247→  1247→                  <SelectItem key={k} value={k}>
+  1248→  1248→                    <span className="flex items-center gap-2">
+  1249→  1249→                      <span className={`w-2.5 h-2.5 rounded-full ${v.color}`} />
+  1250→  1250→                      {v.label}
+  1251→  1251→                    </span>
+  1252→  1252→                  </SelectItem>
+  1253→  1253→                ))}
+  1254→  1254→              </SelectContent>
+  1255→  1255→            </Select>
+  1256→  1256→          </div>
+  1257→  1257→
+  1258→  1258→          {/* Product Link */}
+  1259→  1259→          <div className="space-y-1.5">
+  1260→  1260→            <Label htmlFor="productLink" className="text-sm font-medium">Link del Producto</Label>
+  1261→  1261→            <Input
+  1262→  1262→              id="productLink"
+  1263→  1263→              value={formData.productLink}
+  1264→  1264→              onChange={e => setFormData(prev => ({ ...prev, productLink: e.target.value }))}
+  1265→  1265→              placeholder="https://..."
+  1266→  1266→            />
+  1267→  1267→          </div>
+  1268→  1268→
+  1269→  1269→          {/* Reference Photo */}
+  1270→  1270→          <div className="space-y-1.5">
+  1271→  1271→            <Label className="text-sm font-medium">Foto de Referencia</Label>
+  1272→  1272→            {formData.referencePhotoUrl ? (
+  1273→  1273→              <div className="relative inline-block">
+  1274→  1274→                <img
+  1275→  1275→                  src={formData.referencePhotoUrl}
+  1276→  1276→                  alt="Referencia"
+  1277→  1277→                  className="h-24 w-24 object-cover rounded-lg border"
+  1278→  1278→                />
+  1279→  1279→                <button
+  1280→  1280→                  onClick={removePhoto}
+  1281→  1281→                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600"
+  1282→  1282→                >
+  1283→  1283→                  <X className="h-3.5 w-3.5" />
+  1284→  1284→                </button>
+  1285→  1285→              </div>
+  1286→  1286→            ) : (
+  1287→  1287→              <div
+  1288→  1288→                onClick={() => photoInputRef.current?.click()}
+  1289→  1289→                className="flex items-center justify-center h-24 w-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+  1290→  1290→              >
+  1291→  1291→                {uploadingPhoto ? (
+  1292→  1292→                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
+  1293→  1293→                ) : (
+  1294→  1294→                  <div className="text-center">
+  1295→  1295→                    <Camera className="h-6 w-6 mx-auto text-gray-400" />
+  1296→  1296→                    <span className="text-[10px] text-gray-400 mt-1 block">Subir foto</span>
+  1297→  1297→                  </div>
+  1298→  1298→                )}
+  1299→  1299→              </div>
+  1300→  1300→            )}
+  1301→  1301→            <input
+  1302→  1302→              ref={photoInputRef}
+  1303→  1303→              type="file"
+  1304→  1304→              accept="image/*"
+  1305→  1305→              className="hidden"
+  1306→  1306→              onChange={handlePhotoUpload}
+  1307→  1307→            />
+  1308→  1308→          </div>
+  1309→  1309→
+  1310→  1310→          {/* Direct Provider */}
+  1311→  1311→          <div className="space-y-1.5">
+  1312→  1312→            <Label htmlFor="directProvider" className="text-sm font-medium">Proveedor Directo</Label>
+  1313→  1313→            <Input
+  1314→  1314→              id="directProvider"
+  1315→  1315→              value={formData.directProvider}
+  1316→  1316→              onChange={e => setFormData(prev => ({ ...prev, directProvider: e.target.value }))}
+  1317→  1317→              placeholder="Nombre del proveedor sugerido..."
+  1318→  1318→            />
+  1319→  1319→          </div>
+  1320→  1320→
+  1321→  1321→          {/* Responsible */}
+  1322→  1322→          <div className="space-y-1.5">
+  1323→  1323→            <Label htmlFor="responsible" className="text-sm font-medium">Responsable</Label>
+  1324→  1324→            <Input
+  1325→  1325→              id="responsible"
+  1326→  1326→              value={formData.responsible}
+  1327→  1327→              onChange={e => setFormData(prev => ({ ...prev, responsible: e.target.value }))}
+  1328→  1328→              placeholder="Nombre del responsable..."
+  1329→  1329→            />
+  1330→  1330→          </div>
+  1331→  1331→
+  1332→  1332→          {/* Notes */}
+  1333→  1333→          <div className="space-y-1.5">
+  1334→  1334→            <Label htmlFor="notes" className="text-sm font-medium">Notas</Label>
+  1335→  1335→            <Textarea
+  1336→  1336→              id="notes"
+  1337→  1337→              value={formData.notes}
+  1338→  1338→              onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+  1339→  1339→              placeholder="Observaciones adicionales..."
+  1340→  1340→              rows={2}
+  1341→  1341→            />
+  1342→  1342→          </div>
+  1343→  1343→        </div>
+  1344→  1344→
+  1345→  1345→        <DialogFooter>
+  1346→  1346→          <Button variant="outline" onClick={() => { setFormOpen(false); resetForm() }}>Cancelar</Button>
+  1347→  1347→          <Button onClick={handleFormSubmit} className="gap-1">
+  1348→  1348→            <Send className="h-4 w-4" />
+  1349→  1349→            {editingId ? 'Guardar Cambios' : 'Crear Solicitud'}
+  1350→  1350→          </Button>
+  1351→  1351→        </DialogFooter>
+  1352→  1352→      </DialogContent>
+  1353→  1353→    </Dialog>
+  1354→  1354→  )
+  1355→  1355→
+  1356→  1356→  // ============================================================
+  1357→  1357→  // RENDER: Add Quote Dialog
+  1358→  1358→  // ============================================================
+  1359→  1359→
+  1360→  1360→  const renderQuoteDialog = () => (
+  1361→  1361→    <Dialog open={quoteDialogOpen} onOpenChange={v => { setQuoteDialogOpen(v); if (!v) resetQuoteForm() }}>
+  1362→  1362→      <DialogContent className="max-w-md">
+  1363→  1363→        <DialogHeader>
+  1364→  1364→          <DialogTitle>Agregar Cotización</DialogTitle>
+  1365→  1365→          <DialogDescription>
+  1366→  1366→            Ingresa los datos de la cotización del proveedor
+  1367→  1367→          </DialogDescription>
+  1368→  1368→        </DialogHeader>
+  1369→  1369→
+  1370→  1370→        <div className="space-y-4 py-2">
+  1371→  1371→          {/* Provider Name */}
+  1372→  1372→          <div className="space-y-1.5">
+  1373→  1373→            <Label htmlFor="providerName" className="text-sm font-medium">
+  1374→  1374→              Proveedor <span className="text-red-500">*</span>
+  1375→  1375→            </Label>
+  1376→  1376→            <Input
+  1377→  1377→              id="providerName"
+  1378→  1378→              value={quoteFormData.providerName}
+  1379→  1379→              onChange={e => setQuoteFormData(prev => ({ ...prev, providerName: e.target.value }))}
+  1380→  1380→              placeholder="Nombre del proveedor..."
+  1381→  1381→            />
+  1382→  1382→          </div>
+  1383→  1383→
+  1384→  1384→          {/* Amount & Currency */}
+  1385→  1385→          <div className="grid grid-cols-3 gap-3">
+  1386→  1386→            <div className="col-span-2 space-y-1.5">
+  1387→  1387→              <Label htmlFor="quoteAmount" className="text-sm font-medium">
+  1388→  1388→                Monto <span className="text-red-500">*</span>
+  1389→  1389→              </Label>
+  1390→  1390→              <Input
+  1391→  1391→                id="quoteAmount"
+  1392→  1392→                type="number"
+  1393→  1393→                min="0"
+  1394→  1394→                step="any"
+  1395→  1395→                value={quoteFormData.amount}
+  1396→  1396→                onChange={e => setQuoteFormData(prev => ({ ...prev, amount: e.target.value }))}
+  1397→  1397→                placeholder="0"
+  1398→  1398→              />
+  1399→  1399→            </div>
+  1400→  1400→            <div className="space-y-1.5">
+  1401→  1401→              <Label className="text-sm font-medium">Moneda</Label>
+  1402→  1402→              <Select value={quoteFormData.currency} onValueChange={v => setQuoteFormData(prev => ({ ...prev, currency: v }))}>
+  1403→  1403→                <SelectTrigger>
+  1404→  1404→                  <SelectValue />
+  1405→  1405→                </SelectTrigger>
+  1406→  1406→                <SelectContent>
+  1407→  1407→                  <SelectItem value="CLP">CLP</SelectItem>
+  1408→  1408→                  <SelectItem value="USD">USD</SelectItem>
+  1409→  1409→                  <SelectItem value="EUR">EUR</SelectItem>
+  1410→  1410→                </SelectContent>
+  1411→  1411→              </Select>
+  1412→  1412→            </div>
+  1413→  1413→          </div>
+  1414→  1414→
+  1415→  1415→          {/* File attachment */}
+  1416→  1416→          <div className="space-y-1.5">
+  1417→  1417→            <Label className="text-sm font-medium">Archivo Adjunto</Label>
+  1418→  1418→            {quoteFormData.fileUrl ? (
+  1419→  1419→              <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg border">
+  1420→  1420→                <FileText className="h-4 w-4 text-gray-500 shrink-0" />
+  1421→  1421→                <span className="text-sm text-gray-700 truncate flex-1">{quoteFormData.fileName}</span>
+  1422→  1422→                <button
+  1423→  1423→                  onClick={removeQuoteFile}
+  1424→  1424→                  className="text-red-500 hover:text-red-700 shrink-0"
+  1425→  1425→                >
+  1426→  1426→                  <X className="h-4 w-4" />
+  1427→  1427→                </button>
+  1428→  1428→              </div>
+  1429→  1429→            ) : (
+  1430→  1430→              <div
+  1431→  1431→                onClick={() => quoteFileInputRef.current?.click()}
+  1432→  1432→                className="flex items-center justify-center h-16 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+  1433→  1433→              >
+  1434→  1434→                {uploadingQuoteFile ? (
+  1435→  1435→                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600" />
+  1436→  1436→                ) : (
+  1437→  1437→                  <div className="text-center">
+  1438→  1438→                    <Upload className="h-5 w-5 mx-auto text-gray-400" />
+  1439→  1439→                    <span className="text-[10px] text-gray-400 mt-0.5 block">Subir archivo</span>
+  1440→  1440→                  </div>
+  1441→  1441→                )}
+  1442→  1442→              </div>
+  1443→  1443→            )}
+  1444→  1444→            <input
+  1445→  1445→              ref={quoteFileInputRef}
+  1446→  1446→              type="file"
+  1447→  1447→              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+  1448→  1448→              className="hidden"
+  1449→  1449→              onChange={handleQuoteFileUpload}
+  1450→  1450→            />
+  1451→  1451→          </div>
+  1452→  1452→
+  1453→  1453→          {/* Notes */}
+  1454→  1454→          <div className="space-y-1.5">
+  1455→  1455→            <Label htmlFor="quoteNotes" className="text-sm font-medium">Notas</Label>
+  1456→  1456→            <Textarea
+  1457→  1457→              id="quoteNotes"
+  1458→  1458→              value={quoteFormData.notes}
+  1459→  1459→              onChange={e => setQuoteFormData(prev => ({ ...prev, notes: e.target.value }))}
+  1460→  1460→              placeholder="Observaciones sobre la cotización..."
+  1461→  1461→              rows={2}
+  1462→  1462→            />
+  1463→  1463→          </div>
+  1464→  1464→        </div>
+  1465→  1465→
+  1466→  1466→        <DialogFooter>
+  1467→  1467→          <Button variant="outline" onClick={() => { setQuoteDialogOpen(false); resetQuoteForm() }}>Cancelar</Button>
+  1468→  1468→          <Button onClick={handleQuoteSubmit} className="gap-1">
+  1469→  1469→            <Plus className="h-4 w-4" />
+  1470→  1470→            Agregar
+  1471→  1471→          </Button>
+  1472→  1472→        </DialogFooter>
+  1473→  1473→      </DialogContent>
+  1474→  1474→    </Dialog>
+  1475→  1475→  )
+  1476→  1476→
+  1477→  1477→  // ============================================================
+  1478→  1478→  // RENDER: Review Dialog
+  1479→  1479→  // ============================================================
+  1480→  1480→
+  1481→  1481→  const renderReviewDialog = () => {
+  1482→  1482→    const actionLabels: Record<string, string> = {
+  1483→  1483→      APROBADA: 'Aprobar',
+  1484→  1484→      RECHAZADA: 'Rechazar',
+  1485→  1485→      EN_COMPRA: 'Marcar En Compra',
+  1486→  1486→      COMPRADA: 'Marcar Comprada',
+  1487→  1487→    }
+  1488→  1488→    return (
+  1489→  1489→      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+  1490→  1490→        <DialogContent className="max-w-sm">
+  1491→  1491→          <DialogHeader>
+  1492→  1492→            <DialogTitle>{reviewAction ? actionLabels[reviewAction] : 'Acción'}</DialogTitle>
+  1493→  1493→            <DialogDescription>
+  1494→  1494→              {reviewAction === 'APROBADA' && '¿Estás seguro de aprobar esta solicitud?'}
+  1495→  1495→              {reviewAction === 'RECHAZADA' && 'Indica el motivo del rechazo'}
+  1496→  1496→              {reviewAction === 'EN_COMPRA' && '¿Confirmas que esta solicitud está en proceso de compra?'}
+  1497→  1497→              {reviewAction === 'COMPRADA' && '¿Confirmas que esta solicitud ya fue comprada?'}
+  1498→  1498→            </DialogDescription>
+  1499→  1499→          </DialogHeader>
+  1500→  1500→
+  1501→  1501→          <div className="space-y-3 py-2">
+  1502→  1502→            <div className="space-y-1.5">
+  1503→  1503→              <Label htmlFor="reviewedBy" className="text-sm font-medium">Revisado por</Label>
+  1504→  1504→              <Input
+  1505→  1505→                id="reviewedBy"
+  1506→  1506→                value={reviewedBy}
+  1507→  1507→                onChange={e => setReviewedBy(e.target.value)}
+  1508→  1508→                placeholder="Tu nombre..."
+  1509→  1509→              />
+  1510→  1510→            </div>
+  1511→  1511→            <div className="space-y-1.5">
+  1512→  1512→              <Label htmlFor="reviewNote" className="text-sm font-medium">Nota</Label>
+  1513→  1513→              <Textarea
+  1514→  1514→                id="reviewNote"
+  1515→  1515→                value={reviewNote}
+  1516→  1516→                onChange={e => setReviewNote(e.target.value)}
+  1517→  1517→                placeholder={reviewAction === 'RECHAZADA' ? 'Motivo del rechazo...' : 'Observaciones (opcional)...'}
+  1518→  1518→                rows={2}
+  1519→  1519→              />
+  1520→  1520→            </div>
+  1521→  1521→          </div>
+  1522→  1522→
+  1523→  1523→          <DialogFooter>
+  1524→  1524→            <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>Cancelar</Button>
+  1525→  1525→            <Button
+  1526→  1526→              onClick={handleReviewSubmit}
+  1527→  1527→              className={reviewAction === 'RECHAZADA' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}
+  1528→  1528→            >
+  1529→  1529→              {reviewAction ? actionLabels[reviewAction] : 'Confirmar'}
+  1530→  1530→            </Button>
+  1531→  1531→          </DialogFooter>
+  1532→  1532→        </DialogContent>
+  1533→  1533→      </Dialog>
+  1534→  1534→    )
+  1535→  1535→  }
+  1536→  1536→
+  1537→  1537→  // ============================================================
+  1538→  1538→  // RENDER: Delete Confirmation
+  1539→  1539→  // ============================================================
+  1540→  1540→
+  1541→  1541→  const renderDeleteDialog = () => (
+  1542→  1542→    <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+  1543→  1543→      <AlertDialogContent>
+  1544→  1544→        <AlertDialogHeader>
+  1545→  1545→          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+  1546→  1546→          <AlertDialogDescription>
+  1547→  1547→            {deleteTarget?.type === 'request'
+  1548→  1548→              ? 'Esta acción eliminará la solicitud de compra y todas sus cotizaciones. No se puede deshacer.'
+  1549→  1549→              : 'Esta acción eliminará la cotización. No se puede deshacer.'}
+  1550→  1550→          </AlertDialogDescription>
+  1551→  1551→        </AlertDialogHeader>
+  1552→  1552→        <AlertDialogFooter>
+  1553→  1553→          <AlertDialogCancel onClick={() => { setDeleteDialogOpen(false); setDeleteTarget(null) }}>Cancelar</AlertDialogCancel>
+  1554→  1554→          <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">Eliminar</AlertDialogAction>
+  1555→  1555→        </AlertDialogFooter>
+  1556→  1556→      </AlertDialogContent>
+  1557→  1557→    </AlertDialog>
+  1558→  1558→  )
+  1559→  1559→
+  1560→  1560→  // ============================================================
+  1561→  1561→  // RENDER: Image Preview
+  1562→  1562→  // ============================================================
+  1563→  1563→
+  1564→  1564→  const renderImagePreview = () => (
+  1565→  1565→    <Dialog open={imagePreviewOpen} onOpenChange={setImagePreviewOpen}>
+  1566→  1566→      <DialogContent className="max-w-lg p-2">
+  1567→  1567→        <DialogHeader className="sr-only">
+  1568→  1568→          <DialogTitle>Vista previa de imagen</DialogTitle>
+  1569→  1569→          <DialogDescription>Imagen de referencia ampliada</DialogDescription>
+  1570→  1570→        </DialogHeader>
+  1571→  1571→        {previewImageUrl && (
+  1572→  1572→          <img
+  1573→  1573→            src={previewImageUrl}
+  1574→  1574→            alt="Vista previa"
+  1575→  1575→            className="w-full h-auto rounded-lg"
+  1576→  1576→          />
+  1577→  1577→        )}
+  1578→  1578→      </DialogContent>
+  1579→  1579→    </Dialog>
+  1580→  1580→  )
+  1581→  1581→
+  1582→  1582→  // ============================================================
+  1583→  1583→  // MAIN RENDER
+  1584→  1584→  // ============================================================
+  1585→  1585→
+  1586→  1586→  return (
+  1587→  1587→    <div className="w-full">
+  1588→  1588→      {view === 'list' ? renderListView() : renderDetailView()}
+  1589→  1589→
+  1590→  1590→      {renderFormDialog()}
+  1591→  1591→      {renderQuoteDialog()}
+  1592→  1592→      {renderReviewDialog()}
+  1593→  1593→      {renderDeleteDialog()}
+  1594→  1594→      {renderImagePreview()}
+  1595→  1595→    </div>
+  1596→  1596→  )
+  1597→  1597→}
+  1598→  1598→

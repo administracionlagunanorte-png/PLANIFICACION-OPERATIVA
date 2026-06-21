@@ -183,6 +183,12 @@ interface HomeClientProps {
 
 export default function Home({ onAuthExpired }: HomeClientProps) {
   const { session, logout } = useAuth()
+  const userRole = session?.user?.role || 'USER'
+  const isAdmin = userRole === 'ADMIN'
+  const isSupervisor = userRole === 'SUPERVISOR'
+  const canApprove = isAdmin || isSupervisor  // Solo Admin y Supervisor pueden aprobar
+  const canEditAll = isAdmin || isSupervisor   // Solo Admin y Supervisor pueden editar todo
+  const canCreate = true // Todos los roles pueden crear
   const [tasks, setTasks] = useState<Task[]>([])
   const [sectors, setSectors] = useState<Sector[]>([])
   const [repairTypes, setRepairTypes] = useState<RepairType[]>([])
@@ -994,6 +1000,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
   const getApprovalColor = (status: string) => {
     switch (status) {
       case 'Aprobado': return '#16a34a'
+      case 'Aprobado por Supervisor': return '#2563eb'
       case 'No aprobado': return '#dc2626'
       case 'En espera de decisión': return '#d97706'
       default: return '#6b7280'
@@ -1003,10 +1010,22 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
   const getApprovalBadgeClass = (status: string) => {
     switch (status) {
       case 'Aprobado': return 'bg-green-50 text-green-700 border-green-200'
+      case 'Aprobado por Supervisor': return 'bg-blue-50 text-blue-700 border-blue-200'
       case 'No aprobado': return 'bg-red-50 text-red-700 border-red-200'
       case 'En espera de decisión': return 'bg-amber-50 text-amber-700 border-amber-200'
       default: return ''
     }
+  }
+
+  // Obtener las opciones de aprobación disponibles según el rol del usuario
+  const getApprovalOptions = (currentStatus: string) => {
+    const options: { value: string; label: string; color: string; allowed: boolean }[] = [
+      { value: 'En espera de decisión', label: 'En espera', color: '#d97706', allowed: true },
+      { value: 'Aprobado por Supervisor', label: 'Aprobado (Supervisor)', color: '#2563eb', allowed: isSupervisor || isAdmin },
+      { value: 'Aprobado', label: 'Aprobado (Admin)', color: '#16a34a', allowed: isAdmin },
+      { value: 'No aprobado', label: 'No aprobado', color: '#dc2626', allowed: isSupervisor || isAdmin },
+    ]
+    return options.filter(o => o.allowed)
   }
 
   const handleUpdateTaskApproval = async (taskId: string, newApproval: string) => {
@@ -1051,6 +1070,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
   const inProgressTasks = tasks.filter(t => t.status === 'En Proceso').length
   const pendingTasks = tasks.filter(t => t.status === 'Pendiente').length
   const approvedTasks = tasks.filter(t => t.approvalStatus === 'Aprobado').length
+  const supervisorApprovedTasks = tasks.filter(t => t.approvalStatus === 'Aprobado por Supervisor').length
   const notApprovedTasks = tasks.filter(t => t.approvalStatus === 'No aprobado').length
   const waitingApprovalTasks = tasks.filter(t => t.approvalStatus === 'En espera de decisión' || !t.approvalStatus).length
   const totalAmount = tasks.reduce((sum, t) => sum + (t.amount || 0), 0)
@@ -3133,9 +3153,11 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
               <Button onClick={openCreateTask} size="sm" className="gap-1">
                 <Plus className="h-4 w-4" /> Nueva Tarea
               </Button>
+              {canEditAll && (
               <Button variant="outline" size="sm" onClick={() => setConfigDialogOpen(true)} className="gap-1">
                 <Settings className="h-4 w-4" /> Configurar
               </Button>
+              )}
               <Button variant="outline" size="sm" onClick={() => openHistory('all')} className="gap-1">
                 <History className="h-4 w-4" /> Historial
               </Button>
@@ -3350,7 +3372,8 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Toda Aprobación</SelectItem>
-                <SelectItem value="Aprobado">Aprobado</SelectItem>
+                <SelectItem value="Aprobado">Aprobado (Admin)</SelectItem>
+                <SelectItem value="Aprobado por Supervisor">Aprobado (Supervisor)</SelectItem>
                 <SelectItem value="No aprobado">No aprobado</SelectItem>
                 <SelectItem value="En espera de decisión">En espera de decisión</SelectItem>
               </SelectContent>
@@ -3413,17 +3436,30 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
             </div>
 
             {/* Approval Status Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card className="border-green-200 bg-green-50/50">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-green-700 flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4" /> Aprobadas
+                    <CheckCircle className="h-4 w-4" /> Aprobadas (Admin)
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-green-700">{approvedTasks}</div>
                   <div className="text-xs text-green-600 mt-1">
                     {totalTasks > 0 ? Math.round((approvedTasks / totalTasks) * 100) : 0}% del total
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-blue-200 bg-blue-50/50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-blue-700 flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4" /> Aprobadas (Supervisor)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-blue-700">{supervisorApprovedTasks}</div>
+                  <div className="text-xs text-blue-600 mt-1">
+                    {totalTasks > 0 ? Math.round((supervisorApprovedTasks / totalTasks) * 100) : 0}% del total - Esperan Admin
                   </div>
                 </CardContent>
               </Card>
@@ -3443,7 +3479,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
               <Card className="border-amber-200 bg-amber-50/50">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-amber-700 flex items-center gap-2">
-                    <Clock className="h-4 w-4" /> En Espera de Decisión
+                    <Clock className="h-4 w-4" /> En Espera
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -3568,9 +3604,11 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
+                        {canEditAll && (
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => openEditTask(task)} title="Editar">
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -3685,16 +3723,28 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
                               </select>
                             </TableCell>
                             <TableCell className="px-1 py-0.5">
-                              <select
-                                value={task.approvalStatus || 'En espera de decisión'}
-                                onChange={e => handleUpdateTaskApproval(task.id, e.target.value)}
-                                className="text-[11px] border rounded px-1 py-0 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
-                                style={{ color: getApprovalColor(task.approvalStatus) }}
-                              >
-                                <option value="Aprobado" style={{ color: '#16a34a' }}>Aprobado</option>
-                                <option value="No aprobado" style={{ color: '#dc2626' }}>No aprobado</option>
-                                <option value="En espera de decisión" style={{ color: '#d97706' }}>En espera</option>
-                              </select>
+                              {canApprove ? (
+                                <select
+                                  value={task.approvalStatus || 'En espera de decisión'}
+                                  onChange={e => handleUpdateTaskApproval(task.id, e.target.value)}
+                                  className="text-[11px] border rounded px-1 py-0 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
+                                  style={{ color: getApprovalColor(task.approvalStatus) }}
+                                >
+                                  {getApprovalOptions(task.approvalStatus).map(opt => (
+                                    <option key={opt.value} value={opt.value} style={{ color: opt.color }}>
+                                      {opt.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <Badge variant="outline" className={`text-[10px] px-1.5 py-0.5 ${getApprovalBadgeClass(task.approvalStatus)}`}>
+                                  {task.approvalStatus === 'Aprobado por Supervisor' && <ShieldCheck className="h-3 w-3 mr-1" />}
+                                  {task.approvalStatus === 'Aprobado' && <CheckCircle className="h-3 w-3 mr-1" />}
+                                  {task.approvalStatus === 'No aprobado' && <XCircle className="h-3 w-3 mr-1" />}
+                                  {task.approvalStatus === 'En espera de decisión' && <Clock className="h-3 w-3 mr-1" />}
+                                  {task.approvalStatus || 'En espera'}
+                                </Badge>
+                              )}
                             </TableCell>
                             <TableCell className="px-1 py-0.5 text-[11px]">{task.responsible || '-'}</TableCell>
                             <TableCell className="px-1 py-0.5 text-[11px]">{task.estimatedTime || '-'}</TableCell>
@@ -3767,12 +3817,16 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
                                 <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => openHistory(task.id)} title="Historial">
                                   <History className="h-3 w-3" />
                                 </Button>
+                                {canEditAll && (
+                                <>
                                 <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => openEditTask(task)} title="Editar">
                                   <Pencil className="h-3 w-3" />
                                 </Button>
                                 <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-red-500 hover:text-red-700" onClick={() => { setDeleteId(task.id); setDeleteDialogOpen(true) }} title="Eliminar">
                                   <Trash2 className="h-3 w-3" />
                                 </Button>
+                                </>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -3824,6 +3878,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className={`text-[10px] px-1.5 py-0.5 ${getApprovalBadgeClass(task.approvalStatus)}`}>
+                          {task.approvalStatus === 'Aprobado por Supervisor' && <ShieldCheck className="h-3 w-3 mr-1" />}
                           {task.approvalStatus === 'Aprobado' && <CheckCircle className="h-3 w-3 mr-1" />}
                           {task.approvalStatus === 'No aprobado' && <XCircle className="h-3 w-3 mr-1" />}
                           {task.approvalStatus === 'En espera de decisión' && <Clock className="h-3 w-3 mr-1" />}
@@ -3932,12 +3987,16 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
                         <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs" onClick={() => openHistory(task.id)}>
                           <History className="h-3.5 w-3.5" /> Historial
                         </Button>
+                        {canEditAll && (
+                        <>
                         <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs" onClick={() => openEditTask(task)}>
                           <Pencil className="h-3.5 w-3.5" /> Editar
                         </Button>
                         <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs text-red-500" onClick={() => { setDeleteId(task.id); setDeleteDialogOpen(true) }}>
                           <Trash2 className="h-3.5 w-3.5" /> Eliminar
                         </Button>
+                        </>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -4326,11 +4385,11 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
         )}
 
         {view === 'rendicion' && (
-          <RendicionGastos />
+          <RendicionGastos userRole={userRole} />
         )}
 
         {view === 'solicitudes' && (
-          <SolicitudesCompra />
+          <SolicitudesCompra userRole={userRole} />
         )}
 
         {view === 'users' && (session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERVISOR') && (
@@ -4443,24 +4502,36 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Aprobado">
-                      <span className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>
-                        Aprobado
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="No aprobado">
-                      <span className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
-                        No aprobado
-                      </span>
-                    </SelectItem>
                     <SelectItem value="En espera de decisión">
                       <span className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
                         En espera de decisión
                       </span>
                     </SelectItem>
+                    {(isSupervisor || isAdmin) && (
+                      <SelectItem value="Aprobado por Supervisor">
+                        <span className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                          Aprobado por Supervisor
+                        </span>
+                      </SelectItem>
+                    )}
+                    {isAdmin && (
+                      <SelectItem value="Aprobado">
+                        <span className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+                          Aprobado (Admin)
+                        </span>
+                      </SelectItem>
+                    )}
+                    {(isSupervisor || isAdmin) && (
+                      <SelectItem value="No aprobado">
+                        <span className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                          No aprobado
+                        </span>
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>

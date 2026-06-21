@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
-import { Plus, Pencil, Trash2, Eye, ArrowLeft, Upload, X, CheckCircle, XCircle, Clock, FileText, FileSpreadsheet, Download, Camera, Send, RotateCcw } from 'lucide-react'
+import { Plus, Pencil, Trash2, Eye, ArrowLeft, Upload, X, CheckCircle, XCircle, Clock, FileText, FileSpreadsheet, Download, Camera, Send, RotateCcw, ShieldCheck, Shield } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { jsPDF } from 'jspdf'
 import ExcelJS from 'exceljs'
@@ -70,7 +70,8 @@ const formatCLP = (amount: number | null | undefined): string => {
 const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
   BORRADOR: { label: 'Borrador', color: 'text-gray-600', bgColor: 'bg-gray-100' },
   ENVIADO: { label: 'Enviado', color: 'text-amber-600', bgColor: 'bg-amber-100' },
-  APROBADO: { label: 'Aprobado', color: 'text-green-600', bgColor: 'bg-green-100' },
+  APROBADO_SUPERVISOR: { label: 'Aprobado (Supervisor)', color: 'text-blue-600', bgColor: 'bg-blue-100' },
+  APROBADO: { label: 'Aprobado (Admin)', color: 'text-green-600', bgColor: 'bg-green-100' },
   RECHAZADO: { label: 'Rechazado', color: 'text-red-600', bgColor: 'bg-red-100' },
   MODIFICACIÓN_SOLICITADA: { label: 'Modif. Solicitada', color: 'text-orange-600', bgColor: 'bg-orange-100' },
 }
@@ -93,8 +94,16 @@ function getCorrelative(num: number): string {
 // Component
 // ============================================================
 
-export default function RendicionGastos() {
+interface RendicionGastosProps {
+  userRole?: string
+}
+
+export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosProps) {
   const { toast } = useToast()
+  const isAdmin = userRole === 'ADMIN'
+  const isSupervisor = userRole === 'SUPERVISOR'
+  const canApprove = isAdmin || isSupervisor
+  const canEditAll = isAdmin || isSupervisor
 
   // View state
   const [currentView, setCurrentView] = useState<'list' | 'detail' | 'form'>('list')
@@ -727,10 +736,14 @@ export default function RendicionGastos() {
     fetchReports()
   }
 
-  const canEdit = selectedReport?.status === 'BORRADOR' || selectedReport?.status === 'MODIFICACIÓN_SOLICITADA'
-  const canDelete = selectedReport?.status === 'BORRADOR'
+  const canEdit = canEditAll && (selectedReport?.status === 'BORRADOR' || selectedReport?.status === 'MODIFICACIÓN_SOLICITADA')
+  const canDelete = canEditAll && selectedReport?.status === 'BORRADOR'
   const canSubmit = selectedReport?.status === 'BORRADOR' || selectedReport?.status === 'MODIFICACIÓN_SOLICITADA'
-  const canReview = selectedReport?.status === 'ENVIADO'
+  // Supervisor puede aprobar desde ENVIADO → APROBADO_SUPERVISOR
+  // Admin puede aprobar desde ENVIADO → APROBADO directamente, o desde APROBADO_SUPERVISOR → APROBADO
+  const canSupervisorApprove = isSupervisor && selectedReport?.status === 'ENVIADO'
+  const canAdminApprove = isAdmin && (selectedReport?.status === 'ENVIADO' || selectedReport?.status === 'APROBADO_SUPERVISOR')
+  const canReview = canSupervisorApprove || canAdminApprove
 
   // ============================================================
   // Render: List View
@@ -795,7 +808,7 @@ export default function RendicionGastos() {
               <Card
                 key={report.id}
                 className="cursor-pointer hover:shadow-md transition-shadow border-l-4"
-                style={{ borderLeftColor: report.status === 'APROBADO' ? '#16a34a' : report.status === 'RECHAZADO' ? '#dc2626' : report.status === 'ENVIADO' ? '#d97706' : '#9ca3af' }}
+                style={{ borderLeftColor: report.status === 'APROBADO' ? '#16a34a' : report.status === 'APROBADO_SUPERVISOR' ? '#2563eb' : report.status === 'RECHAZADO' ? '#dc2626' : report.status === 'ENVIADO' ? '#d97706' : '#9ca3af' }}
                 onClick={() => openDetail(report)}
               >
                 <CardHeader className="pb-2">
@@ -953,9 +966,16 @@ export default function RendicionGastos() {
           )}
           {canReview && (
             <>
-              <Button onClick={() => handleStatusChange('APROBADO')} className="gap-1.5 bg-green-600 hover:bg-green-700">
-                <CheckCircle className="h-4 w-4" /> Aprobar
-              </Button>
+              {canSupervisorApprove && (
+                <Button onClick={() => handleStatusChange('APROBADO_SUPERVISOR')} className="gap-1.5 bg-blue-600 hover:bg-blue-700">
+                  <ShieldCheck className="h-4 w-4" /> Aprobar (Supervisor)
+                </Button>
+              )}
+              {canAdminApprove && (
+                <Button onClick={() => handleStatusChange('APROBADO')} className="gap-1.5 bg-green-600 hover:bg-green-700">
+                  <CheckCircle className="h-4 w-4" /> Aprobar (Admin)
+                </Button>
+              )}
               <Button onClick={() => openReviewDialog('RECHAZADO')} className="gap-1.5 bg-red-500 hover:bg-red-600">
                 <XCircle className="h-4 w-4" /> Rechazar
               </Button>
