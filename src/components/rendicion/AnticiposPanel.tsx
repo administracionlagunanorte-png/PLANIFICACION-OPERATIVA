@@ -693,7 +693,7 @@ export default function AnticiposPanel({ userRole = 'USER', initialStatusFilter,
               Vencimiento: día {alertConfig?.dayOfMonth} de cada mes
             </p>
           </div>
-          {canEdit && (
+          {isAdmin && (
             <Button
               variant="outline"
               size="sm"
@@ -720,15 +720,17 @@ export default function AnticiposPanel({ userRole = 'USER', initialStatusFilter,
             </div>
             <div className="flex items-center gap-2">
               {canEdit && (
+                <Button className="gap-1.5 bg-orange-600 hover:bg-orange-700 text-white" onClick={() => setPeriodFormOpen(true)}>
+                  <Plus className="h-4 w-4" /> Nuevo Periodo
+                </Button>
+              )}
+              {isAdmin && (
                 <>
                   <Button variant="outline" size="sm" className="gap-1" onClick={() => { fetchAllWorkers(); setWorkerDialogOpen(true) }}>
                     <Users className="h-4 w-4" /> Trabajadores
                   </Button>
                   <Button variant="outline" size="sm" className="gap-1" onClick={() => setAlertConfigOpen(true)}>
                     <Bell className="h-4 w-4" /> Alerta
-                  </Button>
-                  <Button className="gap-1.5 bg-orange-600 hover:bg-orange-700 text-white" onClick={() => setPeriodFormOpen(true)}>
-                    <Plus className="h-4 w-4" /> Nuevo Periodo
                   </Button>
                 </>
               )}
