@@ -83,6 +83,7 @@ import {
   Shield,
   ShieldCheck,
   User,
+  ArrowRight,
 } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import ExcelJS from 'exceljs'
@@ -201,6 +202,9 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
     expenses: { total: number; byStatus: Record<string, number>; approvedAmount: number }
     purchases: { total: number; byStatus: Record<string, number> }
   } | null>(null)
+  // Navigation: when user clicks a dashboard card, navigate to the section with a pre-filtered status
+  const [expenseStatusFilter, setExpenseStatusFilter] = useState<string>('')
+  const [purchaseStatusFilter, setPurchaseStatusFilter] = useState<string>('')
   const [view, setView] = useState<'dashboard' | 'table' | 'cards' | 'gantt' | 'materials' | 'rendicion' | 'solicitudes' | 'users'>('dashboard')
   const [filterSector, setFilterSector] = useState('all')
   const [filterPriority, setFilterPriority] = useState('all')
@@ -3513,11 +3517,12 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
               <Card className="border-emerald-200 bg-gradient-to-r from-emerald-50 to-white overflow-hidden">
                 <CardHeader className="pb-3 pt-4 px-5 border-b border-emerald-100 bg-emerald-50/50">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg font-bold text-emerald-900 flex items-center gap-2.5">
+                    <CardTitle className="text-lg font-bold text-emerald-900 flex items-center gap-2.5 cursor-pointer hover:text-emerald-700" onClick={() => { setExpenseStatusFilter('all'); setView('rendicion'); }}>
                       <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-600 text-white">
                         <DollarSign className="h-4.5 w-4.5" />
                       </div>
                       Rendición de Gastos
+                      <ArrowRight className="h-4 w-4 opacity-50" />
                     </CardTitle>
                     <Badge className="text-sm font-bold bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-100">
                       {dashboardStats.expenses.total} rendiciones
@@ -3526,23 +3531,43 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
                 </CardHeader>
                 <CardContent className="px-5 pb-5 pt-4">
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-                    <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm text-center">
+                    <div
+                      className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-slate-400 transition-all duration-200 hover:scale-105"
+                      onClick={() => { setExpenseStatusFilter('BORRADOR'); setView('rendicion'); }}
+                      title="Ver rendiciones en Borrador"
+                    >
                       <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Borrador</div>
                       <div className="text-3xl font-bold text-slate-700">{dashboardStats.expenses.byStatus.BORRADOR || 0}</div>
                     </div>
-                    <div className="bg-white rounded-xl p-4 border border-blue-200 shadow-sm text-center">
+                    <div
+                      className="bg-white rounded-xl p-4 border border-blue-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-blue-400 transition-all duration-200 hover:scale-105"
+                      onClick={() => { setExpenseStatusFilter('ENVIADO'); setView('rendicion'); }}
+                      title="Ver rendiciones Enviadas"
+                    >
                       <div className="text-xs text-blue-600 uppercase tracking-wider font-semibold mb-1">Enviado</div>
                       <div className="text-3xl font-bold text-blue-700">{dashboardStats.expenses.byStatus.ENVIADO || 0}</div>
                     </div>
-                    <div className="bg-white rounded-xl p-4 border border-sky-200 shadow-sm text-center">
+                    <div
+                      className="bg-white rounded-xl p-4 border border-sky-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-sky-400 transition-all duration-200 hover:scale-105"
+                      onClick={() => { setExpenseStatusFilter('APROBADO_SUPERVISOR'); setView('rendicion'); }}
+                      title="Ver rendiciones Aprobadas por Supervisor"
+                    >
                       <div className="text-xs text-sky-600 uppercase tracking-wider font-semibold mb-1">Aprob. Supervisor</div>
                       <div className="text-3xl font-bold text-sky-700">{dashboardStats.expenses.byStatus.APROBADO_SUPERVISOR || 0}</div>
                     </div>
-                    <div className="bg-white rounded-xl p-4 border border-emerald-200 shadow-sm text-center">
+                    <div
+                      className="bg-white rounded-xl p-4 border border-emerald-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-emerald-400 transition-all duration-200 hover:scale-105"
+                      onClick={() => { setExpenseStatusFilter('APROBADO'); setView('rendicion'); }}
+                      title="Ver rendiciones Aprobadas"
+                    >
                       <div className="text-xs text-emerald-600 uppercase tracking-wider font-semibold mb-1">Aprobado</div>
                       <div className="text-3xl font-bold text-emerald-700">{dashboardStats.expenses.byStatus.APROBADO || 0}</div>
                     </div>
-                    <div className="bg-white rounded-xl p-4 border border-red-200 shadow-sm text-center">
+                    <div
+                      className="bg-white rounded-xl p-4 border border-red-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-red-400 transition-all duration-200 hover:scale-105"
+                      onClick={() => { setExpenseStatusFilter('RECHAZADO'); setView('rendicion'); }}
+                      title="Ver rendiciones Rechazadas"
+                    >
                       <div className="text-xs text-red-600 uppercase tracking-wider font-semibold mb-1">Rechazado</div>
                       <div className="text-3xl font-bold text-red-700">{dashboardStats.expenses.byStatus.RECHAZADO || 0}</div>
                     </div>
@@ -3564,11 +3589,12 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
               <Card className="border-indigo-200 bg-gradient-to-r from-indigo-50 to-white overflow-hidden">
                 <CardHeader className="pb-3 pt-4 px-5 border-b border-indigo-100 bg-indigo-50/50">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg font-bold text-indigo-900 flex items-center gap-2.5">
+                    <CardTitle className="text-lg font-bold text-indigo-900 flex items-center gap-2.5 cursor-pointer hover:text-indigo-700" onClick={() => { setPurchaseStatusFilter('all'); setView('solicitudes'); }}>
                       <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-600 text-white">
                         <ShoppingBag className="h-4.5 w-4.5" />
                       </div>
                       Solicitudes de Compra
+                      <ArrowRight className="h-4 w-4 opacity-50" />
                     </CardTitle>
                     <Badge className="text-sm font-bold bg-indigo-100 text-indigo-800 border-indigo-300 hover:bg-indigo-100">
                       {dashboardStats.purchases.total} solicitudes
@@ -3577,31 +3603,59 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
                 </CardHeader>
                 <CardContent className="px-5 pb-5 pt-4">
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
-                    <div className="bg-white rounded-xl p-4 border border-amber-200 shadow-sm text-center">
+                    <div
+                      className="bg-white rounded-xl p-4 border border-amber-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-amber-400 transition-all duration-200 hover:scale-105"
+                      onClick={() => { setPurchaseStatusFilter('PENDIENTE'); setView('solicitudes'); }}
+                      title="Ver solicitudes Pendientes"
+                    >
                       <div className="text-xs text-amber-600 uppercase tracking-wider font-semibold mb-1">Pendiente</div>
                       <div className="text-3xl font-bold text-amber-700">{dashboardStats.purchases.byStatus.PENDIENTE || 0}</div>
                     </div>
-                    <div className="bg-white rounded-xl p-4 border border-sky-200 shadow-sm text-center">
+                    <div
+                      className="bg-white rounded-xl p-4 border border-sky-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-sky-400 transition-all duration-200 hover:scale-105"
+                      onClick={() => { setPurchaseStatusFilter('APROBADA_SUPERVISOR'); setView('solicitudes'); }}
+                      title="Ver solicitudes Aprobadas por Supervisor"
+                    >
                       <div className="text-xs text-sky-600 uppercase tracking-wider font-semibold mb-1">Aprob. Supervisor</div>
                       <div className="text-3xl font-bold text-sky-700">{dashboardStats.purchases.byStatus.APROBADA_SUPERVISOR || 0}</div>
                     </div>
-                    <div className="bg-white rounded-xl p-4 border border-emerald-200 shadow-sm text-center">
+                    <div
+                      className="bg-white rounded-xl p-4 border border-emerald-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-emerald-400 transition-all duration-200 hover:scale-105"
+                      onClick={() => { setPurchaseStatusFilter('APROBADA'); setView('solicitudes'); }}
+                      title="Ver solicitudes Aprobadas"
+                    >
                       <div className="text-xs text-emerald-600 uppercase tracking-wider font-semibold mb-1">Aprobada</div>
                       <div className="text-3xl font-bold text-emerald-700">{dashboardStats.purchases.byStatus.APROBADA || 0}</div>
                     </div>
-                    <div className="bg-white rounded-xl p-4 border border-indigo-200 shadow-sm text-center">
+                    <div
+                      className="bg-white rounded-xl p-4 border border-indigo-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-indigo-400 transition-all duration-200 hover:scale-105"
+                      onClick={() => { setPurchaseStatusFilter('EN_COMPRA'); setView('solicitudes'); }}
+                      title="Ver solicitudes En Compra"
+                    >
                       <div className="text-xs text-indigo-600 uppercase tracking-wider font-semibold mb-1">En Compra</div>
                       <div className="text-3xl font-bold text-indigo-700">{dashboardStats.purchases.byStatus.EN_COMPRA || 0}</div>
                     </div>
-                    <div className="bg-white rounded-xl p-4 border border-teal-200 shadow-sm text-center">
+                    <div
+                      className="bg-white rounded-xl p-4 border border-teal-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-teal-400 transition-all duration-200 hover:scale-105"
+                      onClick={() => { setPurchaseStatusFilter('COMPRADA'); setView('solicitudes'); }}
+                      title="Ver solicitudes Compradas"
+                    >
                       <div className="text-xs text-teal-600 uppercase tracking-wider font-semibold mb-1">Comprada</div>
                       <div className="text-3xl font-bold text-teal-700">{dashboardStats.purchases.byStatus.COMPRADA || 0}</div>
                     </div>
-                    <div className="bg-white rounded-xl p-4 border border-red-200 shadow-sm text-center">
+                    <div
+                      className="bg-white rounded-xl p-4 border border-red-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-red-400 transition-all duration-200 hover:scale-105"
+                      onClick={() => { setPurchaseStatusFilter('RECHAZADA'); setView('solicitudes'); }}
+                      title="Ver solicitudes Rechazadas"
+                    >
                       <div className="text-xs text-red-600 uppercase tracking-wider font-semibold mb-1">Rechazada</div>
                       <div className="text-3xl font-bold text-red-700">{dashboardStats.purchases.byStatus.RECHAZADA || 0}</div>
                     </div>
-                    <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm text-center">
+                    <div
+                      className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-slate-400 transition-all duration-200 hover:scale-105"
+                      onClick={() => { setPurchaseStatusFilter('CANCELADA'); setView('solicitudes'); }}
+                      title="Ver solicitudes Canceladas"
+                    >
                       <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Cancelada</div>
                       <div className="text-3xl font-bold text-slate-600">{dashboardStats.purchases.byStatus.CANCELADA || 0}</div>
                     </div>
@@ -4379,11 +4433,19 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
         )}
 
         {view === 'rendicion' && (
-          <RendicionGastos userRole={userRole} />
+          <RendicionGastos
+            userRole={userRole}
+            initialStatusFilter={expenseStatusFilter}
+            onStatusFilterConsumed={() => setExpenseStatusFilter('')}
+          />
         )}
 
         {view === 'solicitudes' && (
-          <SolicitudesCompra userRole={userRole} />
+          <SolicitudesCompra
+            userRole={userRole}
+            initialStatusFilter={purchaseStatusFilter}
+            onStatusFilterConsumed={() => setPurchaseStatusFilter('')}
+          />
         )}
 
         {view === 'users' && (session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERVISOR') && (

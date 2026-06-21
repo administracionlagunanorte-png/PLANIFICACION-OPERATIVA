@@ -111,9 +111,11 @@ function getCompraUrls(item: ExpenseItem): string[] {
 
 interface RendicionGastosProps {
   userRole?: string
+  initialStatusFilter?: string
+  onStatusFilterConsumed?: () => void
 }
 
-export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosProps) {
+export default function RendicionGastos({ userRole = 'USER', initialStatusFilter, onStatusFilterConsumed }: RendicionGastosProps) {
   const { toast } = useToast()
   const isAdmin = userRole === 'ADMIN'
   const isSupervisor = userRole === 'SUPERVISOR'
@@ -129,7 +131,7 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
   const [saving, setSaving] = useState(false)
 
   // List filters
-  const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [filterStatus, setFilterStatus] = useState<string>(initialStatusFilter || 'all')
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -169,6 +171,18 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
   // Photo viewer
   const [photoViewerOpen, setPhotoViewerOpen] = useState(false)
   const [photoViewerUrl, setPhotoViewerUrl] = useState('')
+
+  // ============================================================
+  // React to initialStatusFilter from parent (dashboard click)
+  // ============================================================
+  useEffect(() => {
+    if (initialStatusFilter && initialStatusFilter !== 'all') {
+      setFilterStatus(initialStatusFilter)
+      setCurrentPage(1)
+      setCurrentView('list')
+      if (onStatusFilterConsumed) onStatusFilterConsumed()
+    }
+  }, [initialStatusFilter])
 
   // ============================================================
   // Data fetching

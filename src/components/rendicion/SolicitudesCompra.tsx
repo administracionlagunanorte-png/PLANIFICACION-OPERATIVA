@@ -131,9 +131,11 @@ const handleFileUpload = async (file: File): Promise<string | null> => {
 
 interface SolicitudesCompraProps {
   userRole?: string
+  initialStatusFilter?: string
+  onStatusFilterConsumed?: () => void
 }
 
-export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesCompraProps) {
+export default function SolicitudesCompra({ userRole = 'USER', initialStatusFilter, onStatusFilterConsumed }: SolicitudesCompraProps) {
   const { toast } = useToast()
   const isAdmin = userRole === 'ADMIN'
   const isSupervisor = userRole === 'SUPERVISOR'
@@ -150,7 +152,7 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
   const [selectedRequest, setSelectedRequest] = useState<PurchaseRequest | null>(null)
 
   // --- Filters ---
-  const [filterStatus, setFilterStatus] = useState('all')
+  const [filterStatus, setFilterStatus] = useState(initialStatusFilter || 'all')
   const [filterPriority, setFilterPriority] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [page, setPage] = useState(1)
@@ -214,6 +216,18 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
   // --- Review form ---
   const [reviewNote, setReviewNote] = useState('')
   const [reviewedBy, setReviewedBy] = useState('')
+
+  // ============================================================
+  // React to initialStatusFilter from parent (dashboard click)
+  // ============================================================
+  useEffect(() => {
+    if (initialStatusFilter && initialStatusFilter !== 'all') {
+      setFilterStatus(initialStatusFilter)
+      setPage(1)
+      setView('list')
+      if (onStatusFilterConsumed) onStatusFilterConsumed()
+    }
+  }, [initialStatusFilter])
 
   // ============================================================
   // Fetch data
