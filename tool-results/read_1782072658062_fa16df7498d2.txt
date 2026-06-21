@@ -1,0 +1,926 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useRef, useCallback } from 'react'
+     4→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+     5→import { Button } from '@/components/ui/button'
+     6→import { Input } from '@/components/ui/input'
+     7→import { Label } from '@/components/ui/label'
+     8→import { Textarea } from '@/components/ui/textarea'
+     9→import { Badge } from '@/components/ui/badge'
+    10→import { Progress } from '@/components/ui/progress'
+    11→import {
+    12→  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+    13→} from '@/components/ui/dialog'
+    14→import {
+    15→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    16→} from '@/components/ui/select'
+    17→import {
+    18→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    19→} from '@/components/ui/table'
+    20→import {
+    21→  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    22→  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+    23→} from '@/components/ui/alert-dialog'
+    24→import {
+    25→  Wrench, ChevronLeft, CheckCircle, XCircle, Clock,
+    26→  Printer, Upload, Calendar, ChevronRight,
+    27→  RefreshCw, Map, FileText, Trash2, AlertTriangle,
+    28→  Eye, Save, MessageSquare, Paperclip,
+    29→} from 'lucide-react'
+    30→import { useToast } from '@/hooks/use-toast'
+    31→
+    32→// ============================================================
+    33→// Types
+    34→// ============================================================
+    35→interface MantenimientoItem {
+    36→  id?: string
+    37→  category: string
+    38→  description: string
+    39→  status: string  // PENDIENTE, OK, NO_OK, N/A
+    40→  value?: string | null
+    41→  observation?: string | null
+    42→  order: number
+    43→}
+    44→
+    45→interface MantenimientoLV {
+    46→  id: string
+    47→  codigo: string
+    48→  nombre: string
+    49→  sector: string
+    50→  frecuencia: string
+    51→  status: string
+    52→  progress: number
+    53→  scheduledDate: string | null
+    54→  completedDate: string | null
+    55→  responsable: string | null
+    56→  turno: string | null
+    57→  observations: string | null
+    58→  motivoPendiente: string | null
+    59→  attachments: string
+    60→  createdBy: string | null
+    61→  createdAt: string
+    62→  updatedAt: string
+    63→  items: MantenimientoItem[]
+    64→  _count?: { items: number }
+    65→}
+    66→
+    67→// Frequency colors
+    68→const freqColors: Record<string, { bg: string; text: string; border: string }> = {
+    69→  'Diaria': { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-300' },
+    70→  '3x Semanal': { bg: 'bg-sky-100', text: 'text-sky-700', border: 'border-sky-300' },
+    71→  'Semanal': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300' },
+    72→  'Quincenal': { bg: 'bg-cyan-100', text: 'text-cyan-700', border: 'border-cyan-300' },
+    73→  'Mensual': { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-300' },
+    74→  'Trimestral': { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300' },
+    75→  'Semestral': { bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-300' },
+    76→  'Anual': { bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-300' },
+    77→}
+    78→
+    79→const statusConfig: Record<string, { bg: string; text: string; label: string; icon: typeof CheckCircle }> = {
+    80→  'PENDIENTE': { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Pendiente', icon: Clock },
+    81→  'EN_PROGRESO': { bg: 'bg-blue-100', text: 'text-blue-700', label: 'En Progreso', icon: RefreshCw },
+    82→  'COMPLETADA': { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'Realizado', icon: CheckCircle },
+    83→}
+    84→
+    85→// ============================================================
+    86→// Props
+    87→// ============================================================
+    88→interface MantenimientoPanelProps {
+    89→  userRole?: string
+    90→  initialStatusFilter?: string
+    91→  onStatusFilterConsumed?: () => void
+    92→}
+    93→
+    94→// ============================================================
+    95→// Component
+    96→// ============================================================
+    97→export default function MantenimientoPanel({ userRole = 'USER', initialStatusFilter, onStatusFilterConsumed }: MantenimientoPanelProps) {
+    98→  const { toast } = useToast()
+    99→  const canEdit = userRole === 'ADMIN' || userRole === 'SUPERVISOR'
+   100→
+   101→  // --- View state ---
+   102→  const [currentView, setCurrentView] = useState<'calendar' | 'day' | 'detail'>('calendar')
+   103→  const [allLVs, setAllLVs] = useState<MantenimientoLV[]>([])
+   104→  const [selectedLV, setSelectedLV] = useState<MantenimientoLV | null>(null)
+   105→  const [selectedDate, setSelectedDate] = useState<string>('')
+   106→  const [loading, setLoading] = useState(false)
+   107→  const [generating, setGenerating] = useState(false)
+   108→  const [saving, setSaving] = useState(false)
+   109→
+   110→  // --- Calendar state ---
+   111→  const [calYear, setCalYear] = useState(new Date().getFullYear())
+   112→  const [calMonth, setCalMonth] = useState(new Date().getMonth())
+   113→
+   114→  // --- Detail edit state ---
+   115→  const [editStatus, setEditStatus] = useState<string>('')
+   116→  const [editMotivoPendiente, setEditMotivoPendiente] = useState<string>('')
+   117→  const [editObservations, setEditObservations] = useState<string>('')
+   118→  const [editItems, setEditItems] = useState<MantenimientoItem[]>([])
+   119→
+   120→  // --- Dialogs ---
+   121→  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+   122→  const [deleteId, setDeleteId] = useState<string | null>(null)
+   123→
+   124→  // --- Attach upload ---
+   125→  const fileInputRef = useRef<HTMLInputElement>(null)
+   126→  const [uploading, setUploading] = useState(false)
+   127→
+   128→  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+   129→
+   130→  // ============================================================
+   131→  // React to filter from parent
+   132→  // ============================================================
+   133→  useEffect(() => {
+   134→    if (initialStatusFilter && initialStatusFilter !== 'all') {
+   135→      if (onStatusFilterConsumed) onStatusFilterConsumed()
+   136→    }
+   137→  }, [initialStatusFilter])
+   138→
+   139→  // ============================================================
+   140→  // Data fetching - only LVs from today onwards
+   141→  // ============================================================
+   142→  const fetchLVs = useCallback(async () => {
+   143→    setLoading(true)
+   144→    try {
+   145→      // Get LVs from today onwards for the current calendar month
+   146→      const today = new Date()
+   147→      const fromStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+   148→      // Fetch for 3 months ahead to cover calendar navigation
+   149→      const futureDate = new Date(today)
+   150→      futureDate.setMonth(futureDate.getMonth() + 3)
+   151→      const toStr = `${futureDate.getFullYear()}-${String(futureDate.getMonth() + 1).padStart(2, '0')}-${String(futureDate.getDate()).padStart(2, '0')}`
+   152→
+   153→      const params = new URLSearchParams()
+   154→      params.set('from', fromStr)
+   155→      params.set('to', toStr)
+   156→      const res = await fetch(`/api/mantenimiento-lv?${params.toString()}`)
+   157→      if (res.ok) {
+   158→        const data = await res.json()
+   159→        // Filter: only from today onwards
+   160→        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+   161→        const filtered = data.filter((lv: MantenimientoLV) => {
+   162→          const date = (lv.scheduledDate || '').substring(0, 10)
+   163→          return date >= todayStr
+   164→        })
+   165→        setAllLVs(filtered)
+   166→      }
+   167→    } catch (err) {
+   168→      console.error(err)
+   169→      toast({ title: 'Error', description: 'No se pudieron cargar las listas', variant: 'destructive' })
+   170→    } finally {
+   171→      setLoading(false)
+   172→    }
+   173→  }, [toast])
+   174→
+   175→  const fetchLVDetail = async (id: string) => {
+   176→    try {
+   177→      const res = await fetch(`/api/mantenimiento-lv/${id}`)
+   178→      if (res.ok) {
+   179→        const data = await res.json()
+   180→        setSelectedLV(data)
+   181→        setEditStatus(data.status)
+   182→        setEditMotivoPendiente(data.motivoPendiente || '')
+   183→        setEditObservations(data.observations || '')
+   184→        setEditItems([...data.items])
+   185→      }
+   186→    } catch (err) {
+   187→      console.error(err)
+   188→    }
+   189→  }
+   190→
+   191→  useEffect(() => { fetchLVs() }, [fetchLVs])
+   192→
+   193→  // ============================================================
+   194→  // Auto-generate LVs for current and next month
+   195→  // ============================================================
+   196→  const handleGenerate = async () => {
+   197→    setGenerating(true)
+   198→    try {
+   199→      const now = new Date()
+   200→      // Generate for current month
+   201→      await fetch('/api/mantenimiento-generate', {
+   202→        method: 'POST',
+   203→        headers: { 'Content-Type': 'application/json' },
+   204→        body: JSON.stringify({ year: now.getFullYear(), month: now.getMonth() }),
+   205→      })
+   206→      // Generate for next month too
+   207→      const next = new Date(now)
+   208→      next.setMonth(next.getMonth() + 1)
+   209→      await fetch('/api/mantenimiento-generate', {
+   210→        method: 'POST',
+   211→        headers: { 'Content-Type': 'application/json' },
+   212→        body: JSON.stringify({ year: next.getFullYear(), month: next.getMonth() }),
+   213→      })
+   214→      fetchLVs()
+   215→      toast({ title: 'Listas generadas', description: 'Se generaron las listas de verificación pendientes' })
+   216→    } catch {
+   217→      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+   218→    } finally {
+   219→      setGenerating(false)
+   220→    }
+   221→  }
+   222→
+   223→  // Auto-generate on first load
+   224→  useEffect(() => {
+   225→    handleGenerate()
+   226→    // eslint-disable-next-line react-hooks/exhaustive-deps
+   227→  }, [])
+   228→
+   229→  // ============================================================
+   230→  // Calendar helpers
+   231→  // ============================================================
+   232→  const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate()
+   233→  const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay()
+   234→
+   235→  const getLVsForDate = (day: number) => {
+   236→    const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+   237→    return allLVs.filter(lv => lv.scheduledDate && lv.scheduledDate.startsWith(dateStr))
+   238→  }
+   239→
+   240→  // LVs for the selected day (in day view)
+   241→  const dayLVs = selectedDate ? allLVs.filter(lv => lv.scheduledDate && lv.scheduledDate.startsWith(selectedDate)) : []
+   242→
+   243→  // ============================================================
+   244→  // Open day / Open LV
+   245→  // ============================================================
+   246→  const openDay = (dateStr: string) => {
+   247→    setSelectedDate(dateStr)
+   248→    setCurrentView('day')
+   249→  }
+   250→
+   251→  const openLV = (id: string) => {
+   252→    fetchLVDetail(id)
+   253→    setCurrentView('detail')
+   254→  }
+   255→
+   256→  const goBack = () => {
+   257→    if (currentView === 'detail') {
+   258→      setCurrentView('day')
+   259→      setSelectedLV(null)
+   260→    } else if (currentView === 'day') {
+   261→      setCurrentView('calendar')
+   262→      setSelectedDate('')
+   263→    }
+   264→  }
+   265→
+   266→  // ============================================================
+   267→  // Save changes
+   268→  // ============================================================
+   269→  const handleSave = async () => {
+   270→    if (!selectedLV) return
+   271→    setSaving(true)
+   272→    try {
+   273→      const res = await fetch(`/api/mantenimiento-lv/${selectedLV.id}`, {
+   274→        method: 'PUT',
+   275→        headers: { 'Content-Type': 'application/json' },
+   276→        body: JSON.stringify({
+   277→          items: editItems,
+   278→          observations: editObservations,
+   279→          motivoPendiente: editStatus === 'PENDIENTE' ? editMotivoPendiente : '',
+   280→          status: editStatus,
+   281→        }),
+   282→      })
+   283→      if (res.ok) {
+   284→        const data = await res.json()
+   285→        setSelectedLV({ ...selectedLV, ...data })
+   286→        fetchLVs()
+   287→        toast({ title: 'Guardado', description: 'Cambios guardados exitosamente' })
+   288→      } else {
+   289→        toast({ title: 'Error', description: 'No se pudo guardar', variant: 'destructive' })
+   290→      }
+   291→    } catch {
+   292→      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+   293→    } finally {
+   294→      setSaving(false)
+   295→    }
+   296→  }
+   297→
+   298→  // Quick status change (from day view)
+   299→  const handleQuickStatus = async (lvId: string, newStatus: string) => {
+   300→    try {
+   301→      const res = await fetch(`/api/mantenimiento-lv/${lvId}`, {
+   302→        method: 'PUT',
+   303→        headers: { 'Content-Type': 'application/json' },
+   304→        body: JSON.stringify({ status: newStatus }),
+   305→      })
+   306→      if (res.ok) {
+   307→        fetchLVs()
+   308→        toast({ title: 'Estado actualizado' })
+   309→      }
+   310→    } catch {
+   311→      toast({ title: 'Error', description: 'No se pudo actualizar', variant: 'destructive' })
+   312→    }
+   313→  }
+   314→
+   315→  // ============================================================
+   316→  // Item status change
+   317→  // ============================================================
+   318→  const handleItemStatusChange = (itemId: string, newStatus: string) => {
+   319→    const updated = editItems.map(item =>
+   320→      item.id === itemId ? { ...item, status: newStatus } : item
+   321→    )
+   322→    setEditItems(updated)
+   323→  }
+   324→
+   325→  const handleItemFieldChange = (itemId: string, field: 'value' | 'observation', val: string) => {
+   326→    const updated = editItems.map(item =>
+   327→      item.id === itemId ? { ...item, [field]: val } : item
+   328→    )
+   329→    setEditItems(updated)
+   330→  }
+   331→
+   332→  // ============================================================
+   333→  // Delete
+   334→  // ============================================================
+   335→  const handleDelete = async () => {
+   336→    if (!deleteId) return
+   337→    try {
+   338→      await fetch(`/api/mantenimiento-lv/${deleteId}`, { method: 'DELETE' })
+   339→      toast({ title: 'Eliminado', description: 'Lista eliminada exitosamente' })
+   340→      fetchLVs()
+   341→      goBack()
+   342→    } catch {
+   343→      toast({ title: 'Error', description: 'No se pudo eliminar', variant: 'destructive' })
+   344→    } finally {
+   345→      setDeleteDialogOpen(false); setDeleteId(null)
+   346→    }
+   347→  }
+   348→
+   349→  // ============================================================
+   350→  // Print
+   351→  // ============================================================
+   352→  const handlePrint = (lv: MantenimientoLV) => {
+   353→    const w = window.open('', '_blank')
+   354→    if (!w) return
+   355→    const categories = [...new Set(lv.items.map(i => i.category))]
+   356→    const categoryLabels: Record<string, string> = { A: 'A. EPP / Materiales', B: 'B. Verificación de Tareas', C: 'C. Inspección / Registros', D: 'D. Dosificaciones / Limpieza' }
+   357→
+   358→    w.document.write(`<!DOCTYPE html><html><head><title>${lv.codigo} — ${lv.nombre}</title>
+   359→    <style>
+   360→      body{font-family:Arial,sans-serif;margin:20px;font-size:12px;color:#1e293b}
+   361→      h1{font-size:16px;margin:0 0 4px}h2{font-size:13px;margin:8px 0 4px;color:#475569}
+   362→      .header{display:flex;justify-content:space-between;border-bottom:2px solid #0d9488;padding-bottom:8px;margin-bottom:12px}
+   363→      .meta{display:flex;gap:20px;font-size:11px;margin-bottom:8px;flex-wrap:wrap}
+   364→      table{width:100%;border-collapse:collapse;margin-bottom:12px}
+   365→      th{background:#f1f5f9;padding:6px 8px;text-align:left;border:1px solid #cbd5e1;font-size:11px}
+   366→      td{padding:5px 8px;border:1px solid #e2e8f0;font-size:11px}
+   367→      .ok{color:#16a34a;font-weight:bold}.no{color:#dc2626;font-weight:bold}
+   368→      .progress-bar{height:16px;background:#e2e8f0;border-radius:4px;overflow:hidden;margin:4px 0}
+   369→      .progress-fill{height:100%;background:#0d9488}
+   370→      .signatures{display:flex;gap:40px;margin-top:30px;font-size:11px}
+   371→      .sig-line{border-top:1px solid #000;width:200px;padding-top:4px;margin-top:30px}
+   372→      .logo{font-weight:bold;font-size:13px;color:#0d9488}
+   373→      .status-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:11px}
+   374→      .pendiente{background:#fef3c7;color:#92400e}.completada{background:#d1fae5;color:#065f46}.progreso{background:#dbeafe;color:#1e40af}
+   375→      @media print{body{margin:10px}}
+   376→    </style></head><body>
+   377→    <div class="header"><div><div class="logo">Asesorías Integrales CyJ</div><h1>${lv.codigo} — ${lv.nombre}</h1><div style="font-size:11px;color:#64748b">Condominio Laguna Norte — Lampa, Santiago</div></div>
+   378→    <div style="text-align:right;font-size:11px">
+   379→      <div class="status-badge ${lv.status === 'COMPLETADA' ? 'completada' : lv.status === 'EN_PROGRESO' ? 'progreso' : 'pendiente'}">${lv.status === 'COMPLETADA' ? 'REALIZADO' : lv.status === 'EN_PROGRESO' ? 'EN PROGRESO' : 'PENDIENTE'}</div>
+   380→      <div style="margin-top:4px">Avance: ${lv.progress}%</div><div class="progress-bar" style="width:120px"><div class="progress-fill" style="width:${lv.progress}%"></div></div>
+   381→    </div></div>
+   382→    <div class="meta"><div><b>Sector:</b> ${lv.sector}</div><div><b>Frecuencia:</b> ${lv.frecuencia}</div><div><b>Responsable:</b> ${lv.responsable || '-'}</div><div><b>Fecha:</b> ${lv.scheduledDate ? new Date(lv.scheduledDate).toLocaleDateString('es-CL') : '-'}</div><div><b>Turno:</b> ${lv.turno || '-'}</div></div>
+   383→    ${categories.map(cat => {
+   384→      const catItems = lv.items.filter(i => i.category === cat)
+   385→      return `<h2>${categoryLabels[cat] || cat}</h2><table><tr><th style="width:5%">N°</th><th style="width:50%">Descripción</th><th style="width:10%">Estado</th><th style="width:15%">Valor</th><th style="width:20%">Observación</th></tr>
+   386→      ${catItems.map((item, idx) => `<tr><td>${idx + 1}</td><td>${item.description}</td><td class="${item.status === 'OK' ? 'ok' : item.status === 'NO_OK' ? 'no' : ''}">${item.status === 'OK' ? '✓ OK' : item.status === 'NO_OK' ? '✗ NO OK' : item.status === 'N/A' ? 'N/A' : '☐ Pendiente'}</td><td>${item.value || ''}</td><td>${item.observation || ''}</td></tr>`).join('')}</table>`
+   387→    }).join('')}
+   388→    ${lv.observations ? `<h2>Observaciones</h2><p>${lv.observations}</p>` : ''}
+   389→    ${lv.motivoPendiente ? `<h2 style="color:#dc2626">Motivo Pendiente</h2><p>${lv.motivoPendiente}</p>` : ''}
+   390→    <div class="signatures"><div><div class="sig-line">Responsable — Nombre, Firma, RUT, Fecha</div></div><div><div class="sig-line">Supervisor — Nombre, Firma, RUT, Fecha</div></div></div>
+   391→    </body></html>`)
+   392→    w.document.close()
+   393→    setTimeout(() => w.print(), 500)
+   394→  }
+   395→
+   396→  // ============================================================
+   397→  // Upload attachment
+   398→  // ============================================================
+   399→  const handleUploadAttachment = async (e: React.ChangeEvent<HTMLInputElement>) => {
+   400→    const file = e.target.files?.[0]
+   401→    if (!file || !selectedLV) return
+   402→    setUploading(true)
+   403→    try {
+   404→      const formData = new FormData()
+   405→      formData.append('file', file)
+   406→      const res = await fetch('/api/upload', { method: 'POST', body: formData })
+   407→      if (res.ok) {
+   408→        const { url } = await res.json()
+   409→        const currentAttachments = JSON.parse(selectedLV.attachments || '[]')
+   410→        const newAttachments = [...currentAttachments, url]
+   411→        await fetch(`/api/mantenimiento-lv/${selectedLV.id}`, {
+   412→          method: 'PUT',
+   413→          headers: { 'Content-Type': 'application/json' },
+   414→          body: JSON.stringify({ attachments: JSON.stringify(newAttachments) }),
+   415→        })
+   416→        fetchLVDetail(selectedLV.id)
+   417→        fetchLVs()
+   418→        toast({ title: 'Archivo adjuntado', description: file.name })
+   419→      }
+   420→    } catch {
+   421→      toast({ title: 'Error', description: 'No se pudo subir el archivo', variant: 'destructive' })
+   422→    } finally {
+   423→      setUploading(false)
+   424→      if (fileInputRef.current) fileInputRef.current.value = ''
+   425→    }
+   426→  }
+   427→
+   428→  // ============================================================
+   429→  // Format helpers
+   430→  // ============================================================
+   431→  const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '-'
+   432→  const formatDateShort = (d: string | null) => d ? new Date(d).toLocaleDateString('es-CL') : '-'
+   433→
+   434→  // Stats for current calendar month
+   435→  const monthLVs = allLVs.filter(lv => {
+   436→    if (!lv.scheduledDate) return false
+   437→    const d = new Date(lv.scheduledDate)
+   438→    return d.getFullYear() === calYear && d.getMonth() === calMonth
+   439→  })
+   440→  const pendientes = monthLVs.filter(l => l.status === 'PENDIENTE').length
+   441→  const enProgreso = monthLVs.filter(l => l.status === 'EN_PROGRESO').length
+   442→  const completadas = monthLVs.filter(l => l.status === 'COMPLETADA').length
+   443→  const avgProgress = monthLVs.length > 0 ? Math.round(monthLVs.reduce((s, l) => s + l.progress, 0) / monthLVs.length) : 0
+   444→
+   445→  const getProgressColor = (progress: number) => {
+   446→    if (progress === 100) return 'text-emerald-600'
+   447→    if (progress >= 50) return 'text-blue-600'
+   448→    if (progress > 0) return 'text-amber-600'
+   449→    return 'text-slate-400'
+   450→  }
+   451→
+   452→  const getProgressBg = (progress: number) => {
+   453→    if (progress === 100) return 'bg-emerald-500'
+   454→    if (progress >= 50) return 'bg-blue-500'
+   455→    if (progress > 0) return 'bg-amber-500'
+   456→    return 'bg-slate-300'
+   457→  }
+   458→
+   459→  // ============================================================
+   460→  // RENDER
+   461→  // ============================================================
+   462→  return (
+   463→    <div className="space-y-4">
+   464→      {/* Stats bar */}
+   465→      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+   466→        <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm text-center">
+   467→          <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Total</div>
+   468→          <div className="text-2xl font-bold text-slate-800">{monthLVs.length}</div>
+   469→        </div>
+   470→        <div className="bg-white rounded-xl p-3 border border-amber-200 shadow-sm text-center">
+   471→          <div className="text-xs text-amber-600 uppercase tracking-wider font-semibold">Pendientes</div>
+   472→          <div className="text-2xl font-bold text-amber-700">{pendientes}</div>
+   473→        </div>
+   474→        <div className="bg-white rounded-xl p-3 border border-blue-200 shadow-sm text-center">
+   475→          <div className="text-xs text-blue-600 uppercase tracking-wider font-semibold">En Progreso</div>
+   476→          <div className="text-2xl font-bold text-blue-700">{enProgreso}</div>
+   477→        </div>
+   478→        <div className="bg-white rounded-xl p-3 border border-emerald-200 shadow-sm text-center">
+   479→          <div className="text-xs text-emerald-600 uppercase tracking-wider font-semibold">Realizadas</div>
+   480→          <div className="text-2xl font-bold text-emerald-700">{completadas}</div>
+   481→        </div>
+   482→        <div className="bg-white rounded-xl p-3 border border-teal-200 shadow-sm text-center">
+   483→          <div className="text-xs text-teal-600 uppercase tracking-wider font-semibold">Avance</div>
+   484→          <div className="text-2xl font-bold text-teal-700">{avgProgress}%</div>
+   485→          <Progress value={avgProgress} className="h-2 mt-1" />
+   486→        </div>
+   487→      </div>
+   488→
+   489→      {/* Header with navigation */}
+   490→      <div className="flex items-center justify-between">
+   491→        <div className="flex items-center gap-3">
+   492→          {currentView !== 'calendar' && (
+   493→            <Button variant="ghost" size="sm" onClick={goBack} className="gap-1">
+   494→              <ChevronLeft className="h-4 w-4" /> Volver
+   495→            </Button>
+   496→          )}
+   497→          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+   498→            <Wrench className="h-5 w-5 text-teal-600" />
+   499→            Mantenimiento
+   500→          </h2>
+   501→          {currentView === 'day' && selectedDate && (
+   502→            <Badge className="bg-teal-100 text-teal-700 text-sm">
+   503→              {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}
+   504→            </Badge>
+   505→          )}
+   506→        </div>
+   507→        <div className="flex items-center gap-2">
+   508→          {currentView === 'calendar' && (
+   509→            <Button
+   510→              variant="outline"
+   511→              size="sm"
+   512→              className="gap-1 border-teal-300 text-teal-700 hover:bg-teal-50"
+   513→              onClick={handleGenerate}
+   514→              disabled={generating}
+   515→            >
+   516→              <RefreshCw className={`h-4 w-4 ${generating ? 'animate-spin' : ''}`} />
+   517→              {generating ? 'Generando...' : 'Generar'}
+   518→            </Button>
+   519→          )}
+   520→        </div>
+   521→      </div>
+   522→
+   523→      {/* ============================================================ */}
+   524→      {/* CALENDAR VIEW                                                 */}
+   525→      {/* ============================================================ */}
+   526→      {currentView === 'calendar' && (
+   527→        <Card className="border-teal-200">
+   528→          <CardHeader className="pb-2 bg-gradient-to-r from-teal-50 to-white border-b border-teal-100">
+   529→            <div className="flex items-center justify-between">
+   530→              <Button variant="ghost" size="sm" onClick={() => { if (calMonth === 0) { setCalMonth(11); setCalYear(calYear - 1) } else setCalMonth(calMonth - 1) }} className="text-teal-700 hover:text-teal-900">
+   531→                <ChevronLeft className="h-5 w-5" />
+   532→              </Button>
+   533→              <CardTitle className="text-lg font-bold text-teal-900">{monthNames[calMonth]} {calYear}</CardTitle>
+   534→              <Button variant="ghost" size="sm" onClick={() => { if (calMonth === 11) { setCalMonth(0); setCalYear(calYear + 1) } else setCalMonth(calMonth + 1) }} className="text-teal-700 hover:text-teal-900">
+   535→                <ChevronRight className="h-5 w-5" />
+   536→              </Button>
+   537→            </div>
+   538→          </CardHeader>
+   539→          <CardContent className="p-3">
+   540→            <div className="grid grid-cols-7 gap-1">
+   541→              {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (
+   542→                <div key={d} className="text-center text-xs font-bold text-teal-700 py-2 bg-teal-50 rounded-t">{d}</div>
+   543→              ))}
+   544→              {Array.from({ length: getFirstDayOfMonth(calYear, calMonth) }, (_, i) => (
+   545→                <div key={`empty-${i}`} className="min-h-[90px] bg-slate-50 rounded" />
+   546→              ))}
+   547→              {Array.from({ length: getDaysInMonth(calYear, calMonth) }, (_, i) => {
+   548→                const day = i + 1
+   549→                const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+   550→                const dayLVs = getLVsForDate(day)
+   551→                const isToday = calYear === new Date().getFullYear() && calMonth === new Date().getMonth() && day === new Date().getDate()
+   552→                const isPast = new Date(dateStr + 'T12:00:00') < new Date(new Date().toDateString())
+   553→                const allComplete = dayLVs.length > 0 && dayLVs.every(lv => lv.status === 'COMPLETADA')
+   554→                const hasPending = dayLVs.some(lv => lv.status === 'PENDIENTE')
+   555→                const dayProgress = dayLVs.length > 0 ? Math.round(dayLVs.reduce((s, l) => s + l.progress, 0) / dayLVs.length) : 0
+   556→
+   557→                return (
+   558→                  <div key={day}
+   559→                    className={`min-h-[90px] border rounded-lg p-1.5 text-xs overflow-hidden cursor-pointer transition-all hover:shadow-md ${isToday ? 'border-teal-400 bg-teal-50/30 ring-2 ring-teal-300' : allComplete ? 'border-emerald-300 bg-emerald-50/20' : hasPending && isPast ? 'border-amber-300 bg-amber-50/20' : 'border-slate-200 hover:border-teal-300'}`}
+   560→                    onClick={() => { if (dayLVs.length > 0) openDay(dateStr) }}
+   561→                  >
+   562→                    <div className="flex items-center justify-between mb-1">
+   563→                      <span className={`font-bold text-sm ${isToday ? 'text-teal-700 bg-teal-200 rounded-full w-7 h-7 flex items-center justify-center' : 'text-slate-700'}`}>{day}</span>
+   564→                      {dayLVs.length > 0 && (
+   565→                        <span className={`text-[10px] font-bold ${allComplete ? 'text-emerald-600' : hasPending && isPast ? 'text-amber-600' : 'text-slate-500'}`}>
+   566→                          {dayProgress}%
+   567→                        </span>
+   568→                      )}
+   569→                    </div>
+   570→                    <div className="space-y-0.5">
+   571→                      {dayLVs.slice(0, 4).map(lv => (
+   572→                        <div key={lv.id}
+   573→                          className={`truncate rounded px-1 py-0.5 text-[10px] font-medium ${lv.status === 'COMPLETADA' ? 'bg-emerald-100 text-emerald-700' : lv.status === 'EN_PROGRESO' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}
+   574→                          title={`${lv.codigo} — ${lv.nombre} (${lv.progress}%)`}
+   575→                        >
+   576→                          {lv.codigo}
+   577→                        </div>
+   578→                      ))}
+   579→                      {dayLVs.length > 4 && (
+   580→                        <div className="text-[10px] text-teal-600 font-semibold">+{dayLVs.length - 4} más</div>
+   581→                      )}
+   582→                    </div>
+   583→                  </div>
+   584→                )
+   585→              })}
+   586→            </div>
+   587→            {/* Legend */}
+   588→            <div className="flex flex-wrap gap-4 mt-3 text-xs p-2 bg-slate-50 rounded-lg">
+   589→              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-amber-100 border border-amber-300" /> Pendiente</div>
+   590→              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-blue-100 border border-blue-300" /> En Progreso</div>
+   591→              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-emerald-100 border border-emerald-300" /> Realizado</div>
+   592→              <div className="flex items-center gap-1 ml-auto text-teal-600">Haz clic en un día con LVs para verlas</div>
+   593→            </div>
+   594→          </CardContent>
+   595→        </Card>
+   596→      )}
+   597→
+   598→      {/* ============================================================ */}
+   599→      {/* DAY VIEW — Shows all LVs for the selected date              */}
+   600→      {/* ============================================================ */}
+   601→      {currentView === 'day' && selectedDate && (
+   602→        <div className="space-y-3">
+   603→          {dayLVs.length === 0 ? (
+   604→            <div className="text-center py-12 text-slate-400">
+   605→              <Calendar className="h-12 w-12 mx-auto mb-3 opacity-40" />
+   606→              <p className="text-lg font-medium">No hay listas para este día</p>
+   607→            </div>
+   608→          ) : (
+   609→            dayLVs
+   610→              .sort((a, b) => a.codigo.localeCompare(b.codigo))
+   611→              .map(lv => {
+   612→                const sc = statusConfig[lv.status] || statusConfig['PENDIENTE']
+   613→                const fc = freqColors[lv.frecuencia] || freqColors['Mensual']
+   614→                const StatusIcon = sc.icon
+   615→                return (
+   616→                  <Card key={lv.id} className="border-l-4 border-l-teal-400 hover:shadow-md transition-all cursor-pointer"
+   617→                    onClick={() => openLV(lv.id)}>
+   618→                    <CardContent className="px-4 py-3">
+   619→                      <div className="flex items-center justify-between gap-3">
+   620→                        <div className="flex items-center gap-3 min-w-0">
+   621→                          <Badge className={`${fc.bg} ${fc.text} text-xs font-bold shrink-0`}>{lv.codigo}</Badge>
+   622→                          <div className="min-w-0">
+   623→                            <div className="font-semibold text-sm text-slate-800 truncate">{lv.nombre}</div>
+   624→                            <div className="text-xs text-slate-500">{lv.sector} · {lv.frecuencia}</div>
+   625→                          </div>
+   626→                        </div>
+   627→                        <div className="flex items-center gap-2 shrink-0">
+   628→                          {/* Status toggle buttons */}
+   629→                          {canEdit && (
+   630→                            <div className="flex gap-1">
+   631→                              <Button
+   632→                                variant={lv.status === 'COMPLETADA' ? 'default' : 'outline'}
+   633→                                size="sm"
+   634→                                className={`h-7 text-xs gap-1 ${lv.status === 'COMPLETADA' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'border-emerald-300 text-emerald-700'}`}
+   635→                                onClick={(e) => { e.stopPropagation(); handleQuickStatus(lv.id, 'COMPLETADA') }}
+   636→                              >
+   637→                                <CheckCircle className="h-3 w-3" /> Realizado
+   638→                              </Button>
+   639→                              <Button
+   640→                                variant={lv.status === 'PENDIENTE' ? 'default' : 'outline'}
+   641→                                size="sm"
+   642→                                className={`h-7 text-xs gap-1 ${lv.status === 'PENDIENTE' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'border-amber-300 text-amber-700'}`}
+   643→                                onClick={(e) => { e.stopPropagation(); openLV(lv.id) }}
+   644→                              >
+   645→                                <Clock className="h-3 w-3" /> Pendiente
+   646→                              </Button>
+   647→                            </div>
+   648→                          )}
+   649→                          {/* Progress */}
+   650→                          <div className="w-20">
+   651→                            <div className={`text-xs text-right font-bold ${getProgressColor(lv.progress)}`}>{lv.progress}%</div>
+   652→                            <div className="h-1.5 rounded-full bg-slate-200 mt-0.5 overflow-hidden">
+   653→                              <div className={`h-full rounded-full transition-all ${getProgressBg(lv.progress)}`} style={{ width: `${lv.progress}%` }} />
+   654→                            </div>
+   655→                          </div>
+   656→                          <Eye className="h-4 w-4 text-slate-400" />
+   657→                        </div>
+   658→                      </div>
+   659→                      {/* Show motivo if pending */}
+   660→                      {lv.status === 'PENDIENTE' && lv.motivoPendiente && (
+   661→                        <div className="mt-2 flex items-start gap-2 bg-amber-50 rounded-lg px-3 py-2 border border-amber-200">
+   662→                          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+   663→                          <p className="text-xs text-amber-700"><span className="font-semibold">Motivo pendiente:</span> {lv.motivoPendiente}</p>
+   664→                        </div>
+   665→                      )}
+   666→                    </CardContent>
+   667→                  </Card>
+   668→                )
+   669→              })
+   670→          )}
+   671→        </div>
+   672→      )}
+   673→
+   674→      {/* ============================================================ */}
+   675→      {/* DETAIL VIEW — Single LV with full checklist                  */}
+   676→      {/* ============================================================ */}
+   677→      {currentView === 'detail' && selectedLV && (
+   678→        <div className="space-y-4">
+   679→          {/* Header */}
+   680→          <Card className="border-teal-200 overflow-hidden">
+   681→            <CardHeader className="bg-gradient-to-r from-teal-50 to-white border-b border-teal-100 pb-3">
+   682→              <div className="flex items-start justify-between gap-3">
+   683→                <div>
+   684→                  <div className="flex items-center gap-2 mb-1">
+   685→                    <Badge className={`${freqColors[selectedLV.frecuencia]?.bg || 'bg-slate-100'} ${freqColors[selectedLV.frecuencia]?.text || 'text-slate-700'} text-xs font-bold`}>
+   686→                      {selectedLV.codigo}
+   687→                    </Badge>
+   688→                    <Badge className={`${freqColors[selectedLV.frecuencia]?.bg || 'bg-slate-100'} ${freqColors[selectedLV.frecuencia]?.text || 'text-slate-700'} text-xs`}>
+   689→                      {selectedLV.frecuencia}
+   690→                    </Badge>
+   691→                  </div>
+   692→                  <h3 className="text-lg font-bold text-slate-800">{selectedLV.nombre}</h3>
+   693→                  <p className="text-sm text-slate-500 mt-0.5">
+   694→                    {selectedLV.sector} · {formatDateShort(selectedLV.scheduledDate)} · {selectedLV.responsable || 'Sin responsable'}
+   695→                  </p>
+   696→                </div>
+   697→                {/* Progress circle */}
+   698→                <div className="text-center shrink-0">
+   699→                  <div className="relative w-16 h-16">
+   700→                    <svg className="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
+   701→                      <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e2e8f0" strokeWidth="3" />
+   702→                      <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke={selectedLV.progress === 100 ? '#10b981' : selectedLV.progress >= 50 ? '#3b82f6' : '#f59e0b'} strokeWidth="3" strokeDasharray={`${selectedLV.progress}, 100`} strokeLinecap="round" />
+   703→                    </svg>
+   704→                    <span className={`absolute inset-0 flex items-center justify-center text-sm font-bold ${getProgressColor(selectedLV.progress)}`}>{selectedLV.progress}%</span>
+   705→                  </div>
+   706→                </div>
+   707→              </div>
+   708→            </CardHeader>
+   709→            <CardContent className="p-4">
+   710→              {/* Action buttons */}
+   711→              <div className="flex items-center gap-2 flex-wrap">
+   712→                <Button variant="outline" size="sm" className="gap-1" onClick={() => handlePrint(selectedLV)}>
+   713→                  <Printer className="h-4 w-4" /> Imprimir
+   714→                </Button>
+   715→                <Button variant="outline" size="sm" className="gap-1" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+   716→                  <Upload className="h-4 w-4" /> {uploading ? 'Subiendo...' : 'Adjuntar Respaldo'}
+   717→                </Button>
+   718→                <input ref={fileInputRef} type="file" className="hidden" onChange={handleUploadAttachment} accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xlsx" />
+   719→                {canEdit && (
+   720→                  <Button size="sm" className="gap-1 bg-teal-600 hover:bg-teal-700 text-white ml-auto" onClick={handleSave} disabled={saving}>
+   721→                    <Save className="h-4 w-4" /> {saving ? 'Guardando...' : 'Guardar Cambios'}
+   722→                  </Button>
+   723→                )}
+   724→                {canEdit && (
+   725→                  <Button variant="ghost" size="sm" className="text-red-500" onClick={() => { setDeleteId(selectedLV.id); setDeleteDialogOpen(true) }}>
+   726→                    <Trash2 className="h-4 w-4" />
+   727→                  </Button>
+   728→                )}
+   729→              </div>
+   730→
+   731→              {/* Status selector */}
+   732→              <div className="mt-4 p-3 bg-slate-50 rounded-lg border">
+   733→                <div className="flex items-center gap-4">
+   734→                  <Label className="text-sm font-semibold text-slate-700 shrink-0">Estado:</Label>
+   735→                  {canEdit ? (
+   736→                    <div className="flex gap-2">
+   737→                      <Button
+   738→                        variant={editStatus === 'COMPLETADA' ? 'default' : 'outline'}
+   739→                        size="sm"
+   740→                        className={`gap-1 ${editStatus === 'COMPLETADA' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'border-emerald-300 text-emerald-700'}`}
+   741→                        onClick={() => setEditStatus('COMPLETADA')}
+   742→                      >
+   743→                        <CheckCircle className="h-4 w-4" /> Realizado
+   744→                      </Button>
+   745→                      <Button
+   746→                        variant={editStatus === 'EN_PROGRESO' ? 'default' : 'outline'}
+   747→                        size="sm"
+   748→                        className={`gap-1 ${editStatus === 'EN_PROGRESO' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'border-blue-300 text-blue-700'}`}
+   749→                        onClick={() => setEditStatus('EN_PROGRESO')}
+   750→                      >
+   751→                        <RefreshCw className="h-4 w-4" /> En Progreso
+   752→                      </Button>
+   753→                      <Button
+   754→                        variant={editStatus === 'PENDIENTE' ? 'default' : 'outline'}
+   755→                        size="sm"
+   756→                        className={`gap-1 ${editStatus === 'PENDIENTE' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'border-amber-300 text-amber-700'}`}
+   757→                        onClick={() => setEditStatus('PENDIENTE')}
+   758→                      >
+   759→                        <Clock className="h-4 w-4" /> Pendiente
+   760→                      </Button>
+   761→                    </div>
+   762→                  ) : (
+   763→                    <Badge className={`${statusConfig[selectedLV.status]?.bg} ${statusConfig[selectedLV.status]?.text} gap-1`}>
+   764→                      {(() => { const Icon = statusConfig[selectedLV.status]?.icon || Clock; return <Icon className="h-3 w-3" /> })()}
+   765→                      {statusConfig[selectedLV.status]?.label}
+   766→                    </Badge>
+   767→                  )}
+   768→                </div>
+   769→
+   770→                {/* Motivo pendiente - only shows when status is PENDIENTE */}
+   771→                {editStatus === 'PENDIENTE' && (
+   772→                  <div className="mt-3">
+   773→                    <Label className="text-sm font-semibold text-amber-700 flex items-center gap-1.5">
+   774→                      <AlertTriangle className="h-4 w-4" /> Motivo por el que no se realizó
+   775→                    </Label>
+   776→                    <Textarea
+   777→                      value={editMotivoPendiente}
+   778→                      onChange={(e) => setEditMotivoPendiente(e.target.value)}
+   779→                      placeholder="Indique el motivo por el cual esta lista queda pendiente..."
+   780→                      rows={2}
+   781→                      className="mt-1 border-amber-300 focus:border-amber-500"
+   782→                    />
+   783→                  </div>
+   784→                )}
+   785→              </div>
+   786→
+   787→              {/* Attachments */}
+   788→              {JSON.parse(selectedLV.attachments || '[]').length > 0 && (
+   789→                <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+   790→                  <div className="text-xs text-blue-600 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
+   791→                    <Paperclip className="h-3.5 w-3.5" /> Documentos Adjuntos (Respaldos)
+   792→                  </div>
+   793→                  <div className="flex gap-2 flex-wrap">
+   794→                    {JSON.parse(selectedLV.attachments).map((url: string, idx: number) => (
+   795→                      <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 bg-white px-2.5 py-1.5 rounded-lg border border-blue-200 hover:border-blue-400 transition-all">
+   796→                        <FileText className="h-3.5 w-3.5" />
+   797→                        Documento {idx + 1}
+   798→                      </a>
+   799→                    ))}
+   800→                  </div>
+   801→                </div>
+   802→              )}
+   803→            </CardContent>
+   804→          </Card>
+   805→
+   806→          {/* Checklist preview */}
+   807→          {(() => {
+   808→            const categories = [...new Set(editItems.map(i => i.category))]
+   809→            const categoryLabels: Record<string, string> = { A: 'A. EPP / Materiales', B: 'B. Verificación de Tareas', C: 'C. Inspección / Registros', D: 'D. Dosificaciones / Limpieza' }
+   810→            return categories.map(cat => {
+   811→              const catItems = editItems.filter(i => i.category === cat)
+   812→              const catOk = catItems.filter(i => i.status === 'OK' || i.status === 'N/A').length
+   813→              const catProgress = catItems.length > 0 ? Math.round((catOk / catItems.length) * 100) : 0
+   814→              return (
+   815→                <Card key={cat} className="border border-slate-200">
+   816→                  <CardHeader className="py-2 px-4 bg-slate-50">
+   817→                    <div className="flex items-center justify-between">
+   818→                      <CardTitle className="text-sm font-bold text-slate-700">{categoryLabels[cat] || `Sección ${cat}`}</CardTitle>
+   819→                      <div className="flex items-center gap-2">
+   820→                        <span className="text-xs text-slate-500">{catOk}/{catItems.length}</span>
+   821→                        <div className="w-16 h-1.5 rounded-full bg-slate-200 overflow-hidden">
+   822→                          <div className={`h-full rounded-full ${getProgressBg(catProgress)}`} style={{ width: `${catProgress}%` }} />
+   823→                        </div>
+   824→                      </div>
+   825→                    </div>
+   826→                  </CardHeader>
+   827→                  <CardContent className="p-0">
+   828→                    <Table>
+   829→                      <TableHeader>
+   830→                        <TableRow>
+   831→                          <TableHead className="w-[30px] text-center px-2 py-1 text-xs">N°</TableHead>
+   832→                          <TableHead className="px-2 py-1 text-xs">Descripción</TableHead>
+   833→                          <TableHead className="w-[90px] text-center px-2 py-1 text-xs">Estado</TableHead>
+   834→                          <TableHead className="w-[100px] px-2 py-1 text-xs">Valor</TableHead>
+   835→                          <TableHead className="w-[120px] px-2 py-1 text-xs">Observación</TableHead>
+   836→                        </TableRow>
+   837→                      </TableHeader>
+   838→                      <TableBody>
+   839→                        {catItems.map((item, idx) => (
+   840→                          <TableRow key={item.id || idx} className={item.status === 'OK' ? 'bg-emerald-50/50' : item.status === 'NO_OK' ? 'bg-red-50/50' : ''}>
+   841→                            <TableCell className="text-center text-xs text-slate-400 px-2 py-1">{idx + 1}</TableCell>
+   842→                            <TableCell className="text-xs px-2 py-1 text-slate-700">{item.description}</TableCell>
+   843→                            <TableCell className="text-center px-2 py-1">
+   844→                              {canEdit ? (
+   845→                                <Select value={item.status} onValueChange={(v) => handleItemStatusChange(item.id!, v)}>
+   846→                                  <SelectTrigger className="h-7 text-xs w-[80px]">
+   847→                                    <SelectValue />
+   848→                                  </SelectTrigger>
+   849→                                  <SelectContent>
+   850→                                    <SelectItem value="PENDIENTE">☐ Pendiente</SelectItem>
+   851→                                    <SelectItem value="OK">✓ OK</SelectItem>
+   852→                                    <SelectItem value="NO_OK">✗ NO OK</SelectItem>
+   853→                                    <SelectItem value="N/A">N/A</SelectItem>
+   854→                                  </SelectContent>
+   855→                                </Select>
+   856→                              ) : (
+   857→                                <Badge className={`text-xs ${item.status === 'OK' ? 'bg-emerald-100 text-emerald-700' : item.status === 'NO_OK' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
+   858→                                  {item.status === 'OK' ? '✓ OK' : item.status === 'NO_OK' ? '✗ NO' : item.status === 'N/A' ? 'N/A' : '☐'}
+   859→                                </Badge>
+   860→                              )}
+   861→                            </TableCell>
+   862→                            <TableCell className="px-2 py-1">
+   863→                              {canEdit ? (
+   864→                                <Input className="h-7 text-xs" value={item.value || ''} onChange={(e) => handleItemFieldChange(item.id!, 'value', e.target.value)} placeholder="Valor" />
+   865→                              ) : <span className="text-xs">{item.value || '-'}</span>}
+   866→                            </TableCell>
+   867→                            <TableCell className="px-2 py-1">
+   868→                              {canEdit ? (
+   869→                                <Input className="h-7 text-xs" value={item.observation || ''} onChange={(e) => handleItemFieldChange(item.id!, 'observation', e.target.value)} placeholder="Obs." />
+   870→                              ) : <span className="text-xs">{item.observation || '-'}</span>}
+   871→                            </TableCell>
+   872→                          </TableRow>
+   873→                        ))}
+   874→                      </TableBody>
+   875→                    </Table>
+   876→                  </CardContent>
+   877→                </Card>
+   878→              )
+   879→            })
+   880→          })()}
+   881→
+   882→          {/* Observations */}
+   883→          <Card className="border border-slate-200">
+   884→            <CardHeader className="py-2 px-4 bg-slate-50">
+   885→              <CardTitle className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+   886→                <MessageSquare className="h-4 w-4" /> Comentarios / Observaciones
+   887→              </CardTitle>
+   888→            </CardHeader>
+   889→            <CardContent className="p-4">
+   890→              {canEdit ? (
+   891→                <Textarea value={editObservations} onChange={(e) => setEditObservations(e.target.value)} placeholder="Ingrese comentarios u observaciones..." rows={3} />
+   892→              ) : (
+   893→                <p className="text-sm text-slate-600">{selectedLV.observations || 'Sin observaciones'}</p>
+   894→              )}
+   895→            </CardContent>
+   896→          </Card>
+   897→
+   898→          {/* Save button at bottom */}
+   899→          {canEdit && (
+   900→            <div className="flex justify-end gap-2 pt-2">
+   901→              <Button variant="outline" onClick={goBack}>Cancelar</Button>
+   902→              <Button className="gap-1.5 bg-teal-600 hover:bg-teal-700 text-white" onClick={handleSave} disabled={saving}>
+   903→                <Save className="h-4 w-4" /> {saving ? 'Guardando...' : 'Guardar Todos los Cambios'}
+   904→              </Button>
+   905→            </div>
+   906→          )}
+   907→        </div>
+   908→      )}
+   909→
+   910→      {/* Delete dialog */}
+   911→      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+   912→        <AlertDialogContent>
+   913→          <AlertDialogHeader>
+   914→            <AlertDialogTitle>¿Eliminar esta lista?</AlertDialogTitle>
+   915→            <AlertDialogDescription>Se eliminará la lista de verificación y todos sus items. Esta acción no se puede deshacer.</AlertDialogDescription>
+   916→          </AlertDialogHeader>
+   917→          <AlertDialogFooter>
+   918→            <AlertDialogCancel onClick={() => setDeleteId(null)}>Cancelar</AlertDialogCancel>
+   919→            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white">Eliminar</AlertDialogAction>
+   920→          </AlertDialogFooter>
+   921→        </AlertDialogContent>
+   922→      </AlertDialog>
+   923→    </div>
+   924→  )
+   925→}
+   926→

@@ -354,43 +354,78 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
     if (!w) return
     const categories = [...new Set(lv.items.map(i => i.category))]
     const categoryLabels: Record<string, string> = { A: 'A. EPP / Materiales', B: 'B. Verificación de Tareas', C: 'C. Inspección / Registros', D: 'D. Dosificaciones / Limpieza' }
+    const logoUrl = `${window.location.origin}/logo-laguna-norte.jpg`
 
     w.document.write(`<!DOCTYPE html><html><head><title>${lv.codigo} — ${lv.nombre}</title>
     <style>
-      body{font-family:Arial,sans-serif;margin:20px;font-size:12px;color:#1e293b}
-      h1{font-size:16px;margin:0 0 4px}h2{font-size:13px;margin:8px 0 4px;color:#475569}
-      .header{display:flex;justify-content:space-between;border-bottom:2px solid #0d9488;padding-bottom:8px;margin-bottom:12px}
-      .meta{display:flex;gap:20px;font-size:11px;margin-bottom:8px;flex-wrap:wrap}
-      table{width:100%;border-collapse:collapse;margin-bottom:12px}
-      th{background:#f1f5f9;padding:6px 8px;text-align:left;border:1px solid #cbd5e1;font-size:11px}
-      td{padding:5px 8px;border:1px solid #e2e8f0;font-size:11px}
-      .ok{color:#16a34a;font-weight:bold}.no{color:#dc2626;font-weight:bold}
-      .progress-bar{height:16px;background:#e2e8f0;border-radius:4px;overflow:hidden;margin:4px 0}
-      .progress-fill{height:100%;background:#0d9488}
-      .signatures{display:flex;gap:40px;margin-top:30px;font-size:11px}
-      .sig-line{border-top:1px solid #000;width:200px;padding-top:4px;margin-top:30px}
-      .logo{font-weight:bold;font-size:13px;color:#0d9488}
-      .status-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:11px}
+      @page{size:A4;margin:8mm}
+      *{box-sizing:border-box}
+      body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;font-size:8.5px;color:#1e293b;line-height:1.25}
+      .header{display:flex;align-items:center;justify-content:space-between;border-bottom:2.5px solid #0d9488;padding-bottom:5px;margin-bottom:4px}
+      .header-left{display:flex;align-items:center;gap:8px}
+      .header-left img{height:42px;width:auto;object-fit:contain}
+      .header-info h1{font-size:13px;margin:0 0 1px;color:#0f172a;font-weight:800;line-height:1.2}
+      .header-info .sub{font-size:8px;color:#64748b;margin:0}
+      .header-info .org{font-size:9px;color:#0d9488;font-weight:700;margin:0 0 1px}
+      .header-right{text-align:right;font-size:8px}
+      .status-badge{display:inline-block;padding:1px 7px;border-radius:3px;font-weight:700;font-size:8px;letter-spacing:.3px}
       .pendiente{background:#fef3c7;color:#92400e}.completada{background:#d1fae5;color:#065f46}.progreso{background:#dbeafe;color:#1e40af}
-      @media print{body{margin:10px}}
+      .progress-bar{height:10px;background:#e2e8f0;border-radius:3px;overflow:hidden;margin:2px 0;width:100px;display:inline-block;vertical-align:middle}
+      .progress-fill{height:100%;background:#0d9488;border-radius:3px}
+      .meta{display:flex;gap:12px;font-size:8px;margin-bottom:5px;flex-wrap:wrap;padding:3px 0;border-bottom:1px dashed #cbd5e1}
+      .meta b{color:#475569}
+      .cat-title{font-size:9.5px;font-weight:700;margin:5px 0 2px;padding:2px 5px;background:#f1f5f9;border-left:3px solid #0d9488;color:#334155}
+      table{width:100%;border-collapse:collapse;margin-bottom:3px}
+      th{background:#f8fafc;padding:2px 4px;text-align:left;border:1px solid #cbd5e1;font-size:7.5px;font-weight:700;color:#475569;white-space:nowrap}
+      td{padding:1.5px 4px;border:1px solid #e2e8f0;font-size:7.5px;vertical-align:middle}
+      tr:nth-child(even){background:#fafbfc}
+      .ok{color:#16a34a;font-weight:700}.no{color:#dc2626;font-weight:700}
+      .obs-section{margin-top:4px;padding:3px 5px;background:#fefce8;border:1px solid #fde68a;border-radius:3px;font-size:8px}
+      .motivo-section{margin-top:3px;padding:3px 5px;background:#fef2f2;border:1px solid #fecaca;border-radius:3px;font-size:8px;color:#991b1b}
+      .signatures{display:flex;justify-content:space-between;margin-top:8px;font-size:7.5px;padding-top:4px}
+      .sig-line{border-top:1px solid #000;width:44%;padding-top:2px;margin-top:18px;text-align:center}
+      @media print{body{margin:0;padding:0}.no-print{display:none}}
     </style></head><body>
-    <div class="header"><div><div class="logo">Asesorías Integrales CyJ</div><h1>${lv.codigo} — ${lv.nombre}</h1><div style="font-size:11px;color:#64748b">Condominio Laguna Norte — Lampa, Santiago</div></div>
-    <div style="text-align:right;font-size:11px">
-      <div class="status-badge ${lv.status === 'COMPLETADA' ? 'completada' : lv.status === 'EN_PROGRESO' ? 'progreso' : 'pendiente'}">${lv.status === 'COMPLETADA' ? 'REALIZADO' : lv.status === 'EN_PROGRESO' ? 'EN PROGRESO' : 'PENDIENTE'}</div>
-      <div style="margin-top:4px">Avance: ${lv.progress}%</div><div class="progress-bar" style="width:120px"><div class="progress-fill" style="width:${lv.progress}%"></div></div>
-    </div></div>
-    <div class="meta"><div><b>Sector:</b> ${lv.sector}</div><div><b>Frecuencia:</b> ${lv.frecuencia}</div><div><b>Responsable:</b> ${lv.responsable || '-'}</div><div><b>Fecha:</b> ${lv.scheduledDate ? new Date(lv.scheduledDate).toLocaleDateString('es-CL') : '-'}</div><div><b>Turno:</b> ${lv.turno || '-'}</div></div>
+    <div class="header">
+      <div class="header-left">
+        <img src="${logoUrl}" alt="Logo" />
+        <div class="header-info">
+          <div class="org">Asesorías Integrales CyJ</div>
+          <h1>${lv.codigo} — ${lv.nombre}</h1>
+          <div class="sub">Condominio Laguna Norte — Lampa, Santiago</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="status-badge ${lv.status === 'COMPLETADA' ? 'completada' : lv.status === 'EN_PROGRESO' ? 'progreso' : 'pendiente'}">${lv.status === 'COMPLETADA' ? 'REALIZADO' : lv.status === 'EN_PROGRESO' ? 'EN PROGRESO' : 'PENDIENTE'}</div>
+        <div style="margin-top:2px">Avance: <b>${lv.progress}%</b></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${lv.progress}%"></div></div>
+      </div>
+    </div>
+    <div class="meta">
+      <div><b>Sector:</b> ${lv.sector}</div>
+      <div><b>Frecuencia:</b> ${lv.frecuencia}</div>
+      <div><b>Responsable:</b> ${lv.responsable || '-'}</div>
+      <div><b>Fecha:</b> ${lv.scheduledDate ? new Date(lv.scheduledDate).toLocaleDateString('es-CL') : '-'}</div>
+      <div><b>Turno:</b> ${lv.turno || '-'}</div>
+    </div>
     ${categories.map(cat => {
       const catItems = lv.items.filter(i => i.category === cat)
-      return `<h2>${categoryLabels[cat] || cat}</h2><table><tr><th style="width:5%">N°</th><th style="width:50%">Descripción</th><th style="width:10%">Estado</th><th style="width:15%">Valor</th><th style="width:20%">Observación</th></tr>
-      ${catItems.map((item, idx) => `<tr><td>${idx + 1}</td><td>${item.description}</td><td class="${item.status === 'OK' ? 'ok' : item.status === 'NO_OK' ? 'no' : ''}">${item.status === 'OK' ? '✓ OK' : item.status === 'NO_OK' ? '✗ NO OK' : item.status === 'N/A' ? 'N/A' : '☐ Pendiente'}</td><td>${item.value || ''}</td><td>${item.observation || ''}</td></tr>`).join('')}</table>`
+      return `<div class="cat-title">${categoryLabels[cat] || cat}</div>
+      <table>
+        <colgroup><col style="width:4%"><col style="width:42%"><col style="width:9%"><col style="width:14%"><col style="width:31%"></colgroup>
+        <tr><th>N°</th><th>Descripción</th><th>Estado</th><th>Valor</th><th>Observación</th></tr>
+        ${catItems.map((item, idx) => `<tr><td style="text-align:center">${idx + 1}</td><td>${item.description}</td><td class="${item.status === 'OK' ? 'ok' : item.status === 'NO_OK' ? 'no' : ''}" style="text-align:center">${item.status === 'OK' ? '&#10003; OK' : item.status === 'NO_OK' ? '&#10007; NO OK' : item.status === 'N/A' ? 'N/A' : '&#9634; Pend.'}</td><td>${item.value || ''}</td><td>${item.observation || ''}</td></tr>`).join('')}
+      </table>`
     }).join('')}
-    ${lv.observations ? `<h2>Observaciones</h2><p>${lv.observations}</p>` : ''}
-    ${lv.motivoPendiente ? `<h2 style="color:#dc2626">Motivo Pendiente</h2><p>${lv.motivoPendiente}</p>` : ''}
-    <div class="signatures"><div><div class="sig-line">Responsable — Nombre, Firma, RUT, Fecha</div></div><div><div class="sig-line">Supervisor — Nombre, Firma, RUT, Fecha</div></div></div>
+    ${lv.observations ? `<div class="obs-section"><b>Observaciones:</b> ${lv.observations}</div>` : ''}
+    ${lv.motivoPendiente ? `<div class="motivo-section"><b>Motivo Pendiente:</b> ${lv.motivoPendiente}</div>` : ''}
+    <div class="signatures">
+      <div class="sig-line">Responsable — Nombre, Firma, RUT, Fecha</div>
+      <div class="sig-line">Supervisor — Nombre, Firma, RUT, Fecha</div>
+    </div>
     </body></html>`)
     w.document.close()
-    setTimeout(() => w.print(), 500)
+    setTimeout(() => w.print(), 600)
   }
 
   // ============================================================
