@@ -35,7 +35,22 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'asc' },
     })
 
-    return NextResponse.json({ data: items })
+    // Parse imageCompraUrls from JSON string to array for each item
+    const parsedItems = items.map((item) => {
+      let compraUrls: string[] = []
+      try {
+        compraUrls = JSON.parse(item.imageCompraUrls || '[]')
+      } catch {
+        // Fallback: if it was a single URL string
+        compraUrls = item.imageCompraUrls && item.imageCompraUrls !== '[]' ? [item.imageCompraUrls] : []
+      }
+      return {
+        ...item,
+        imageCompraUrls: compraUrls,
+      }
+    })
+
+    return NextResponse.json({ data: parsedItems })
   } catch (error) {
     console.error('[EXPENSE_ITEMS_GET]', error)
     return NextResponse.json({ error: 'Error al obtener items de gastos' }, { status: 500 })
@@ -46,7 +61,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { description, numeroBoleta, montoRendir, category, expenseDate, imageBoletaUrl, imageCompraUrl, reportId } = body
+    const { description, numeroBoleta, montoRendir, category, expenseDate, imageBoletaUrl, imageCompraUrls, reportId } = body
 
     // Validate required fields
     if (!reportId) {
@@ -74,6 +89,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Reporte no encontrado' }, { status: 404 })
     }
 
+    // Normalize imageCompraUrls to a JSON string
+    let compraUrlsStr = '[]'
+    if (Array.isArray(imageCompraUrls) && imageCompraUrls.length > 0) {
+      compraUrlsStr = JSON.stringify(imageCompraUrls.filter((u: string) => u && u.trim()))
+    }
+
     const item = await db.expenseItem.create({
       data: {
         description: description.trim(),
@@ -82,7 +103,7 @@ export async function POST(request: NextRequest) {
         category: category.trim(),
         expenseDate: new Date(expenseDate),
         imageBoletaUrl: imageBoletaUrl || '',
-        imageCompraUrl: imageCompraUrl || '',
+        imageCompraUrls: compraUrlsStr,
         reportId,
       },
     })
@@ -90,7 +111,13 @@ export async function POST(request: NextRequest) {
     // Recalculate report total
     await recalcTotal(reportId)
 
-    return NextResponse.json({ data: item }, { status: 201 })
+    // Return with parsed URLs
+    return NextResponse.json({
+      data: {
+        ...item,
+        imageCompraUrls: JSON.parse(compraUrlsStr),
+      }
+    }, { status: 201 })
   } catch (error) {
     console.error('[EXPENSE_ITEMS_POST]', error)
     return NextResponse.json({ error: 'Error al crear item de gasto' }, { status: 500 })

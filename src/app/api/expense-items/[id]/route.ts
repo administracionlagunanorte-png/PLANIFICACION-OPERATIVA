@@ -22,7 +22,7 @@ export async function PUT(
   try {
     const { id } = await params
     const body = await request.json()
-    const { description, numeroBoleta, montoRendir, category, expenseDate, imageBoletaUrl, imageCompraUrl } = body
+    const { description, numeroBoleta, montoRendir, category, expenseDate, imageBoletaUrl, imageCompraUrls } = body
 
     const existing = await db.expenseItem.findUnique({ where: { id } })
     if (!existing) {
@@ -67,8 +67,12 @@ export async function PUT(
       data.imageBoletaUrl = imageBoletaUrl || ''
     }
 
-    if (imageCompraUrl !== undefined) {
-      data.imageCompraUrl = imageCompraUrl || ''
+    if (imageCompraUrls !== undefined) {
+      if (Array.isArray(imageCompraUrls)) {
+        data.imageCompraUrls = JSON.stringify(imageCompraUrls.filter((u: string) => u && u.trim()))
+      } else {
+        data.imageCompraUrls = '[]'
+      }
     }
 
     const item = await db.expenseItem.update({
@@ -79,7 +83,20 @@ export async function PUT(
     // Recalculate report total
     await recalcTotal(existing.reportId)
 
-    return NextResponse.json({ data: item })
+    // Return with parsed URLs
+    let compraUrlsArr: string[] = []
+    try {
+      compraUrlsArr = JSON.parse(item.imageCompraUrls || '[]')
+    } catch {
+      compraUrlsArr = item.imageCompraUrls && item.imageCompraUrls !== '[]' ? [item.imageCompraUrls] : []
+    }
+
+    return NextResponse.json({
+      data: {
+        ...item,
+        imageCompraUrls: compraUrlsArr,
+      }
+    })
   } catch (error) {
     console.error('[EXPENSE_ITEM_PUT]', error)
     return NextResponse.json({ error: 'Error al actualizar item de gasto' }, { status: 500 })

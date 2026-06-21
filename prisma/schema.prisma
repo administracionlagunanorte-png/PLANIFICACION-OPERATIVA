@@ -153,7 +153,7 @@ model ExpenseItem {
   category       String
   expenseDate    DateTime
   imageBoletaUrl String        @default("") @db.Text
-  imageCompraUrl String        @default("") @db.Text
+  imageCompraUrls String       @default("[]") @db.Text
   reportId       String
   report         ExpenseReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
   createdAt      DateTime      @default(now())

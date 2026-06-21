@@ -1,6 +1,22 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 
+// Helper: parse imageCompraUrls for items
+function parseItemCompraUrls(items: any[]) {
+  return items.map((item) => {
+    let compraUrls: string[] = []
+    try {
+      compraUrls = JSON.parse(item.imageCompraUrls || '[]')
+    } catch {
+      compraUrls = item.imageCompraUrls && item.imageCompraUrls !== '[]' ? [item.imageCompraUrls] : []
+    }
+    return {
+      ...item,
+      imageCompraUrls: compraUrls,
+    }
+  })
+}
+
 // Helper: recalculate totalAmount for a report
 async function recalcTotal(reportId: string) {
   const result = await db.expenseItem.aggregate({
@@ -41,7 +57,13 @@ export async function GET(
       return NextResponse.json({ error: 'Reporte no encontrado' }, { status: 404 })
     }
 
-    return NextResponse.json({ data: report })
+    // Parse imageCompraUrls for each item
+    const parsedReport = {
+      ...report,
+      items: parseItemCompraUrls(report.items),
+    }
+
+    return NextResponse.json({ data: parsedReport })
   } catch (error) {
     console.error('[EXPENSE_REPORT_GET]', error)
     return NextResponse.json({ error: 'Error al obtener reporte' }, { status: 500 })
@@ -74,7 +96,13 @@ export async function PUT(
       include: { items: { orderBy: { createdAt: 'asc' } } },
     })
 
-    return NextResponse.json({ data: report })
+    // Parse imageCompraUrls for each item
+    const parsedReport = {
+      ...report,
+      items: parseItemCompraUrls(report.items),
+    }
+
+    return NextResponse.json({ data: parsedReport })
   } catch (error) {
     console.error('[EXPENSE_REPORT_PUT]', error)
     return NextResponse.json({ error: 'Error al actualizar reporte' }, { status: 500 })
@@ -131,7 +159,13 @@ export async function PATCH(
       include: { items: { orderBy: { createdAt: 'asc' } } },
     })
 
-    return NextResponse.json({ data: report })
+    // Parse imageCompraUrls for each item
+    const parsedReport = {
+      ...report,
+      items: parseItemCompraUrls(report.items),
+    }
+
+    return NextResponse.json({ data: parsedReport })
   } catch (error) {
     console.error('[EXPENSE_REPORT_PATCH]', error)
     return NextResponse.json({ error: 'Error al cambiar estado del reporte' }, { status: 500 })

@@ -67,9 +67,9 @@ interface UserItem {
 }
 
 const ROLE_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  ADMIN: { label: 'Administrador', color: 'bg-red-500/20 text-red-300 border-red-500/30', icon: <Shield className="w-3 h-3" /> },
-  SUPERVISOR: { label: 'Supervisor', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30', icon: <ShieldCheck className="w-3 h-3" /> },
-  USER: { label: 'Usuario', color: 'bg-blue-500/20 text-blue-300 border-blue-500/30', icon: <User className="w-3 h-3" /> },
+  ADMIN: { label: 'Administrador', color: 'bg-red-100 text-red-800 border-red-200', icon: <Shield className="w-3 h-3" /> },
+  SUPERVISOR: { label: 'Supervisor', color: 'bg-amber-100 text-amber-800 border-amber-200', icon: <ShieldCheck className="w-3 h-3" /> },
+  USER: { label: 'Usuario', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: <User className="w-3 h-3" /> },
 }
 
 export default function UsersPanel() {
@@ -138,12 +138,12 @@ export default function UsersPanel() {
     }
 
     if (!editingUser && !formData.password) {
-      toast({ title: 'Error', description: 'La contraseña es requerida para nuevos usuarios', variant: 'destructive' })
+      toast({ title: 'Error', description: 'La contrasena es requerida para nuevos usuarios', variant: 'destructive' })
       return
     }
 
     if (formData.password && formData.password.length < 6) {
-      toast({ title: 'Error', description: 'La contraseña debe tener al menos 6 caracteres', variant: 'destructive' })
+      toast({ title: 'Error', description: 'La contrasena debe tener al menos 6 caracteres', variant: 'destructive' })
       return
     }
 
@@ -250,15 +250,15 @@ export default function UsersPanel() {
   const isAdmin = session?.user?.role === 'ADMIN'
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-            <Users className="w-5 h-5 text-blue-400" />
-            Gestión de Usuarios
+          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <Users className="w-5 h-5 text-blue-600" />
+            Gestion de Usuarios
           </h2>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-slate-500 mt-0.5">
             Administra los usuarios y sus roles en el sistema
           </p>
         </div>
@@ -267,7 +267,7 @@ export default function UsersPanel() {
             variant="outline"
             size="sm"
             onClick={fetchUsers}
-            className="border-slate-600 text-slate-300 hover:bg-slate-700"
+            className="border-slate-300 text-slate-700 hover:bg-slate-50"
           >
             <RefreshCw className="w-4 h-4 mr-1" />
             Actualizar
@@ -292,56 +292,57 @@ export default function UsersPanel() {
           placeholder="Buscar por nombre o email..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-9 bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500"
+          className="pl-9 bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
         />
       </div>
 
       {/* Estadísticas rápidas */}
       <div className="grid grid-cols-3 gap-3">
-        <Card className="bg-slate-800/50 border-slate-700/50">
-          <CardContent className="p-3 text-center">
-            <p className="text-2xl font-bold text-red-400">{users.filter((u) => u.role === 'ADMIN').length}</p>
-            <p className="text-xs text-slate-400">Administradores</p>
+        <Card className="bg-white border-slate-200">
+          <CardContent className="p-4 text-center">
+            <p className="text-2xl font-bold text-red-600">{users.filter((u) => u.role === 'ADMIN').length}</p>
+            <p className="text-xs text-slate-600 font-medium mt-1">Administradores</p>
           </CardContent>
         </Card>
-        <Card className="bg-slate-800/50 border-slate-700/50">
-          <CardContent className="p-3 text-center">
-            <p className="text-2xl font-bold text-amber-400">{users.filter((u) => u.role === 'SUPERVISOR').length}</p>
-            <p className="text-xs text-slate-400">Supervisores</p>
+        <Card className="bg-white border-slate-200">
+          <CardContent className="p-4 text-center">
+            <p className="text-2xl font-bold text-amber-600">{users.filter((u) => u.role === 'SUPERVISOR').length}</p>
+            <p className="text-xs text-slate-600 font-medium mt-1">Supervisores</p>
           </CardContent>
         </Card>
-        <Card className="bg-slate-800/50 border-slate-700/50">
-          <CardContent className="p-3 text-center">
-            <p className="text-2xl font-bold text-blue-400">{users.filter((u) => u.role === 'USER').length}</p>
-            <p className="text-xs text-slate-400">Usuarios</p>
+        <Card className="bg-white border-slate-200">
+          <CardContent className="p-4 text-center">
+            <p className="text-2xl font-bold text-blue-600">{users.filter((u) => u.role === 'USER').length}</p>
+            <p className="text-xs text-slate-600 font-medium mt-1">Usuarios</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Tabla de usuarios */}
-      <Card className="bg-slate-800/50 border-slate-700/50">
+      <Card className="bg-white border-slate-200">
         <CardContent className="p-0">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
             </div>
           ) : filteredUsers.length === 0 ? (
-            <div className="text-center py-12 text-slate-400">
-              <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>No se encontraron usuarios</p>
+            <div className="text-center py-12 text-slate-500">
+              <Users className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+              <p className="font-medium text-slate-600">No se encontraron usuarios</p>
+              <p className="text-sm text-slate-400 mt-1">Intenta con otro termino de busqueda</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-slate-700 hover:bg-transparent">
-                    <TableHead className="text-slate-300">Nombre</TableHead>
-                    <TableHead className="text-slate-300">Email</TableHead>
-                    <TableHead className="text-slate-300">Rol</TableHead>
-                    <TableHead className="text-slate-300">Estado</TableHead>
-                    <TableHead className="text-slate-300">Creado</TableHead>
+                  <TableRow className="border-slate-200 hover:bg-transparent bg-slate-50">
+                    <TableHead className="text-slate-700 font-semibold">Nombre</TableHead>
+                    <TableHead className="text-slate-700 font-semibold">Email</TableHead>
+                    <TableHead className="text-slate-700 font-semibold">Rol</TableHead>
+                    <TableHead className="text-slate-700 font-semibold">Estado</TableHead>
+                    <TableHead className="text-slate-700 font-semibold">Creado</TableHead>
                     {isAdmin && (
-                      <TableHead className="text-slate-300 text-right">Acciones</TableHead>
+                      <TableHead className="text-slate-700 font-semibold text-right">Acciones</TableHead>
                     )}
                   </TableRow>
                 </TableHeader>
@@ -349,13 +350,15 @@ export default function UsersPanel() {
                   {filteredUsers.map((user) => {
                     const roleConfig = ROLE_CONFIG[user.role] || ROLE_CONFIG.USER
                     return (
-                      <TableRow key={user.id} className="border-slate-700 hover:bg-slate-700/30">
-                        <TableCell className="text-white font-medium">{user.name}</TableCell>
-                        <TableCell className="text-slate-300">{user.email}</TableCell>
+                      <TableRow key={user.id} className="border-slate-100 hover:bg-slate-50">
+                        <TableCell className="text-slate-800 font-medium">{user.name}</TableCell>
+                        <TableCell className="text-slate-600">{user.email}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={`${roleConfig.color} text-xs`}>
-                            {roleConfig.icon}
-                            <span className="ml-1">{roleConfig.label}</span>
+                          <Badge variant="outline" className={`${roleConfig.color} text-xs font-medium`}>
+                            <span className="flex items-center gap-1">
+                              {roleConfig.icon}
+                              {roleConfig.label}
+                            </span>
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -363,14 +366,14 @@ export default function UsersPanel() {
                             variant="outline"
                             className={
                               user.active
-                                ? 'bg-green-500/20 text-green-300 border-green-500/30 text-xs'
-                                : 'bg-gray-500/20 text-gray-300 border-gray-500/30 text-xs'
+                                ? 'bg-emerald-100 text-emerald-800 border-emerald-200 text-xs font-medium'
+                                : 'bg-slate-100 text-slate-600 border-slate-200 text-xs font-medium'
                             }
                           >
                             {user.active ? 'Activo' : 'Inactivo'}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-slate-400 text-sm">
+                        <TableCell className="text-slate-500 text-sm">
                           {new Date(user.createdAt).toLocaleDateString('es-CL')}
                         </TableCell>
                         {isAdmin && (
@@ -380,20 +383,20 @@ export default function UsersPanel() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleToggleActive(user)}
-                                className="text-slate-400 hover:text-white hover:bg-slate-700"
+                                className="text-slate-500 hover:text-slate-800 hover:bg-slate-100"
                                 title={user.active ? 'Desactivar' : 'Activar'}
                               >
                                 {user.active ? (
-                                  <ToggleRight className="w-4 h-4 text-green-400" />
+                                  <ToggleRight className="w-4 h-4 text-emerald-600" />
                                 ) : (
-                                  <ToggleLeft className="w-4 h-4 text-gray-400" />
+                                  <ToggleLeft className="w-4 h-4 text-slate-400" />
                                 )}
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => openEditDialog(user)}
-                                className="text-slate-400 hover:text-blue-400 hover:bg-slate-700"
+                                className="text-slate-500 hover:text-blue-600 hover:bg-blue-50"
                               >
                                 <Pencil className="w-4 h-4" />
                               </Button>
@@ -402,7 +405,7 @@ export default function UsersPanel() {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => setDeleteUser(user)}
-                                  className="text-slate-400 hover:text-red-400 hover:bg-slate-700"
+                                  className="text-slate-500 hover:text-red-600 hover:bg-red-50"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
@@ -422,76 +425,76 @@ export default function UsersPanel() {
 
       {/* Dialog Crear/Editar Usuario */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-white">
+        <DialogContent className="bg-white border-slate-200">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-slate-800">
               {editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}
             </DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogDescription className="text-slate-500">
               {editingUser
-                ? 'Modifica los datos del usuario. Deja la contraseña vacía para no cambiarla.'
+                ? 'Modifica los datos del usuario. Deja la contrasena vacia para no cambiarla.'
                 : 'Completa los datos para registrar un nuevo usuario.'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label className="text-slate-300">Nombre completo</Label>
+              <Label className="text-slate-700 font-medium">Nombre completo</Label>
               <Input
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Juan Pérez"
-                className="bg-slate-900/50 border-slate-600 text-white placeholder:text-slate-500"
+                placeholder="Juan Perez"
+                className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-slate-300">Correo electrónico</Label>
+              <Label className="text-slate-700 font-medium">Correo electronico</Label>
               <Input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="correo@ejemplo.com"
-                className="bg-slate-900/50 border-slate-600 text-white placeholder:text-slate-500"
+                className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-slate-300">
-                Contraseña {editingUser && '(dejar vacío para no cambiar)'}
+              <Label className="text-slate-700 font-medium">
+                Contrasena {editingUser && '(dejar vacio para no cambiar)'}
               </Label>
               <Input
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder={editingUser ? '••••••••' : 'Mínimo 6 caracteres'}
-                className="bg-slate-900/50 border-slate-600 text-white placeholder:text-slate-500"
+                placeholder={editingUser ? '--------' : 'Minimo 6 caracteres'}
+                className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-slate-300">Rol</Label>
+              <Label className="text-slate-700 font-medium">Rol</Label>
               <Select value={formData.role} onValueChange={(val) => setFormData({ ...formData, role: val })}>
-                <SelectTrigger className="bg-slate-900/50 border-slate-600 text-white">
+                <SelectTrigger className="bg-white border-slate-300 text-slate-800">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectContent className="bg-white border-slate-200">
                   <SelectItem value="USER">
                     <div className="flex items-center gap-2">
-                      <User className="w-3 h-3 text-blue-400" />
-                      Usuario - Acceso básico al sistema
+                      <User className="w-3 h-3 text-blue-600" />
+                      <span className="text-slate-700">Usuario - Acceso basico al sistema</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="SUPERVISOR">
                     <div className="flex items-center gap-2">
-                      <ShieldCheck className="w-3 h-3 text-amber-400" />
-                      Supervisor - Puede crear y aprobar solicitudes
+                      <ShieldCheck className="w-3 h-3 text-amber-600" />
+                      <span className="text-slate-700">Supervisor - Puede crear y aprobar solicitudes</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="ADMIN">
                     <div className="flex items-center gap-2">
-                      <Shield className="w-3 h-3 text-red-400" />
-                      Administrador - Control total del sistema
+                      <Shield className="w-3 h-3 text-red-600" />
+                      <span className="text-slate-700">Administrador - Control total del sistema</span>
                     </div>
                   </SelectItem>
                 </SelectContent>
@@ -503,7 +506,7 @@ export default function UsersPanel() {
             <Button
               variant="outline"
               onClick={() => setShowDialog(false)}
-              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              className="border-slate-300 text-slate-700"
             >
               Cancelar
             </Button>
@@ -527,20 +530,18 @@ export default function UsersPanel() {
 
       {/* Dialog Confirmar Eliminación */}
       <AlertDialog open={!!deleteUser} onOpenChange={() => setDeleteUser(null)}>
-        <AlertDialogContent className="bg-slate-800 border-slate-700">
+        <AlertDialogContent className="bg-white">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">¿Eliminar usuario?</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400">
-              Esta acción no se puede deshacer. El usuario <strong className="text-white">{deleteUser?.name}</strong> será eliminado permanentemente del sistema.
+            <AlertDialogTitle className="text-slate-800">Eliminar usuario?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-600">
+              Esta accion no se puede deshacer. El usuario <strong className="text-slate-800">{deleteUser?.name}</strong> sera eliminado permanentemente del sistema.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-slate-600 text-slate-300 hover:bg-slate-700">
-              Cancelar
-            </AlertDialogCancel>
+            <AlertDialogCancel className="border-slate-300 text-slate-700">Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-red-500 hover:bg-red-600 text-white"
             >
               Eliminar
             </AlertDialogAction>

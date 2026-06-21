@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
-import { Plus, Pencil, Trash2, Eye, ArrowLeft, Upload, X, CheckCircle, XCircle, Clock, FileText, FileSpreadsheet, Download, Camera, Send, RotateCcw, ShieldCheck, Shield } from 'lucide-react'
+import { Plus, Pencil, Trash2, Eye, ArrowLeft, Upload, X, CheckCircle, XCircle, Clock, FileText, FileSpreadsheet, Download, Camera, Send, RotateCcw, ShieldCheck, Shield, ImageIcon } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { jsPDF } from 'jspdf'
 import ExcelJS from 'exceljs'
@@ -46,7 +46,7 @@ interface ExpenseItem {
   category: string
   expenseDate: string
   imageBoletaUrl: string
-  imageCompraUrl: string
+  imageCompraUrls: string[] | string  // Support both array and legacy string
   reportId: string
   createdAt: string
   updatedAt: string
@@ -67,13 +67,13 @@ const formatCLP = (amount: number | null | undefined): string => {
   return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(amount))
 }
 
-const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
-  BORRADOR: { label: 'Borrador', color: 'text-gray-600', bgColor: 'bg-gray-100' },
-  ENVIADO: { label: 'Enviado', color: 'text-amber-600', bgColor: 'bg-amber-100' },
-  APROBADO_SUPERVISOR: { label: 'Aprobado (Supervisor)', color: 'text-blue-600', bgColor: 'bg-blue-100' },
-  APROBADO: { label: 'Aprobado (Admin)', color: 'text-green-600', bgColor: 'bg-green-100' },
-  RECHAZADO: { label: 'Rechazado', color: 'text-red-600', bgColor: 'bg-red-100' },
-  MODIFICACIÓN_SOLICITADA: { label: 'Modif. Solicitada', color: 'text-orange-600', bgColor: 'bg-orange-100' },
+const statusConfig: Record<string, { label: string; color: string; bgColor: string; borderColor: string; icon: React.ReactNode }> = {
+  BORRADOR: { label: 'Borrador', color: 'text-slate-700', bgColor: 'bg-slate-100', borderColor: 'border-l-slate-400', icon: <Clock className="w-3.5 h-3.5" /> },
+  ENVIADO: { label: 'Enviado', color: 'text-amber-700', bgColor: 'bg-amber-50', borderColor: 'border-l-amber-500', icon: <Send className="w-3.5 h-3.5" /> },
+  APROBADO_SUPERVISOR: { label: 'Aprobado Supervisor', color: 'text-blue-700', bgColor: 'bg-blue-50', borderColor: 'border-l-blue-500', icon: <ShieldCheck className="w-3.5 h-3.5" /> },
+  APROBADO: { label: 'Aprobado Admin', color: 'text-emerald-700', bgColor: 'bg-emerald-50', borderColor: 'border-l-emerald-500', icon: <CheckCircle className="w-3.5 h-3.5" /> },
+  RECHAZADO: { label: 'Rechazado', color: 'text-red-700', bgColor: 'bg-red-50', borderColor: 'border-l-red-500', icon: <XCircle className="w-3.5 h-3.5" /> },
+  'MODIFICACIÓN SOLICITADA': { label: 'Modif. Solicitada', color: 'text-orange-700', bgColor: 'bg-orange-50', borderColor: 'border-l-orange-500', icon: <RotateCcw className="w-3.5 h-3.5" /> },
 }
 
 function formatDate(dateStr: string | null | undefined): string {
@@ -88,6 +88,21 @@ function formatDateTime(dateStr: string | null | undefined): string {
 
 function getCorrelative(num: number): string {
   return `R-${String(num).padStart(3, '0')}`
+}
+
+// Normalize imageCompraUrls to always be an array
+function getCompraUrls(item: ExpenseItem): string[] {
+  if (Array.isArray(item.imageCompraUrls)) return item.imageCompraUrls
+  if (typeof item.imageCompraUrls === 'string') {
+    if (!item.imageCompraUrls || item.imageCompraUrls === '[]' || item.imageCompraUrls === '') return []
+    try {
+      const parsed = JSON.parse(item.imageCompraUrls)
+      return Array.isArray(parsed) ? parsed : [item.imageCompraUrls]
+    } catch {
+      return [item.imageCompraUrls]
+    }
+  }
+  return []
 }
 
 // ============================================================
@@ -135,7 +150,7 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
     category: '',
     expenseDate: '',
     imageBoletaUrl: '',
-    imageCompraUrl: '',
+    imageCompraUrls: [] as string[],  // Array of compra image URLs
   })
   const [uploadingBoleta, setUploadingBoleta] = useState(false)
   const [uploadingCompra, setUploadingCompra] = useState(false)
@@ -229,7 +244,7 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
   // Photo upload
   // ============================================================
 
-  const handlePhotoUpload = async (file: File, type: 'boleta' | 'compra'): Promise<string | null> => {
+  const handlePhotoUpload = async (file: File): Promise<string | null> => {
     const formData = new FormData()
     formData.append('file', file)
     try {
@@ -243,6 +258,20 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
       toast({ title: 'Error', description: 'No se pudo subir la imagen', variant: 'destructive' })
     }
     return null
+  }
+
+  // Upload multiple compra images
+  const handleMultipleCompraUpload = async (files: FileList) => {
+    setUploadingCompra(true)
+    const newUrls: string[] = []
+    for (let i = 0; i < files.length; i++) {
+      const url = await handlePhotoUpload(files[i])
+      if (url) newUrls.push(url)
+    }
+    if (newUrls.length > 0) {
+      setItemForm((p) => ({ ...p, imageCompraUrls: [...p.imageCompraUrls, ...newUrls] }))
+    }
+    setUploadingCompra(false)
   }
 
   // ============================================================
@@ -399,12 +428,13 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
       category: categories.length > 0 ? categories[0].name : '',
       expenseDate: new Date().toISOString().split('T')[0],
       imageBoletaUrl: '',
-      imageCompraUrl: '',
+      imageCompraUrls: [],
     })
     setItemFormOpen(true)
   }
 
   const openEditItem = (item: ExpenseItem) => {
+    const compraUrls = getCompraUrls(item)
     setEditingItem(item)
     setItemForm({
       description: item.description,
@@ -413,7 +443,7 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
       category: item.category,
       expenseDate: item.expenseDate ? new Date(item.expenseDate).toISOString().split('T')[0] : '',
       imageBoletaUrl: item.imageBoletaUrl,
-      imageCompraUrl: item.imageCompraUrl,
+      imageCompraUrls: compraUrls,
     })
     setItemFormOpen(true)
   }
@@ -450,7 +480,7 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
         category: itemForm.category,
         expenseDate: itemForm.expenseDate,
         imageBoletaUrl: itemForm.imageBoletaUrl,
-        imageCompraUrl: itemForm.imageCompraUrl,
+        imageCompraUrls: itemForm.imageCompraUrls,
         reportId: selectedReport.id,
       }
 
@@ -522,7 +552,7 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
       // Header
       doc.setFontSize(18)
       doc.setTextColor(30, 64, 175)
-      doc.text('Rendición de Gastos', margin, y)
+      doc.text('Rendicion de Gastos', margin, y)
       y += 8
       doc.setFontSize(12)
       doc.setTextColor(100, 100, 100)
@@ -536,10 +566,10 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
         ['Responsable:', selectedReport.responsible || '-'],
         ['Estado:', statusConfig[selectedReport.status]?.label || selectedReport.status],
         ['Monto Total:', formatCLP(selectedReport.totalAmount)],
-        ['Descripción:', selectedReport.description || '-'],
-        ['Fecha Creación:', formatDate(selectedReport.createdAt)],
-        ['Fecha Envío:', formatDate(selectedReport.submittedAt)],
-        ['Fecha Revisión:', formatDate(selectedReport.reviewedAt)],
+        ['Descripcion:', selectedReport.description || '-'],
+        ['Fecha Creacion:', formatDate(selectedReport.createdAt)],
+        ['Fecha Envio:', formatDate(selectedReport.submittedAt)],
+        ['Fecha Revision:', formatDate(selectedReport.reviewedAt)],
         ['Revisado por:', selectedReport.reviewedBy || '-'],
       ]
 
@@ -554,7 +584,7 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
       if (selectedReport.reviewNote) {
         y += 2
         doc.setFont('helvetica', 'bold')
-        doc.text('Nota de Revisión:', margin, y)
+        doc.text('Nota de Revision:', margin, y)
         y += 5
         doc.setFont('helvetica', 'normal')
         const noteLines = doc.splitTextToSize(selectedReport.reviewNote, pageWidth - margin * 2)
@@ -578,7 +608,7 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
       doc.setTextColor(80, 80, 80)
       doc.setFont('helvetica', 'bold')
       const colX = [margin, margin + 55, margin + 85, margin + 115, margin + 140]
-      const headers = ['Descripción', 'N° Boleta', 'Categoría', 'Fecha', 'Monto']
+      const headers = ['Descripcion', 'N Boleta', 'Categoria', 'Fecha', 'Monto']
       headers.forEach((h, i) => doc.text(h, colX[i], y))
       y += 2
       doc.line(margin, y, pageWidth - margin, y)
@@ -642,16 +672,16 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
 
       const summaryData = [
         { field: 'Correlativo', value: getCorrelative(selectedReport.correlativeNumber) },
-        { field: 'Título', value: selectedReport.title },
-        { field: 'Descripción', value: selectedReport.description || '-' },
+        { field: 'Titulo', value: selectedReport.title },
+        { field: 'Descripcion', value: selectedReport.description || '-' },
         { field: 'Responsable', value: selectedReport.responsible || '-' },
         { field: 'Estado', value: statusConfig[selectedReport.status]?.label || selectedReport.status },
         { field: 'Monto Total', value: selectedReport.totalAmount },
-        { field: 'Fecha Creación', value: formatDate(selectedReport.createdAt) },
-        { field: 'Fecha Envío', value: formatDate(selectedReport.submittedAt) },
-        { field: 'Fecha Revisión', value: formatDate(selectedReport.reviewedAt) },
+        { field: 'Fecha Creacion', value: formatDate(selectedReport.createdAt) },
+        { field: 'Fecha Envio', value: formatDate(selectedReport.submittedAt) },
+        { field: 'Fecha Revision', value: formatDate(selectedReport.reviewedAt) },
         { field: 'Revisado por', value: selectedReport.reviewedBy || '-' },
-        { field: 'Nota Revisión', value: selectedReport.reviewNote || '-' },
+        { field: 'Nota Revision', value: selectedReport.reviewNote || '-' },
       ]
       summarySheet.addRows(summaryData)
 
@@ -665,21 +695,24 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
       // Detail sheet
       const detailSheet = workbook.addWorksheet('Detalle')
       detailSheet.columns = [
-        { header: 'Descripción', key: 'description', width: 40 },
-        { header: 'N° Boleta', key: 'numeroBoleta', width: 15 },
-        { header: 'Categoría', key: 'category', width: 15 },
+        { header: 'Descripcion', key: 'description', width: 40 },
+        { header: 'N Boleta', key: 'numeroBoleta', width: 15 },
+        { header: 'Categoria', key: 'category', width: 15 },
         { header: 'Fecha', key: 'expenseDate', width: 15 },
         { header: 'Monto', key: 'montoRendir', width: 15 },
+        { header: 'Fotos Compra', key: 'fotosCompra', width: 40 },
       ]
 
       const items = selectedReport.items || []
       items.forEach((item) => {
+        const compraUrls = getCompraUrls(item)
         detailSheet.addRow({
           description: item.description,
           numeroBoleta: item.numeroBoleta,
           category: item.category,
           expenseDate: formatDate(item.expenseDate),
           montoRendir: item.montoRendir,
+          fotosCompra: compraUrls.length > 0 ? compraUrls.join(' | ') : '-',
         })
       })
 
@@ -736,9 +769,9 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
     fetchReports()
   }
 
-  const canEdit = canEditAll && (selectedReport?.status === 'BORRADOR' || selectedReport?.status === 'MODIFICACIÓN_SOLICITADA')
+  const canEdit = canEditAll && (selectedReport?.status === 'BORRADOR' || selectedReport?.status === 'MODIFICACIÓN SOLICITADA')
   const canDelete = canEditAll && selectedReport?.status === 'BORRADOR'
-  const canSubmit = selectedReport?.status === 'BORRADOR' || selectedReport?.status === 'MODIFICACIÓN_SOLICITADA'
+  const canSubmit = selectedReport?.status === 'BORRADOR' || selectedReport?.status === 'MODIFICACIÓN SOLICITADA'
   // Supervisor puede aprobar desde ENVIADO → APROBADO_SUPERVISOR
   // Admin puede aprobar desde ENVIADO → APROBADO directamente, o desde APROBADO_SUPERVISOR → APROBADO
   const canSupervisorApprove = isSupervisor && selectedReport?.status === 'ENVIADO'
@@ -750,15 +783,18 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
   // ============================================================
 
   const renderListView = () => (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Header bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Rendiciones de Gastos</h2>
-          <p className="text-sm text-gray-500">{totalCount} reporte{totalCount !== 1 ? 's' : ''} encontrado{totalCount !== 1 ? 's' : ''}</p>
+          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-blue-600" />
+            Rendiciones de Gastos
+          </h2>
+          <p className="text-sm text-slate-500 mt-0.5">{totalCount} reporte{totalCount !== 1 ? 's' : ''} encontrado{totalCount !== 1 ? 's' : ''}</p>
         </div>
-        <Button onClick={handleCreateReport} className="gap-1.5 shrink-0">
-          <Plus className="h-4 w-4" /> Nueva Rendición
+        <Button onClick={handleCreateReport} className="gap-1.5 shrink-0 bg-blue-600 hover:bg-blue-700 text-white">
+          <Plus className="h-4 w-4" /> Nueva Rendicion
         </Button>
       </div>
 
@@ -766,20 +802,25 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="flex-1">
           <Input
-            placeholder="Buscar por título, descripción o responsable..."
+            placeholder="Buscar por titulo, descripcion o responsable..."
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
-            className="w-full"
+            className="w-full bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
           />
         </div>
         <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setCurrentPage(1) }}>
-          <SelectTrigger className="w-full sm:w-[200px]">
+          <SelectTrigger className="w-full sm:w-[220px] bg-white border-slate-300 text-slate-800">
             <SelectValue placeholder="Filtrar estado" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-white border-slate-300">
             <SelectItem value="all">Todos los estados</SelectItem>
             {Object.entries(statusConfig).map(([key, cfg]) => (
-              <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
+              <SelectItem key={key} value={key}>
+                <span className="flex items-center gap-2">
+                  {cfg.icon}
+                  {cfg.label}
+                </span>
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -788,15 +829,15 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
       {/* Report cards */}
       {loading ? (
         <div className="flex justify-center py-16">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
         </div>
       ) : reports.length === 0 ? (
-        <div className="text-center py-16">
-          <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-          <h3 className="text-lg font-medium text-gray-600">No hay rendiciones de gastos</h3>
-          <p className="text-sm text-gray-400 mt-1">Crea una nueva rendición para comenzar</p>
-          <Button onClick={handleCreateReport} className="mt-4 gap-1.5">
-            <Plus className="h-4 w-4" /> Nueva Rendición
+        <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
+          <FileText className="h-14 w-14 mx-auto mb-3 text-slate-300" />
+          <h3 className="text-lg font-semibold text-slate-700">No hay rendiciones de gastos</h3>
+          <p className="text-sm text-slate-500 mt-1">Crea una nueva rendicion para comenzar</p>
+          <Button onClick={handleCreateReport} className="mt-4 gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
+            <Plus className="h-4 w-4" /> Nueva Rendicion
           </Button>
         </div>
       ) : (
@@ -807,35 +848,39 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
             return (
               <Card
                 key={report.id}
-                className="cursor-pointer hover:shadow-md transition-shadow border-l-4"
-                style={{ borderLeftColor: report.status === 'APROBADO' ? '#16a34a' : report.status === 'APROBADO_SUPERVISOR' ? '#2563eb' : report.status === 'RECHAZADO' ? '#dc2626' : report.status === 'ENVIADO' ? '#d97706' : '#9ca3af' }}
+                className={`cursor-pointer hover:shadow-lg transition-all border-l-4 ${sc.borderColor} bg-white`}
                 onClick={() => openDetail(report)}
               >
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-bold text-primary">{getCorrelative(report.correlativeNumber)}</span>
-                        <Badge className={`${sc.bgColor} ${sc.color} text-[11px] px-1.5 py-0`}>{sc.label}</Badge>
+                        <span className="text-sm font-bold text-blue-700">{getCorrelative(report.correlativeNumber)}</span>
+                        <Badge className={`${sc.bgColor} ${sc.color} text-[11px] px-2 py-0.5 font-medium border-0`}>
+                          <span className="flex items-center gap-1">
+                            {sc.icon}
+                            {sc.label}
+                          </span>
+                        </Badge>
                       </div>
-                      <CardTitle className="text-base leading-tight truncate">{report.title}</CardTitle>
+                      <CardTitle className="text-base leading-tight text-slate-800 truncate">{report.title}</CardTitle>
                     </div>
-                    <Eye className="h-4 w-4 text-gray-400 shrink-0" />
+                    <Eye className="h-4 w-4 text-slate-400 shrink-0" />
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0 pb-4">
-                  <div className="space-y-1.5 text-sm text-gray-600">
+                  <div className="space-y-1.5 text-sm text-slate-600">
                     {report.responsible && (
                       <div className="flex items-center gap-1.5">
-                        <span className="text-gray-400">👤</span>
-                        <span className="truncate">{report.responsible}</span>
+                        <span className="text-slate-400 font-medium">Responsable:</span>
+                        <span className="truncate text-slate-700">{report.responsible}</span>
                       </div>
                     )}
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-400">{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
-                      <span className="font-bold text-gray-900">{formatCLP(report.totalAmount)}</span>
+                      <span className="text-slate-500">{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
+                      <span className="font-bold text-slate-800 text-base">{formatCLP(report.totalAmount)}</span>
                     </div>
-                    <div className="text-xs text-gray-400">
+                    <div className="text-xs text-slate-400">
                       {formatDate(report.createdAt)}
                     </div>
                   </div>
@@ -854,17 +899,19 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
             size="sm"
             disabled={currentPage <= 1}
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            className="border-slate-300 text-slate-700"
           >
             Anterior
           </Button>
-          <span className="text-sm text-gray-600">
-            Pág. {currentPage} de {totalPages}
+          <span className="text-sm text-slate-600 font-medium">
+            Pag. {currentPage} de {totalPages}
           </span>
           <Button
             variant="outline"
             size="sm"
             disabled={currentPage >= totalPages}
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            className="border-slate-300 text-slate-700"
           >
             Siguiente
           </Button>
@@ -883,60 +930,65 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
     const items = selectedReport.items || []
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-5">
         {/* Back + Header */}
         <div className="flex items-start gap-3">
-          <Button variant="outline" size="sm" onClick={goBackToList} className="gap-1 shrink-0 mt-1">
+          <Button variant="outline" size="sm" onClick={goBackToList} className="gap-1 shrink-0 mt-1 border-slate-300 text-slate-700">
             <ArrowLeft className="h-4 w-4" /> Volver
           </Button>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-lg font-bold text-primary">{getCorrelative(selectedReport.correlativeNumber)}</span>
-              <Badge className={`${sc.bgColor} ${sc.color}`}>{sc.label}</Badge>
+              <span className="text-lg font-bold text-blue-700">{getCorrelative(selectedReport.correlativeNumber)}</span>
+              <Badge className={`${sc.bgColor} ${sc.color} px-2.5 py-0.5 font-medium border-0`}>
+                <span className="flex items-center gap-1.5">
+                  {sc.icon}
+                  {sc.label}
+                </span>
+              </Badge>
             </div>
-            <h2 className="text-xl font-bold text-gray-900 mt-1">{selectedReport.title}</h2>
+            <h2 className="text-xl font-bold text-slate-800 mt-1">{selectedReport.title}</h2>
           </div>
         </div>
 
         {/* Report info card */}
-        <Card>
+        <Card className="bg-white border-slate-200">
           <CardContent className="p-4 sm:p-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wider">Responsable</p>
-                <p className="font-medium text-gray-900 mt-0.5">{selectedReport.responsible || '-'}</p>
+                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Responsable</p>
+                <p className="font-medium text-slate-800 mt-0.5">{selectedReport.responsible || '-'}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wider">Monto Total</p>
-                <p className="font-bold text-lg text-gray-900 mt-0.5">{formatCLP(selectedReport.totalAmount)}</p>
+                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Monto Total</p>
+                <p className="font-bold text-lg text-slate-800 mt-0.5">{formatCLP(selectedReport.totalAmount)}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wider">Fecha Creación</p>
-                <p className="font-medium text-gray-900 mt-0.5">{formatDateTime(selectedReport.createdAt)}</p>
+                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Fecha Creacion</p>
+                <p className="font-medium text-slate-800 mt-0.5">{formatDateTime(selectedReport.createdAt)}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wider">Fecha Envío</p>
-                <p className="font-medium text-gray-900 mt-0.5">{formatDateTime(selectedReport.submittedAt)}</p>
+                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Fecha Envio</p>
+                <p className="font-medium text-slate-800 mt-0.5">{formatDateTime(selectedReport.submittedAt)}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wider">Fecha Revisión</p>
-                <p className="font-medium text-gray-900 mt-0.5">{formatDateTime(selectedReport.reviewedAt)}</p>
+                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Fecha Revision</p>
+                <p className="font-medium text-slate-800 mt-0.5">{formatDateTime(selectedReport.reviewedAt)}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wider">Revisado por</p>
-                <p className="font-medium text-gray-900 mt-0.5">{selectedReport.reviewedBy || '-'}</p>
+                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Revisado por</p>
+                <p className="font-medium text-slate-800 mt-0.5">{selectedReport.reviewedBy || '-'}</p>
               </div>
             </div>
             {selectedReport.description && (
-              <div className="mt-4 pt-4 border-t">
-                <p className="text-xs text-gray-500 uppercase tracking-wider">Descripción</p>
-                <p className="text-gray-700 mt-0.5">{selectedReport.description}</p>
+              <div className="mt-4 pt-4 border-t border-slate-200">
+                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Descripcion</p>
+                <p className="text-slate-700 mt-0.5">{selectedReport.description}</p>
               </div>
             )}
             {selectedReport.reviewNote && (
-              <div className="mt-4 pt-4 border-t">
-                <p className="text-xs text-gray-500 uppercase tracking-wider">Nota de Revisión</p>
-                <div className="mt-1 p-3 bg-orange-50 border border-orange-200 rounded-lg text-orange-800 text-sm">
+              <div className="mt-4 pt-4 border-t border-slate-200">
+                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Nota de Revision</p>
+                <div className="mt-1 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 text-sm">
                   {selectedReport.reviewNote}
                 </div>
               </div>
@@ -949,58 +1001,61 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
           {canSubmit && (
             <Button
               onClick={() => handleStatusChange('ENVIADO')}
-              className="gap-1.5 bg-amber-500 hover:bg-amber-600"
+              className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-white"
             >
-              <Send className="h-4 w-4" /> Enviar para Revisión
+              <Send className="h-4 w-4" /> Enviar para Revision
             </Button>
           )}
           {canEdit && (
-            <Button variant="outline" onClick={() => handleEditReport(selectedReport)} className="gap-1.5">
+            <Button variant="outline" onClick={() => handleEditReport(selectedReport)} className="gap-1.5 border-slate-300 text-slate-700">
               <Pencil className="h-4 w-4" /> Editar
             </Button>
           )}
           {canDelete && (
-            <Button variant="outline" onClick={() => setDeleteReportDialogOpen(true)} className="gap-1.5 text-red-600 hover:text-red-700 hover:bg-red-50">
+            <Button variant="outline" onClick={() => setDeleteReportDialogOpen(true)} className="gap-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">
               <Trash2 className="h-4 w-4" /> Eliminar
             </Button>
           )}
           {canReview && (
             <>
               {canSupervisorApprove && (
-                <Button onClick={() => handleStatusChange('APROBADO_SUPERVISOR')} className="gap-1.5 bg-blue-600 hover:bg-blue-700">
+                <Button onClick={() => handleStatusChange('APROBADO_SUPERVISOR')} className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
                   <ShieldCheck className="h-4 w-4" /> Aprobar (Supervisor)
                 </Button>
               )}
               {canAdminApprove && (
-                <Button onClick={() => handleStatusChange('APROBADO')} className="gap-1.5 bg-green-600 hover:bg-green-700">
+                <Button onClick={() => handleStatusChange('APROBADO')} className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white">
                   <CheckCircle className="h-4 w-4" /> Aprobar (Admin)
                 </Button>
               )}
-              <Button onClick={() => openReviewDialog('RECHAZADO')} className="gap-1.5 bg-red-500 hover:bg-red-600">
+              <Button onClick={() => openReviewDialog('RECHAZADO')} className="gap-1.5 bg-red-500 hover:bg-red-600 text-white">
                 <XCircle className="h-4 w-4" /> Rechazar
               </Button>
-              <Button onClick={() => openReviewDialog('MODIFICACIÓN SOLICITADA')} variant="outline" className="gap-1.5 border-orange-400 text-orange-600 hover:bg-orange-50">
-                <RotateCcw className="h-4 w-4" /> Solicitar Modificación
+              <Button onClick={() => openReviewDialog('MODIFICACIÓN SOLICITADA')} variant="outline" className="gap-1.5 border-amber-400 text-amber-700 hover:bg-amber-50">
+                <RotateCcw className="h-4 w-4" /> Solicitar Modificacion
               </Button>
             </>
           )}
           <div className="flex gap-2 sm:ml-auto">
-            <Button variant="outline" size="sm" onClick={exportPDF} className="gap-1.5">
+            <Button variant="outline" size="sm" onClick={exportPDF} className="gap-1.5 border-slate-300 text-slate-700">
               <FileText className="h-4 w-4" /> PDF
             </Button>
-            <Button variant="outline" size="sm" onClick={exportExcel} className="gap-1.5">
+            <Button variant="outline" size="sm" onClick={exportExcel} className="gap-1.5 border-slate-300 text-slate-700">
               <FileSpreadsheet className="h-4 w-4" /> Excel
             </Button>
           </div>
         </div>
 
         {/* Items section */}
-        <Card>
+        <Card className="bg-white border-slate-200">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Items de Gasto ({items.length})</CardTitle>
+              <CardTitle className="text-base text-slate-800 flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-blue-600" />
+                Items de Gasto ({items.length})
+              </CardTitle>
               {canEdit && (
-                <Button size="sm" onClick={openCreateItem} className="gap-1.5">
+                <Button size="sm" onClick={openCreateItem} className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
                   <Plus className="h-4 w-4" /> Agregar Item
                 </Button>
               )}
@@ -1009,85 +1064,101 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
           <CardContent>
             {items.length === 0 ? (
               <div className="text-center py-8">
-                <FileText className="h-10 w-10 mx-auto mb-2 text-gray-300" />
-                <p className="text-gray-500">No hay items en esta rendición</p>
+                <FileText className="h-12 w-12 mx-auto mb-2 text-slate-300" />
+                <p className="text-slate-600 font-medium">No hay items en esta rendicion</p>
+                <p className="text-sm text-slate-400 mt-1">Agrega items con los gastos realizados</p>
                 {canEdit && (
-                  <Button size="sm" variant="outline" onClick={openCreateItem} className="mt-3 gap-1.5">
+                  <Button size="sm" variant="outline" onClick={openCreateItem} className="mt-3 gap-1.5 border-blue-300 text-blue-700 hover:bg-blue-50">
                     <Plus className="h-4 w-4" /> Agregar Primer Item
                   </Button>
                 )}
               </div>
             ) : (
-              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                {items.map((item) => (
-                  <div key={item.id} className="border rounded-lg p-3 sm:p-4 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-gray-900">{item.description}</span>
-                          <Badge variant="outline" className="text-[10px]">{item.category}</Badge>
-                        </div>
-                        <div className="flex items-center gap-4 mt-1.5 text-sm text-gray-500">
-                          <span>Boleta: {item.numeroBoleta}</span>
-                          <span>Fecha: {formatDate(item.expenseDate)}</span>
-                        </div>
-                        <div className="mt-1.5">
-                          <span className="font-bold text-gray-900">{formatCLP(item.montoRendir)}</span>
-                        </div>
-                        {/* Photos */}
-                        {(item.imageBoletaUrl || item.imageCompraUrl) && (
-                          <div className="flex gap-2 mt-2">
-                            {item.imageBoletaUrl && (
-                              <div className="relative group">
-                                <img
-                                  src={item.imageBoletaUrl}
-                                  alt="Boleta"
-                                  className="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
-                                  onClick={() => { setPhotoViewerUrl(item.imageBoletaUrl); setPhotoViewerOpen(true) }}
-                                />
-                                <span className="absolute bottom-0 left-0 right-0 text-[8px] text-white bg-black/60 text-center rounded-b">Boleta</span>
+              <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+                {items.map((item) => {
+                  const compraUrls = getCompraUrls(item)
+                  const totalImages = (item.imageBoletaUrl ? 1 : 0) + compraUrls.length
+                  return (
+                    <div key={item.id} className="border border-slate-200 rounded-lg p-4 hover:bg-slate-50 transition-colors bg-white">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-slate-800">{item.description}</span>
+                            <Badge variant="outline" className="text-[10px] border-blue-200 text-blue-700 bg-blue-50">{item.category}</Badge>
+                          </div>
+                          <div className="flex items-center gap-4 mt-1.5 text-sm text-slate-500">
+                            <span className="flex items-center gap-1">
+                              <FileText className="w-3.5 h-3.5" />
+                              Boleta: <span className="font-medium text-slate-700">{item.numeroBoleta}</span>
+                            </span>
+                            <span>Fecha: {formatDate(item.expenseDate)}</span>
+                          </div>
+                          <div className="mt-2">
+                            <span className="font-bold text-lg text-slate-800">{formatCLP(item.montoRendir)}</span>
+                          </div>
+
+                          {/* Photos section - Boleta + multiple compra images */}
+                          {totalImages > 0 && (
+                            <div className="mt-3 pt-3 border-t border-slate-100">
+                              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                                Evidencia ({totalImages} imagen{totalImages !== 1 ? 'es' : ''})
+                              </p>
+                              <div className="flex gap-2 flex-wrap">
+                                {/* Boleta image */}
+                                {item.imageBoletaUrl && (
+                                  <div className="relative group">
+                                    <img
+                                      src={item.imageBoletaUrl}
+                                      alt="Boleta"
+                                      className="w-20 h-20 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity shadow-sm"
+                                      onClick={() => { setPhotoViewerUrl(item.imageBoletaUrl); setPhotoViewerOpen(true) }}
+                                    />
+                                    <span className="absolute bottom-0 left-0 right-0 text-[9px] text-white bg-blue-600/80 text-center rounded-b-lg font-medium py-0.5">Boleta</span>
+                                  </div>
+                                )}
+                                {/* Compra images */}
+                                {compraUrls.map((url, idx) => (
+                                  <div key={idx} className="relative group">
+                                    <img
+                                      src={url}
+                                      alt={`Compra ${idx + 1}`}
+                                      className="w-20 h-20 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity shadow-sm"
+                                      onClick={() => { setPhotoViewerUrl(url); setPhotoViewerOpen(true) }}
+                                    />
+                                    <span className="absolute bottom-0 left-0 right-0 text-[9px] text-white bg-emerald-600/80 text-center rounded-b-lg font-medium py-0.5">Compra {idx + 1}</span>
+                                  </div>
+                                ))}
                               </div>
-                            )}
-                            {item.imageCompraUrl && (
-                              <div className="relative group">
-                                <img
-                                  src={item.imageCompraUrl}
-                                  alt="Compra"
-                                  className="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
-                                  onClick={() => { setPhotoViewerUrl(item.imageCompraUrl); setPhotoViewerOpen(true) }}
-                                />
-                                <span className="absolute bottom-0 left-0 right-0 text-[8px] text-white bg-black/60 text-center rounded-b">Compra</span>
-                              </div>
-                            )}
+                            </div>
+                          )}
+                        </div>
+                        {canEdit && (
+                          <div className="flex gap-1 shrink-0">
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50" onClick={() => openEditItem(item)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                              onClick={() => { setDeleteItemId(item.id); setDeleteItemDialogOpen(true) }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
                         )}
                       </div>
-                      {canEdit && (
-                        <div className="flex gap-1 shrink-0">
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openEditItem(item)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => { setDeleteItemId(item.id); setDeleteItemDialogOpen(true) }}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
 
             {/* Items total */}
             {items.length > 0 && (
-              <div className="flex justify-end items-center gap-2 pt-3 mt-3 border-t">
-                <span className="text-sm text-gray-500">Total Items:</span>
-                <span className="text-lg font-bold text-gray-900">{formatCLP(selectedReport.totalAmount)}</span>
+              <div className="flex justify-end items-center gap-2 pt-4 mt-4 border-t border-slate-200">
+                <span className="text-sm text-slate-500 font-medium">Total Items:</span>
+                <span className="text-xl font-bold text-slate-800">{formatCLP(selectedReport.totalAmount)}</span>
               </div>
             )}
           </CardContent>
@@ -1109,47 +1180,50 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
       {/* Report Form Dialog */}
       {/* ============================================ */}
       <Dialog open={reportFormOpen} onOpenChange={setReportFormOpen}>
-        <DialogContent className="sm:max-w-lg w-[calc(100vw-1rem)] sm:w-auto">
+        <DialogContent className="sm:max-w-lg w-[calc(100vw-1rem)] sm:w-auto bg-white border-slate-200">
           <DialogHeader>
-            <DialogTitle>{editingReport ? 'Editar Rendición' : 'Nueva Rendición de Gastos'}</DialogTitle>
+            <DialogTitle className="text-slate-800">{editingReport ? 'Editar Rendicion' : 'Nueva Rendicion de Gastos'}</DialogTitle>
             <DialogDescription className="sr-only">
-              {editingReport ? 'Formulario para editar rendición de gastos' : 'Formulario para crear nueva rendición de gastos'}
+              {editingReport ? 'Formulario para editar rendicion de gastos' : 'Formulario para crear nueva rendicion de gastos'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid gap-2">
-              <Label htmlFor="report-title">Título *</Label>
+              <Label htmlFor="report-title" className="text-slate-700 font-medium">Titulo *</Label>
               <Input
                 id="report-title"
                 placeholder="Ej: Gastos mantenimiento junio 2026"
                 value={reportForm.title}
                 onChange={(e) => setReportForm((p) => ({ ...p, title: e.target.value }))}
+                className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="report-responsible">Responsable</Label>
+              <Label htmlFor="report-responsible" className="text-slate-700 font-medium">Responsable</Label>
               <Input
                 id="report-responsible"
                 placeholder="Nombre del responsable"
                 value={reportForm.responsible}
                 onChange={(e) => setReportForm((p) => ({ ...p, responsible: e.target.value }))}
+                className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="report-description">Descripción</Label>
+              <Label htmlFor="report-description" className="text-slate-700 font-medium">Descripcion</Label>
               <Textarea
                 id="report-description"
-                placeholder="Descripción de la rendición..."
+                placeholder="Descripcion de la rendicion..."
                 value={reportForm.description}
                 onChange={(e) => setReportForm((p) => ({ ...p, description: e.target.value }))}
                 rows={3}
+                className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReportFormOpen(false)} disabled={saving}>Cancelar</Button>
-            <Button onClick={handleSaveReport} disabled={!reportForm.title.trim() || saving}>
-              {saving ? 'Guardando...' : editingReport ? 'Guardar Cambios' : 'Crear Rendición'}
+            <Button variant="outline" onClick={() => setReportFormOpen(false)} disabled={saving} className="border-slate-300 text-slate-700">Cancelar</Button>
+            <Button onClick={handleSaveReport} disabled={!reportForm.title.trim() || saving} className="bg-blue-600 hover:bg-blue-700 text-white">
+              {saving ? 'Guardando...' : editingReport ? 'Guardar Cambios' : 'Crear Rendicion'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1159,35 +1233,37 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
       {/* Item Form Dialog */}
       {/* ============================================ */}
       <Dialog open={itemFormOpen} onOpenChange={setItemFormOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto w-[calc(100vw-1rem)] sm:w-auto">
+        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto w-[calc(100vw-1rem)] sm:w-auto bg-white border-slate-200">
           <DialogHeader>
-            <DialogTitle>{editingItem ? 'Editar Item de Gasto' : 'Agregar Item de Gasto'}</DialogTitle>
+            <DialogTitle className="text-slate-800">{editingItem ? 'Editar Item de Gasto' : 'Agregar Item de Gasto'}</DialogTitle>
             <DialogDescription className="sr-only">
               {editingItem ? 'Formulario para editar item de gasto' : 'Formulario para agregar nuevo item de gasto'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid gap-2">
-              <Label htmlFor="item-description">Descripción *</Label>
+              <Label htmlFor="item-description" className="text-slate-700 font-medium">Descripcion *</Label>
               <Input
                 id="item-description"
-                placeholder="Descripción del gasto"
+                placeholder="Descripcion del gasto"
                 value={itemForm.description}
                 onChange={(e) => setItemForm((p) => ({ ...p, description: e.target.value }))}
+                className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="item-boleta">N° Boleta *</Label>
+                <Label htmlFor="item-boleta" className="text-slate-700 font-medium">N Boleta *</Label>
                 <Input
                   id="item-boleta"
                   placeholder="Ej: 12345"
                   value={itemForm.numeroBoleta}
                   onChange={(e) => setItemForm((p) => ({ ...p, numeroBoleta: e.target.value }))}
+                  className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="item-amount">Monto a Rendir *</Label>
+                <Label htmlFor="item-amount" className="text-slate-700 font-medium">Monto a Rendir *</Label>
                 <Input
                   id="item-amount"
                   type="number"
@@ -1195,17 +1271,18 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
                   min="0"
                   value={itemForm.montoRendir}
                   onChange={(e) => setItemForm((p) => ({ ...p, montoRendir: e.target.value }))}
+                  className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
                 />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="item-category">Categoría *</Label>
+                <Label htmlFor="item-category" className="text-slate-700 font-medium">Categoria *</Label>
                 <Select value={itemForm.category} onValueChange={(v) => setItemForm((p) => ({ ...p, category: v }))}>
-                  <SelectTrigger id="item-category">
+                  <SelectTrigger id="item-category" className="bg-white border-slate-300 text-slate-800">
                     <SelectValue placeholder="Seleccionar" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white border-slate-300">
                     {categories.map((cat) => (
                       <SelectItem key={cat.id} value={cat.name}>
                         {cat.icon} {cat.name}
@@ -1215,27 +1292,31 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="item-date">Fecha de Gasto *</Label>
+                <Label htmlFor="item-date" className="text-slate-700 font-medium">Fecha de Gasto *</Label>
                 <Input
                   id="item-date"
                   type="date"
                   value={itemForm.expenseDate}
                   onChange={(e) => setItemForm((p) => ({ ...p, expenseDate: e.target.value }))}
+                  className="bg-white border-slate-300 text-slate-800"
                 />
               </div>
             </div>
 
             {/* Photo uploads */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-4 pt-2">
               {/* Boleta photo */}
               <div className="grid gap-2">
-                <Label>Foto Boleta</Label>
+                <Label className="text-slate-700 font-medium flex items-center gap-1.5">
+                  <Camera className="w-4 h-4 text-blue-600" />
+                  Foto Boleta
+                </Label>
                 {itemForm.imageBoletaUrl ? (
-                  <div className="relative">
+                  <div className="relative inline-block">
                     <img
                       src={itemForm.imageBoletaUrl}
                       alt="Boleta"
-                      className="w-full h-32 object-cover rounded-lg border"
+                      className="w-full max-w-xs h-32 object-cover rounded-lg border border-slate-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
                       onClick={() => { setPhotoViewerUrl(itemForm.imageBoletaUrl); setPhotoViewerOpen(true) }}
                     />
                     <Button
@@ -1248,13 +1329,13 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
                     </Button>
                   </div>
                 ) : (
-                  <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-primary hover:bg-gray-50 transition-colors">
+                  <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors">
                     {uploadingBoleta ? (
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
                     ) : (
                       <>
-                        <Camera className="h-6 w-6 text-gray-400 mb-1" />
-                        <span className="text-xs text-gray-500">Subir boleta</span>
+                        <Camera className="h-6 w-6 text-slate-400 mb-1" />
+                        <span className="text-xs text-slate-500 font-medium">Subir boleta</span>
                       </>
                     )}
                     <input
@@ -1265,7 +1346,7 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
                         const file = e.target.files?.[0]
                         if (!file) return
                         setUploadingBoleta(true)
-                        const url = await handlePhotoUpload(file, 'boleta')
+                        const url = await handlePhotoUpload(file)
                         if (url) setItemForm((p) => ({ ...p, imageBoletaUrl: url }))
                         setUploadingBoleta(false)
                       }}
@@ -1274,59 +1355,80 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
                 )}
               </div>
 
-              {/* Compra photo */}
+              {/* Compra photos - MULTIPLE */}
               <div className="grid gap-2">
-                <Label>Foto Compra</Label>
-                {itemForm.imageCompraUrl ? (
-                  <div className="relative">
-                    <img
-                      src={itemForm.imageCompraUrl}
-                      alt="Compra"
-                      className="w-full h-32 object-cover rounded-lg border"
-                      onClick={() => { setPhotoViewerUrl(itemForm.imageCompraUrl); setPhotoViewerOpen(true) }}
-                    />
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="absolute top-1 right-1 h-6 w-6 p-0"
-                      onClick={() => setItemForm((p) => ({ ...p, imageCompraUrl: '' }))}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
+                <Label className="text-slate-700 font-medium flex items-center gap-1.5">
+                  <ImageIcon className="w-4 h-4 text-emerald-600" />
+                  Fotos de Compra ({itemForm.imageCompraUrls.length})
+                </Label>
+
+                {/* Existing compra images */}
+                {itemForm.imageCompraUrls.length > 0 && (
+                  <div className="flex gap-2 flex-wrap">
+                    {itemForm.imageCompraUrls.map((url, idx) => (
+                      <div key={idx} className="relative group">
+                        <img
+                          src={url}
+                          alt={`Compra ${idx + 1}`}
+                          className="w-24 h-24 object-cover rounded-lg border border-slate-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => { setPhotoViewerUrl(url); setPhotoViewerOpen(true) }}
+                        />
+                        <span className="absolute bottom-0 left-0 right-0 text-[9px] text-white bg-emerald-600/80 text-center rounded-b-lg font-medium py-0.5">Compra {idx + 1}</span>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="absolute -top-1 -right-1 h-5 w-5 p-0 rounded-full shadow-sm"
+                          onClick={() => setItemForm((p) => ({
+                            ...p,
+                            imageCompraUrls: p.imageCompraUrls.filter((_, i) => i !== idx)
+                          }))}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
                   </div>
-                ) : (
-                  <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-primary hover:bg-gray-50 transition-colors">
-                    {uploadingCompra ? (
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                    ) : (
-                      <>
-                        <Upload className="h-6 w-6 text-gray-400 mb-1" />
-                        <span className="text-xs text-gray-500">Subir compra</span>
-                      </>
-                    )}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0]
-                        if (!file) return
-                        setUploadingCompra(true)
-                        const url = await handlePhotoUpload(file, 'compra')
-                        if (url) setItemForm((p) => ({ ...p, imageCompraUrl: url }))
-                        setUploadingCompra(false)
-                      }}
-                    />
-                  </label>
                 )}
+
+                {/* Upload button for more compra images */}
+                <label className={`flex flex-col items-center justify-center h-28 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                  uploadingCompra
+                    ? 'border-slate-200 bg-slate-50 cursor-not-allowed'
+                    : 'border-emerald-300 hover:border-emerald-400 hover:bg-emerald-50/50'
+                }`}>
+                  {uploadingCompra ? (
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600"></div>
+                      <span className="text-xs text-slate-500">Subiendo...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="h-6 w-6 text-emerald-500 mb-1" />
+                      <span className="text-xs text-slate-600 font-medium">Agregar fotos de compra</span>
+                      <span className="text-[10px] text-slate-400 mt-0.5">Puedes seleccionar varias imagenes</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={async (e) => {
+                      const files = e.target.files
+                      if (!files || files.length === 0) return
+                      await handleMultipleCompraUpload(files)
+                    }}
+                  />
+                </label>
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setItemFormOpen(false)} disabled={saving}>Cancelar</Button>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setItemFormOpen(false)} disabled={saving} className="border-slate-300 text-slate-700">Cancelar</Button>
             <Button
               onClick={handleSaveItem}
               disabled={!itemForm.description.trim() || !itemForm.numeroBoleta.trim() || !itemForm.montoRendir || !itemForm.category || !itemForm.expenseDate || saving}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               {saving ? 'Guardando...' : editingItem ? 'Guardar Cambios' : 'Agregar Item'}
             </Button>
@@ -1338,12 +1440,12 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
       {/* Review Dialog */}
       {/* ============================================ */}
       <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
-        <DialogContent className="sm:max-w-md w-[calc(100vw-1rem)] sm:w-auto">
+        <DialogContent className="sm:max-w-md w-[calc(100vw-1rem)] sm:w-auto bg-white border-slate-200">
           <DialogHeader>
-            <DialogTitle>
-              {reviewAction === 'RECHAZADO' ? 'Rechazar Reporte' : 'Solicitar Modificación'}
+            <DialogTitle className="text-slate-800">
+              {reviewAction === 'RECHAZADO' ? 'Rechazar Reporte' : 'Solicitar Modificacion'}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-slate-500">
               {reviewAction === 'RECHAZADO'
                 ? 'Indique el motivo del rechazo del reporte de gastos.'
                 : 'Indique las modificaciones necesarias para el reporte de gastos.'}
@@ -1351,32 +1453,34 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid gap-2">
-              <Label htmlFor="review-note">{reviewAction === 'RECHAZADO' ? 'Motivo del rechazo' : 'Modificaciones solicitadas'}</Label>
+              <Label htmlFor="review-note" className="text-slate-700 font-medium">{reviewAction === 'RECHAZADO' ? 'Motivo del rechazo' : 'Modificaciones solicitadas'}</Label>
               <Textarea
                 id="review-note"
                 placeholder={reviewAction === 'RECHAZADO' ? 'Indique el motivo del rechazo...' : 'Describa las modificaciones necesarias...'}
                 value={reviewNote}
                 onChange={(e) => setReviewNote(e.target.value)}
                 rows={3}
+                className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="reviewed-by">Revisado por</Label>
+              <Label htmlFor="reviewed-by" className="text-slate-700 font-medium">Revisado por</Label>
               <Input
                 id="reviewed-by"
                 placeholder="Nombre del revisor"
                 value={reviewedBy}
                 onChange={(e) => setReviewedBy(e.target.value)}
+                className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setReviewDialogOpen(false)} className="border-slate-300 text-slate-700">Cancelar</Button>
             <Button
               onClick={handleConfirmReview}
-              className={reviewAction === 'RECHAZADO' ? 'bg-red-500 hover:bg-red-600' : 'bg-orange-500 hover:bg-orange-600'}
+              className={reviewAction === 'RECHAZADO' ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-amber-500 hover:bg-amber-600 text-white'}
             >
-              {reviewAction === 'RECHAZADO' ? 'Confirmar Rechazo' : 'Solicitar Modificación'}
+              {reviewAction === 'RECHAZADO' ? 'Confirmar Rechazo' : 'Solicitar Modificacion'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1386,16 +1490,16 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
       {/* Delete Report Dialog */}
       {/* ============================================ */}
       <AlertDialog open={deleteReportDialogOpen} onOpenChange={setDeleteReportDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-white">
           <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar Rendición</AlertDialogTitle>
-            <AlertDialogDescription>
-              ¿Está seguro que desea eliminar la rendición &quot;{selectedReport?.title}&quot;? Esta acción no se puede deshacer y se eliminarán todos los items asociados.
+            <AlertDialogTitle className="text-slate-800">Eliminar Rendicion</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-600">
+              Esta seguro que desea eliminar la rendicion &quot;{selectedReport?.title}&quot;? Esta accion no se puede deshacer y se eliminaran todos los items asociados.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteReport} className="bg-red-500 hover:bg-red-600">
+            <AlertDialogCancel className="border-slate-300 text-slate-700">Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteReport} className="bg-red-500 hover:bg-red-600 text-white">
               Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1406,16 +1510,16 @@ export default function RendicionGastos({ userRole = 'USER' }: RendicionGastosPr
       {/* Delete Item Dialog */}
       {/* ============================================ */}
       <AlertDialog open={deleteItemDialogOpen} onOpenChange={setDeleteItemDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-white">
           <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar Item</AlertDialogTitle>
-            <AlertDialogDescription>
-              ¿Está seguro que desea eliminar este item de gasto? Esta acción no se puede deshacer.
+            <AlertDialogTitle className="text-slate-800">Eliminar Item</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-600">
+              Esta seguro que desea eliminar este item de gasto? Esta accion no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteItem} className="bg-red-500 hover:bg-red-600">
+            <AlertDialogCancel className="border-slate-300 text-slate-700">Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteItem} className="bg-red-500 hover:bg-red-600 text-white">
               Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
