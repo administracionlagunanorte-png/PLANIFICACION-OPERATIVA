@@ -1,0 +1,974 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useEffect, useRef } from 'react'
+     4→     4→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+     5→     5→import { Button } from '@/components/ui/button'
+     6→     6→import { Input } from '@/components/ui/input'
+     7→     7→import { Label } from '@/components/ui/label'
+     8→     8→import { Badge } from '@/components/ui/badge'
+     9→     9→import {
+    10→    10→  Dialog,
+    11→    11→  DialogContent,
+    12→    12→  DialogDescription,
+    13→    13→  DialogFooter,
+    14→    14→  DialogHeader,
+    15→    15→  DialogTitle,
+    16→    16→} from '@/components/ui/dialog'
+    17→    17→import {
+    18→    18→  Select,
+    19→    19→  SelectContent,
+    20→    20→  SelectItem,
+    21→    21→  SelectTrigger,
+    22→    22→  SelectValue,
+    23→    23→} from '@/components/ui/select'
+    24→    24→import {
+    25→    25→  Table,
+    26→    26→  TableBody,
+    27→    27→  TableCell,
+    28→    28→  TableHead,
+    29→    29→  TableHeader,
+    30→    30→  TableRow,
+    31→    31→} from '@/components/ui/table'
+    32→    32→import {
+    33→    33→  AlertDialog,
+    34→    34→  AlertDialogAction,
+    35→    35→  AlertDialogCancel,
+    36→    36→  AlertDialogContent,
+    37→    37→  AlertDialogDescription,
+    38→    38→  AlertDialogFooter,
+    39→    39→  AlertDialogHeader,
+    40→    40→  AlertDialogTitle,
+    41→    41→} from '@/components/ui/alert-dialog'
+    42→    42→import {
+    43→    43→  Wallet,
+    44→    44→  Plus,
+    45→    45→  Pencil,
+    46→    46→  Trash2,
+    47→    47→  ChevronLeft,
+    48→    48→  CheckCircle,
+    49→    49→  XCircle,
+    50→    50→  Clock,
+    51→    51→  Download,
+    52→    52→  Upload,
+    53→    53→} from 'lucide-react'
+    54→    54→import { useToast } from '@/hooks/use-toast'
+    55→    55→
+    56→    56→// ============================================================
+    57→    57→// Types
+    58→    58→// ============================================================
+    59→    59→interface AnticipoPeriod {
+    60→    60→  id: string
+    61→    61→  name: string
+    62→    62→  month: number
+    63→    63→  year: number
+    64→    64→  status: string
+    65→    65→  totalAmount: number
+    66→    66→  anticipoCount: number
+    67→    67→  createdAt: string
+    68→    68→}
+    69→    69→
+    70→    70→interface Anticipo {
+    71→    71→  id: string
+    72→    72→  numero: number
+    73→    73→  nombre: string
+    74→    74→  rut: string
+    75→    75→  monto: number
+    76→    76→  cuentaBancaria: string
+    77→    77→  periodoId: string
+    78→    78→  status: string
+    79→    79→  createdBy: string | null
+    80→    80→  createdAt: string
+    81→    81→  updatedAt: string
+    82→    82→  periodo?: AnticipoPeriod
+    83→    83→}
+    84→    84→
+    85→    85→// ============================================================
+    86→    86→// Status config
+    87→    87→// ============================================================
+    88→    88→const statusConfig: Record<string, { label: string; color: string; bgColor: string; borderColor: string; icon: React.ReactNode }> = {
+    89→    89→  PENDIENTE: { label: 'Pendiente', color: 'text-amber-700', bgColor: 'bg-amber-50', borderColor: 'border-l-amber-500', icon: <Clock className="h-3.5 w-3.5" /> },
+    90→    90→  PAGADO: { label: 'Pagado', color: 'text-emerald-700', bgColor: 'bg-emerald-50', borderColor: 'border-l-emerald-500', icon: <CheckCircle className="h-3.5 w-3.5" /> },
+    91→    91→  RECHAZADO: { label: 'Rechazado', color: 'text-red-700', bgColor: 'bg-red-50', borderColor: 'border-l-red-500', icon: <XCircle className="h-3.5 w-3.5" /> },
+    92→    92→}
+    93→    93→
+    94→    94→// ============================================================
+    95→    95→// Props
+    96→    96→// ============================================================
+    97→    97→interface AnticiposPanelProps {
+    98→    98→  userRole?: string
+    99→    99→  initialStatusFilter?: string
+   100→   100→  onStatusFilterConsumed?: () => void
+   101→   101→}
+   102→   102→
+   103→   103→// ============================================================
+   104→   104→// Component
+   105→   105→// ============================================================
+   106→   106→export default function AnticiposPanel({ userRole = 'USER', initialStatusFilter, onStatusFilterConsumed }: AnticiposPanelProps) {
+   107→   107→  const { toast } = useToast()
+   108→   108→  const isAdmin = userRole === 'ADMIN'
+   109→   109→  const isSupervisor = userRole === 'SUPERVISOR'
+   110→   110→  const canEdit = isAdmin || isSupervisor
+   111→   111→
+   112→   112→  // --- View state ---
+   113→   113→  const [currentView, setCurrentView] = useState<'periods' | 'period-detail'>('periods')
+   114→   114→  const [periods, setPeriods] = useState<AnticipoPeriod[]>([])
+   115→   115→  const [selectedPeriod, setSelectedPeriod] = useState<AnticipoPeriod | null>(null)
+   116→   116→  const [anticipos, setAnticipos] = useState<Anticipo[]>([])
+   117→   117→  const [loading, setLoading] = useState(false)
+   118→   118→
+   119→   119→  // --- Filters ---
+   120→   120→  const [filterStatus, setFilterStatus] = useState<string>(initialStatusFilter || 'all')
+   121→   121→  const [searchQuery, setSearchQuery] = useState('')
+   122→   122→
+   123→   123→  // --- Dialogs ---
+   124→   124→  const [periodFormOpen, setPeriodFormOpen] = useState(false)
+   125→   125→  const [anticipoFormOpen, setAnticipoFormOpen] = useState(false)
+   126→   126→  const [editingAnticipo, setEditingAnticipo] = useState<Anticipo | null>(null)
+   127→   127→  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+   128→   128→  const [deleteTarget, setDeleteTarget] = useState<{ type: 'period' | 'anticipo'; id: string } | null>(null)
+   129→   129→  const [importDialogOpen, setImportDialogOpen] = useState(false)
+   130→   130→
+   131→   131→  // --- Forms ---
+   132→   132→  const [periodForm, setPeriodForm] = useState({ name: '', month: '', year: '' })
+   133→   133→  const [anticipoForm, setAnticipoForm] = useState({ nombre: '', rut: '', monto: '', cuentaBancaria: '' })
+   134→   134→
+   135→   135→  // --- Import ---
+   136→   136→  const fileInputRef = useRef<HTMLInputElement>(null)
+   137→   137→  const [importing, setImporting] = useState(false)
+   138→   138→
+   139→   139→  // ============================================================
+   140→   140→  // React to initialStatusFilter from parent (dashboard click)
+   141→   141→  // ============================================================
+   142→   142→  useEffect(() => {
+   143→   143→    if (initialStatusFilter && initialStatusFilter !== 'all') {
+   144→   144→      setFilterStatus(initialStatusFilter)
+   145→   145→      if (onStatusFilterConsumed) onStatusFilterConsumed()
+   146→   146→    }
+   147→   147→  }, [initialStatusFilter])
+   148→   148→
+   149→   149→  // ============================================================
+   150→   150→  // Data fetching
+   151→   151→  // ============================================================
+   152→   152→  const fetchPeriods = async () => {
+   153→   153→    setLoading(true)
+   154→   154→    try {
+   155→   155→      const res = await fetch('/api/anticipo-periods')
+   156→   156→      if (res.ok) {
+   157→   157→        const data = await res.json()
+   158→   158→        setPeriods(data)
+   159→   159→      }
+   160→   160→    } catch (err) {
+   161→   161→      console.error('Error fetching periods:', err)
+   162→   162→      toast({ title: 'Error', description: 'No se pudieron cargar los periodos', variant: 'destructive' })
+   163→   163→    } finally {
+   164→   164→      setLoading(false)
+   165→   165→    }
+   166→   166→  }
+   167→   167→
+   168→   168→  const fetchAnticipos = async (periodoId: string) => {
+   169→   169→    setLoading(true)
+   170→   170→    try {
+   171→   171→      const res = await fetch(`/api/anticipos?periodoId=${periodoId}`)
+   172→   172→      if (res.ok) {
+   173→   173→        const data = await res.json()
+   174→   174→        setAnticipos(data)
+   175→   175→      }
+   176→   176→    } catch (err) {
+   177→   177→      console.error('Error fetching anticipos:', err)
+   178→   178→      toast({ title: 'Error', description: 'No se pudieron cargar los anticipos', variant: 'destructive' })
+   179→   179→    } finally {
+   180→   180→      setLoading(false)
+   181→   181→    }
+   182→   182→  }
+   183→   183→
+   184→   184→  useEffect(() => {
+   185→   185→    fetchPeriods()
+   186→   186→  }, [])
+   187→   187→
+   188→   188→  // ============================================================
+   189→   189→  // Period actions
+   190→   190→  // ============================================================
+   191→   191→  const handleCreatePeriod = async () => {
+   192→   192→    if (!periodForm.name || !periodForm.month || !periodForm.year) {
+   193→   193→      toast({ title: 'Campos requeridos', description: 'Nombre, mes y año son obligatorios', variant: 'destructive' })
+   194→   194→      return
+   195→   195→    }
+   196→   196→    try {
+   197→   197→      const res = await fetch('/api/anticipo-periods', {
+   198→   198→        method: 'POST',
+   199→   199→        headers: { 'Content-Type': 'application/json' },
+   200→   200→        body: JSON.stringify({
+   201→   201→          name: periodForm.name,
+   202→   202→          month: Number(periodForm.month),
+   203→   203→          year: Number(periodForm.year),
+   204→   204→        }),
+   205→   205→      })
+   206→   206→      if (res.ok) {
+   207→   207→        toast({ title: 'Periodo creado', description: 'El periodo de anticipos fue creado exitosamente' })
+   208→   208→        setPeriodFormOpen(false)
+   209→   209→        setPeriodForm({ name: '', month: '', year: '' })
+   210→   210→        fetchPeriods()
+   211→   211→      } else {
+   212→   212→        const err = await res.json()
+   213→   213→        toast({ title: 'Error', description: err.error || 'No se pudo crear el periodo', variant: 'destructive' })
+   214→   214→      }
+   215→   215→    } catch {
+   216→   216→      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+   217→   217→    }
+   218→   218→  }
+   219→   219→
+   220→   220→  const handleOpenPeriod = (period: AnticipoPeriod) => {
+   221→   221→    setSelectedPeriod(period)
+   222→   222→    setCurrentView('period-detail')
+   223→   223→    fetchAnticipos(period.id)
+   224→   224→  }
+   225→   225→
+   226→   226→  const handleBackToPeriods = () => {
+   227→   227→    setCurrentView('periods')
+   228→   228→    setSelectedPeriod(null)
+   229→   229→    setAnticipos([])
+   230→   230→    fetchPeriods()
+   231→   231→  }
+   232→   232→
+   233→   233→  const handleTogglePeriodStatus = async (period: AnticipoPeriod) => {
+   234→   234→    const newStatus = period.status === 'ABIERTO' ? 'CERRADO' : 'ABIERTO'
+   235→   235→    try {
+   236→   236→      const res = await fetch(`/api/anticipo-periods/${period.id}`, {
+   237→   237→        method: 'PUT',
+   238→   238→        headers: { 'Content-Type': 'application/json' },
+   239→   239→        body: JSON.stringify({ status: newStatus }),
+   240→   240→      })
+   241→   241→      if (res.ok) {
+   242→   242→        toast({ title: `Periodo ${newStatus === 'CERRADO' ? 'cerrado' : 'abierto'}`, description: `El periodo fue ${newStatus === 'CERRADO' ? 'cerrado' : 'abierto'} exitosamente` })
+   243→   243→        if (selectedPeriod?.id === period.id) {
+   244→   244→          setSelectedPeriod({ ...period, status: newStatus })
+   245→   245→        }
+   246→   246→        fetchPeriods()
+   247→   247→      }
+   248→   248→    } catch {
+   249→   249→      toast({ title: 'Error', description: 'No se pudo actualizar el periodo', variant: 'destructive' })
+   250→   250→    }
+   251→   251→  }
+   252→   252→
+   253→   253→  // ============================================================
+   254→   254→  // Anticipo actions
+   255→   255→  // ============================================================
+   256→   256→  const handleCreateAnticipo = async () => {
+   257→   257→    if (!anticipoForm.nombre || !anticipoForm.rut || !anticipoForm.monto) {
+   258→   258→      toast({ title: 'Campos requeridos', description: 'Nombre, RUT y monto son obligatorios', variant: 'destructive' })
+   259→   259→      return
+   260→   260→    }
+   261→   261→    if (!selectedPeriod) return
+   262→   262→
+   263→   263→    try {
+   264→   264→      const res = await fetch('/api/anticipos', {
+   265→   265→        method: 'POST',
+   266→   266→        headers: { 'Content-Type': 'application/json' },
+   267→   267→        body: JSON.stringify({
+   268→   268→          ...anticipoForm,
+   269→   269→          monto: Number(anticipoForm.monto),
+   270→   270→          periodoId: selectedPeriod.id,
+   271→   271→        }),
+   272→   272→      })
+   273→   273→      if (res.ok) {
+   274→   274→        toast({ title: 'Anticipo creado', description: 'El anticipo fue agregado exitosamente' })
+   275→   275→        setAnticipoFormOpen(false)
+   276→   276→        setAnticipoForm({ nombre: '', rut: '', monto: '', cuentaBancaria: '' })
+   277→   277→        fetchAnticipos(selectedPeriod.id)
+   278→   278→        fetchPeriods()
+   279→   279→      } else {
+   280→   280→        const err = await res.json()
+   281→   281→        toast({ title: 'Error', description: err.error || 'No se pudo crear el anticipo', variant: 'destructive' })
+   282→   282→      }
+   283→   283→    } catch {
+   284→   284→      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+   285→   285→    }
+   286→   286→  }
+   287→   287→
+   288→   288→  const handleUpdateAnticipo = async () => {
+   289→   289→    if (!editingAnticipo) return
+   290→   290→    try {
+   291→   291→      const res = await fetch(`/api/anticipos/${editingAnticipo.id}`, {
+   292→   292→        method: 'PUT',
+   293→   293→        headers: { 'Content-Type': 'application/json' },
+   294→   294→        body: JSON.stringify({
+   295→   295→          nombre: anticipoForm.nombre,
+   296→   296→          rut: anticipoForm.rut,
+   297→   297→          monto: Number(anticipoForm.monto),
+   298→   298→          cuentaBancaria: anticipoForm.cuentaBancaria,
+   299→   299→        }),
+   300→   300→      })
+   301→   301→      if (res.ok) {
+   302→   302→        toast({ title: 'Anticipo actualizado', description: 'El anticipo fue actualizado exitosamente' })
+   303→   303→        setAnticipoFormOpen(false)
+   304→   304→        setEditingAnticipo(null)
+   305→   305→        if (selectedPeriod) fetchAnticipos(selectedPeriod.id)
+   306→   306→        fetchPeriods()
+   307→   307→      }
+   308→   308→    } catch {
+   309→   309→      toast({ title: 'Error', description: 'No se pudo actualizar el anticipo', variant: 'destructive' })
+   310→   310→    }
+   311→   311→  }
+   312→   312→
+   313→   313→  const handleAnticipoStatusChange = async (anticipoId: string, newStatus: string) => {
+   314→   314→    try {
+   315→   315→      const res = await fetch(`/api/anticipos/${anticipoId}`, {
+   316→   316→        method: 'PUT',
+   317→   317→        headers: { 'Content-Type': 'application/json' },
+   318→   318→        body: JSON.stringify({ status: newStatus }),
+   319→   319→      })
+   320→   320→      if (res.ok) {
+   321→   321→        toast({ title: 'Estado actualizado', description: `El anticipo fue marcado como ${statusConfig[newStatus]?.label || newStatus}` })
+   322→   322→        if (selectedPeriod) fetchAnticipos(selectedPeriod.id)
+   323→   323→        fetchPeriods()
+   324→   324→      }
+   325→   325→    } catch {
+   326→   326→      toast({ title: 'Error', description: 'No se pudo actualizar el estado', variant: 'destructive' })
+   327→   327→    }
+   328→   328→  }
+   329→   329→
+   330→   330→  const handleDelete = async () => {
+   331→   331→    if (!deleteTarget) return
+   332→   332→    try {
+   333→   333→      const endpoint = deleteTarget.type === 'period'
+   334→   334→        ? `/api/anticipo-periods/${deleteTarget.id}`
+   335→   335→        : `/api/anticipos/${deleteTarget.id}`
+   336→   336→      const res = await fetch(endpoint, { method: 'DELETE' })
+   337→   337→      if (res.ok) {
+   338→   338→        toast({ title: 'Eliminado', description: 'El registro fue eliminado exitosamente' })
+   339→   339→        if (deleteTarget.type === 'period') {
+   340→   340→          fetchPeriods()
+   341→   341→          if (selectedPeriod?.id === deleteTarget.id) handleBackToPeriods()
+   342→   342→        } else {
+   343→   343→          if (selectedPeriod) fetchAnticipos(selectedPeriod.id)
+   344→   344→          fetchPeriods()
+   345→   345→        }
+   346→   346→      }
+   347→   347→    } catch {
+   348→   348→      toast({ title: 'Error', description: 'No se pudo eliminar', variant: 'destructive' })
+   349→   349→    } finally {
+   350→   350→      setDeleteDialogOpen(false)
+   351→   351→      setDeleteTarget(null)
+   352→   352→    }
+   353→   353→  }
+   354→   354→
+   355→   355→  // ============================================================
+   356→   356→  // Import from Excel
+   357→   357→  // ============================================================
+   358→   358→  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+   359→   359→    const file = e.target.files?.[0]
+   360→   360→    if (!file || !selectedPeriod) return
+   361→   361→
+   362→   362→    setImporting(true)
+   363→   363→    const formData = new FormData()
+   364→   364→    formData.append('file', file)
+   365→   365→
+   366→   366→    try {
+   367→   367→      const res = await fetch('/api/upload', {
+   368→   368→        method: 'POST',
+   369→   369→        body: formData,
+   370→   370→      })
+   371→   371→      if (!res.ok) throw new Error('Upload failed')
+   372→   372→      const { url } = await res.json()
+   373→   373→
+   374→   374→      // Now parse the Excel file server-side by reading it directly
+   375→   375→      // We'll use a client-side approach with a library
+   376→   376→      const XLSX = await import('xlsx')
+   377→   377→      const arrayBuffer = await file.arrayBuffer()
+   378→   378→      const wb = XLSX.read(arrayBuffer)
+   379→   379→      const ws = wb.Sheets[wb.SheetNames[0]]
+   380→   380→      const rows = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1 })
+   381→   381→
+   382→   382→      // Skip header rows (first 2 rows are title and headers)
+   383→   383→      const dataRows = rows.slice(2)
+   384→   384→      let created = 0
+   385→   385→
+   386→   386→      for (const row of dataRows) {
+   387→   387→        if (!row || row.length < 4) continue
+   388→   388→        const nombre = String(row[1] || '').trim()
+   389→   389→        const rut = String(row[2] || '').trim()
+   390→   390→        const monto = Number(String(row[3] || '0').replace(/[^0-9.-]/g, ''))
+   391→   391→        const cuentaBancaria = String(row[4] || '').trim()
+   392→   392→
+   393→   393→        if (!nombre || !rut || !monto) continue
+   394→   394→
+   395→   395→        try {
+   396→   396→          const res = await fetch('/api/anticipos', {
+   397→   397→            method: 'POST',
+   398→   398→            headers: { 'Content-Type': 'application/json' },
+   399→   399→            body: JSON.stringify({ nombre, rut, monto, cuentaBancaria, periodoId: selectedPeriod.id }),
+   400→   400→          })
+   401→   401→          if (res.ok) created++
+   402→   402→        } catch { /* skip */ }
+   403→   403→      }
+   404→   404→
+   405→   405→      toast({ title: 'Importación completa', description: `Se importaron ${created} anticipos` })
+   406→   406→      fetchAnticipos(selectedPeriod.id)
+   407→   407→      fetchPeriods()
+   408→   408→      setImportDialogOpen(false)
+   409→   409→    } catch (err) {
+   410→   410→      console.error('Error importing:', err)
+   411→   411→      toast({ title: 'Error', description: 'No se pudo importar el archivo', variant: 'destructive' })
+   412→   412→    } finally {
+   413→   413→      setImporting(false)
+   414→   414→      if (fileInputRef.current) fileInputRef.current.value = ''
+   415→   415→    }
+   416→   416→  }
+   417→   417→
+   418→   418→  // ============================================================
+   419→   419→  // Export to Excel
+   420→   420→  // ============================================================
+   421→   421→  const handleExportExcel = async () => {
+   422→   422→    if (!selectedPeriod) return
+   423→   423→    try {
+   424→   424→      const XLSX = await import('xlsx')
+   425→   425→      const wb = XLSX.utils.book_new()
+   426→   426→
+   427→   427→      const header = ['N°', 'NOMBRE', 'RUT', 'MONTO ANTICIPO', 'CUENTA BANCARIA', 'ESTADO']
+   428→   428→      const data = filteredAnticipos.map((a, i) => [
+   429→   429→        i + 1,
+   430→   430→        a.nombre,
+   431→   431→        a.rut,
+   432→   432→        a.monto,
+   433→   433→        a.cuentaBancaria,
+   434→   434→        statusConfig[a.status]?.label || a.status,
+   435→   435→      ])
+   436→   436→
+   437→   437→      const totalRow = ['', '', 'TOTAL', filteredAnticipos.reduce((s, a) => s + a.monto, 0), '', '']
+   438→   438→
+   439→   439→      const wsData = [
+   440→   440→        [`ANTICIPOS "${selectedPeriod.name.toUpperCase()}"`],
+   441→   441→        ['', '', 'COMENTARIO'],
+   442→   442→        header,
+   443→   443→        ...data,
+   444→   444→        totalRow,
+   445→   445→      ]
+   446→   446→
+   447→   447→      const ws = XLSX.utils.aoa_to_sheet(wsData)
+   448→   448→
+   449→   449→      // Set column widths
+   450→   450→      ws['!cols'] = [
+   451→   451→        { wch: 5 },
+   452→   452→        { wch: 35 },
+   453→   453→        { wch: 15 },
+   454→   454→        { wch: 18 },
+   455→   455→        { wch: 45 },
+   456→   456→        { wch: 12 },
+   457→   457→      ]
+   458→   458→
+   459→   459→      XLSX.utils.book_append_sheet(wb, ws, selectedPeriod.name.substring(0, 31))
+   460→   460→      XLSX.writeFile(wb, `Anticipos_${selectedPeriod.name.replace(/\s+/g, '_')}.xlsx`)
+   461→   461→
+   462→   462→      toast({ title: 'Exportado', description: 'El archivo Excel fue descargado' })
+   463→   463→    } catch (err) {
+   464→   464→      console.error('Error exporting:', err)
+   465→   465→      toast({ title: 'Error', description: 'No se pudo exportar', variant: 'destructive' })
+   466→   466→    }
+   467→   467→  }
+   468→   468→
+   469→   469→  // ============================================================
+   470→   470→  // Format helpers
+   471→   471→  // ============================================================
+   472→   472→  const formatCurrency = (amount: number) => {
+   473→   473→    return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(amount)
+   474→   474→  }
+   475→   475→
+   476→   476→  // ============================================================
+   477→   477→  // Filtered anticipos
+   478→   478→  // ============================================================
+   479→   479→  const filteredAnticipos = anticipos.filter(a => {
+   480→   480→    if (filterStatus !== 'all' && a.status !== filterStatus) return false
+   481→   481→    if (searchQuery.trim()) {
+   482→   482→      const q = searchQuery.toLowerCase()
+   483→   483→      return a.nombre.toLowerCase().includes(q) || a.rut.toLowerCase().includes(q)
+   484→   484→    }
+   485→   485→    return true
+   486→   486→  })
+   487→   487→
+   488→   488→  const totalMonto = filteredAnticipos.reduce((s, a) => s + a.monto, 0)
+   489→   489→
+   490→   490→  // ============================================================
+   491→   491→  // Month names
+   492→   492→  // ============================================================
+   493→   493→  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+   494→   494→
+   495→   495→  // ============================================================
+   496→   496→  // RENDER
+   497→   497→  // ============================================================
+   498→   498→  return (
+   499→   499→    <div className="space-y-4">
+   500→   500→      {/* ============================================================ */}
+   501→   501→      {/* PERIODS LIST VIEW                                            */}
+   502→   502→      {/* ============================================================ */}
+   503→   503→      {currentView === 'periods' && (
+   504→   504→        <>
+   505→   505→          <div className="flex items-center justify-between">
+   506→   506→            <div>
+   507→   507→              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+   508→   508→                <Wallet className="h-5 w-5 text-orange-600" />
+   509→   509→                Anticipos
+   510→   510→              </h2>
+   511→   511→              <p className="text-sm text-slate-500 mt-1">Gestión de anticipos por periodo</p>
+   512→   512→            </div>
+   513→   513→            {canEdit && (
+   514→   514→              <Button className="gap-1.5 bg-orange-600 hover:bg-orange-700 text-white" onClick={() => setPeriodFormOpen(true)}>
+   515→   515→                <Plus className="h-4 w-4" /> Nuevo Periodo
+   516→   516→              </Button>
+   517→   517→            )}
+   518→   518→          </div>
+   519→   519→
+   520→   520→          {/* Filter */}
+   521→   521→          <div className="flex items-center gap-2 flex-wrap">
+   522→   522→            <Select value={filterStatus} onValueChange={setFilterStatus}>
+   523→   523→              <SelectTrigger className="w-[150px] h-8 text-xs">
+   524→   524→                <SelectValue placeholder="Estado" />
+   525→   525→              </SelectTrigger>
+   526→   526→              <SelectContent>
+   527→   527→                <SelectItem value="all">Todos</SelectItem>
+   528→   528→                <SelectItem value="ABIERTO">Abierto</SelectItem>
+   529→   529→                <SelectItem value="CERRADO">Cerrado</SelectItem>
+   530→   530→              </SelectContent>
+   531→   531→            </Select>
+   532→   532→          </div>
+   533→   533→
+   534→   534→          {loading ? (
+   535→   535→            <div className="text-center py-12 text-slate-500">Cargando periodos...</div>
+   536→   536→          ) : periods.length === 0 ? (
+   537→   537→            <div className="text-center py-12 text-slate-400">
+   538→   538→              <Wallet className="h-12 w-12 mx-auto mb-3 opacity-40" />
+   539→   539→              <p className="text-lg font-medium">No hay periodos de anticipos</p>
+   540→   540→              <p className="text-sm mt-1">Crea un nuevo periodo para comenzar</p>
+   541→   541→            </div>
+   542→   542→          ) : (
+   543→   543→            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+   544→   544→              {periods
+   545→   545→                .filter(p => filterStatus === 'all' || p.status === filterStatus)
+   546→   546→                .map(period => {
+   547→   547→                  const sc = period.status === 'ABIERTO'
+   548→   548→                    ? { color: 'text-emerald-700', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-300' }
+   549→   549→                    : { color: 'text-slate-600', bgColor: 'bg-slate-50', borderColor: 'border-slate-300' }
+   550→   550→                  return (
+   551→   551→                    <Card
+   552→   552→                      key={period.id}
+   553→   553→                      className={`border-l-4 ${sc.borderColor} cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02]`}
+   554→   554→                      onClick={() => handleOpenPeriod(period)}
+   555→   555→                    >
+   556→   556→                      <CardHeader className="pb-2 pt-4 px-4">
+   557→   557→                        <div className="flex items-center justify-between">
+   558→   558→                          <CardTitle className="text-base font-bold text-slate-800">{period.name}</CardTitle>
+   559→   559→                          <Badge className={`${sc.bgColor} ${sc.color} text-xs`}>
+   560→   560→                            {period.status === 'ABIERTO' ? 'Abierto' : 'Cerrado'}
+   561→   561→                          </Badge>
+   562→   562→                        </div>
+   563→   563→                      </CardHeader>
+   564→   564→                      <CardContent className="px-4 pb-4 pt-1">
+   565→   565→                        <div className="space-y-1.5">
+   566→   566→                          <div className="flex justify-between text-sm">
+   567→   567→                            <span className="text-slate-500">Anticipos</span>
+   568→   568→                            <span className="font-semibold text-slate-700">{period.anticipoCount}</span>
+   569→   569→                          </div>
+   570→   570→                          <div className="flex justify-between text-sm">
+   571→   571→                            <span className="text-slate-500">Monto Total</span>
+   572→   572→                            <span className="font-bold text-orange-700">{formatCurrency(period.totalAmount)}</span>
+   573→   573→                          </div>
+   574→   574→                          <div className="flex gap-2 mt-3">
+   575→   575→                            {canEdit && period.status === 'ABIERTO' && (
+   576→   576→                              <Button
+   577→   577→                                size="sm"
+   578→   578→                                variant="outline"
+   579→   579→                                className="text-xs h-7"
+   580→   580→                                onClick={(e) => { e.stopPropagation(); handleTogglePeriodStatus(period) }}
+   581→   581→                              >
+   582→   582→                                Cerrar Periodo
+   583→   583→                              </Button>
+   584→   584→                            )}
+   585→   585→                            {canEdit && period.status === 'CERRADO' && (
+   586→   586→                              <Button
+   587→   587→                                size="sm"
+   588→   588→                                variant="outline"
+   589→   589→                                className="text-xs h-7"
+   590→   590→                                onClick={(e) => { e.stopPropagation(); handleTogglePeriodStatus(period) }}
+   591→   591→                              >
+   592→   592→                                Reabrir Periodo
+   593→   593→                              </Button>
+   594→   594→                            )}
+   595→   595→                            {canEdit && (
+   596→   596→                              <Button
+   597→   597→                                size="sm"
+   598→   598→                                variant="ghost"
+   599→   599→                                className="text-xs h-7 text-red-500 hover:text-red-700"
+   600→   600→                                onClick={(e) => { e.stopPropagation(); setDeleteTarget({ type: 'period', id: period.id }); setDeleteDialogOpen(true) }}
+   601→   601→                              >
+   602→   602→                                <Trash2 className="h-3.5 w-3.5" />
+   603→   603→                              </Button>
+   604→   604→                            )}
+   605→   605→                          </div>
+   606→   606→                        </div>
+   607→   607→                      </CardContent>
+   608→   608→                    </Card>
+   609→   609→                  )
+   610→   610→                })}
+   611→   611→            </div>
+   612→   612→          )}
+   613→   613→        </>
+   614→   614→      )}
+   615→   615→
+   616→   616→      {/* ============================================================ */}
+   617→   617→      {/* PERIOD DETAIL VIEW                                           */}
+   618→   618→      {/* ============================================================ */}
+   619→   619→      {currentView === 'period-detail' && selectedPeriod && (
+   620→   620→        <>
+   621→   621→          <div className="flex items-center justify-between">
+   622→   622→            <div className="flex items-center gap-3">
+   623→   623→              <Button variant="ghost" size="sm" onClick={handleBackToPeriods} className="gap-1">
+   624→   624→                <ChevronLeft className="h-4 w-4" /> Volver
+   625→   625→              </Button>
+   626→   626→              <div>
+   627→   627→                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+   628→   628→                  <Wallet className="h-5 w-5 text-orange-600" />
+   629→   629→                  Anticipos - {selectedPeriod.name}
+   630→   630→                </h2>
+   631→   631→                <p className="text-sm text-slate-500">
+   632→   632→                  {selectedPeriod.anticipoCount} anticipos | Total: {formatCurrency(totalMonto)}
+   633→   633→                </p>
+   634→   634→              </div>
+   635→   635→            </div>
+   636→   636→            <div className="flex items-center gap-2">
+   637→   637→              <Button variant="outline" size="sm" className="gap-1" onClick={handleExportExcel}>
+   638→   638→                <Download className="h-4 w-4" /> Exportar
+   639→   639→              </Button>
+   640→   640→              {canEdit && selectedPeriod.status === 'ABIERTO' && (
+   641→   641→                <>
+   642→   642→                  <Button
+   643→   643→                    variant="outline"
+   644→   644→                    size="sm"
+   645→   645→                    className="gap-1"
+   646→   646→                    onClick={() => setImportDialogOpen(true)}
+   647→   647→                  >
+   648→   648→                    <Upload className="h-4 w-4" /> Importar Excel
+   649→   649→                  </Button>
+   650→   650→                  <Button
+   651→   651→                    className="gap-1.5 bg-orange-600 hover:bg-orange-700 text-white"
+   652→   652→                    onClick={() => {
+   653→   653→                      setEditingAnticipo(null)
+   654→   654→                      setAnticipoForm({ nombre: '', rut: '', monto: '', cuentaBancaria: '' })
+   655→   655→                      setAnticipoFormOpen(true)
+   656→   656→                    }}
+   657→   657→                  >
+   658→   658→                    <Plus className="h-4 w-4" /> Agregar Anticipo
+   659→   659→                  </Button>
+   660→   660→                </>
+   661→   661→              )}
+   662→   662→            </div>
+   663→   663→          </div>
+   664→   664→
+   665→   665→          {/* Filters */}
+   666→   666→          <div className="flex items-center gap-2 flex-wrap">
+   667→   667→            <Select value={filterStatus} onValueChange={setFilterStatus}>
+   668→   668→              <SelectTrigger className="w-[150px] h-8 text-xs">
+   669→   669→                <SelectValue placeholder="Estado" />
+   670→   670→              </SelectTrigger>
+   671→   671→              <SelectContent>
+   672→   672→                <SelectItem value="all">Todos los Estados</SelectItem>
+   673→   673→                <SelectItem value="PENDIENTE">Pendiente</SelectItem>
+   674→   674→                <SelectItem value="PAGADO">Pagado</SelectItem>
+   675→   675→                <SelectItem value="RECHAZADO">Rechazado</SelectItem>
+   676→   676→              </SelectContent>
+   677→   677→            </Select>
+   678→   678→            <Input
+   679→   679→              placeholder="Buscar por nombre o RUT..."
+   680→   680→              value={searchQuery}
+   681→   681→              onChange={(e) => setSearchQuery(e.target.value)}
+   682→   682→              className="w-[250px] h-8 text-xs"
+   683→   683→            />
+   684→   684→            <div className="ml-auto text-sm text-slate-500">
+   685→   685→              Mostrando {filteredAnticipos.length} de {anticipos.length} | Total: <span className="font-bold text-orange-700">{formatCurrency(totalMonto)}</span>
+   686→   686→            </div>
+   687→   687→          </div>
+   688→   688→
+   689→   689→          {/* Table */}
+   690→   690→          {loading ? (
+   691→   691→            <div className="text-center py-12 text-slate-500">Cargando anticipos...</div>
+   692→   692→          ) : (
+   693→   693→            <Card>
+   694→   694→              <CardContent className="p-0">
+   695→   695→                <Table>
+   696→   696→                  <TableHeader>
+   697→   697→                    <TableRow className="bg-slate-50">
+   698→   698→                      <TableHead className="w-[50px] text-center px-3 py-2 text-xs font-semibold">N°</TableHead>
+   699→   699→                      <TableHead className="px-3 py-2 text-xs font-semibold">Nombre</TableHead>
+   700→   700→                      <TableHead className="px-3 py-2 text-xs font-semibold w-[120px]">RUT</TableHead>
+   701→   701→                      <TableHead className="px-3 py-2 text-xs font-semibold text-right w-[130px]">Monto Anticipo</TableHead>
+   702→   702→                      <TableHead className="px-3 py-2 text-xs font-semibold">Cuenta Bancaria</TableHead>
+   703→   703→                      <TableHead className="px-3 py-2 text-xs font-semibold text-center w-[100px]">Estado</TableHead>
+   704→   704→                      {(canEdit || isAdmin) && (
+   705→   705→                        <TableHead className="px-3 py-2 text-xs font-semibold text-right w-[120px]">Acciones</TableHead>
+   706→   706→                      )}
+   707→   707→                    </TableRow>
+   708→   708→                  </TableHeader>
+   709→   709→                  <TableBody>
+   710→   710→                    {filteredAnticipos.length === 0 ? (
+   711→   711→                      <TableRow>
+   712→   712→                        <TableCell colSpan={canEdit ? 7 : 6} className="text-center py-8 text-slate-400">
+   713→   713→                          No hay anticipos que coincidan con los filtros
+   714→   714→                        </TableCell>
+   715→   715→                      </TableRow>
+   716→   716→                    ) : (
+   717→   717→                      filteredAnticipos.map((anticipo, idx) => {
+   718→   718→                        const sc = statusConfig[anticipo.status] || statusConfig.PENDIENTE
+   719→   719→                        return (
+   720→   720→                          <TableRow key={anticipo.id} className={`border-l-4 ${sc.borderColor} hover:bg-slate-50/50`}>
+   721→   721→                            <TableCell className="text-center font-bold text-slate-500 px-3 py-2 text-xs">{idx + 1}</TableCell>
+   722→   722→                            <TableCell className="font-medium px-3 py-2 text-sm text-slate-800">{anticipo.nombre}</TableCell>
+   723→   723→                            <TableCell className="px-3 py-2 text-xs text-slate-600">{anticipo.rut}</TableCell>
+   724→   724→                            <TableCell className="text-right px-3 py-2 text-sm font-bold text-orange-700">{formatCurrency(anticipo.monto)}</TableCell>
+   725→   725→                            <TableCell className="px-3 py-2 text-xs text-slate-600">{anticipo.cuentaBancaria || '-'}</TableCell>
+   726→   726→                            <TableCell className="text-center px-3 py-2">
+   727→   727→                              <Badge className={`${sc.bgColor} ${sc.color} text-xs gap-1`}>
+   728→   728→                                {sc.icon} {sc.label}
+   729→   729→                              </Badge>
+   730→   730→                            </TableCell>
+   731→   731→                            {(canEdit || isAdmin) && (
+   732→   732→                              <TableCell className="text-right px-3 py-2">
+   733→   733→                                <div className="flex justify-end gap-1">
+   734→   734→                                  {anticipo.status === 'PENDIENTE' && (
+   735→   735→                                    <>
+   736→   736→                                      <Button
+   737→   737→                                        size="sm"
+   738→   738→                                        className="h-7 gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+   739→   739→                                        onClick={() => handleAnticipoStatusChange(anticipo.id, 'PAGADO')}
+   740→   740→                                        title="Marcar como Pagado"
+   741→   741→                                      >
+   742→   742→                                        <CheckCircle className="h-3 w-3" /> Pagar
+   743→   743→                                      </Button>
+   744→   744→                                      <Button
+   745→   745→                                        size="sm"
+   746→   746→                                        variant="destructive"
+   747→   747→                                        className="h-7 gap-1 text-xs"
+   748→   748→                                        onClick={() => handleAnticipoStatusChange(anticipo.id, 'RECHAZADO')}
+   749→   749→                                        title="Rechazar"
+   750→   750→                                      >
+   751→   751→                                        <XCircle className="h-3 w-3" />
+   752→   752→                                      </Button>
+   753→   753→                                    </>
+   754→   754→                                  )}
+   755→   755→                                  {canEdit && selectedPeriod.status === 'ABIERTO' && (
+   756→   756→                                    <>
+   757→   757→                                      <Button
+   758→   758→                                        size="sm"
+   759→   759→                                        variant="ghost"
+   760→   760→                                        className="h-7 w-7 p-0"
+   761→   761→                                        onClick={() => {
+   762→   762→                                          setEditingAnticipo(anticipo)
+   763→   763→                                          setAnticipoForm({
+   764→   764→                                            nombre: anticipo.nombre,
+   765→   765→                                            rut: anticipo.rut,
+   766→   766→                                            monto: String(anticipo.monto),
+   767→   767→                                            cuentaBancaria: anticipo.cuentaBancaria,
+   768→   768→                                          })
+   769→   769→                                          setAnticipoFormOpen(true)
+   770→   770→                                        }}
+   771→   771→                                        title="Editar"
+   772→   772→                                      >
+   773→   773→                                        <Pencil className="h-3.5 w-3.5" />
+   774→   774→                                      </Button>
+   775→   775→                                      <Button
+   776→   776→                                        size="sm"
+   777→   777→                                        variant="ghost"
+   778→   778→                                        className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
+   779→   779→                                        onClick={() => setDeleteTarget({ type: 'anticipo', id: anticipo.id })}
+   780→   780→                                      >
+   781→   781→                                        <Trash2 className="h-3.5 w-3.5" />
+   782→   782→                                      </Button>
+   783→   783→                                    </>
+   784→   784→                                  )}
+   785→   785→                                </div>
+   786→   786→                              </TableCell>
+   787→   787→                            )}
+   788→   788→                          </TableRow>
+   789→   789→                        )
+   790→   790→                      })
+   791→   791→                    )}
+   792→   792→                    {filteredAnticipos.length > 0 && (
+   793→   793→                      <TableRow className="bg-orange-50 font-bold">
+   794→   794→                        <TableCell colSpan={3} className="text-right px-3 py-2 text-sm text-slate-700">TOTAL</TableCell>
+   795→   795→                        <TableCell className="text-right px-3 py-2 text-sm text-orange-700">{formatCurrency(totalMonto)}</TableCell>
+   796→   796→                        <TableCell colSpan={canEdit ? 3 : 2} />
+   797→   797→                      </TableRow>
+   798→   798→                    )}
+   799→   799→                  </TableBody>
+   800→   800→                </Table>
+   801→   801→              </CardContent>
+   802→   802→            </Card>
+   803→   803→          )}
+   804→   804→        </>
+   805→   805→      )}
+   806→   806→
+   807→   807→      {/* ============================================================ */}
+   808→   808→      {/* DIALOGS                                                      */}
+   809→   809→      {/* ============================================================ */}
+   810→   810→
+   811→   811→      {/* Period Form Dialog */}
+   812→   812→      <Dialog open={periodFormOpen} onOpenChange={setPeriodFormOpen}>
+   813→   813→        <DialogContent className="sm:max-w-md">
+   814→   814→          <DialogHeader>
+   815→   815→            <DialogTitle>Nuevo Periodo de Anticipos</DialogTitle>
+   816→   816→            <DialogDescription>Crea un nuevo periodo para registrar los anticipos del mes</DialogDescription>
+   817→   817→          </DialogHeader>
+   818→   818→          <div className="space-y-4">
+   819→   819→            <div>
+   820→   820→              <Label>Nombre del Periodo</Label>
+   821→   821→              <Input
+   822→   822→                placeholder="Ej: Junio 2026"
+   823→   823→                value={periodForm.name}
+   824→   824→                onChange={(e) => setPeriodForm({ ...periodForm, name: e.target.value })}
+   825→   825→              />
+   826→   826→            </div>
+   827→   827→            <div className="grid grid-cols-2 gap-4">
+   828→   828→              <div>
+   829→   829→                <Label>Mes</Label>
+   830→   830→                <Select
+   831→   831→                  value={periodForm.month}
+   832→   832→                  onValueChange={(v) => setPeriodForm({ ...periodForm, month: v })}
+   833→   833→                >
+   834→   834→                  <SelectTrigger>
+   835→   835→                    <SelectValue placeholder="Seleccionar mes" />
+   836→   836→                  </SelectTrigger>
+   837→   837→                  <SelectContent>
+   838→   838→                    {monthNames.map((m, i) => (
+   839→   839→                      <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>
+   840→   840→                    ))}
+   841→   841→                  </SelectContent>
+   842→   842→                </Select>
+   843→   843→              </div>
+   844→   844→              <div>
+   845→   845→                <Label>Año</Label>
+   846→   846→                <Input
+   847→   847→                  type="number"
+   848→   848→                  placeholder="2026"
+   849→   849→                  value={periodForm.year}
+   850→   850→                  onChange={(e) => setPeriodForm({ ...periodForm, year: e.target.value })}
+   851→   851→                />
+   852→   852→              </div>
+   853→   853→            </div>
+   854→   854→          </div>
+   855→   855→          <DialogFooter>
+   856→   856→            <Button variant="outline" onClick={() => setPeriodFormOpen(false)}>Cancelar</Button>
+   857→   857→            <Button className="bg-orange-600 hover:bg-orange-700 text-white" onClick={handleCreatePeriod}>Crear Periodo</Button>
+   858→   858→          </DialogFooter>
+   859→   859→        </DialogContent>
+   860→   860→      </Dialog>
+   861→   861→
+   862→   862→      {/* Anticipo Form Dialog */}
+   863→   863→      <Dialog open={anticipoFormOpen} onOpenChange={setAnticipoFormOpen}>
+   864→   864→        <DialogContent className="sm:max-w-lg">
+   865→   865→          <DialogHeader>
+   866→   866→            <DialogTitle>{editingAnticipo ? 'Editar Anticipo' : 'Agregar Anticipo'}</DialogTitle>
+   867→   867→            <DialogDescription>
+   868→   868→              {editingAnticipo ? 'Modifica los datos del anticipo' : 'Ingresa los datos del nuevo anticipo'}
+   869→   869→            </DialogDescription>
+   870→   870→          </DialogHeader>
+   871→   871→          <div className="space-y-4">
+   872→   872→            <div>
+   873→   873→              <Label>Nombre Completo *</Label>
+   874→   874→              <Input
+   875→   875→                placeholder="Ej: Cesar Edmundo Adasme Aravena"
+   876→   876→                value={anticipoForm.nombre}
+   877→   877→                onChange={(e) => setAnticipoForm({ ...anticipoForm, nombre: e.target.value })}
+   878→   878→              />
+   879→   879→            </div>
+   880→   880→            <div className="grid grid-cols-2 gap-4">
+   881→   881→              <div>
+   882→   882→                <Label>RUT *</Label>
+   883→   883→                <Input
+   884→   884→                  placeholder="Ej: 7151017-4"
+   885→   885→                  value={anticipoForm.rut}
+   886→   886→                  onChange={(e) => setAnticipoForm({ ...anticipoForm, rut: e.target.value })}
+   887→   887→                />
+   888→   888→              </div>
+   889→   889→              <div>
+   890→   890→                <Label>Monto Anticipo *</Label>
+   891→   891→                <Input
+   892→   892→                  type="number"
+   893→   893→                  placeholder="Ej: 100000"
+   894→   894→                  value={anticipoForm.monto}
+   895→   895→                  onChange={(e) => setAnticipoForm({ ...anticipoForm, monto: e.target.value })}
+   896→   896→                />
+   897→   897→              </div>
+   898→   898→            </div>
+   899→   899→            <div>
+   900→   900→              <Label>Cuenta Bancaria</Label>
+   901→   901→              <Input
+   902→   902→                placeholder="Ej: BCO ESTADO CUENTA RUT"
+   903→   903→                value={anticipoForm.cuentaBancaria}
+   904→   904→                onChange={(e) => setAnticipoForm({ ...anticipoForm, cuentaBancaria: e.target.value })}
+   905→   905→              />
+   906→   906→            </div>
+   907→   907→          </div>
+   908→   908→          <DialogFooter>
+   909→   909→            <Button variant="outline" onClick={() => { setAnticipoFormOpen(false); setEditingAnticipo(null) }}>Cancelar</Button>
+   910→   910→            <Button className="bg-orange-600 hover:bg-orange-700 text-white" onClick={editingAnticipo ? handleUpdateAnticipo : handleCreateAnticipo}>
+   911→   911→              {editingAnticipo ? 'Guardar Cambios' : 'Agregar Anticipo'}
+   912→   912→            </Button>
+   913→   913→          </DialogFooter>
+   914→   914→        </DialogContent>
+   915→   915→      </Dialog>
+   916→   916→
+   917→   917→      {/* Import Dialog */}
+   918→   918→      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+   919→   919→        <DialogContent className="sm:max-w-md">
+   920→   920→          <DialogHeader>
+   921→   921→            <DialogTitle>Importar desde Excel</DialogTitle>
+   922→   922→            <DialogDescription>
+   923→   923→              Importa anticipos desde un archivo Excel (.xlsx). El archivo debe tener las columnas: N°, Nombre, RUT, Monto Anticipo, Cuenta Bancaria
+   924→   924→            </DialogDescription>
+   925→   925→          </DialogHeader>
+   926→   926→          <div className="space-y-4">
+   927→   927→            <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:border-orange-400 transition-colors">
+   928→   928→              <Upload className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+   929→   929→              <p className="text-sm text-slate-500 mb-3">Selecciona el archivo Excel</p>
+   930→   930→              <input
+   931→   931→                ref={fileInputRef}
+   932→   932→                type="file"
+   933→   933→                accept=".xlsx,.xls"
+   934→   934→                className="hidden"
+   935→   935→                onChange={handleImportExcel}
+   936→   936→              />
+   937→   937→              <Button
+   938→   938→                variant="outline"
+   939→   939→                onClick={() => fileInputRef.current?.click()}
+   940→   940→                disabled={importing}
+   941→   941→              >
+   942→   942→                {importing ? 'Importando...' : 'Seleccionar Archivo'}
+   943→   943→              </Button>
+   944→   944→            </div>
+   945→   945→          </div>
+   946→   946→          <DialogFooter>
+   947→   947→            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>Cerrar</Button>
+   948→   948→          </DialogFooter>
+   949→   949→        </DialogContent>
+   950→   950→      </Dialog>
+   951→   951→
+   952→   952→      {/* Delete Confirmation */}
+   953→   953→      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+   954→   954→        <AlertDialogContent>
+   955→   955→          <AlertDialogHeader>
+   956→   956→            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+   957→   957→            <AlertDialogDescription>
+   958→   958→              {deleteTarget?.type === 'period'
+   959→   959→                ? 'Se eliminará el periodo y todos sus anticipos. Esta acción no se puede deshacer.'
+   960→   960→                : 'Se eliminará el anticipo. Esta acción no se puede deshacer.'}
+   961→   961→            </AlertDialogDescription>
+   962→   962→          </AlertDialogHeader>
+   963→   963→          <AlertDialogFooter>
+   964→   964→            <AlertDialogCancel onClick={() => setDeleteTarget(null)}>Cancelar</AlertDialogCancel>
+   965→   965→            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white">
+   966→   966→              Eliminar
+   967→   967→            </AlertDialogAction>
+   968→   968→          </AlertDialogFooter>
+   969→   969→        </AlertDialogContent>
+   970→   970→      </AlertDialog>
+   971→   971→    </div>
+   972→   972→  )
+   973→   973→}
+   974→   974→

@@ -1,0 +1,502 @@
+  3501→                    onClick={() => { setFilterStatus('all'); setFilterApproval('Aprobado'); setView('table'); }}
+  3502→                    title="Ver tareas Aprobadas (Admin)"
+  3503→                  >
+  3504→                    <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-600 uppercase tracking-wider font-semibold mb-1">
+  3505→                      <CheckCircle className="h-3.5 w-3.5" /> Aprobadas (Admin)
+  3506→                    </div>
+  3507→                    <div className="text-2xl font-bold text-emerald-700">{approvedTasks}</div>
+  3508→                    <div className="text-[11px] text-emerald-500 mt-0.5">
+  3509→                      {totalTasks > 0 ? Math.round((approvedTasks / totalTasks) * 100) : 0}% del total
+  3510→                    </div>
+  3511→                  </div>
+  3512→                  <div
+  3513→                    className="bg-white rounded-xl p-3 border border-blue-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-blue-400 transition-all duration-200 hover:scale-105"
+  3514→                    onClick={() => { setFilterStatus('all'); setFilterApproval('Aprobado por Supervisor'); setView('table'); }}
+  3515→                    title="Ver tareas Aprobadas (Supervisor)"
+  3516→                  >
+  3517→                    <div className="flex items-center justify-center gap-1.5 text-xs text-blue-600 uppercase tracking-wider font-semibold mb-1">
+  3518→                      <ShieldCheck className="h-3.5 w-3.5" /> Aprobadas (Supervisor)
+  3519→                    </div>
+  3520→                    <div className="text-2xl font-bold text-blue-700">{supervisorApprovedTasks}</div>
+  3521→                    <div className="text-[11px] text-blue-500 mt-0.5">
+  3522→                      {totalTasks > 0 ? Math.round((supervisorApprovedTasks / totalTasks) * 100) : 0}% del total
+  3523→                    </div>
+  3524→                  </div>
+  3525→                  <div
+  3526→                    className="bg-white rounded-xl p-3 border border-red-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-red-400 transition-all duration-200 hover:scale-105"
+  3527→                    onClick={() => { setFilterStatus('all'); setFilterApproval('No aprobado'); setView('table'); }}
+  3528→                    title="Ver tareas No Aprobadas"
+  3529→                  >
+  3530→                    <div className="flex items-center justify-center gap-1.5 text-xs text-red-600 uppercase tracking-wider font-semibold mb-1">
+  3531→                      <XCircle className="h-3.5 w-3.5" /> No Aprobadas
+  3532→                    </div>
+  3533→                    <div className="text-2xl font-bold text-red-700">{notApprovedTasks}</div>
+  3534→                    <div className="text-[11px] text-red-500 mt-0.5">
+  3535→                      {totalTasks > 0 ? Math.round((notApprovedTasks / totalTasks) * 100) : 0}% del total
+  3536→                    </div>
+  3537→                  </div>
+  3538→                  <div
+  3539→                    className="bg-white rounded-xl p-3 border border-amber-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-amber-400 transition-all duration-200 hover:scale-105"
+  3540→                    onClick={() => { setFilterStatus('all'); setFilterApproval('En espera de decisión'); setView('table'); }}
+  3541→                    title="Ver tareas En Espera de Aprobación"
+  3542→                  >
+  3543→                    <div className="flex items-center justify-center gap-1.5 text-xs text-amber-600 uppercase tracking-wider font-semibold mb-1">
+  3544→                      <Clock className="h-3.5 w-3.5" /> En Espera
+  3545→                    </div>
+  3546→                    <div className="text-2xl font-bold text-amber-700">{waitingApprovalTasks}</div>
+  3547→                    <div className="text-[11px] text-amber-500 mt-0.5">
+  3548→                      {totalTasks > 0 ? Math.round((waitingApprovalTasks / totalTasks) * 100) : 0}% del total
+  3549→                    </div>
+  3550→                  </div>
+  3551→                </div>
+  3552→
+  3553→                {/* Progreso General */}
+  3554→                <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+  3555→                  <div className="space-y-2">
+  3556→                    <div className="flex justify-between text-sm font-medium">
+  3557→                      <span className="text-slate-700">{completedTasks} de {totalTasks} tareas completadas</span>
+  3558→                      <span className="text-blue-700 font-bold">{progressPercent}%</span>
+  3559→                    </div>
+  3560→                    <Progress value={progressPercent} className="h-3" />
+  3561→                    <div className="flex justify-between text-xs text-slate-500">
+  3562→                      <span>Presupuesto ejecutado: {formatCurrency(completedAmount)}</span>
+  3563→                      <span>Total: {formatCurrency(totalAmount)}</span>
+  3564→                    </div>
+  3565→                  </div>
+  3566→                </div>
+  3567→              </CardContent>
+  3568→            </Card>
+  3569→
+  3570→            {/* ═══════════════════════════════════════════════════════════ */}
+  3571→            {/* SECCIÓN 2: RENDICIÓN DE GASTOS                            */}
+  3572→            {/* ═══════════════════════════════════════════════════════════ */}
+  3573→            {dashboardStats && (
+  3574→              <Card className="border-emerald-200 bg-gradient-to-r from-emerald-50 to-white overflow-hidden">
+  3575→                <CardHeader className="pb-3 pt-4 px-5 border-b border-emerald-100 bg-emerald-50/50">
+  3576→                  <div className="flex items-center justify-between">
+  3577→                    <CardTitle className="text-lg font-bold text-emerald-900 flex items-center gap-2.5 cursor-pointer hover:text-emerald-700" onClick={() => { setExpenseStatusFilter('all'); setView('rendicion'); }}>
+  3578→                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-600 text-white">
+  3579→                        <DollarSign className="h-4.5 w-4.5" />
+  3580→                      </div>
+  3581→                      Rendición de Gastos
+  3582→                      <ArrowRight className="h-4 w-4 opacity-50" />
+  3583→                    </CardTitle>
+  3584→                    <Badge className="text-sm font-bold bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-100">
+  3585→                      {dashboardStats.expenses.total} rendiciones
+  3586→                    </Badge>
+  3587→                  </div>
+  3588→                </CardHeader>
+  3589→                <CardContent className="px-5 pb-5 pt-4">
+  3590→                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+  3591→                    <div
+  3592→                      className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-slate-400 transition-all duration-200 hover:scale-105"
+  3593→                      onClick={() => { setExpenseStatusFilter('BORRADOR'); setView('rendicion'); }}
+  3594→                      title="Ver rendiciones en Borrador"
+  3595→                    >
+  3596→                      <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Borrador</div>
+  3597→                      <div className="text-3xl font-bold text-slate-700">{dashboardStats.expenses.byStatus.BORRADOR || 0}</div>
+  3598→                    </div>
+  3599→                    <div
+  3600→                      className="bg-white rounded-xl p-4 border border-blue-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-blue-400 transition-all duration-200 hover:scale-105"
+  3601→                      onClick={() => { setExpenseStatusFilter('ENVIADO'); setView('rendicion'); }}
+  3602→                      title="Ver rendiciones Enviadas"
+  3603→                    >
+  3604→                      <div className="text-xs text-blue-600 uppercase tracking-wider font-semibold mb-1">Enviado</div>
+  3605→                      <div className="text-3xl font-bold text-blue-700">{dashboardStats.expenses.byStatus.ENVIADO || 0}</div>
+  3606→                    </div>
+  3607→                    <div
+  3608→                      className="bg-white rounded-xl p-4 border border-sky-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-sky-400 transition-all duration-200 hover:scale-105"
+  3609→                      onClick={() => { setExpenseStatusFilter('APROBADO_SUPERVISOR'); setView('rendicion'); }}
+  3610→                      title="Ver rendiciones Aprobadas por Supervisor"
+  3611→                    >
+  3612→                      <div className="text-xs text-sky-600 uppercase tracking-wider font-semibold mb-1">Aprob. Supervisor</div>
+  3613→                      <div className="text-3xl font-bold text-sky-700">{dashboardStats.expenses.byStatus.APROBADO_SUPERVISOR || 0}</div>
+  3614→                    </div>
+  3615→                    <div
+  3616→                      className="bg-white rounded-xl p-4 border border-emerald-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-emerald-400 transition-all duration-200 hover:scale-105"
+  3617→                      onClick={() => { setExpenseStatusFilter('APROBADO'); setView('rendicion'); }}
+  3618→                      title="Ver rendiciones Aprobadas"
+  3619→                    >
+  3620→                      <div className="text-xs text-emerald-600 uppercase tracking-wider font-semibold mb-1">Aprobado</div>
+  3621→                      <div className="text-3xl font-bold text-emerald-700">{dashboardStats.expenses.byStatus.APROBADO || 0}</div>
+  3622→                    </div>
+  3623→                    <div
+  3624→                      className="bg-white rounded-xl p-4 border border-red-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-red-400 transition-all duration-200 hover:scale-105"
+  3625→                      onClick={() => { setExpenseStatusFilter('RECHAZADO'); setView('rendicion'); }}
+  3626→                      title="Ver rendiciones Rechazadas"
+  3627→                    >
+  3628→                      <div className="text-xs text-red-600 uppercase tracking-wider font-semibold mb-1">Rechazado</div>
+  3629→                      <div className="text-3xl font-bold text-red-700">{dashboardStats.expenses.byStatus.RECHAZADO || 0}</div>
+  3630→                    </div>
+  3631→                  </div>
+  3632→                  {dashboardStats.expenses.approvedAmount > 0 && (
+  3633→                    <div className="mt-4 flex items-center justify-between px-4 py-3 bg-emerald-50 rounded-xl border border-emerald-200">
+  3634→                      <span className="text-sm text-emerald-700 font-semibold">Monto Aprobado Total</span>
+  3635→                      <span className="text-xl font-bold text-emerald-800">{formatCurrency(dashboardStats.expenses.approvedAmount)}</span>
+  3636→                    </div>
+  3637→                  )}
+  3638→                </CardContent>
+  3639→              </Card>
+  3640→            )}
+  3641→
+  3642→            {/* ═══════════════════════════════════════════════════════════ */}
+  3643→            {/* SECCIÓN 3: SOLICITUDES DE COMPRA                          */}
+  3644→            {/* ═══════════════════════════════════════════════════════════ */}
+  3645→            {dashboardStats && (
+  3646→              <Card className="border-indigo-200 bg-gradient-to-r from-indigo-50 to-white overflow-hidden">
+  3647→                <CardHeader className="pb-3 pt-4 px-5 border-b border-indigo-100 bg-indigo-50/50">
+  3648→                  <div className="flex items-center justify-between">
+  3649→                    <CardTitle className="text-lg font-bold text-indigo-900 flex items-center gap-2.5 cursor-pointer hover:text-indigo-700" onClick={() => { setPurchaseStatusFilter('all'); setView('solicitudes'); }}>
+  3650→                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-600 text-white">
+  3651→                        <ShoppingBag className="h-4.5 w-4.5" />
+  3652→                      </div>
+  3653→                      Solicitudes de Compra
+  3654→                      <ArrowRight className="h-4 w-4 opacity-50" />
+  3655→                    </CardTitle>
+  3656→                    <Badge className="text-sm font-bold bg-indigo-100 text-indigo-800 border-indigo-300 hover:bg-indigo-100">
+  3657→                      {dashboardStats.purchases.total} solicitudes
+  3658→                    </Badge>
+  3659→                  </div>
+  3660→                </CardHeader>
+  3661→                <CardContent className="px-5 pb-5 pt-4">
+  3662→                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
+  3663→                    <div
+  3664→                      className="bg-white rounded-xl p-4 border border-amber-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-amber-400 transition-all duration-200 hover:scale-105"
+  3665→                      onClick={() => { setPurchaseStatusFilter('PENDIENTE'); setView('solicitudes'); }}
+  3666→                      title="Ver solicitudes Pendientes"
+  3667→                    >
+  3668→                      <div className="text-xs text-amber-600 uppercase tracking-wider font-semibold mb-1">Pendiente</div>
+  3669→                      <div className="text-3xl font-bold text-amber-700">{dashboardStats.purchases.byStatus.PENDIENTE || 0}</div>
+  3670→                    </div>
+  3671→                    <div
+  3672→                      className="bg-white rounded-xl p-4 border border-sky-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-sky-400 transition-all duration-200 hover:scale-105"
+  3673→                      onClick={() => { setPurchaseStatusFilter('APROBADA_SUPERVISOR'); setView('solicitudes'); }}
+  3674→                      title="Ver solicitudes Aprobadas por Supervisor"
+  3675→                    >
+  3676→                      <div className="text-xs text-sky-600 uppercase tracking-wider font-semibold mb-1">Aprob. Supervisor</div>
+  3677→                      <div className="text-3xl font-bold text-sky-700">{dashboardStats.purchases.byStatus.APROBADA_SUPERVISOR || 0}</div>
+  3678→                    </div>
+  3679→                    <div
+  3680→                      className="bg-white rounded-xl p-4 border border-emerald-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-emerald-400 transition-all duration-200 hover:scale-105"
+  3681→                      onClick={() => { setPurchaseStatusFilter('APROBADA'); setView('solicitudes'); }}
+  3682→                      title="Ver solicitudes Aprobadas"
+  3683→                    >
+  3684→                      <div className="text-xs text-emerald-600 uppercase tracking-wider font-semibold mb-1">Aprobada</div>
+  3685→                      <div className="text-3xl font-bold text-emerald-700">{dashboardStats.purchases.byStatus.APROBADA || 0}</div>
+  3686→                    </div>
+  3687→                    <div
+  3688→                      className="bg-white rounded-xl p-4 border border-indigo-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-indigo-400 transition-all duration-200 hover:scale-105"
+  3689→                      onClick={() => { setPurchaseStatusFilter('EN_COMPRA'); setView('solicitudes'); }}
+  3690→                      title="Ver solicitudes En Compra"
+  3691→                    >
+  3692→                      <div className="text-xs text-indigo-600 uppercase tracking-wider font-semibold mb-1">En Compra</div>
+  3693→                      <div className="text-3xl font-bold text-indigo-700">{dashboardStats.purchases.byStatus.EN_COMPRA || 0}</div>
+  3694→                    </div>
+  3695→                    <div
+  3696→                      className="bg-white rounded-xl p-4 border border-teal-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-teal-400 transition-all duration-200 hover:scale-105"
+  3697→                      onClick={() => { setPurchaseStatusFilter('COMPRADA'); setView('solicitudes'); }}
+  3698→                      title="Ver solicitudes Compradas"
+  3699→                    >
+  3700→                      <div className="text-xs text-teal-600 uppercase tracking-wider font-semibold mb-1">Comprada</div>
+  3701→                      <div className="text-3xl font-bold text-teal-700">{dashboardStats.purchases.byStatus.COMPRADA || 0}</div>
+  3702→                    </div>
+  3703→                    <div
+  3704→                      className="bg-white rounded-xl p-4 border border-red-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-red-400 transition-all duration-200 hover:scale-105"
+  3705→                      onClick={() => { setPurchaseStatusFilter('RECHAZADA'); setView('solicitudes'); }}
+  3706→                      title="Ver solicitudes Rechazadas"
+  3707→                    >
+  3708→                      <div className="text-xs text-red-600 uppercase tracking-wider font-semibold mb-1">Rechazada</div>
+  3709→                      <div className="text-3xl font-bold text-red-700">{dashboardStats.purchases.byStatus.RECHAZADA || 0}</div>
+  3710→                    </div>
+  3711→                    <div
+  3712→                      className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-slate-400 transition-all duration-200 hover:scale-105"
+  3713→                      onClick={() => { setPurchaseStatusFilter('CANCELADA'); setView('solicitudes'); }}
+  3714→                      title="Ver solicitudes Canceladas"
+  3715→                    >
+  3716→                      <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Cancelada</div>
+  3717→                      <div className="text-3xl font-bold text-slate-600">{dashboardStats.purchases.byStatus.CANCELADA || 0}</div>
+  3718→                    </div>
+  3719→                  </div>
+  3720→                </CardContent>
+  3721→              </Card>
+  3722→            )}
+  3723→
+  3724→            {/* ═══════════════════════════════════════════════════════════ */}
+  3725→            {/* SECCIÓN 4: ANTICIPOS                                      */}
+  3726→            {/* ═══════════════════════════════════════════════════════════ */}
+  3727→            {dashboardStats && (
+  3728→              <Card className="border-orange-200 bg-gradient-to-r from-orange-50 to-white overflow-hidden">
+  3729→                <CardHeader className="pb-3 pt-4 px-5 border-b border-orange-100 bg-orange-50/50">
+  3730→                  <div className="flex items-center justify-between">
+  3731→                    <CardTitle className="text-lg font-bold text-orange-900 flex items-center gap-2.5 cursor-pointer hover:text-orange-700" onClick={() => { setAnticipoStatusFilter('all'); setView('anticipos'); }}>
+  3732→                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-600 text-white">
+  3733→                        <Wallet className="h-4.5 w-4.5" />
+  3734→                      </div>
+  3735→                      Anticipos
+  3736→                      <ArrowRight className="h-4 w-4 opacity-50" />
+  3737→                    </CardTitle>
+  3738→                    <Badge className="text-sm font-bold bg-orange-100 text-orange-800 border-orange-300 hover:bg-orange-100">
+  3739→                      {dashboardStats.anticipos.total} anticipos
+  3740→                    </Badge>
+  3741→                  </div>
+  3742→                </CardHeader>
+  3743→                <CardContent className="px-5 pb-5 pt-4">
+  3744→                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+  3745→                    <div
+  3746→                      className="bg-white rounded-xl p-4 border border-amber-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-amber-400 transition-all duration-200 hover:scale-105"
+  3747→                      onClick={() => { setAnticipoStatusFilter('PENDIENTE'); setView('anticipos'); }}
+  3748→                      title="Ver anticipos Pendientes"
+  3749→                    >
+  3750→                      <div className="text-xs text-amber-600 uppercase tracking-wider font-semibold mb-1">Pendientes</div>
+  3751→                      <div className="text-3xl font-bold text-amber-700">{dashboardStats.anticipos.byStatus.PENDIENTE || 0}</div>
+  3752→                    </div>
+  3753→                    <div
+  3754→                      className="bg-white rounded-xl p-4 border border-emerald-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-emerald-400 transition-all duration-200 hover:scale-105"
+  3755→                      onClick={() => { setAnticipoStatusFilter('PAGADO'); setView('anticipos'); }}
+  3756→                      title="Ver anticipos Pagados"
+  3757→                    >
+  3758→                      <div className="text-xs text-emerald-600 uppercase tracking-wider font-semibold mb-1">Pagados</div>
+  3759→                      <div className="text-3xl font-bold text-emerald-700">{dashboardStats.anticipos.byStatus.PAGADO || 0}</div>
+  3760→                    </div>
+  3761→                    <div
+  3762→                      className="bg-white rounded-xl p-4 border border-red-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-red-400 transition-all duration-200 hover:scale-105"
+  3763→                      onClick={() => { setAnticipoStatusFilter('RECHAZADO'); setView('anticipos'); }}
+  3764→                      title="Ver anticipos Rechazados"
+  3765→                    >
+  3766→                      <div className="text-xs text-red-600 uppercase tracking-wider font-semibold mb-1">Rechazados</div>
+  3767→                      <div className="text-3xl font-bold text-red-700">{dashboardStats.anticipos.byStatus.RECHAZADO || 0}</div>
+  3768→                    </div>
+  3769→                  </div>
+  3770→                  {dashboardStats.anticipos.totalAmount > 0 && (
+  3771→                    <div className="mt-4 grid grid-cols-2 gap-4">
+  3772→                      <div className="flex items-center justify-between px-4 py-3 bg-orange-50 rounded-xl border border-orange-200">
+  3773→                        <span className="text-sm text-orange-700 font-semibold">Monto Total Anticipos</span>
+  3774→                        <span className="text-lg font-bold text-orange-800">{formatCurrency(dashboardStats.anticipos.totalAmount)}</span>
+  3775→                      </div>
+  3776→                      <div className="flex items-center justify-between px-4 py-3 bg-emerald-50 rounded-xl border border-emerald-200">
+  3777→                        <span className="text-sm text-emerald-700 font-semibold">Monto Pagado</span>
+  3778→                        <span className="text-lg font-bold text-emerald-800">{formatCurrency(dashboardStats.anticipos.pagadoAmount)}</span>
+  3779→                      </div>
+  3780→                    </div>
+  3781→                  )}
+  3782→                </CardContent>
+  3783→              </Card>
+  3784→            )}
+  3785→
+  3786→            {/* ═══════════════════════════════════════════════════════════ */}
+  3787→            {/* SECCIÓN 5: MANTENIMIENTO                                   */}
+  3788→            {/* ═══════════════════════════════════════════════════════════ */}
+  3789→            {dashboardStats && (
+  3790→              <Card className="border-teal-200 bg-gradient-to-r from-teal-50 to-white overflow-hidden">
+  3791→                <CardHeader className="pb-3 pt-4 px-5 border-b border-teal-100 bg-teal-50/50">
+  3792→                  <div className="flex items-center justify-between">
+  3793→                    <CardTitle className="text-lg font-bold text-teal-900 flex items-center gap-2.5 cursor-pointer hover:text-teal-700" onClick={() => { setMantenimientoStatusFilter('all'); setView('mantenimiento'); }}>
+  3794→                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-600 text-white">
+  3795→                        <Wrench className="h-4.5 w-4.5" />
+  3796→                      </div>
+  3797→                      Mantenimiento
+  3798→                      <ArrowRight className="h-4 w-4 opacity-50" />
+  3799→                    </CardTitle>
+  3800→                    <Badge className="text-sm font-bold bg-teal-100 text-teal-800 border-teal-300 hover:bg-teal-100">
+  3801→                      {dashboardStats.mantenimiento.total} LVs
+  3802→                    </Badge>
+  3803→                  </div>
+  3804→                </CardHeader>
+  3805→                <CardContent className="px-5 pb-5 pt-4">
+  3806→                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+  3807→                    <div
+  3808→                      className="bg-white rounded-xl p-4 border border-amber-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-amber-400 transition-all duration-200 hover:scale-105"
+  3809→                      onClick={() => { setMantenimientoStatusFilter('PENDIENTE'); setView('mantenimiento'); }}
+  3810→                      title="Ver LVs Pendientes"
+  3811→                    >
+  3812→                      <div className="text-xs text-amber-600 uppercase tracking-wider font-semibold mb-1">Pendientes</div>
+  3813→                      <div className="text-3xl font-bold text-amber-700">{dashboardStats.mantenimiento.pendientes}</div>
+  3814→                    </div>
+  3815→                    <div
+  3816→                      className="bg-white rounded-xl p-4 border border-blue-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-blue-400 transition-all duration-200 hover:scale-105"
+  3817→                      onClick={() => { setMantenimientoStatusFilter('EN_PROGRESO'); setView('mantenimiento'); }}
+  3818→                      title="Ver LVs En Progreso"
+  3819→                    >
+  3820→                      <div className="text-xs text-blue-600 uppercase tracking-wider font-semibold mb-1">En Progreso</div>
+  3821→                      <div className="text-3xl font-bold text-blue-700">{dashboardStats.mantenimiento.enProgreso}</div>
+  3822→                    </div>
+  3823→                    <div
+  3824→                      className="bg-white rounded-xl p-4 border border-emerald-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-emerald-400 transition-all duration-200 hover:scale-105"
+  3825→                      onClick={() => { setMantenimientoStatusFilter('COMPLETADA'); setView('mantenimiento'); }}
+  3826→                      title="Ver LVs Completadas"
+  3827→                    >
+  3828→                      <div className="text-xs text-emerald-600 uppercase tracking-wider font-semibold mb-1">Completadas</div>
+  3829→                      <div className="text-3xl font-bold text-emerald-700">{dashboardStats.mantenimiento.completadas}</div>
+  3830→                    </div>
+  3831→                    <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm text-center">
+  3832→                      <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Avance Promedio</div>
+  3833→                      <div className="text-3xl font-bold text-teal-700">{Math.round(dashboardStats.mantenimiento.avgProgress)}%</div>
+  3834→                      <Progress value={dashboardStats.mantenimiento.avgProgress} className="h-2 mt-1" />
+  3835→                    </div>
+  3836→                  </div>
+  3837→                </CardContent>
+  3838→              </Card>
+  3839→            )}
+  3840→          </div>
+  3841→        )}
+  3842→
+  3843→        {/* Table View */}
+  3844→        {view === 'table' && (
+  3845→          <Card>
+  3846→            <CardHeader className="pb-2">
+  3847→              <div className="flex items-center justify-between">
+  3848→                <CardTitle className="text-base">Tabla de Tareas</CardTitle>
+  3849→                <Button variant="outline" size="sm" onClick={downloadTablePDF} disabled={downloadingTable} className="gap-1">
+  3850→                  <FileText className="h-4 w-4" />
+  3851→                  {downloadingTable ? 'Generando PDF...' : 'Exportar PDF'}
+  3852→                </Button>
+  3853→              </div>
+  3854→            </CardHeader>
+  3855→            <CardContent className="p-0">
+  3856→              <div className="overflow-x-auto">
+  3857→                <Table className="w-full text-[11px]">
+  3858→                  <TableHeader>
+  3859→                    <TableRow className="bg-slate-50">
+  3860→                      <TableHead className="w-[28px] text-center px-1 py-1 text-[10px] font-semibold">#</TableHead>
+  3861→                      <TableHead className="px-1 py-1 text-[10px] font-semibold">Descripción</TableHead>
+  3862→                      <TableHead className="px-1 py-1 text-[10px] font-semibold">Sector</TableHead>
+  3863→                      <TableHead className="px-1 py-1 text-[10px] font-semibold">Tipo</TableHead>
+  3864→                      <TableHead className="px-1 py-1 text-[10px] font-semibold">Prior.</TableHead>
+  3865→                      <TableHead className="px-1 py-1 text-[10px] font-semibold">Etapa</TableHead>
+  3866→                      <TableHead className="px-1 py-1 text-[10px] font-semibold">Estado</TableHead>
+  3867→                      <TableHead className="px-1 py-1 text-[10px] font-semibold">Aprobación</TableHead>
+  3868→                      <TableHead className="px-1 py-1 text-[10px] font-semibold">Responsable</TableHead>
+  3869→                      <TableHead className="px-1 py-1 text-[10px] font-semibold w-[36px]">T.E.</TableHead>
+  3870→                      <TableHead className="text-right px-1 py-1 text-[10px] font-semibold w-[68px]">Monto</TableHead>
+  3871→                      <TableHead className="px-1 py-1 text-[10px] font-semibold w-[58px]">Inicio</TableHead>
+  3872→                      <TableHead className="px-1 py-1 text-[10px] font-semibold w-[58px]">Fin</TableHead>
+  3873→                      <TableHead className="px-1 py-1 text-[10px] font-semibold w-[32px] text-center">Adj.</TableHead>
+  3874→                      {showMaterials && (
+  3875→                        <TableHead className="text-center px-1 py-1 w-[32px]">
+  3876→                          <Package className="h-3 w-3 mx-auto" />
+  3877→                        </TableHead>
+  3878→                      )}
+  3879→                      <TableHead className="text-right px-1 py-1 w-[72px]">Acc.</TableHead>
+  3880→                    </TableRow>
+  3881→                  </TableHeader>
+  3882→                  <TableBody>
+  3883→                    {filteredTasks.length === 0 ? (
+  3884→                      <TableRow>
+  3885→                        <TableCell colSpan={showMaterials ? 16 : 15} className="text-center py-8 text-gray-500">
+  3886→                          No hay tareas que coincidan con los filtros
+  3887→                        </TableCell>
+  3888→                      </TableRow>
+  3889→                    ) : (
+  3890→                      filteredTasks.map(task => {
+  3891→                        const beforePhotos = JSON.parse(task.beforePhotos || '[]') as string[]
+  3892→                        const afterPhotos = JSON.parse(task.afterPhotos || '[]') as string[]
+  3893→                        const matCount = getMaterialsCount(task.id)
+  3894→                        return (
+  3895→                          <TableRow key={task.id} className="hover:bg-blue-50/30">
+  3896→                            <TableCell className="text-center font-bold text-slate-600 px-1 py-0.5">
+  3897→                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-700 text-white text-[9px] font-bold">{filteredTasks.indexOf(task) + 1}</span>
+  3898→                            </TableCell>
+  3899→                            <TableCell className="font-medium px-1 py-0.5 max-w-[180px]">
+  3900→                              <div className="truncate" title={task.description}>{task.description}</div>
+  3901→                            </TableCell>
+  3902→                            <TableCell className="px-1 py-0.5"><Badge variant="secondary" className="text-[9px] px-1 py-0">{task.sector}</Badge></TableCell>
+  3903→                            <TableCell className="px-1 py-0.5 text-[11px]">{task.repairType}</TableCell>
+  3904→                            <TableCell className="px-1 py-0.5">
+  3905→                              <select
+  3906→                                value={task.priority}
+  3907→                                onChange={e => handleUpdateTaskPriority(task.id, e.target.value)}
+  3908→                                className="text-[11px] border rounded px-1 py-0 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
+  3909→                                style={{ color: getPriorityColor(task.priority) }}
+  3910→                              >
+  3911→                                {priorities.map(p => (
+  3912→                                  <option key={p.id} value={p.name} style={{ color: p.color }}>
+  3913→                                    {p.name}
+  3914→                                  </option>
+  3915→                                ))}
+  3916→                              </select>
+  3917→                            </TableCell>
+  3918→                            <TableCell className="px-1 py-0.5">
+  3919→                              <select
+  3920→                                value={task.etapa || ''}
+  3921→                                onChange={e => handleUpdateTaskEtapa(task.id, e.target.value)}
+  3922→                                className="text-[11px] border rounded px-1 py-0 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
+  3923→                                style={{ color: getEtapaColor(task.etapa) }}
+  3924→                              >
+  3925→                                <option value="" style={{ color: '#6b7280' }}>Sin etapa</option>
+  3926→                                {etapas.map(et => (
+  3927→                                  <option key={et.id} value={et.name} style={{ color: et.color }}>
+  3928→                                    {et.name}
+  3929→                                  </option>
+  3930→                                ))}
+  3931→                              </select>
+  3932→                            </TableCell>
+  3933→                            <TableCell className="px-1 py-0.5">
+  3934→                              <select
+  3935→                                value={task.status}
+  3936→                                onChange={e => handleUpdateTaskStatus(task.id, e.target.value)}
+  3937→                                className="text-[11px] border rounded px-1 py-0 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
+  3938→                                style={{ color: getStatusColor(task.status) }}
+  3939→                              >
+  3940→                                {statuses.map(s => (
+  3941→                                  <option key={s.id} value={s.name} style={{ color: s.color }}>
+  3942→                                    {s.name}
+  3943→                                  </option>
+  3944→                                ))}
+  3945→                              </select>
+  3946→                            </TableCell>
+  3947→                            <TableCell className="px-1 py-0.5">
+  3948→                              {canApprove ? (
+  3949→                                <select
+  3950→                                  value={task.approvalStatus || 'En espera de decisión'}
+  3951→                                  onChange={e => handleUpdateTaskApproval(task.id, e.target.value)}
+  3952→                                  className="text-[11px] border rounded px-1 py-0 bg-transparent cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary"
+  3953→                                  style={{ color: getApprovalColor(task.approvalStatus) }}
+  3954→                                >
+  3955→                                  {getApprovalOptions(task.approvalStatus).map(opt => (
+  3956→                                    <option key={opt.value} value={opt.value} style={{ color: opt.color }}>
+  3957→                                      {opt.label}
+  3958→                                    </option>
+  3959→                                  ))}
+  3960→                                </select>
+  3961→                              ) : (
+  3962→                                <Badge variant="outline" className={`text-[10px] px-1.5 py-0.5 ${getApprovalBadgeClass(task.approvalStatus)}`}>
+  3963→                                  {task.approvalStatus === 'Aprobado por Supervisor' && <ShieldCheck className="h-3 w-3 mr-1" />}
+  3964→                                  {task.approvalStatus === 'Aprobado' && <CheckCircle className="h-3 w-3 mr-1" />}
+  3965→                                  {task.approvalStatus === 'No aprobado' && <XCircle className="h-3 w-3 mr-1" />}
+  3966→                                  {task.approvalStatus === 'En espera de decisión' && <Clock className="h-3 w-3 mr-1" />}
+  3967→                                  {task.approvalStatus || 'En espera'}
+  3968→                                </Badge>
+  3969→                              )}
+  3970→                            </TableCell>
+  3971→                            <TableCell className="px-1 py-0.5 text-[11px]">{task.responsible || '-'}</TableCell>
+  3972→                            <TableCell className="px-1 py-0.5 text-[11px]">{task.estimatedTime || '-'}</TableCell>
+  3973→                            <TableCell className="text-right px-1 py-0.5 text-[11px] font-medium">{formatCurrency(task.amount)}</TableCell>
+  3974→                            <TableCell className="px-1 py-0.5 text-[11px]">{formatDate(task.startDate)}</TableCell>
+  3975→                            <TableCell className="px-1 py-0.5 text-[11px]">{formatDate(task.endDate)}</TableCell>
+  3976→                            <TableCell className="px-1 py-0.5">
+  3977→                              <div className="flex gap-0.5 items-center justify-center text-[10px]">
+  3978→                                {(beforePhotos.length > 0 || afterPhotos.length > 0) && (
+  3979→                                  <button
+  3980→                                    className="flex items-center gap-0.5 text-gray-500 hover:text-orange-500 cursor-pointer"
+  3981→                                    onClick={() => {
+  3982→                                      setFullscreenPhotos(beforePhotos.length > 0 ? beforePhotos : afterPhotos)
+  3983→                                      setFullscreenIndex(0)
+  3984→                                      setPhotoDialogOpen(true)
+  3985→                                    }}
+  3986→                                    title={`Fotos: ${beforePhotos.length} antes, ${afterPhotos.length} después`}
+  3987→                                  >
+  3988→                                    <Camera className="h-3 w-3" />
+  3989→                                    <span>{beforePhotos.length + afterPhotos.length}</span>
+  3990→                                  </button>
+  3991→                                )}
+  3992→                                {(() => {
+  3993→                                  const docs = JSON.parse(task.documents || '[]') as Array<{url: string; name: string; type: string}>
+  3994→                                  return docs.length > 0 ? (
+  3995→                                    <a href={docs[0].url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 text-blue-500 hover:text-blue-700" title={`${docs.length} doc(s)`}>
+  3996→                                      <FileText className="h-3 w-3" />
+  3997→                                      <span>{docs.length}</span>
+  3998→                                    </a>
+  3999→                                  ) : null
+  4000→                                })()}
+
+[showing lines 3501-4000 of 5877; use offset=4001 with limit to continue reading]

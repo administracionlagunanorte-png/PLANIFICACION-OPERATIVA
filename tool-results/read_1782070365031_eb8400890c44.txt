@@ -1,0 +1,514 @@
+     1→   500→      if (selectedLV?.id === deleteId) { setCurrentView('list'); setSelectedLV(null) }
+     2→   501→    } catch {
+     3→   502→      toast({ title: 'Error', description: 'No se pudo eliminar', variant: 'destructive' })
+     4→   503→    } finally {
+     5→   504→      setDeleteDialogOpen(false); setDeleteId(null)
+     6→   505→    }
+     7→   506→  }
+     8→   507→
+     9→   508→  // ============================================================
+    10→   509→  // Print
+    11→   510→  // ============================================================
+    12→   511→  const handlePrint = (lv: MantenimientoLV) => {
+    13→   512→    const w = window.open('', '_blank')
+    14→   513→    if (!w) return
+    15→   514→    const categories = [...new Set(lv.items.map(i => i.category))]
+    16→   515→    const categoryLabels: Record<string, string> = { A: 'A. EPP / Materiales', B: 'B. Verificación de Tareas', C: 'C. Inspección / Registros', D: 'D. Dosificaciones / Limpieza' }
+    17→   516→
+    18→   517→    w.document.write(`<!DOCTYPE html><html><head><title>${lv.codigo} — ${lv.nombre}</title>
+    19→   518→    <style>
+    20→   519→      body{font-family:Arial,sans-serif;margin:20px;font-size:12px;color:#1e293b}
+    21→   520→      h1{font-size:16px;margin:0 0 4px}h2{font-size:13px;margin:8px 0 4px;color:#475569}
+    22→   521→      .header{display:flex;justify-content:space-between;border-bottom:2px solid #2563eb;padding-bottom:8px;margin-bottom:12px}
+    23→   522→      .meta{display:flex;gap:20px;font-size:11px;margin-bottom:8px}
+    24→   523→      table{width:100%;border-collapse:collapse;margin-bottom:12px}
+    25→   524→      th{background:#f1f5f9;padding:6px 8px;text-align:left;border:1px solid #cbd5e1;font-size:11px}
+    26→   525→      td{padding:5px 8px;border:1px solid #e2e8f0;font-size:11px}
+    27→   526→      .ok{color:#16a34a;font-weight:bold}.no{color:#dc2626;font-weight:bold}
+    28→   527→      .progress-bar{height:16px;background:#e2e8f0;border-radius:4px;overflow:hidden;margin:4px 0}
+    29→   528→      .progress-fill{height:100%;background:#2563eb}
+    30→   529→      .signatures{display:flex;gap:40px;margin-top:30px;font-size:11px}
+    31→   530→      .sig-line{border-top:1px solid #000;width:200px;padding-top:4px;margin-top:30px}
+    32→   531→    </style></head><body>
+    33→   532→    <div class="header"><div><h1>${lv.codigo} — ${lv.nombre}</h1><div style="font-size:11px;color:#64748b">Asesorías Integrales CyJ — Condominio Laguna Norte</div></div>
+    34→   533→    <div style="text-align:right;font-size:11px">Progreso: ${lv.progress}%<div class="progress-bar" style="width:120px"><div class="progress-fill" style="width:${lv.progress}%"></div></div></div></div>
+    35→   534→    <div class="meta"><div><b>Sector:</b> ${lv.sector}</div><div><b>Frecuencia:</b> ${lv.frecuencia}</div><div><b>Responsable:</b> ${lv.responsable || '-'}</div><div><b>Fecha:</b> ${lv.scheduledDate ? new Date(lv.scheduledDate).toLocaleDateString('es-CL') : '-'}</div></div>
+    36→   535→    ${categories.map(cat => {
+    37→   536→      const catItems = lv.items.filter(i => i.category === cat)
+    38→   537→      return `<h2>${categoryLabels[cat] || cat}</h2><table><tr><th style="width:5%">N°</th><th style="width:55%">Descripción</th><th style="width:10%">Estado</th><th style="width:15%">Valor</th><th style="width:15%">Observación</th></tr>
+    39→   538→      ${catItems.map((item, idx) => `<tr><td>${idx + 1}</td><td>${item.description}</td><td class="${item.status === 'OK' ? 'ok' : item.status === 'NO_OK' ? 'no' : ''}">${item.status === 'OK' ? '✓ OK' : item.status === 'NO_OK' ? '✗ NO OK' : item.status === 'N/A' ? 'N/A' : '☐'}</td><td>${item.value || ''}</td><td>${item.observation || ''}</td></tr>`).join('')}</table>`
+    40→   539→    }).join('')}
+    41→   540→    ${lv.observations ? `<h2>Observaciones</h2><p>${lv.observations}</p>` : ''}
+    42→   541→    <div class="signatures"><div><div class="sig-line">Responsable — Nombre, Firma, RUT, Fecha</div></div><div><div class="sig-line">Supervisor — Nombre, Firma, RUT, Fecha</div></div></div>
+    43→   542→    </body></html>`)
+    44→   543→    w.document.close()
+    45→   544→    w.print()
+    46→   545→  }
+    47→   546→
+    48→   547→  // ============================================================
+    49→   548→  // Upload attachment
+    50→   549→  // ============================================================
+    51→   550→  const handleUploadAttachment = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    52→   551→    const file = e.target.files?.[0]
+    53→   552→    if (!file || !selectedLV) return
+    54→   553→    setUploading(true)
+    55→   554→    try {
+    56→   555→      const formData = new FormData()
+    57→   556→      formData.append('file', file)
+    58→   557→      const res = await fetch('/api/upload', { method: 'POST', body: formData })
+    59→   558→      if (res.ok) {
+    60→   559→        const { url } = await res.json()
+    61→   560→        const currentAttachments = JSON.parse(selectedLV.attachments || '[]')
+    62→   561→        const newAttachments = [...currentAttachments, url]
+    63→   562→        await fetch(`/api/mantenimiento-lv/${selectedLV.id}`, {
+    64→   563→          method: 'PUT',
+    65→   564→          headers: { 'Content-Type': 'application/json' },
+    66→   565→          body: JSON.stringify({ attachments: JSON.stringify(newAttachments) }),
+    67→   566→        })
+    68→   567→        fetchLVDetail(selectedLV.id)
+    69→   568→        toast({ title: 'Archivo adjuntado', description: file.name })
+    70→   569→      }
+    71→   570→    } catch {
+    72→   571→      toast({ title: 'Error', description: 'No se pudo subir el archivo', variant: 'destructive' })
+    73→   572→    } finally {
+    74→   573→      setUploading(false)
+    75→   574→      if (fileInputRef.current) fileInputRef.current.value = ''
+    76→   575→    }
+    77→   576→  }
+    78→   577→
+    79→   578→  // ============================================================
+    80→   579→  // Calendar helpers
+    81→   580→  // ============================================================
+    82→   581→  const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate()
+    83→   582→  const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay()
+    84→   583→  const [calYear, setCalYear] = useState(new Date().getFullYear())
+    85→   584→  const [calMonth, setCalMonth] = useState(new Date().getMonth())
+    86→   585→
+    87→   586→  const getLVsForDate = (day: number) => {
+    88→   587→    const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    89→   588→    return lvs.filter(lv => lv.scheduledDate && lv.scheduledDate.startsWith(dateStr))
+    90→   589→  }
+    91→   590→
+    92→   591→  // ============================================================
+    93→   592→  // Format
+    94→   593→  // ============================================================
+    95→   594→  const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString('es-CL') : '-'
+    96→   595→
+    97→   596→  // ============================================================
+    98→   597→  // Filtered
+    99→   598→  // ============================================================
+   100→   599→  const filteredLVs = lvs.filter(lv => {
+   101→   600→    if (searchQuery.trim()) {
+   102→   601→      const q = searchQuery.toLowerCase()
+   103→   602→      return lv.nombre.toLowerCase().includes(q) || lv.codigo.toLowerCase().includes(q) || lv.sector.toLowerCase().includes(q)
+   104→   603→    }
+   105→   604→    return true
+   106→   605→  })
+   107→   606→
+   108→   607→  // Stats
+   109→   608→  const totalLVs = lvs.length
+   110→   609→  const pendientes = lvs.filter(l => l.status === 'PENDIENTE').length
+   111→   610→  const enProgreso = lvs.filter(l => l.status === 'EN_PROGRESO').length
+   112→   611→  const completadas = lvs.filter(l => l.status === 'COMPLETADA').length
+   113→   612→  const avgProgress = totalLVs > 0 ? Math.round(lvs.reduce((s, l) => s + l.progress, 0) / totalLVs) : 0
+   114→   613→
+   115→   614→  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+   116→   615→
+   117→   616→  // ============================================================
+   118→   617→  // RENDER
+   119→   618→  // ============================================================
+   120→   619→  return (
+   121→   620→    <div className="space-y-4">
+   122→   621→      {/* Stats bar */}
+   123→   622→      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   124→   623→        <div className="bg-white rounded-xl p-3 border border-amber-200 shadow-sm text-center">
+   125→   624→          <div className="text-xs text-amber-600 uppercase tracking-wider font-semibold">Pendientes</div>
+   126→   625→          <div className="text-2xl font-bold text-amber-700">{pendientes}</div>
+   127→   626→        </div>
+   128→   627→        <div className="bg-white rounded-xl p-3 border border-blue-200 shadow-sm text-center">
+   129→   628→          <div className="text-xs text-blue-600 uppercase tracking-wider font-semibold">En Progreso</div>
+   130→   629→          <div className="text-2xl font-bold text-blue-700">{enProgreso}</div>
+   131→   630→        </div>
+   132→   631→        <div className="bg-white rounded-xl p-3 border border-emerald-200 shadow-sm text-center">
+   133→   632→          <div className="text-xs text-emerald-600 uppercase tracking-wider font-semibold">Completadas</div>
+   134→   633→          <div className="text-2xl font-bold text-emerald-700">{completadas}</div>
+   135→   634→        </div>
+   136→   635→        <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm text-center">
+   137→   636→          <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Avance Promedio</div>
+   138→   637→          <div className="text-2xl font-bold text-slate-800">{avgProgress}%</div>
+   139→   638→          <Progress value={avgProgress} className="h-2 mt-1" />
+   140→   639→        </div>
+   141→   640→      </div>
+   142→   641→
+   143→   642→      {/* Header */}
+   144→   643→      <div className="flex items-center justify-between">
+   145→   644→        <div className="flex items-center gap-3">
+   146→   645→          {currentView !== 'list' && (
+   147→   646→            <Button variant="ghost" size="sm" onClick={() => { setCurrentView('list'); setSelectedLV(null) }} className="gap-1">
+   148→   647→              <ChevronLeft className="h-4 w-4" /> Volver
+   149→   648→            </Button>
+   150→   649→          )}
+   151→   650→          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+   152→   651→            <Wrench className="h-5 w-5 text-teal-600" />
+   153→   652→            Mantenimiento
+   154→   653→          </h2>
+   155→   654→        </div>
+   156→   655→        <div className="flex items-center gap-2">
+   157→   656→          <Button variant={currentView === 'calendar' ? 'default' : 'outline'} size="sm" className="gap-1" onClick={() => setCurrentView('calendar')}>
+   158→   657→            <Calendar className="h-4 w-4" /> Calendario
+   159→   658→          </Button>
+   160→   659→          <Button variant={currentView === 'list' ? 'default' : 'outline'} size="sm" className="gap-1" onClick={() => setCurrentView('list')}>
+   161→   660→            Lista
+   162→   661→          </Button>
+   163→   662→          {canEdit && (
+   164→   663→            <Button className="gap-1.5 bg-teal-600 hover:bg-teal-700 text-white" onClick={() => setCreateDialogOpen(true)}>
+   165→   664→              <Plus className="h-4 w-4" /> Nueva LV
+   166→   665→            </Button>
+   167→   666→          )}
+   168→   667→        </div>
+   169→   668→      </div>
+   170→   669→
+   171→   670→      {/* Filters */}
+   172→   671→      <div className="flex items-center gap-2 flex-wrap">
+   173→   672→        <Select value={filterFrecuencia} onValueChange={setFilterFrecuencia}>
+   174→   673→          <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder="Frecuencia" /></SelectTrigger>
+   175→   674→          <SelectContent>
+   176→   675→            <SelectItem value="all">Todas</SelectItem>
+   177→   676→            <SelectItem value="Diaria">Diaria</SelectItem>
+   178→   677→            <SelectItem value="Semanal">Semanal</SelectItem>
+   179→   678→            <SelectItem value="Quincenal">Quincenal</SelectItem>
+   180→   679→            <SelectItem value="Mensual">Mensual</SelectItem>
+   181→   680→            <SelectItem value="Trimestral">Trimestral</SelectItem>
+   182→   681→            <SelectItem value="Semestral">Semestral</SelectItem>
+   183→   682→            <SelectItem value="Anual">Anual</SelectItem>
+   184→   683→          </SelectContent>
+   185→   684→        </Select>
+   186→   685→        <Select value={filterStatus} onValueChange={setFilterStatus}>
+   187→   686→          <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder="Estado" /></SelectTrigger>
+   188→   687→          <SelectContent>
+   189→   688→            <SelectItem value="all">Todos</SelectItem>
+   190→   689→            <SelectItem value="PENDIENTE">Pendiente</SelectItem>
+   191→   690→            <SelectItem value="EN_PROGRESO">En Progreso</SelectItem>
+   192→   691→            <SelectItem value="COMPLETADA">Completada</SelectItem>
+   193→   692→          </SelectContent>
+   194→   693→        </Select>
+   195→   694→        <Input placeholder="Buscar..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-[200px] h-8 text-xs" />
+   196→   695→      </div>
+   197→   696→
+   198→   697→      {/* ============================================================ */}
+   199→   698→      {/* LIST VIEW                                                     */}
+   200→   699→      {/* ============================================================ */}
+   201→   700→      {currentView === 'list' && (
+   202→   701→        <>
+   203→   702→          {loading ? (
+   204→   703→            <div className="text-center py-12 text-slate-500">Cargando...</div>
+   205→   704→          ) : filteredLVs.length === 0 ? (
+   206→   705→            <div className="text-center py-12 text-slate-400">
+   207→   706→              <Wrench className="h-12 w-12 mx-auto mb-3 opacity-40" />
+   208→   707→              <p className="text-lg font-medium">No hay listas de verificación</p>
+   209→   708→              <p className="text-sm mt-1">Crea una nueva LV desde una plantilla</p>
+   210→   709→            </div>
+   211→   710→          ) : (
+   212→   711→            <div className="space-y-3">
+   213→   712→              {filteredLVs.map(lv => {
+   214→   713→                const fc = freqColors[lv.frecuencia] || freqColors['Mensual']
+   215→   714→                const sc = statusColors[lv.status] || statusColors['PENDIENTE']
+   216→   715→                return (
+   217→   716→                  <Card key={lv.id} className="border-l-4 border-l-teal-400 hover:shadow-md transition-all cursor-pointer"
+   218→   717→                    onClick={() => { fetchLVDetail(lv.id); setCurrentView('detail') }}>
+   219→   718→                    <CardContent className="px-4 py-3">
+   220→   719→                      <div className="flex items-center justify-between">
+   221→   720→                        <div className="flex items-center gap-3">
+   222→   721→                          <Badge className={`${fc.bg} ${fc.text} text-xs font-bold`}>{lv.codigo}</Badge>
+   223→   722→                          <div>
+   224→   723→                            <div className="font-semibold text-sm text-slate-800">{lv.nombre}</div>
+   225→   724→                            <div className="text-xs text-slate-500">{lv.sector} · {lv.responsable || 'Sin responsable'} · {formatDate(lv.scheduledDate)}</div>
+   226→   725→                          </div>
+   227→   726→                        </div>
+   228→   727→                        <div className="flex items-center gap-3">
+   229→   728→                          <Badge className={`${fc.bg} ${fc.text} text-xs`}>{lv.frecuencia}</Badge>
+   230→   729→                          <Badge className={`${sc.bg} ${sc.text} text-xs gap-1`}>
+   231→   730→                            {lv.status === 'COMPLETADA' && <CheckCircle className="h-3 w-3" />}
+   232→   731→                            {lv.status === 'EN_PROGRESO' && <Clock className="h-3 w-3" />}
+   233→   732→                            {lv.status === 'PENDIENTE' && <Clock className="h-3 w-3" />}
+   234→   733→                            {lv.status === 'PENDIENTE' ? 'Pendiente' : lv.status === 'EN_PROGRESO' ? 'En Progreso' : 'Completada'}
+   235→   734→                          </Badge>
+   236→   735→                          <div className="w-24">
+   237→   736→                            <div className="text-xs text-right text-slate-500 mb-0.5">{lv.progress}%</div>
+   238→   737→                            <Progress value={lv.progress} className="h-2" />
+   239→   738→                          </div>
+   240→   739→                        </div>
+   241→   740→                      </div>
+   242→   741→                    </CardContent>
+   243→   742→                  </Card>
+   244→   743→                )
+   245→   744→              })}
+   246→   745→            </div>
+   247→   746→          )}
+   248→   747→        </>
+   249→   748→      )}
+   250→   749→
+   251→   750→      {/* ============================================================ */}
+   252→   751→      {/* DETAIL VIEW                                                   */}
+   253→   752→      {/* ============================================================ */}
+   254→   753→      {currentView === 'detail' && selectedLV && (
+   255→   754→        <>
+   256→   755→          <div className="flex items-center justify-between">
+   257→   756→            <div>
+   258→   757→              <h3 className="text-lg font-bold text-slate-800">{selectedLV.codigo} — {selectedLV.nombre}</h3>
+   259→   758→              <p className="text-sm text-slate-500">{selectedLV.sector} · Frecuencia: {selectedLV.frecuencia} · Responsable: {selectedLV.responsable || '-'}</p>
+   260→   759→            </div>
+   261→   760→            <div className="flex items-center gap-2">
+   262→   761→              <Button variant="outline" size="sm" className="gap-1" onClick={() => handlePrint(selectedLV)}>
+   263→   762→                <Printer className="h-4 w-4" /> Imprimir
+   264→   763→              </Button>
+   265→   764→              <Button variant="outline" size="sm" className="gap-1" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+   266→   765→                <Upload className="h-4 w-4" /> {uploading ? 'Subiendo...' : 'Adjuntar'}
+   267→   766→              </Button>
+   268→   767→              <input ref={fileInputRef} type="file" className="hidden" onChange={handleUploadAttachment} accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xlsx" />
+   269→   768→              {canEdit && (
+   270→   769→                <Button size="sm" className="gap-1 bg-teal-600 hover:bg-teal-700 text-white" onClick={handleSaveItemChanges}>
+   271→   770→                  Guardar Cambios
+   272→   771→                </Button>
+   273→   772→              )}
+   274→   773→              <Button variant="ghost" size="sm" className="text-red-500" onClick={() => { setDeleteId(selectedLV.id); setDeleteDialogOpen(true) }}>
+   275→   774→                <Trash2 className="h-4 w-4" />
+   276→   775→              </Button>
+   277→   776→            </div>
+   278→   777→          </div>
+   279→   778→
+   280→   779→          {/* Progress bar */}
+   281→   780→          <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+   282→   781→            <div className="flex items-center justify-between mb-2">
+   283→   782→              <span className="text-sm font-semibold text-slate-700">Avance: {selectedLV.progress}%</span>
+   284→   783→              <Badge className={`${statusColors[selectedLV.status]?.bg} ${statusColors[selectedLV.status]?.text}`}>
+   285→   784→                {selectedLV.status === 'PENDIENTE' ? 'Pendiente' : selectedLV.status === 'EN_PROGRESO' ? 'En Progreso' : 'Completada'}
+   286→   785→              </Badge>
+   287→   786→            </div>
+   288→   787→            <Progress value={selectedLV.progress} className="h-3" />
+   289→   788→          </div>
+   290→   789→
+   291→   790→          {/* Attachments */}
+   292→   791→          {JSON.parse(selectedLV.attachments || '[]').length > 0 && (
+   293→   792→            <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm">
+   294→   793→              <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2">Adjuntos</div>
+   295→   794→              <div className="flex gap-2 flex-wrap">
+   296→   795→                {JSON.parse(selectedLV.attachments).map((url: string, idx: number) => (
+   297→   796→                  <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:text-blue-800 underline">
+   298→   797→                    Archivo {idx + 1}
+   299→   798→                  </a>
+   300→   799→                ))}
+   301→   800→              </div>
+   302→   801→            </div>
+   303→   802→          )}
+   304→   803→
+   305→   804→          {/* Checklist items by category */}
+   306→   805→          {(() => {
+   307→   806→            const categories = [...new Set(selectedLV.items.map(i => i.category))]
+   308→   807→            const categoryLabels: Record<string, string> = { A: 'A. EPP / Materiales', B: 'B. Verificación de Tareas', C: 'C. Inspección / Registros', D: 'D. Dosificaciones / Limpieza' }
+   309→   808→            return categories.map(cat => {
+   310→   809→              const catItems = selectedLV.items.filter(i => i.category === cat)
+   311→   810→              return (
+   312→   811→                <Card key={cat} className="border border-slate-200">
+   313→   812→                  <CardHeader className="py-2 px-4 bg-slate-50">
+   314→   813→                    <CardTitle className="text-sm font-bold text-slate-700">{categoryLabels[cat] || `Sección ${cat}`}</CardTitle>
+   315→   814→                  </CardHeader>
+   316→   815→                  <CardContent className="p-0">
+   317→   816→                    <Table>
+   318→   817→                      <TableHeader>
+   319→   818→                        <TableRow>
+   320→   819→                          <TableHead className="w-[30px] text-center px-2 py-1 text-xs">N°</TableHead>
+   321→   820→                          <TableHead className="px-2 py-1 text-xs">Descripción</TableHead>
+   322→   821→                          <TableHead className="w-[90px] text-center px-2 py-1 text-xs">Estado</TableHead>
+   323→   822→                          <TableHead className="w-[100px] px-2 py-1 text-xs">Valor</TableHead>
+   324→   823→                          <TableHead className="w-[120px] px-2 py-1 text-xs">Observación</TableHead>
+   325→   824→                        </TableRow>
+   326→   825→                      </TableHeader>
+   327→   826→                      <TableBody>
+   328→   827→                        {catItems.map((item, idx) => (
+   329→   828→                          <TableRow key={item.id || idx} className={item.status === 'OK' ? 'bg-emerald-50/50' : item.status === 'NO_OK' ? 'bg-red-50/50' : ''}>
+   330→   829→                            <TableCell className="text-center text-xs text-slate-400 px-2 py-1">{idx + 1}</TableCell>
+   331→   830→                            <TableCell className="text-xs px-2 py-1 text-slate-700">{item.description}</TableCell>
+   332→   831→                            <TableCell className="text-center px-2 py-1">
+   333→   832→                              {canEdit ? (
+   334→   833→                                <Select value={item.status} onValueChange={(v) => handleItemStatusChange(item.id!, v)}>
+   335→   834→                                  <SelectTrigger className="h-7 text-xs w-[80px]">
+   336→   835→                                    <SelectValue />
+   337→   836→                                  </SelectTrigger>
+   338→   837→                                  <SelectContent>
+   339→   838→                                    <SelectItem value="PENDIENTE">☐ Pendiente</SelectItem>
+   340→   839→                                    <SelectItem value="OK">✓ OK</SelectItem>
+   341→   840→                                    <SelectItem value="NO_OK">✗ NO OK</SelectItem>
+   342→   841→                                    <SelectItem value="N/A">N/A</SelectItem>
+   343→   842→                                  </SelectContent>
+   344→   843→                                </Select>
+   345→   844→                              ) : (
+   346→   845→                                <Badge className={`text-xs ${item.status === 'OK' ? 'bg-emerald-100 text-emerald-700' : item.status === 'NO_OK' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
+   347→   846→                                  {item.status === 'OK' ? '✓ OK' : item.status === 'NO_OK' ? '✗ NO' : item.status === 'N/A' ? 'N/A' : '☐'}
+   348→   847→                                </Badge>
+   349→   848→                              )}
+   350→   849→                            </TableCell>
+   351→   850→                            <TableCell className="px-2 py-1">
+   352→   851→                              {canEdit ? (
+   353→   852→                                <Input className="h-7 text-xs" value={item.value || ''} onChange={(e) => handleItemValueChange(item.id!, 'value', e.target.value)} placeholder="Valor" />
+   354→   853→                              ) : <span className="text-xs">{item.value || '-'}</span>}
+   355→   854→                            </TableCell>
+   356→   855→                            <TableCell className="px-2 py-1">
+   357→   856→                              {canEdit ? (
+   358→   857→                                <Input className="h-7 text-xs" value={item.observation || ''} onChange={(e) => handleItemValueChange(item.id!, 'observation', e.target.value)} placeholder="Obs." />
+   359→   858→                              ) : <span className="text-xs">{item.observation || '-'}</span>}
+   360→   859→                            </TableCell>
+   361→   860→                          </TableRow>
+   362→   861→                        ))}
+   363→   862→                      </TableBody>
+   364→   863→                    </Table>
+   365→   864→                  </CardContent>
+   366→   865→                </Card>
+   367→   866→              )
+   368→   867→            })
+   369→   868→          })()}
+   370→   869→
+   371→   870→          {/* Observations */}
+   372→   871→          <Card className="border border-slate-200">
+   373→   872→            <CardHeader className="py-2 px-4 bg-slate-50">
+   374→   873→              <CardTitle className="text-sm font-bold text-slate-700">Observaciones / Acciones Correctivas</CardTitle>
+   375→   874→            </CardHeader>
+   376→   875→            <CardContent className="p-4">
+   377→   876→              {canEdit ? (
+   378→   877→                <Textarea value={selectedLV.observations || ''} onChange={(e) => setSelectedLV({ ...selectedLV, observations: e.target.value })} placeholder="Ingrese observaciones..." rows={3} />
+   379→   878→              ) : (
+   380→   879→                <p className="text-sm text-slate-600">{selectedLV.observations || 'Sin observaciones'}</p>
+   381→   880→              )}
+   382→   881→            </CardContent>
+   383→   882→          </Card>
+   384→   883→        </>
+   385→   884→      )}
+   386→   885→
+   387→   886→      {/* ============================================================ */}
+   388→   887→      {/* CALENDAR VIEW                                                 */}
+   389→   888→      {/* ============================================================ */}
+   390→   889→      {currentView === 'calendar' && (
+   391→   890→        <Card>
+   392→   891→          <CardHeader className="pb-2">
+   393→   892→            <div className="flex items-center justify-between">
+   394→   893→              <Button variant="ghost" size="sm" onClick={() => { if (calMonth === 0) { setCalMonth(11); setCalYear(calYear - 1) } else setCalMonth(calMonth - 1) }}>
+   395→   894→                <ChevronLeft className="h-4 w-4" />
+   396→   895→              </Button>
+   397→   896→              <CardTitle className="text-base">{monthNames[calMonth]} {calYear}</CardTitle>
+   398→   897→              <Button variant="ghost" size="sm" onClick={() => { if (calMonth === 11) { setCalMonth(0); setCalYear(calYear + 1) } else setCalMonth(calMonth + 1) }}>
+   399→   898→                <ChevronRight className="h-4 w-4" />
+   400→   899→              </Button>
+   401→   900→            </div>
+   402→   901→          </CardHeader>
+   403→   902→          <CardContent>
+   404→   903→            <div className="grid grid-cols-7 gap-1">
+   405→   904→              {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (
+   406→   905→                <div key={d} className="text-center text-xs font-semibold text-slate-500 py-1">{d}</div>
+   407→   906→              ))}
+   408→   907→              {Array.from({ length: getFirstDayOfMonth(calYear, calMonth) }, (_, i) => (
+   409→   908→                <div key={`empty-${i}`} className="h-24" />
+   410→   909→              ))}
+   411→   910→              {Array.from({ length: getDaysInMonth(calYear, calMonth) }, (_, i) => {
+   412→   911→                const day = i + 1
+   413→   912→                const dayLVs = getLVsForDate(day)
+   414→   913→                const isToday = calYear === new Date().getFullYear() && calMonth === new Date().getMonth() && day === new Date().getDate()
+   415→   914→                return (
+   416→   915→                  <div key={day} className={`h-24 border rounded-lg p-1 text-xs overflow-hidden ${isToday ? 'border-teal-400 bg-teal-50/30' : 'border-slate-200'}`}>
+   417→   916→                    <div className={`font-semibold ${isToday ? 'text-teal-700' : 'text-slate-600'}`}>{day}</div>
+   418→   917→                    <div className="space-y-0.5 mt-0.5">
+   419→   918→                      {dayLVs.slice(0, 3).map(lv => (
+   420→   919→                        <div key={lv.id} className={`truncate rounded px-1 py-0.5 text-[10px] cursor-pointer ${lv.status === 'COMPLETADA' ? 'bg-emerald-100 text-emerald-700' : lv.status === 'EN_PROGRESO' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}
+   421→   920→                          onClick={() => { fetchLVDetail(lv.id); setCurrentView('detail') }} title={`${lv.codigo} — ${lv.nombre}`}>
+   422→   921→                          {lv.codigo}
+   423→   922→                        </div>
+   424→   923→                      ))}
+   425→   924→                      {dayLVs.length > 3 && <div className="text-[10px] text-slate-400">+{dayLVs.length - 3} más</div>}
+   426→   925→                    </div>
+   427→   926→                  </div>
+   428→   927→                )
+   429→   928→              })}
+   430→   929→            </div>
+   431→   930→            {/* Legend */}
+   432→   931→            <div className="flex gap-4 mt-3 text-xs">
+   433→   932→              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-amber-100 border border-amber-300" /> Pendiente</div>
+   434→   933→              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-blue-100 border border-blue-300" /> En Progreso</div>
+   435→   934→              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-emerald-100 border border-emerald-300" /> Completada</div>
+   436→   935→            </div>
+   437→   936→          </CardContent>
+   438→   937→        </Card>
+   439→   938→      )}
+   440→   939→
+   441→   940→      {/* ============================================================ */}
+   442→   941→      {/* CREATE DIALOG                                                 */}
+   443→   942→      {/* ============================================================ */}
+   444→   943→      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+   445→   944→        <DialogContent className="sm:max-w-lg">
+   446→   945→          <DialogHeader>
+   447→   946→            <DialogTitle>Nueva Lista de Verificación</DialogTitle>
+   448→   947→            <DialogDescription>Selecciona una plantilla para crear la lista de verificación</DialogDescription>
+   449→   948→          </DialogHeader>
+   450→   949→          <div className="space-y-4">
+   451→   950→            <div>
+   452→   951→              <Label>Plantilla LV *</Label>
+   453→   952→              <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+   454→   953→                <SelectTrigger><SelectValue placeholder="Seleccionar plantilla..." /></SelectTrigger>
+   455→   954→                <SelectContent>
+   456→   955→                  {LV_TEMPLATES.map(t => (
+   457→   956→                    <SelectItem key={t.codigo} value={t.codigo}>
+   458→   957→                      {t.codigo} — {t.nombre} ({t.frecuencia})
+   459→   958→                    </SelectItem>
+   460→   959→                  ))}
+   461→   960→                </SelectContent>
+   462→   961→              </Select>
+   463→   962→            </div>
+   464→   963→            <div className="grid grid-cols-2 gap-4">
+   465→   964→              <div>
+   466→   965→                <Label>Fecha Programada</Label>
+   467→   966→                <Input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
+   468→   967→              </div>
+   469→   968→              <div>
+   470→   969→                <Label>Responsable</Label>
+   471→   970→                <Input placeholder="Nombre del responsable" value={formResponsable} onChange={(e) => setFormResponsable(e.target.value)} />
+   472→   971→              </div>
+   473→   972→            </div>
+   474→   973→            <div>
+   475→   974→              <Label>Turno</Label>
+   476→   975→              <Input placeholder="Ej: Mañana 07:00" value={formTurno} onChange={(e) => setFormTurno(e.target.value)} />
+   477→   976→            </div>
+   478→   977→            {selectedTemplate && (
+   479→   978→              <div className="border rounded-lg p-3 bg-slate-50 max-h-40 overflow-y-auto">
+   480→   979→                <div className="text-xs font-semibold text-slate-600 mb-1">Items incluidos ({LV_TEMPLATES.find(t => t.codigo === selectedTemplate)?.items.length}):</div>
+   481→   980→                {LV_TEMPLATES.find(t => t.codigo === selectedTemplate)?.items.map((item, idx) => (
+   482→   981→                  <div key={idx} className="text-xs text-slate-500 py-0.5">
+   483→   982→                    <span className="font-medium text-slate-600">{item.category}.</span> {item.description}
+   484→   983→                  </div>
+   485→   984→                ))}
+   486→   985→              </div>
+   487→   986→            )}
+   488→   987→          </div>
+   489→   988→          <DialogFooter>
+   490→   989→            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Cancelar</Button>
+   491→   990→            <Button className="bg-teal-600 hover:bg-teal-700 text-white" onClick={handleCreateFromTemplate} disabled={!selectedTemplate}>
+   492→   991→              Crear Lista
+   493→   992→            </Button>
+   494→   993→          </DialogFooter>
+   495→   994→        </DialogContent>
+   496→   995→      </Dialog>
+   497→   996→
+   498→   997→      {/* Delete dialog */}
+   499→   998→      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+   500→   999→        <AlertDialogContent>
+   501→  1000→          <AlertDialogHeader>
+   502→  1001→            <AlertDialogTitle>¿Eliminar esta lista?</AlertDialogTitle>
+   503→  1002→            <AlertDialogDescription>Se eliminará la lista de verificación y todos sus items. Esta acción no se puede deshacer.</AlertDialogDescription>
+   504→  1003→          </AlertDialogHeader>
+   505→  1004→          <AlertDialogFooter>
+   506→  1005→            <AlertDialogCancel onClick={() => setDeleteId(null)}>Cancelar</AlertDialogCancel>
+   507→  1006→            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white">Eliminar</AlertDialogAction>
+   508→  1007→          </AlertDialogFooter>
+   509→  1008→        </AlertDialogContent>
+   510→  1009→      </AlertDialog>
+   511→  1010→    </div>
+   512→  1011→  )
+   513→  1012→}
+   514→  1013→

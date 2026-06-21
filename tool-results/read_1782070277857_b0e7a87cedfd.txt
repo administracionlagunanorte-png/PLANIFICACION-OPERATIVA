@@ -1,0 +1,1161 @@
+     1→================================================================================
+     2→PARAGRAPHS
+     3→================================================================================
+     4→[Normal] ÍNDICE DE LISTAS DE VERIFICACIÓN
+     5→[Normal] A. VERIFICACIÓN DE DOTACIÓN DE PERSONAL
+     6→[Normal] B. VERIFICACIÓN DE EPP POR PUESTO
+     7→[Normal] C. NOVEDADES DE INICIO DE JORNADA
+     8→[Normal] A. EPP Y MATERIALES REQUERIDOS
+     9→[Normal] B. MEDICIONES DE CALIDAD DEL AGUA (3 PUNTOS)
+    10→[Normal] C. INSPECCIÓN VISUAL PERIMETRAL LAGUNA
+    11→[Normal] D. DOSIFICACIONES REALIZADAS
+    12→[Normal] A. EPP Y EQUIPOS REQUERIDOS
+    13→[Normal] B. MEDICIÓN DE PARÁMETROS — MAÑANA (08:30 hrs)
+    14→[Normal] C. MEDICIÓN DE PARÁMETROS — TARDE (15:00 hrs)
+    15→[Normal] D. LIMPIEZA DIARIA — VERIFICACIÓN POR PISCINA
+    16→[Normal] A. HERRAMIENTAS Y MATERIALES
+    17→[Normal] B. LISTA DE VERIFICACIÓN DE TAREAS — POR PLAYA
+    18→[Normal] A. INSUMOS Y HERRAMIENTAS DE ASEO
+    19→[Normal] B. VERIFICACIÓN DE TAREAS — OPERARIO ASEO A (Club House)
+    20→[Normal] C. VERIFICACIÓN DE TAREAS — OPERARIO ASEO B (Exteriores)
+    21→[Normal] A. MATERIALES REQUERIDOS PARA LA INSPECCIÓN
+    22→[Normal] B. INSPECCIÓN POR SECTOR — SEGURIDAD INMEDIATA
+    23→[Normal] ⚠  IMPORTANTE: Si se detecta cualquier riesgo de seguridad, ACORDONAR EL SECTOR INMEDIATAMENTE con cinta y cartel. NO habilitar hasta que el Jefe de Mantenimiento autorice la reapertura.
+    24→[Normal] C. SECTORES CON CIERRE PREVENTIVO HOY
+    25→[Normal] A. EPP Y HERRAMIENTAS SEMANA
+    26→[Normal] B. TAREAS SEMANALES — LAGUNA
+    27→[Normal] C. REGISTRO DE PARÁMETROS SEMANA (TENDENCIA)
+    28→[Normal] A. HERRAMIENTAS Y MATERIALES SEMANA
+    29→[Normal] B. RETROLAVADO DE FILTROS (Lunes o cuando presión sube >0,5 bar)
+    30→[Normal] C. OTRAS TAREAS SEMANALES
+    31→[Normal] A. MAQUINARIA Y HERRAMIENTAS — VERIFICACIÓN PRE-JORNADA
+    32→[Normal] B. TAREAS DE CORTE Y BORDEADO POR SECTOR
+    33→[Normal] C. VERIFICACIÓN SISTEMA DE RIEGO (supervisión diaria incluida)
+    34→[Normal] A. HERRAMIENTAS Y MATERIALES
+    35→[Normal] B. VERIFICACIÓN DE TAREAS SEMANALES
+    36→[Normal] C. MAPA DE DAÑOS DETECTADOS EN PAVIMENTO
+    37→[Normal] A. EQUIPOS Y HERRAMIENTAS
+    38→[Normal] B. MUELLES, EMBARCADERO Y RACK DE BOTES
+    39→[Normal] C. ILUMINACIÓN EXTERIOR — CIRCUITO NOCTURNO (recorrido de noche)
+    40→[Normal] D. CIERROS, PORTONES Y ACCESOS
+    41→[Normal] A. MATERIALES Y EQUIPOS
+    42→[Normal] B. ANÁLISIS COMPLETO DE PARÁMETROS
+    43→[Normal] C. REVISIÓN DOSIFICADORES AUTOMÁTICOS
+    44→[Normal] A. MATERIALES E INSUMOS DEL MES
+    45→[Normal] B. ESTADO DE PRADOS POR SECTOR — EVALUACIÓN MENSUAL
+    46→[Normal] C. REVISIÓN ÁRBOLES Y ARBUSTOS
+    47→[Normal] A. EQUIPOS Y HERRAMIENTAS PARA REVISIÓN
+    48→[Normal] B. VERIFICACIÓN EQUIPOS SALA DE MÁQUINAS
+    49→[Normal] A. MATERIALES PARA MANTENCIÓN MENSUAL
+    50→[Normal] B. VERIFICACIÓN INSTALACIONES ELÉCTRICAS CLUB HOUSE
+    51→[Normal] C. VERIFICACIÓN INSTALACIONES SANITARIAS Y CIVIL
+    52→[Normal] A. HERRAMIENTAS DE INSPECCIÓN TÉCNICA
+    53→[Normal] B. INSPECCIÓN TÉCNICA ESTRUCTURAL — POR SECTOR
+    54→[Normal] C. LUBRICACIÓN DE ARTICULACIONES
+    55→[Normal] ⚠  RECORDATORIO: La certificación técnica formal NCh 2926 debe realizarse ANUALMENTE por empresa certificadora externa. Verificar vigencia del último certificado. Próximo vencimiento: _________________
+    56→[Normal] A. HERRAMIENTAS Y MATERIALES
+    57→[Normal] B. VERIFICACIÓN MENSUAL
+    58→[Normal] A. PERSONAL Y EMPRESAS CONVOCADAS
+    59→[Normal] B. LAGUNA — ACTIVIDADES TRIMESTRALES
+    60→[Normal] C. PISCINAS — ACTIVIDADES TRIMESTRALES
+    61→[Normal] D. JUEGOS INFANTILES — ACTIVIDADES TRIMESTRALES
+    62→[Normal] A. CERTIFICACIONES Y SERVICIOS EXTERNOS — VERIFICACIÓN SEMESTRAL
+    63→[Normal] B. ESTADO DE CONSERVACIÓN POR SECTOR (escala 1=deficiente, 4=excelente)
+    64→[Normal] C. PRESUPUESTO SEMESTRAL — EJECUCIÓN vs. PLANIFICADO
+    65→[Normal] A. CERTIFICACIONES OBLIGATORIAS — VIGENCIA AL 31 DE DICIEMBRE
+    66→[Normal] B. KPIs ANUALES — RESULTADOS FINALES
+    67→[Normal] C. REVISIÓN Y APROBACIÓN DEL PLAN PARA EL PRÓXIMO AÑO
+    68→
+    69→================================================================================
+    70→TABLES
+    71→================================================================================
+    72→
+    73→=== TABLE 1 (1 rows x 1 cols) ===
+    74→  Row 0:    \n ASESORÍAS INTEGRALES CyJ \n Gestión Profesional de Condominios \n LISTAS DE VERIFICACIÓN \n PLAN DE MANTENIMIENTO INTEGRAL \n Condominio Laguna Norte,  ·  Lampa, Santiago \n Personal  ·  EPP  ·  Herramientas  ·  Materiales  ·  Verificación de Tareas \n ────────────────────────────────────── \n Versión 1.0  |  Año 2026  |  Uso Interno — Confidencial
+    75→
+    76→=== TABLE 2 (21 rows x 5 cols) ===
+    77→  Row 0: CÓDIGO | LISTA DE VERIFICACIÓN | SECTOR | FRECUENCIA | PÁG.
+    78→  Row 1: LV-01 | Dotación diaria de personal y EPP | General — Todos los sectores | Diaria | 
+    79→  Row 2: LV-02 | Laguna artificial — Control diario de agua | Laguna | Diaria | 
+    80→  Row 3: LV-03 | Piscinas (1–2-3) — Control diario de agua | Piscinas 1–2-3 | Diaria | 
+    81→  Row 4: LV-04 | Playas y rastrillado de arena | Playas 1–2–3 | Diaria | 
+    82→  Row 5: LV-05 | Aseo y limpieza áreas comunes | Club House / Ciclovía / Estac. | Diaria | 
+    83→  Row 6: LV-06 | Inspección visual juegos infantiles | Juegos Infantiles (5 sectores) | Diaria | 
+    84→  Row 7: LV-07 | Laguna — Control semanal técnico | Laguna | Semanal | 
+    85→  Row 8: LV-08 | Piscinas — Mantenimiento semanal | Piscinas 1–2-3 | Semanal | 
+    86→  Row 9: LV-09 | Áreas verdes — Tareas semanales | Jardines / Prados | Semanal | 
+    87→  Row 10: LV-10 | Ciclovía y sendero — Mantenimiento | Ciclovía / Sendero Peatonal | Semanal | 
+    88→  Row 11: LV-11 | Inspección quincenal infraestructura | Ciclovía / Muelles / Iluminación | Quincenal | 
+    89→  Row 12: LV-12 | Piscinas — Control quincenal completo | Piscinas 1–2-3 | Quincenal | 
+    90→  Row 13: LV-13 | Áreas verdes — Mantenimiento mensual | Jardines / Prados | Mensual | 
+    91→  Row 14: LV-14 | Laguna — Revisión mensual sala de máquinas | Laguna / Sala de máquinas | Mensual | 
+    92→  Row 15: LV-15 | Club House — Mantención mensual integral | Club House / Canchas / Quinchos | Mensual | 
+    93→  Row 16: LV-16 | Juegos infantiles — Inspección técnica mensual | Juegos Infantiles | Mensual | 
+    94→  Row 17: LV-17 | Estacionamientos — Mantención mensual | Estacionamientos / Acceso | Mensual | 
+    95→  Row 18: LV-18 | Mantención mayor trimestral | Todos los sectores críticos | Trimestral | 
+    96→  Row 19: LV-19 | Revisión semestral completa | Condominio completo | Semestral | 
+    97→  Row 20: LV-20 | Revisión anual — Certificaciones y estado | Condominio completo | Anual | 
+    98→
+    99→=== TABLE 3 (1 rows x 3 cols) ===
+   100→  Row 0:  | ASESORÍAS INTEGRALES CyJ \n Condominio Laguna Norte  |  Lampa, Santiago | LV-01 \n DOTACIÓN DIARIA DE PERSONAL Y EPP \n Versión 1.0  |  2026
+   101→
+   102→=== TABLE 4 (2 rows x 4 cols) ===
+   103→  Row 0: Sector | General — Todos los sectores del condominio | Frecuencia | Diaria — Inicio de jornada (07:00 hrs)
+   104→  Row 1: Responsable | Jefe de Mantenimiento | Turno / Fecha | __________________  |  Hora: __________
+   105→
+   106→=== TABLE 5 (14 rows x 6 cols) ===
+   107→  Row 0: N° | CARGO | NOMBRE | PRESENTE | TURNO | OBSERVACIÓN
+   108→  Row 1: 1 | Jefe De Operaciones | Luis García | ☐ |  | 
+   109→  Row 2: 2 | Supervisor De Operaciones | Alfredo Muñoz | ☐ |  | 
+   110→  Row 3: 3 | Auxiliar De Servicios Generales | Luis Torres | ☐ |  | 
+   111→  Row 4: 4 | Auxiliar De Aseo Full Time | Cesar Adasme | ☐ |  | 
+   112→  Row 5: 5 | Auxiliar De Aseo Full Time | Erik Arteaga  | ☐ |  | 
+   113→  Row 6: 6 | Auxiliar De Servicios Generales | Jeantelus Fleurissaint | ☐ |  | 
+   114→  Row 7: 7 | Auxiliar De Aseo Full Time | Chris Godoy | ☐ |  | 
+   115→  Row 8: 8 | Auxiliar De Servicios Generales | Paulo Toro  | ☐ |  | 
+   116→  Row 9: 9 | Auxiliar De Aseo Full Time | Marie Dorne | ☐ |  | 
+   117→  Row 10: 10 | Lagunero | Macario Manríquez | ☐ |  | 
+   118→  Row 11: 11 | Mantención Electricista  | Francisco Fuentes | ☐ |  | 
+   119→  Row 12: 12 | Mantención A | Jose Venegas | ☐ |  | 
+   120→  Row 13: 13 | Mantención B | Carlos Zamorano | ☐ |  | 
+   121→
+   122→=== TABLE 6 (15 rows x 10 cols) ===
+   123→  Row 0: Cargo / Operario | Guantes Cuero | Guantes Nitrilo | Antiparras | Prot. Auditivo | Mascarilla | Chaleco Reflec. | Botas Seg. | Prot. Solar | Epp Completo
+   124→  Row 1: Jefe De Operaciones | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐
+   125→  Row 2: Supervisor De Operaciones | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐
+   126→  Row 3: Auxiliar De Servicios Generales | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐
+   127→  Row 4: Auxiliar De Aseo Full Time | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐
+   128→  Row 5: Auxiliar De Aseo Full Time | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐
+   129→  Row 6: Auxiliar De Servicios Generales | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐
+   130→  Row 7: Auxiliar De Aseo Full Time | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐
+   131→  Row 8: Auxiliar De Servicios Generales | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐
+   132→  Row 9: Auxiliar De Aseo Full Time | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐
+   133→  Row 10: Lagunero | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐
+   134→  Row 11: Mantención Electricista  | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐
+   135→  Row 12: Mantención A | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐
+   136→  Row 13: Mantención B | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐
+   137→  Row 14: Jefe De Operaciones | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐
+   138→
+   139→=== TABLE 7 (7 rows x 3 cols) ===
+   140→  Row 0: ÍTEM | ESTADO | DESCRIPCIÓN / ACCIÓN
+   141→  Row 1: Personal con baja / ausencia | ☐ OK   ☐ NO | 
+   142→  Row 2: EPP deteriorado o faltante | ☐ OK   ☐ NO | 
+   143→  Row 3: Equipos o maquinaria con falla | ☐ OK   ☐ NO | 
+   144→  Row 4: Incidencias reportadas de jornada anterior | ☐ OK   ☐ NO | 
+   145→  Row 5: Zonas con acceso restringido hoy | ☐ OK   ☐ NO | 
+   146→  Row 6: Trabajos de terceros en condominio hoy | ☐ OK   ☐ NO | 
+   147→
+   148→=== TABLE 8 (4 rows x 2 cols) ===
+   149→  Row 0: Jefe de Mantenimiento | Supervisor de Turno
+   150→  Row 1:  | 
+   151→  Row 2: ________________________________ | ________________________________
+   152→  Row 3: Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha
+   153→
+   154→=== TABLE 9 (1 rows x 3 cols) ===
+   155→  Row 0:  | ASESORÍAS INTEGRALES CyJ \n Condominio Laguna Norte  |  Lampa, Santiago | LV-02 \n LAGUNA ARTIFICIAL — CONTROL DIARIO DE AGUA \n Versión 1.0  |  2026
+   156→
+   157→=== TABLE 10 (2 rows x 4 cols) ===
+   158→  Row 0: Sector | Laguna artificial 33.706,50 m² + Playas 1–2–3 | Frecuencia | Diaria — 08:00 hrs (antes aperturas residentes)
+   159→  Row 1: Personal requerido | 1 Operario de Laguna (c/ EPP químico) | Turno / Fecha | ______Condición climática: __________
+   160→
+   161→=== TABLE 11 (13 rows x 5 cols) ===
+   162→  Row 0: ÍTEM | CANTIDAD | DISPONIBLE | EN BUEN ESTADO | OBSERVACIÓN
+   163→  Row 1: Guantes de nitrilo (par) | 1 par | ☐ | ☐ | 
+   164→  Row 2: Antiparras de seguridad | 1 | ☐ | ☐ | 
+   165→  Row 3: Chaleco reflectante | 1 | ☐ | ☐ | 
+   166→  Row 4: Botas de hule caña alta (par) | 1 par | ☐ | ☐ | 
+   167→  Row 5: Mascarilla N95 | 1 | ☐ | ☐ | 
+   168→  Row 6: Protector solar SPF 50+ | c/u | ☐ | ☐ | 
+   169→  Row 7: pH-metro digital (calibrado) | 1 | ☐ | ☐ | 
+   170→  Row 8: Turbidímetro portátil | 1 | ☐ | ☐ | 
+   171→  Row 9: Termómetro digital agua | 1 | ☐ | ☐ | 
+   172→  Row 10: Planilla de registro (clip) | 1 | ☐ | ☐ | 
+   173→  Row 11: Sacos compostables 240L | 4 | ☐ | ☐ | 
+   174→  Row 12: Rastrillo de playa largo (fibra) | 1 | ☐ | ☐ | 
+   175→
+   176→=== TABLE 12 (6 rows x 8 cols) ===
+   177→  Row 0: PARÁMETRO | RANGO ÓPTIMO | PUNTO NORTE | PUNTO CENTRO | PUNTO SUR | PROMEDIO | ESTADO | ACCIÓN
+   178→  Row 1: pH | 7,2 – 8,0 |  |  |  |  | ☐ OK   ☐ NO | 
+   179→  Row 2: Turbidez (NTU) | < 10 NTU |  |  |  |  | ☐ OK   ☐ NO | 
+   180→  Row 3: Temperatura (°C) | 15 – 28°C |  |  |  |  | ☐ OK   ☐ NO | 
+   181→  Row 4: Oxígeno disuelto | ≥ 5 mg/L |  |  |  |  | ☐ OK   ☐ NO | 
+   182→  Row 5: Aspecto visual | Claro, sin espuma |  |  |  |  | ☐ OK   ☐ NO | 
+   183→
+   184→=== TABLE 13 (12 rows x 4 cols) ===
+   185→  Row 0: ÍTEM A VERIFICAR | OK | NO OK | SECTOR / OBSERVACIÓN
+   186→  Row 1: Color del agua normal (sin tonalidades verdes intensas, pardas o rojizas) | ☐ | ☐ | 
+   187→  Row 2: Ausencia de espuma o películas en superficie | ☐ | ☐ | 
+   188→  Row 3: Ausencia de olores inusuales (tierra mojada, sulfuro, putrefacción) | ☐ | ☐ | 
+   189→  Row 4: Bordes y muretes del perímetro sin grietas ni desprendimientos visibles | ☐ | ☐ | 
+   190→  Row 5: Cierros perimetrales laguna en buen estado y sin roturas | ☐ | ☐ | 
+   191→  Row 6: Área de embarcadero y muelle sin daños visibles ni elementos sueltos | ☐ | ☐ | 
+   192→  Row 7: Rack de botes en buen estado, botes asegurados correctamente | ☐ | ☐ | 
+   193→  Row 8: Playas sin residuos peligrosos (vidrio, metales, excrementos) | ☐ | ☐ | 
+   194→  Row 9: Señalética de seguridad laguna completa y legible | ☐ | ☐ | 
+   195→  Row 10: Sin presencia de fauna muerta (peces, aves) en orillas o superficie | ☐ | ☐ | 
+   196→  Row 11: Sistema de aireación/circulación funcionando (ruido de bombas audible) | ☐ | ☐ | 
+   197→
+   198→=== TABLE 14 (4 rows x 6 cols) ===
+   199→  Row 0: PRODUCTO | DOSIS APLICADA | UNIDAD | PUNTO DE APLICACIÓN | HORA | OPERARIO
+   200→  Row 1: Floculante (según turbidez) |  |  |  |  | 
+   201→  Row 2: Algicida preventivo (si corresponde) |  |  |  |  | 
+   202→  Row 3: Otros (especificar) |  |  |  |  | 
+   203→
+   204→=== TABLE 15 (4 rows x 1 cols) ===
+   205→  Row 0: OBSERVACIONES / ACCIONES CORRECTIVAS:
+   206→  Row 1: 
+   207→  Row 2: 
+   208→  Row 3: 
+   209→
+   210→=== TABLE 16 (4 rows x 2 cols) ===
+   211→  Row 0: Operario Laguna | Supervisor / Jefe de Mantenimiento
+   212→  Row 1:  | 
+   213→  Row 2: ________________________________ | ________________________________
+   214→  Row 3: Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha
+   215→
+   216→=== TABLE 17 (1 rows x 3 cols) ===
+   217→  Row 0:  | ASESORÍAS INTEGRALES CyJ \n Condominio Laguna Norte  |  Lampa, Santiago | LV-03 \n PISCINAS 1–3 — CONTROL DIARIO DE AGUA Y LIMPIEZA \n Versión 1.0  |  2026
+   218→
+   219→=== TABLE 18 (2 rows x 4 cols) ===
+   220→  Row 0: Sector | Piscinas 1 (184m²) · 2 (189m²) · \n  3 (196m²) ·  | Frecuencia | Diaria — medición 08:30 hrs y 15:00 hrs
+   221→  Row 1: Personal requerido | 1 Operario de Piscinas | Turno / Fecha | ______|  Temp. ambiente: ____°C
+   222→
+   223→=== TABLE 19 (12 rows x 5 cols) ===
+   224→  Row 0: ÍTEM | CANT. | DISP. | BUEN ESTADO | OBSERVACIÓN
+   225→  Row 1: Guantes de nitrilo | 2 pares | ☐ | ☐ | 
+   226→  Row 2: Antiparras | 1 | ☐ | ☐ | 
+   227→  Row 3: Mascarilla N95 | 1 | ☐ | ☐ | 
+   228→  Row 4: Colorímetro DPD cloro (calibrado) | 1 | ☐ | ☐ | 
+   229→  Row 5: pH-metro digital | 1 | ☐ | ☐ | 
+   230→  Row 6: Termómetro agua | 1 | ☐ | ☐ | 
+   231→  Row 7: Cepillo piscina nylon 45cm | 5 | ☐ | ☐ | 
+   232→  Row 8: Mango telescópico 1,5–3m | 5 | ☐ | ☐ | 
+   233→  Row 9: Skimmer manual (red) | 5 | ☐ | ☐ | 
+   234→  Row 10: Robot aspirador (uno por pisicna) | 5 | ☐ | ☐ | 
+   235→  Row 11: Planilla de registro | 1 | ☐ | ☐ | 
+   236→
+   237→=== TABLE 20 (4 rows x 6 cols) ===
+   238→  Row 0: PARÁMETRO | RANGO | P-1 | P-2 | P-3 | ACCIÓN CORRECTIVA
+   239→  Row 1: pH | 7,2 – 7,6 |  |  |  | 
+   240→  Row 2: Cloro libre (ppm) | 1,0 – 3,0 |  |  |  | 
+   241→  Row 3: Temperatura (°C) | 24 – 28 |  |  |  | 
+   242→
+   243→=== TABLE 21 (4 rows x 6 cols) ===
+   244→  Row 0: PARÁMETRO | RANGO | P-1 | P-2 | P-3 | ACCIÓN CORRECTIVA
+   245→  Row 1: pH | 7,2 – 7,6 |  |  |  | 
+   246→  Row 2: Cloro libre (ppm) | 1,0 – 3,0 |  |  |  | 
+   247→  Row 3: Temperatura (°C) | 24 – 28 |  |  |  | 
+   248→
+   249→=== TABLE 22 (8 rows x 7 cols) ===
+   250→  Row 0: TAREA | P-1 | P-2 | P-3 | P-4 | P-5 | OBSERVACIONES
+   251→  Row 1: Robot aspirador operando (ciclo nocturno ejecutado) | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   252→  Row 2: Cepillado manual paredes y bordes | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   253→  Row 3: Vaciado y limpieza cesta prefiltro bomba | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   254→  Row 4: Retiro debris flotante (skimmer manual) | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   255→  Row 5: Limpieza cesto skimmer de pared | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   256→  Row 6: Limpieza borde perimetral y escalas | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   257→  Row 7: Piscina habilitada para uso residentes | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   258→
+   259→=== TABLE 23 (4 rows x 1 cols) ===
+   260→  Row 0: OBSERVACIONES / ACCIONES CORRECTIVAS:
+   261→  Row 1: 
+   262→  Row 2: 
+   263→  Row 3: 
+   264→
+   265→=== TABLE 24 (4 rows x 2 cols) ===
+   266→  Row 0: Operario Piscinas | Supervisor / Jefe de Operaciones
+   267→  Row 1:  | 
+   268→  Row 2: ________________________________ | ________________________________
+   269→  Row 3: Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha
+   270→
+   271→=== TABLE 25 (1 rows x 3 cols) ===
+   272→  Row 0:  | ASESORÍAS INTEGRALES CyJ \n Condominio Laguna Norte  |  Lampa, Santiago | LV-04 \n PLAYAS ARTIFICIALES — RASTRILLADO Y LIMPIEZA DIARIA \n Versión 1.0  |  2026
+   273→
+   274→=== TABLE 26 (2 rows x 4 cols) ===
+   275→  Row 0: Sector | Playa 1 (547m²) · Playa 2 (541m²) · Playa 3 (501m²) | Frecuencia | 3 veces/semana (Lunes · Miércoles · Viernes)
+   276→  Row 1: Personal requerido | 1 Operario Laguna + 1 Jardinero General | Turno / Fecha | __________________  |  Hora inicio: ________
+   277→
+   278→=== TABLE 27 (9 rows x 5 cols) ===
+   279→  Row 0: ÍTEM | CANT. REQUERIDA | CANT. DISPONIBLE | ESTADO | OBSERVACIÓN
+   280→  Row 1: Rastrillo de playa (fibra, 20 dientes) | 2 |  | ☐ OK   ☐ NO | 
+   281→  Row 2: Rastrillo metálico jardín | 1 |  | ☐ OK   ☐ NO | 
+   282→  Row 3: Sacos compostables 240L | 6 |  | ☐ OK   ☐ NO | 
+   283→  Row 4: Guantes de trabajo (par) | 2 pares |  | ☐ OK   ☐ NO | 
+   284→  Row 5: Chaleco reflectante | 2 |  | ☐ OK   ☐ NO | 
+   285→  Row 6: Botas de hule (par) | 2 pares |  | ☐ OK   ☐ NO | 
+   286→  Row 7: Carretilla galvanizada | 1 |  | ☐ OK   ☐ NO | 
+   287→  Row 8: Cinta señalización (si hay zona cerrada) | 1 rollo |  | ☐ OK   ☐ NO | 
+   288→
+   289→=== TABLE 28 (10 rows x 6 cols) ===
+   290→  Row 0: TAREA A EJECUTAR | PLAYA 1 | PLAYA 2 | PLAYA 3 | HORA TÉRMINO | OBSERVACIONES
+   291→  Row 1: Rastrillado profundo de toda la superficie de arena | ☐ | ☐ | ☐ |  | 
+   292→  Row 2: Retiro manual de residuos sólidos (papeles, plásticos, orgánicos) | ☐ | ☐ | ☐ |  | 
+   293→  Row 3: Inspección: ausencia de vidrios, metales u objetos cortantes | ☐ | ☐ | ☐ |  | 
+   294→  Row 4: Nivelación de arena en bordes (sin montículos ni depresiones >5cm) | ☐ | ☐ | ☐ |  | 
+   295→  Row 5: Verificación nivel de arena (mínimo 30cm de profundidad en zona caída) | ☐ | ☐ | ☐ |  | 
+   296→  Row 6: Limpieza de accesos y bordes perimetrales de cada playa | ☐ | ☐ | ☐ |  | 
+   297→  Row 7: Verificación señalética de playa (horarios, reglas, profundidad) | ☐ | ☐ | ☐ |  | 
+   298→  Row 8: Inspección estado de reposeras y mobiliario cercano | ☐ | ☐ | ☐ |  | 
+   299→  Row 9: Sin presencia de fauna nociva (ratas, insectos en masa) | ☐ | ☐ | ☐ |  | 
+   300→
+   301→=== TABLE 29 (4 rows x 1 cols) ===
+   302→  Row 0: OBSERVACIONES / ACCIONES CORRECTIVAS:
+   303→  Row 1: 
+   304→  Row 2: 
+   305→  Row 3: 
+   306→
+   307→=== TABLE 30 (4 rows x 3 cols) ===
+   308→  Row 0: Operario Laguna | Supervisor General | Jefe de Operaciones
+   309→  Row 1:  |  | 
+   310→  Row 2: ________________________________ | ________________________________ | ________________________________
+   311→  Row 3: Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha
+   312→
+   313→=== TABLE 31 (1 rows x 3 cols) ===
+   314→  Row 0:  | ASESORÍAS INTEGRALES CyJ \n Condominio Laguna Norte  |  Lampa, Santiago | LV-05 \n ASEO Y LIMPIEZA — ÁREAS COMUNES DIARIA \n Versión 1.0  |  2026
+   315→
+   316→=== TABLE 32 (2 rows x 4 cols) ===
+   317→  Row 0: Sector | Club House · Baños · Ciclovia · Estacionamientos · Acceso | Frecuencia | Diaria (mínimo 2 turnos: 09:00 y 14:00 hrs)
+   318→  Row 1: Personal requerido | Operario Aseo A (Club House) + Operario Aseo B (Exteriores) | Turno / Fecha | Turno: ___  |  Fecha: ___________  |  Hora: _______
+   319→
+   320→=== TABLE 33 (13 rows x 5 cols) ===
+   321→  Row 0: ÍTEM | CANT.  | DISPONIBLE | SECTOR USO | OBSERVACIÓN
+   322→  Row 1: Escoba de cerdas blandas | 3 | ☐ | Club House interior | 
+   323→  Row 2: Escoba metálica | 2 | ☐ | Ciclovia / estacionamientos | 
+   324→  Row 3: Trapeador / mopa | 2 | ☐ | Pisos Club House | 
+   325→  Row 4: Balde 18L | 4 | ☐ | Aseo general | 
+   326→  Row 5: Detergente multiusos (litros) | 500ml | ☐ | Club House / quinchos | 
+   327→  Row 6: Desinfectante amonio cuaternario | 250ml | ☐ | Baños / superficies contacto | 
+   328→  Row 7: Limpiavidrios | 200ml | ☐ | Club House / portería | 
+   329→  Row 8: Papel higiénico (rollos) | 6 | ☐ | Baños Club House | 
+   330→  Row 9: Jabón de manos (recarga) | 2 | ☐ | Baños Club House | 
+   331→  Row 10: Sacos basura negros 120L | 10 | ☐ | Todos los sectores | 
+   332→  Row 11: Soplador a gasolina/ Eléctrico | 1 | ☐ | Ciclovia / sendero / estac. | 
+   333→  Row 12: Escobillón WC con desinfectante | 3 | ☐ | Baños Club House | 
+   334→
+   335→=== TABLE 34 (10 rows x 4 cols) ===
+   336→  Row 0: TAREA | T1 09:00 | T2 14:00 | OBSERVACIÓN
+   337→  Row 1: Barrido y fregado de pisos interiores Club House | ☐ | ☐ | 
+   338→  Row 2: Limpieza y desinfección de mesones y superficies de trabajo | ☐ | ☐ | 
+   339→  Row 3: Limpieza y desinfección completa de baños (inodoros, lavamanos, duchas) | ☐ | ☐ | 
+   340→  Row 4: Reposición de papel higiénico y jabón en baños | ☐ | ☐ | 
+   341→  Row 5: Vaciado y limpieza de papeleras interiores | ☐ | ☐ | 
+   342→  Row 6: Limpieza de vidrios y espejos Club House | ☐ | ☐ | 
+   343→  Row 7: Aseo de quinchos (post-uso): parrillas, mesas, pisos | ☐ | ☐ | 
+   344→  Row 8: Limpieza de cocina y área de servicios Club House | ☐ | ☐ | 
+   345→  Row 9: Desinfección de pomos de puertas e interruptores (puntos de contacto) | ☐ | ☐ | 
+   346→
+   347→=== TABLE 35 (8 rows x 4 cols) ===
+   348→  Row 0: TAREA | REALIZADA | HORA | OBSERVACIÓN
+   349→  Row 1: Barrido ciclovia completa con soplador (restos vegetales, polvo) | ☐ |  | 
+   350→  Row 2: Barrido sendero peatonal completo | ☐ |  | 
+   351→  Row 3: Retiro de residuos en papeleras del circuito perimetral | ☐ |  | 
+   352→  Row 4: Limpieza de acceso principal y portería exterior | ☐ |  | 
+   353→  Row 5: Barrido estacionamientos (zona de acceso + plazas) | ☐ |  | 
+   354→  Row 6: Limpieza zona de acopio de basura (hostigamiento y residuos) | ☐ |  | 
+   355→  Row 7: Retiro de hojas y restos en zonas de juegos infantiles (alrededores) | ☐ |  | 
+   356→
+   357→=== TABLE 36 (4 rows x 1 cols) ===
+   358→  Row 0: OBSERVACIONES / ACCIONES CORRECTIVAS:
+   359→  Row 1: 
+   360→  Row 2: 
+   361→  Row 3: 
+   362→
+   363→=== TABLE 37 (4 rows x 3 cols) ===
+   364→  Row 0: Operario Aseo A | Operario Aseo B | Supervisor
+   365→  Row 1:  |  | 
+   366→  Row 2: ________________________________ | ________________________________ | ________________________________
+   367→  Row 3: Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha
+   368→
+   369→=== TABLE 38 (1 rows x 3 cols) ===
+   370→  Row 0:  | ASESORÍAS INTEGRALES CyJ \n Condominio Laguna Norte  |  Lampa, Santiago | LV-06 \n JUEGOS INFANTILES — INSPECCIÓN VISUAL DIARIA \n Versión 1.0  |  2026
+   371→
+   372→=== TABLE 39 (2 rows x 4 cols) ===
+   373→  Row 0: Sector | Sectores Juegos Infantiles | Frecuencia | Diaria — antes apertura 08:30 hrs (OBLIGATORIO)
+   374→  Row 1: Personal requerido | 1 Mantención (asignado a juegos) | Fecha / Hora inicio | __________________  |  Hora: ________
+   375→
+   376→=== TABLE 40 (8 rows x 4 cols) ===
+   377→  Row 0: ÍTEM | CANT. | DISPONIBLE | OBSERVACIÓN
+   378→  Row 1: Checklist de inspección (este documento) | 1 | ☐ | 
+   379→  Row 2: Guantes de trabajo | 1 par | ☐ | 
+   380→  Row 3: Linterna (inspección partes bajas) | 1 | ☐ | 
+   381→  Row 4: Cinta de señalización roja | 1 rollo | ☐ | 
+   382→  Row 5: Cartel 'ZONA CERRADA — NO INGRESAR' | 2 | ☐ | 
+   383→  Row 6: Cámara / teléfono para fotografía | 1 | ☐ | 
+   384→  Row 7: Rastrillo (verificar zona de caída) | 1 | ☐ | 
+   385→
+   386→=== TABLE 41 (12 rows x 5 cols) ===
+   387→  Row 0: ÍTEM A VERIFICAR | J1 | J2 | J3 | ACCIÓN / OBSERVACIÓN
+   388→  Row 1: Ausencia de residuos peligrosos (vidrios, agujas, excrementos) | ☐ | ☐ | ☐ | 
+   389→  Row 2: Ausencia de objetos cortantes o filosos en el área | ☐ | ☐ | ☐ | 
+   390→  Row 3: Zona de caída sin objetos duros enterrados | ☐ | ☐ | ☐ | 
+   391→  Row 4: Todas las piezas metálicas visibles sin bordes cortantes ni astillas | ☐ | ☐ | ☐ | 
+   392→  Row 5: Toboganes sin grietas, bordes rotos o astillas | ☐ | ☐ | ☐ | 
+   393→  Row 6: Balancines: resortes presentes, sin fracturas visibles | ☐ | ☐ | ☐ | 
+   394→  Row 7: Escaleras de acceso: peldaños firmes y antideslizantes | ☐ | ☐ | ☐ | 
+   395→  Row 8: Barandas y pasamanos firmes (sin movimiento al jalón manual) | ☐ | ☐ | ☐ | 
+   396→  Row 9: Señalética de seguridad del sector presente y legible | ☐ | ☐ | ☐ | 
+   397→  Row 10: Sin presencia de animales o nidos en estructura | ☐ | ☐ | ☐ | 
+   398→  Row 11: SECTOR HABILITADO para uso de niños | ☐ | ☐ | ☐ | 
+   399→
+   400→=== TABLE 42 (3 rows x 5 cols) ===
+   401→  Row 0: SECTOR | MOTIVO DEL CIERRE | HORA CIERRE | FECHA EST. REAPERTURA | AUTORIZA REAPERTURA
+   402→  Row 1:  |  |  |  | 
+   403→  Row 2:  |  |  |  | 
+   404→
+   405→=== TABLE 43 (4 rows x 1 cols) ===
+   406→  Row 0: DESCRIPCIÓN DE HALLAZGOS Y ACCIONES TOMADAS:
+   407→  Row 1: 
+   408→  Row 2: 
+   409→  Row 3: 
+   410→
+   411→=== TABLE 44 (4 rows x 2 cols) ===
+   412→  Row 0: Inspector Mantención | Jefe de Mantenimiento
+   413→  Row 1:  | 
+   414→  Row 2: ________________________________ | ________________________________
+   415→  Row 3: Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha
+   416→
+   417→=== TABLE 45 (1 rows x 3 cols) ===
+   418→  Row 0:  | ASESORÍAS INTEGRALES CyJ \n Condominio Laguna Norte  |  Lampa, Santiago | LV-07 \n LAGUNA ARTIFICIAL — CONTROL TÉCNICO SEMANAL \n Versión 1.0  |  2026
+   419→
+   420→=== TABLE 46 (2 rows x 4 cols) ===
+   421→  Row 0: Sector | Laguna + Sala de máquinas + Muelles + Playas | Frecuencia | Semanal — Lunes (preferentemente 07:00 hrs)
+   422→  Row 1: Personal requerido | 02 Lagunero | Semana N° | _____ Fecha: ___________  |  Supervisor: _____________
+   423→
+   424→=== TABLE 47 (14 rows x 4 cols) ===
+   425→  Row 0: ÍTEM | CANT. | DISPONIBLE | OBSERVACIÓN
+   426→  Row 1: Guantes nitrilo (pares) | 2 | ☐ | 
+   427→  Row 2: Antiparras | 2 | ☐ | 
+   428→  Row 3: Mascarilla N95 | 2 | ☐ | 
+   429→  Row 4: Botas de hule | 2 pares | ☐ | 
+   430→  Row 5: Traje Tyvek (si aplica algicida) | 2 | ☐ | 
+   431→  Row 6: Red de retiro algas (palo largo) | 1 | ☐ | 
+   432→  Row 7: Rastrillo largo (fibra) | 2 | ☐ | 
+   433→  Row 8: Bidón floculante dosificado | 1 | ☐ | 
+   434→  Row 9: Bomba dosificadora manual | 1 | ☐ | 
+   435→  Row 10: pH-metro calibrado | 1 | ☐ | 
+   436→  Row 11: Turbidímetro | 1 | ☐ | 
+   437→  Row 12: Cámara fotográfica o teléfono | 1 | ☐ | 
+   438→  Row 13: Sacos compostables 240L | 8 | ☐ | 
+   439→
+   440→=== TABLE 48 (10 rows x 5 cols) ===
+   441→  Row 0: TAREA | REALIZADA | TIEMPO EMPLEADO | PERSONAL | OBSERVACIÓN
+   442→  Row 1: Medición pH, turbidez y temperatura (3 puntos) | ☐ |  | Lagunero | 
+   443→  Row 2: Retiro de algas flotantes con red en toda la orilla | ☐ |  | Lagunero | 
+   444→  Row 3: Retiro de macroalgas del fondo (cerca de bordes) | ☐ |  | Lagunero | 
+   445→  Row 4: Dosificación de floculante (calcular según turbidez) | ☐ |  | Lagunero | 
+   446→  Row 5: Inspección visual completa del perímetro (fotografiar anomalías) | ☐ |  | Lagunero | 
+   447→  Row 6: Verificación funcionamiento bomba de circulación (ruido, presión) | ☐ |  | Lagunero | 
+   448→  Row 7: Limpieza de reja de filtro de entrada (si aplica) | ☐ |  | Lagunero | 
+   449→  Row 8: Rastrillado profundo playas 1–2–3 | ☐ |  | Lagunero | 
+   450→  Row 9: Registro de todos los parámetros en planilla semanal | ☐ |  | Lagunero | 
+   451→
+   452→=== TABLE 49 (8 rows x 6 cols) ===
+   453→  Row 0: DÍA | pH | Turbidez (NTU) | Temp. (°C) | OD (mg/L) | Observación visual
+   454→  Row 1: Lunes |  |  |  |  | 
+   455→  Row 2: Martes |  |  |  |  | 
+   456→  Row 3: Miércoles |  |  |  |  | 
+   457→  Row 4: Jueves |  |  |  |  | 
+   458→  Row 5: Viernes |  |  |  |  | 
+   459→  Row 6: Sábado |  |  |  |  | 
+   460→  Row 7: Domingo |  |  |  |  | 
+   461→
+   462→=== TABLE 50 (4 rows x 1 cols) ===
+   463→  Row 0: OBSERVACIONES / ACCIONES CORRECTIVAS:
+   464→  Row 1: 
+   465→  Row 2: 
+   466→  Row 3: 
+   467→
+   468→=== TABLE 51 (4 rows x 3 cols) ===
+   469→  Row 0: Operario Laguna | Lagunero | Jefe de Mantenimiento
+   470→  Row 1:  |  | 
+   471→  Row 2: ________________________________ | ________________________________ | ________________________________
+   472→  Row 3: Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha
+   473→
+   474→=== TABLE 52 (1 rows x 3 cols) ===
+   475→  Row 0:  | ASESORÍAS INTEGRALES CyJ \n Condominio Laguna Norte  |  Lampa, Santiago | LV-08 \n PISCINAS 1-2-3 — MANTENIMIENTO SEMANAL \n Versión 1.0  |  2026
+   476→
+   477→=== TABLE 53 (2 rows x 4 cols) ===
+   478→  Row 0: Sector | Piscinas 1-2-3 + Sala de máquinas | Frecuencia | Semanal — Lunes (retrolavado) + revisión semanal
+   479→  Row 1: Personal requerido | 02 Lagunero | Semana N° | ___  |  Fecha: ___________  |  Hora inicio: _______
+   480→
+   481→=== TABLE 54 (13 rows x 4 cols) ===
+   482→  Row 0: ÍTEM | CANT. | DISPONIBLE | OBSERVACIÓN
+   483→  Row 1: Cepillo piscina nylon 45cm (por piscina) | 5 | ☐ | 
+   484→  Row 2: Mango telescópico 1,5–3m | 5 | ☐ | 
+   485→  Row 3: Guantes nitrilo (pares) | 2 pares | ☐ | 
+   486→  Row 4: Antiparras | 1 | ☐ | 
+   487→  Row 5: Colorímetro DPD | 1 | ☐ | 
+   488→  Row 6: pH-metro | 1 | ☐ | 
+   489→  Row 7: Termómetro agua | 1 | ☐ | 
+   490→  Row 8: Manguera drenaje retrolavado | 1 (fija) | ☐ | 
+   491→  Row 9: Llaves ajuste válvula multivía | 1 juego | ☐ | 
+   492→  Row 10: Cloro granulado (dosis semana) | según cálculo | ☐ | 
+   493→  Row 11: Hipoclorito (si aplica choque semanal) | según cálculo | ☐ | 
+   494→  Row 12: Lubricante O-ring bomba (si aplica) | 1 | ☐ | 
+   495→
+   496→=== TABLE 55 (6 rows x 6 cols) ===
+   497→  Row 0: PASO | PROCEDIMIENTO | P-1 | P-2 | P-3 | OBS.
+   498→  Row 1: 1 | Girar válvula multivía a posición BACKWASH | ☐ | ☐ | ☐ | 
+   499→  Row 2: 2 | Encender bomba — esperar 3–5 min hasta agua clara en visor | ☐ | ☐ | ☐ | 
+   500→  Row 3: 3 | Girar a ENJUAGUE — 30 segundos | ☐ | ☐ | ☐ | 
+   501→  Row 4: 4 | Volver a posición FILTRO — verificar presión normal | ☐ | ☐ | ☐ | 
+   502→  Row 5: 5 | Registrar presión de trabajo post-retrolavado (bar) | ☐ | ☐ | ☐ | 
+   503→
+   504→=== TABLE 56 (8 rows x 5 cols) ===
+   505→  Row 0: TAREA | P-1 | P-2 | P-3 | HORA / OBSERVACIÓN
+   506→  Row 1: Cepillado a fondo de paredes, escalas y fondo | ☐ | ☐ | ☐ | 
+   507→  Row 2: Verificación dosificador automático (calibración visual) | ☐ | ☐ | ☐ | 
+   508→  Row 3: Revisión mangueras y uniones — sin fugas | ☐ | ☐ | ☐ | 
+   509→  Row 4: Verificación presión bomba en manómetro (anotar valor) | ☐ | ☐ | ☐ | 
+   510→  Row 5: Limpieza prefiltro bomba (además de diaria) | ☐ | ☐ | ☐ | 
+   511→  Row 6: Inspección borde piscina: sin grietas, losetas firmes | ☐ | ☐ | ☐ | 
+   512→  Row 7: Verificación sistema de iluminación piscina (nocturno) | ☐ | ☐ | ☐ | 
+   513→
+   514→=== TABLE 57 (4 rows x 1 cols) ===
+   515→  Row 0: OBSERVACIONES / ACCIONES CORRECTIVAS:
+   516→  Row 1: 
+   517→  Row 2: 
+   518→  Row 3: 
+   519→
+   520→=== TABLE 58 (4 rows x 2 cols) ===
+   521→  Row 0: Lagunero | Jefe de Mantenimiento
+   522→  Row 1:  | 
+   523→  Row 2: ________________________________ | ________________________________
+   524→  Row 3: Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha
+   525→
+   526→=== TABLE 59 (1 rows x 3 cols) ===
+   527→  Row 0:  | ASESORÍAS INTEGRALES CyJ \n Condominio Laguna Norte  |  Lampa, Santiago | LV-09 \n ÁREAS VERDES — TAREAS SEMANALES \n Versión 1.0  |  2026
+   528→
+   529→=== TABLE 60 (2 rows x 4 cols) ===
+   530→  Row 0: Sectores | Áreas Verdes  | Frecuencia | Semanal (Oct–Mar corte semanal; Abr–Sep quincenal)
+   531→  Row 1: Personal requerido | Sup. Operaciones + 2 Jardineros  | Semana N° | _______  |  Fecha: ___________  |  Condición climática: _______
+   532→
+   533→=== TABLE 61 (10 rows x 5 cols) ===
+   534→  Row 0: EQUIPO / HERRAMIENTA | CANT. | OPERATIVO | EPP ASIGNADO | OBSERVACIÓN
+   535→  Row 1: Cortacésped  | 1 | ☐ | Casco, antiparras, guantes | 
+   536→  Row 2: Soplador de mochila  | 2 | ☐ | Antiparras, auditivo, mascarilla | 
+   537→  Row 3: Bordeadora Stihl FS120 (gasolina) | 3 | ☐ | Antiparras, auditivo, guantes | 
+   538→  Row 4: Tijeras de poda manual  | 6 | ☐ | Guantes cuero | 
+   539→  Row 5: Tijeron poda largo alcance | 4 | ☐ | Guantes, antiparras | 
+   540→  Row 6: Carretillas galvanizadas | 4 | ☐ | Guantes | 
+   541→  Row 7: Rastrillo metálico jardín | 6 | ☐ | Guantes | 
+   542→  Row 8: Mangueras 50m reforzadas | 6 | ☐ | — | 
+   543→  Row 9: Boquillas multipropósito | 10 | ☐ | — | 
+   544→
+   545→=== TABLE 62 (9 rows x 9 cols) ===
+   546→  Row 0: SECTOR | CORTE CÉSPED | BORDEADO | DESMALEZADO | RETIRO RESTOS | OPERARIO ASIG. | HORA INICIO | HORA FIN | OBS.
+   547→  Row 1:  | ☐ | ☐ | ☐ | ☐ |  |  |  | 
+   548→  Row 2:  | ☐ | ☐ | ☐ | ☐ |  |  |  | 
+   549→  Row 3:  | ☐ | ☐ | ☐ | ☐ |  |  |  | 
+   550→  Row 4:  | ☐ | ☐ | ☐ | ☐ |  |  |  | 
+   551→  Row 5:  | ☐ | ☐ | ☐ | ☐ |  |  |  | 
+   552→  Row 6:  | ☐ | ☐ | ☐ | ☐ |  |  |  | 
+   553→  Row 7:  | ☐ | ☐ | ☐ | ☐ |  |  |  | 
+   554→  Row 8:  | ☐ | ☐ | ☐ | ☐ |  |  |  | 
+   555→
+   556→=== TABLE 63 (7 rows x 5 cols) ===
+   557→  Row 0: ÍTEM A VERIFICAR | OK | NO OK | ZONA / SECTOR | ACCIÓN INMEDIATA
+   558→  Row 1: Programador encendido y con batería OK | ☐ | ☐ |  | 
+   559→  Row 2: Todas las zonas regadas (sin zonas secas al pasar la mano por el prado) | ☐ | ☐ |  | 
+   560→  Row 3: Sin cabezales rotos o girando en dirección incorrecta | ☐ | ☐ |  | 
+   561→  Row 4: Sin fugas visibles en las líneas de conducción | ☐ | ☐ |  | 
+   562→  Row 5: Presión de agua aparentemente normal en cabezales | ☐ | ☐ |  | 
+   563→  Row 6: Cobertura uniforme: sin zonas sin riego ni encharcadas | ☐ | ☐ |  | 
+   564→
+   565→=== TABLE 64 (4 rows x 1 cols) ===
+   566→  Row 0: OBSERVACIONES / ACCIONES CORRECTIVAS:
+   567→  Row 1: 
+   568→  Row 2: 
+   569→  Row 3: 
+   570→
+   571→=== TABLE 65 (4 rows x 2 cols) ===
+   572→  Row 0: Jardinero | Jefe de Mantenimiento
+   573→  Row 1:  | 
+   574→  Row 2: ________________________________ | ________________________________
+   575→  Row 3: Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha
+   576→
+   577→=== TABLE 66 (1 rows x 3 cols) ===
+   578→  Row 0:  | ASESORÍAS INTEGRALES CyJ \n Condominio Laguna Norte  |  Lampa, Santiago | LV-10 \n CICLOVIA Y SENDERO PEATONAL — MANTENIMIENTO SEMANAL \n Versión 1.0  |  2026
+   579→
+   580→=== TABLE 67 (2 rows x 4 cols) ===
+   581→  Row 0: Sector | Ciclovia 1,5m ancho · Sendero peatonal 1,5m · ~4.800ml c/u | Frecuencia | Barrido diario / Inspección y tareas adicionales semanal
+   582→  Row 1: Personal requerido | Auxiliar de aseo Full Time+ Auxiliar de servicios generales | Semana N° | _______  |  Fecha: ___________  |  Hora: _______
+   583→
+   584→=== TABLE 68 (11 rows x 4 cols) ===
+   585→  Row 0: ÍTEM | CANT. | DISPONIBLE | OBSERVACIÓN
+   586→  Row 1: Soplador de mochila  | 1 | ☐ | 
+   587→  Row 2: Escoba metálica 60cm | 2 | ☐ | 
+   588→  Row 3: Escoba cerdas blandas | 1 | ☐ | 
+   589→  Row 4: Recogedor grande | 2 | ☐ | 
+   590→  Row 5: Sacos compostables 240L | 6 | ☐ | 
+   591→  Row 6: Guantes de trabajo (par) | 2 pares | ☐ | 
+   592→  Row 7: Chaleco reflectante | 2 | ☐ | 
+   593→  Row 8: Cinta señalización (si hay falla pavimento) | 1 rollo | ☐ | 
+   594→  Row 9: Cámara / teléfono (registro daños) | 1 | ☐ | 
+   595→  Row 10: Llave para sumideros | 1 | ☐ | 
+   596→
+   597→=== TABLE 69 (8 rows x 5 cols) ===
+   598→  Row 0: TAREA | REALIZADA | TRAMO / SECTOR | HORA | OBSERVACIÓN
+   599→  Row 1: Barrido completo ciclovía con soplador (restos, hojas, polvo) | ☐ | Circuito completo |  | 
+   600→  Row 2: Barrido sendero peatonal (escobas blandas) | ☐ | Circuito completo |  | 
+   601→  Row 3: Limpieza de rejillas y sumideros (retiro sedimentos) | ☐ | Todos los sumideros |  | 
+   602→  Row 4: Inspección pavimento: grietas, hundimientos, losetas sueltas | ☐ | Tramo completo |  | 
+   603→  Row 5: Verificación demarcación visible (líneas separación, flechas) | ☐ | Circuito completo |  | 
+   604→  Row 6: Inspección mobiliaria: escaños, banquetas (tornillos, estado) | ☐ | Todos los escaños |  | 
+   605→  Row 7: Registro fotográfico de anomalías detectadas | ☐ | Puntos con daño |  | 
+   606→
+   607→=== TABLE 70 (4 rows x 6 cols) ===
+   608→  Row 0: N° DAÑO | TIPO (grieta/hundimiento/otro) | UBICACIÓN / TRAMO | DIMENSIÓN APROX. | RIESGO | ACCIÓN REQUERIDA
+   609→  Row 1: 1 |  |  |  | ☐ OK   ☐ NO | 
+   610→  Row 2: 2 |  |  |  | ☐ OK   ☐ NO | 
+   611→  Row 3: 3 |  |  |  | ☐ OK   ☐ NO | 
+   612→
+   613→=== TABLE 71 (4 rows x 1 cols) ===
+   614→  Row 0: OBSERVACIONES / ACCIONES CORRECTIVAS:
+   615→  Row 1: 
+   616→  Row 2: 
+   617→  Row 3: 
+   618→
+   619→=== TABLE 72 (4 rows x 2 cols) ===
+   620→  Row 0: Operario Aseo  | Jefe de Mantenimiento
+   621→  Row 1:  | 
+   622→  Row 2: ________________________________ | ________________________________
+   623→  Row 3: Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha
+   624→
+   625→=== TABLE 73 (1 rows x 3 cols) ===
+   626→  Row 0:  | ASESORÍAS INTEGRALES CyJ \n Condominio Laguna Norte  |  Lampa, Santiago | LV-11 \n INSPECCIÓN QUINCENAL DE INFRAESTRUCTURA \n Versión 1.0  |  2026
+   627→
+   628→=== TABLE 74 (2 rows x 4 cols) ===
+   629→  Row 0: Sector | Muelles · Ciclovia · Iluminación · Accesos · Cierros | Frecuencia | Quincenal (días 1 y 15 del mes, o lunes semanas 2 y 4)
+   630→  Row 1: Personal requerido | Jefe de Mantenimiento + Electricista | N° Quincena | _______  |  Fecha: ___________  |  Duración estimada: 3 hrs
+   631→
+   632→=== TABLE 75 (12 rows x 4 cols) ===
+   633→  Row 0: ÍTEM | CANT. | DISPONIBLE | OBSERVACIÓN
+   634→  Row 1: Llave de torque (juego completo) | 1 | ☐ | 
+   635→  Row 2: Martillo de inspección (de percusión) | 1 | ☐ | 
+   636→  Row 3: Linterna LED de alta potencia | 1 | ☐ | 
+   637→  Row 4: Cámara fotográfica / teléfono | 1 | ☐ | 
+   638→  Row 5: Multímetro digital (electricista) | 1 | ☐ | 
+   639→  Row 6: Tester de enchufes | 1 | ☐ | 
+   640→  Row 7: Cinta métrica 10m | 1 | ☐ | 
+   641→  Row 8: Checklist (este documento) | 1 | ☐ | 
+   642→  Row 9: Guantes cuero | 1 par | ☐ | 
+   643→  Row 10: Antiparras | 1 | ☐ | 
+   644→  Row 11: Escalera aluminio 4 peldaños | 1 | ☐ | 
+   645→
+   646→=== TABLE 76 (9 rows x 5 cols) ===
+   647→  Row 0: ÍTEM A VERIFICAR | OK | NO OK | FOTOGRAFÍA | OBSERVACIÓN / ACCIÓN
+   648→  Row 1: Tablones del muelle sin astillas, grietas ni madera podrida | ☐ | ☐ | ☐ | 
+   649→  Row 2: Tornillos y pernos de unión: todos presentes y apretados (torque manual) | ☐ | ☐ | ☐ | 
+   650→  Row 3: Anclajes del muelle al suelo o muro firmes, sin movimiento | ☐ | ☐ | ☐ | 
+   651→  Row 4: Protección anticorrosiva de estructura metálica en buen estado | ☐ | ☐ | ☐ | 
+   652→  Row 5: Señalización de carga máxima visible y legible | ☐ | ☐ | ☐ | 
+   653→  Row 6: Embarcadero: superficie antideslizante en buen estado | ☐ | ☐ | ☐ | 
+   654→  Row 7: Rack de botes: estructura firme, soportes sin deformaciones | ☐ | ☐ | ☐ | 
+   655→  Row 8: Botes almacenados correctamente asegurados | ☐ | ☐ | ☐ | 
+   656→
+   657→=== TABLE 77 (9 rows x 6 cols) ===
+   658→  Row 0: ZONA / TRAMO | N° LUMINARIAS | OPERATIVAS | APAGADAS | PARPADEANTES | ACCIÓN
+   659→  Row 1: Ciclovia tramo norte |  |  |  |  | 
+   660→  Row 2: Ciclovia tramo sur |  |  |  |  | 
+   661→  Row 3: Sendero peatonal |  |  |  |  | 
+   662→  Row 4: Estacionamientos |  |  |  |  | 
+   663→  Row 5: Acceso principal |  |  |  |  | 
+   664→  Row 6: Club House exterior |  |  |  |  | 
+   665→  Row 7: Borde laguna |  |  |  |  | 
+   666→  Row 8: Juegos infantiles |  |  |  |  | 
+   667→
+   668→=== TABLE 78 (7 rows x 4 cols) ===
+   669→  Row 0: ELEMENTO | OK | NO OK | OBSERVACIÓN
+   670→  Row 1: Portón acceso vehicular principal (motor, fin de carrera, sensores) | ☐ | ☐ | 
+   671→  Row 2: Portón/puerta peatonal acceso principal | ☐ | ☐ | 
+   672→  Row 3: Cierro perimetral laguna (malla, tubería) sin roturas ni aperturas | ☐ | ☐ | 
+   673→  Row 4: Cierre Club House sin daños | ☐ | ☐ | 
+   674→  Row 5: Acceso sala de máquinas laguna: bajo llave y sin daños | ☐ | ☐ | 
+   675→  Row 6: Control de acceso (lector, interfono, cámara): operativo | ☐ | ☐ | 
+   676→
+   677→=== TABLE 79 (4 rows x 1 cols) ===
+   678→  Row 0: OBSERVACIONES / ACCIONES CORRECTIVAS:
+   679→  Row 1: 
+   680→  Row 2: 
+   681→  Row 3: 
+   682→
+   683→=== TABLE 80 (4 rows x 3 cols) ===
+   684→  Row 0: Jefe de Mantenimiento | Electricista | Administrador
+   685→  Row 1:  |  | 
+   686→  Row 2: ________________________________ | ________________________________ | ________________________________
+   687→  Row 3: Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha
+   688→
+   689→=== TABLE 81 (1 rows x 3 cols) ===
+   690→  Row 0:  | ASESORÍAS INTEGRALES CyJ \n Condominio Laguna Norte  |  Lampa, Santiago | LV-12 \n PISCINAS 1–5 — ANÁLISIS QUINCENAL COMPLETO \n Versión 1.0  |  2026
+   691→
+   692→=== TABLE 82 (2 rows x 4 cols) ===
+   693→  Row 0: Sector | Piscinas 1-2-3 + Dosificadores + Sala de máquinas | Frecuencia | Quincenal (días 1 y 15 del mes)
+   694→  Row 1: Personal requerido | Operario Piscinas + Jefe de Mantenimiento | N° Quincena / Fecha | _______  |  Fecha: ___________  |  Hora: _______
+   695→
+   696→=== TABLE 83 (11 rows x 4 cols) ===
+   697→  Row 0: ÍTEM | CANT. | DISPONIBLE | OBSERVACIÓN
+   698→  Row 1: Kit análisis completo (KH, dureza, CYA, Br) | 2 kits | ☐ | 
+   699→  Row 2: pH-metro calibrado con soluciones patrón | 1 | ☐ | 
+   700→  Row 3: Colorímetro DPD calibrado | 1 | ☐ | 
+   701→  Row 4: Termómetro agua | 1 | ☐ | 
+   702→  Row 5: Tabla de dosificación (impresa) | 1 | ☐ | 
+   703→  Row 6: Sulfato de cobre (algicida, si corresponde) | según cálculo | ☐ | 
+   704→  Row 7: Bicarbonato de sodio (ajuste KH) | según cálculo | ☐ | 
+   705→  Row 8: Ácido cianúrico (si CYA < 30 ppm) | según cálculo | ☐ | 
+   706→  Row 9: Cloruro cálcico (si dureza < 200 ppm) | según cálculo | ☐ | 
+   707→  Row 10: Planilla de análisis quincenal | 1 | ☐ | 
+   708→
+   709→=== TABLE 84 (9 rows x 6 cols) ===
+   710→  Row 0: PARÁMETRO | META | P-1 | P-2 | P-3 | AJUSTE REQUERIDO
+   711→  Row 1: pH | 7,2 – 7,6 |  |  |  | 
+   712→  Row 2: Cloro libre (ppm) | 1,0 – 3,0 |  |  |  | 
+   713→  Row 3: Cloro combinado (ppm) | < 0,5 |  |  |  | 
+   714→  Row 4: Alcalinidad total KH (ppm) | 80 – 150 |  |  |  | 
+   715→  Row 5: Dureza cálcica (ppm) | 200 – 400 |  |  |  | 
+   716→  Row 6: CYA (estabilizador, ppm) | 30 – 80 |  |  |  | 
+   717→  Row 7: Sal (ppm, si aplica) | < 1500 |  |  |  | 
+   718→  Row 8: Temperatura (°C) | 24 – 28 |  |  |  | 
+   719→
+   720→=== TABLE 85 (4 rows x 6 cols) ===
+   721→  Row 0: DOSIFICADOR | CALIBRACIÓN CORRECTA | SENSOR LIMPIO | NIVEL PRODUCTO | ALARMAS ACTIVAS | OBSERVACIÓN
+   722→  Row 1: P-1 | ☐ | ☐ | ☐ OK   ☐ NO | ☐ OK   ☐ NO | 
+   723→  Row 2: P-2 | ☐ | ☐ | ☐ OK   ☐ NO | ☐ OK   ☐ NO | 
+   724→  Row 3: P-3 | ☐ | ☐ | ☐ OK   ☐ NO | ☐ OK   ☐ NO | 
+   725→
+   726→=== TABLE 86 (4 rows x 1 cols) ===
+   727→  Row 0: AJUSTES REALIZADOS Y PRODUCTOS APLICADOS:
+   728→  Row 1: 
+   729→  Row 2: 
+   730→  Row 3: 
+   731→
+   732→=== TABLE 87 (4 rows x 2 cols) ===
+   733→  Row 0: Operario Piscinas | Jefe de Mantenimiento
+   734→  Row 1:  | 
+   735→  Row 2: ________________________________ | ________________________________
+   736→  Row 3: Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha
+   737→
+   738→=== TABLE 88 (1 rows x 3 cols) ===
+   739→  Row 0:  | ASESORÍAS INTEGRALES CyJ \n Condominio Laguna Norte  |  Lampa, Santiago | LV-13 \n ÁREAS VERDES — MANTENIMIENTO MENSUAL \n Versión 1.0  |  2026
+   740→
+   741→=== TABLE 89 (2 rows x 4 cols) ===
+   742→  Row 0: Sector | Todos los jardines, prados, arbustos y árboles | Frecuencia | Mensual (primera semana de cada mes)
+   743→  Row 1: Personal requerido | Supervisor Jardinería + 2 Jardineros Esp. + 2 Gral. | Mes / Año | _______________________  |  Firma planif.: ______________
+   744→
+   745→=== TABLE 90 (9 rows x 6 cols) ===
+   746→  Row 0: ÍTEM | CANT. PRESUPUESTADA | CANT. UTILIZADA | UNIDAD | STOCK RESTANTE | SOLICITAR COMPRA
+   747→  Row 1: Fertilizante NPK 15-15-15 | 30 kg/ha |  | sacos 25kg |  | ☐
+   748→  Row 2: Herbicida selectivo MCPA 750SL | según cálculo |  | litros |  | ☐
+   749→  Row 3: Fungicida (si aplica) | según diagnóstico |  | kg/L |  | ☐
+   750→  Row 4: Insecticida (si aplica) | según diagnóstico |  | litros |  | ☐
+   751→  Row 5: Tierra de hoja compostada | según resiembra |  | m³ |  | ☐
+   752→  Row 6: Semilla Rye-Fescue | según resiembra |  | kg |  | ☐
+   753→  Row 7: Plantas de temporada | según diseño |  | unidades |  | ☐
+   754→  Row 8: Arena playas (si hay reposición) | según medición |  | m³ |  | ☐
+   755→
+   756→=== TABLE 91 (9 rows x 9 cols) ===
+   757→  Row 0: SECTOR | % COBERTURA EST. | ESTADO (1–4) | MALEZA | RIEGO OK | FERTILIZACIÓN APLICADA | FERTILIZACIÓN APLICADA | RESIEMBRA NECESARIA | OBSERVACIÓN
+   758→  Row 1:  |  |  | ☐ OK   ☐ NO | ☐ OK   ☐ NO | ☐ OK   ☐ NO | ☐ | ☐ | 
+   759→  Row 2:  |  |  | ☐ OK   ☐ NO | ☐ OK   ☐ NO | ☐ OK   ☐ NO | ☐ | ☐ | 
+   760→  Row 3:  |  |  | ☐ OK   ☐ NO | ☐ OK   ☐ NO | ☐ OK   ☐ NO | ☐ | ☐ | 
+   761→  Row 4:  |  |  | ☐ OK   ☐ NO | ☐ OK   ☐ NO | ☐ OK   ☐ NO | ☐ | ☐ | 
+   762→  Row 5:  |  |  | ☐ OK   ☐ NO | ☐ OK   ☐ NO | ☐ OK   ☐ NO | ☐ | ☐ | 
+   763→  Row 6:  |  |  | ☐ OK   ☐ NO | ☐ OK   ☐ NO | ☐ OK   ☐ NO | ☐ | ☐ | 
+   764→  Row 7:  |  |  | ☐ OK   ☐ NO | ☐ OK   ☐ NO | ☐ OK   ☐ NO | ☐ | ☐ | 
+   765→  Row 8:  |  |  | ☐ OK   ☐ NO | ☐ OK   ☐ NO | ☐ OK   ☐ NO | ☐ | ☐ | 
+   766→
+   767→=== TABLE 92 (8 rows x 4 cols) ===
+   768→  Row 0: TAREA | REALIZADA | SECTOR | OBSERVACIÓN
+   769→  Row 1: Poda de formación de arbustos y setos (mantener forma) | ☐ | Todos | 
+   770→  Row 2: Retiro de ramas secas en arbustos ornamentales | ☐ | Todos | 
+   771→  Row 3: Inspección árboles: ramas peligrosas o secas (anotar sector) | ☐ | Todos | 
+   772→  Row 4: Tratamiento de heridas de poda (pasta cicatrizante) | ☐ | Donde se podó | 
+   773→  Row 5: Verificación tutores y amarras en árboles jóvenes | ☐ | Árboles nuevos | 
+   774→  Row 6: Aplicación pesticida si se detectó plaga (con EPP completo) | ☐ | Sector afectado | 
+   775→  Row 7: Fertilización foliar en ornamentales (si corresponde al mes) | ☐ | Sector asignado | 
+   776→
+   777→=== TABLE 93 (4 rows x 1 cols) ===
+   778→  Row 0: OBSERVACIONES / ACCIONES CORRECTIVAS:
+   779→  Row 1: 
+   780→  Row 2: 
+   781→  Row 3: 
+   782→
+   783→=== TABLE 94 (4 rows x 3 cols) ===
+   784→  Row 0: Supervisor de Jardinería | Jefe de Mantenimiento | Administrador
+   785→  Row 1:  |  | 
+   786→  Row 2: ________________________________ | ________________________________ | ________________________________
+   787→  Row 3: Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha
+   788→
+   789→=== TABLE 95 (1 rows x 3 cols) ===
+   790→  Row 0:  | ASESORÍAS INTEGRALES CyJ \n Condominio Laguna Norte  |  Lampa, Santiago | LV-14 \n LAGUNA — REVISIÓN MENSUAL SALA DE MÁQUINAS \n Versión 1.0  |  2026
+   791→
+   792→=== TABLE 96 (2 rows x 4 cols) ===
+   793→  Row 0: Sector | Sala de máquinas laguna + sistema de circulación | Frecuencia | Mensual (última semana del mes)
+   794→  Row 1: Personal requerido | Operario Laguna + Electricista | Mes / Fecha | _______________________  |  Hora inicio: _______
+   795→
+   796→=== TABLE 97 (10 rows x 4 cols) ===
+   797→  Row 0: ÍTEM | CANT. | DISPONIBLE | OBSERVACIÓN
+   798→  Row 1: Multímetro digital | 1 | ☐ | 
+   799→  Row 2: Termómetro infrarrojo | 1 | ☐ | 
+   800→  Row 3: Llave de torque | 1 juego | ☐ | 
+   801→  Row 4: Juego de destornilladores | 1 | ☐ | 
+   802→  Row 5: Linterna LED | 1 | ☐ | 
+   803→  Row 6: Guantes dieléctricos (electricista) | 1 par | ☐ | 
+   804→  Row 7: Antiparras | 1 | ☐ | 
+   805→  Row 8: Lubricante mecánico (si aplica) | c/n | ☐ | 
+   806→  Row 9: Planilla de inspección mensual sala de máquinas | 1 | ☐ | 
+   807→
+   808→=== TABLE 98 (13 rows x 6 cols) ===
+   809→  Row 0: EQUIPO / ELEMENTO | ÍTEM A VERIFICAR | OK | NO OK | VALOR MEDIDO | OBSERVACIÓN
+   810→  Row 1: Bomba de circulación principal | Ruido anormal al operar | ☐ | ☐ |  | 
+   811→  Row 2: Bomba de circulación principal | Temperatura carcasa (máx. 70°C con IR) | ☐ | ☐ |  | 
+   812→  Row 3: Bomba de circulación principal | Presión manómetro salida (anotar valor) | ☐ | ☐ |  | 
+   813→  Row 4: Bomba de circulación principal | Sin vibraciones excesivas | ☐ | ☐ |  | 
+   814→  Row 5: Filtros de línea | Limpieza / ausencia de obstrucción | ☐ | ☐ |  | 
+   815→  Row 6: Cuadro eléctrico sala | Disyuntores todos operativos | ☐ | ☐ |  | 
+   816→  Row 7: Cuadro eléctrico sala | Sin signos de recalentamiento (olor, color) | ☐ | ☐ |  | 
+   817→  Row 8: Instrumentación (sensores pH/OD) | Calibración vigente, sin alarmas activas | ☐ | ☐ |  | 
+   818→  Row 9: Bomba dosificadora floculante | Caudal entregado correcto | ☐ | ☐ |  | 
+   819→  Row 10: Área sala de máquinas | Limpieza y orden general del área | ☐ | ☐ |  | 
+   820→  Row 11: Área sala de máquinas | Sin acumulación de agua en el piso | ☐ | ☐ |  | 
+   821→  Row 12: Ventilación sala | Ventilación funciona / rejillas libres | ☐ | ☐ |  | 
+   822→
+   823→=== TABLE 99 (4 rows x 1 cols) ===
+   824→  Row 0: ANOMALÍAS DETECTADAS Y ACCIONES TOMADAS:
+   825→  Row 1: 
+   826→  Row 2: 
+   827→  Row 3: 
+   828→
+   829→=== TABLE 100 (4 rows x 3 cols) ===
+   830→  Row 0: Operario Laguna | Electricista | Jefe de Mantenimiento
+   831→  Row 1:  |  | 
+   832→  Row 2: ________________________________ | ________________________________ | ________________________________
+   833→  Row 3: Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha
+   834→
+   835→=== TABLE 101 (1 rows x 3 cols) ===
+   836→  Row 0:  | ASESORÍAS INTEGRALES CyJ \n Condominio Laguna Norte  |  Lampa, Santiago | LV-15 \n CLUB HOUSE — MANTENCIÓN MENSUAL INTEGRAL \n Versión 1.0  |  2026
+   837→
+   838→=== TABLE 102 (2 rows x 4 cols) ===
+   839→  Row 0: Sector | Club House · Baños · Multicancha · Canchas · Quinchos | Frecuencia | Mensual (segunda semana de cada mes)
+   840→  Row 1: Personal requerido | Electricista + Aseo A + Operario General | Mes / Fecha | _______________________  |  Firma supervisor: ____________
+   841→
+   842→=== TABLE 103 (13 rows x 4 cols) ===
+   843→  Row 0: ÍTEM | CANT. | DISPONIBLE | OBSERVACIÓN
+   844→  Row 1: Cepillo stiff pasto sintético (canchas) | 1 | ☐ | 
+   845→  Row 2: Arena infill (si reposición cancha) | según medición | ☐ | 
+   846→  Row 3: Grasa PTFE spray (cerraduras/bisagras) | 1 | ☐ | 
+   847→  Row 4: WD-40 multifunción | 1 | ☐ | 
+   848→  Row 5: Multímetro (electricista) | 1 | ☐ | 
+   849→  Row 6: Tester de enchufes | 1 | ☐ | 
+   850→  Row 7: Ampolletas LED 30W (repuesto) | 5 | ☐ | 
+   851→  Row 8: Masilla / sellante silicona | 1 | ☐ | 
+   852→  Row 9: Llave torque y destornilladores | 1 juego | ☐ | 
+   853→  Row 10: Línea de verificación fontanería | — | ☐ | 
+   854→  Row 11: Detergente desengrasante (cocina) | 500ml | ☐ | 
+   855→  Row 12: Antiparras + guantes electricista | 1 par | ☐ | 
+   856→
+   857→=== TABLE 104 (9 rows x 4 cols) ===
+   858→  Row 0: ÍTEM | OK | NO OK | VALOR / OBSERVACIÓN
+   859→  Row 1: Tablero principal Club House: todos los disyuntores operativos | ☐ | ☐ | 
+   860→  Row 2: Diferencial (interruptor de falla a tierra): prueba botón TEST operativa | ☐ | ☐ | 
+   861→  Row 3: Tomacorrientes interiores: tensión correcta (220V ± 5%) con tester | ☐ | ☐ | 
+   862→  Row 4: Luminarias interiores: 100% funcionales | ☐ | ☐ | 
+   863→  Row 5: Luminarias exteriores Club House: 100% funcionales | ☐ | ☐ | 
+   864→  Row 6: Calefacción / ventilación: operativa y sin ruidos anormales | ☐ | ☐ | 
+   865→  Row 7: Sistema de alarma (si existe): activo y sin alarmas pendientes | ☐ | ☐ | 
+   866→  Row 8: Cámara de seguridad (si existe): imagen activa | ☐ | ☐ | 
+   867→
+   868→=== TABLE 105 (10 rows x 4 cols) ===
+   869→  Row 0: ÍTEM | OK | NO OK | OBSERVACIÓN
+   870→  Row 1: Grifería de baños: sin fugas, presión normal | ☐ | ☐ | 
+   871→  Row 2: Cisternas: llenado correcto, sin goteo continuo | ☐ | ☐ | 
+   872→  Row 3: Desagües baños: sin obstrucciones ni malos olores | ☐ | ☐ | 
+   873→  Row 4: Ducha: limpias y sin cal excesiva | ☐ | ☐ | 
+   874→  Row 5: Grifería cocina Club House: funcional y sin fugas | ☐ | ☐ | 
+   875→  Row 6: Piso multicancha (radier): sin grietas nuevas, limpio | ☐ | ☐ | 
+   876→  Row 7: Pasto sintético baby fútbol: cepillado y relleno uniforme | ☐ | ☐ | 
+   877→  Row 8: Cerraduras y pomos: funcionan sin trabas | ☐ | ☐ | 
+   878→  Row 9: Bisagras puertas y portones: lubricadas, sin chirridos | ☐ | ☐ | 
+   879→
+   880→=== TABLE 106 (4 rows x 1 cols) ===
+   881→  Row 0: OBSERVACIONES / ACCIONES CORRECTIVAS:
+   882→  Row 1: 
+   883→  Row 2: 
+   884→  Row 3: 
+   885→
+   886→=== TABLE 107 (4 rows x 3 cols) ===
+   887→  Row 0: Electricista | Aseo A | Jefe de Mantenimiento
+   888→  Row 1:  |  | 
+   889→  Row 2: ________________________________ | ________________________________ | ________________________________
+   890→  Row 3: Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha
+   891→
+   892→=== TABLE 108 (1 rows x 3 cols) ===
+   893→  Row 0:  | ASESORÍAS INTEGRALES CyJ \n Condominio Laguna Norte  |  Lampa, Santiago | LV-16 \n JUEGOS INFANTILES — INSPECCIÓN TÉCNICA MENSUAL \n Versión 1.0  |  2026
+   894→
+   895→=== TABLE 109 (2 rows x 4 cols) ===
+   896→  Row 0: Sector | Juegos Infantiles | Frecuencia | Mensual — OBLIGATORIO conforme NCh 2926
+   897→  Row 1: Personal requerido | Jefe de Mantenimiento (inspector técnico) | Mes / Fecha | _______________________  |  Hora: _______  |  Duración: 2 hrs
+   898→
+   899→=== TABLE 110 (10 rows x 4 cols) ===
+   900→  Row 0: ÍTEM | CANT. | DISPONIBLE | OBSERVACIÓN
+   901→  Row 1: Llave de torque calibrada (Nm) | 1 | ☐ | 
+   902→  Row 2: Martillo de percusión inspección | 1 | ☐ | 
+   903→  Row 3: Linterna LED de inspección | 1 | ☐ | 
+   904→  Row 4: Cámara fotográfica | 1 | ☐ | 
+   905→  Row 5: Grasa seca PTFE spray | 2 | ☐ | 
+   906→  Row 6: Guantes cuero | 1 par | ☐ | 
+   907→  Row 7: Pintura anticorrosiva (si aplica) | c/n | ☐ | 
+   908→  Row 8: Checklist NCh 2926 (este doc.) | 1 | ☐ | 
+   909→  Row 9: Hormigón rápido (si refuerzo anclaje) | c/n | ☐ | 
+   910→
+   911→=== TABLE 111 (13 rows x 7 cols) ===
+   912→  Row 0: COMPONENTE A INSPECCIONAR | J1 | J2 | J3 | J4 | J5 | OBSERVACIÓN / ACCIÓN
+   913→  Row 1: Tornillos y pernos de unión: todos presentes y con torque correcto | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   914→  Row 2: Soldaduras visibles: sin grietas, fisuras ni corrosión activa | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   915→  Row 3: Anclajes al suelo: sin movimiento al jalón con ambas manos | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   916→  Row 4: Cadenas: sin eslabones abiertos, elongados o con corrosión roja | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   917→  Row 5: Resortes balancines: sin fatiga (no doblados), sin grietas | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   918→  Row 6: Plataformas y pisos: sin deformaciones, agujeros ni astillas | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   919→  Row 7: Tobogán: superficie sin grietas, borde de salida redondeado | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   920→  Row 8: Escaleras: peldaños firmes y antideslizantes | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   921→  Row 9: Barandas y pasamanos: firmeza al jalón horizontal | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   922→  Row 10: Piezas plásticas: sin astillas, bordes cortantes ni deformaciones | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   923→  Row 11: Zona de caída: profundidad ≥ 30 cm (medir con regla) | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   924→  Row 12: Pintura anticorrosiva: sin descascaramiento activo | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   925→
+   926→=== TABLE 112 (5 rows x 7 cols) ===
+   927→  Row 0: ELEMENTO | J1 | J2 | J3 | J4 | J5 | LUBRICANTE USADO
+   928→  Row 1: Pivotes de balancines | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   929→  Row 2: Articulaciones de cadenas | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   930→  Row 3: Bisagras puertas modulares | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   931→  Row 4: Otros (especificar) | ☐ | ☐ | ☐ | ☐ | ☐ | 
+   932→
+   933→=== TABLE 113 (4 rows x 1 cols) ===
+   934→  Row 0: NO CONFORMIDADES DETECTADAS Y PLAZO DE SUBSANACIÓN:
+   935→  Row 1: 
+   936→  Row 2: 
+   937→  Row 3: 
+   938→
+   939→=== TABLE 114 (4 rows x 2 cols) ===
+   940→  Row 0: Jefe de Mantenimiento | Administrador
+   941→  Row 1:  | 
+   942→  Row 2: ________________________________ | ________________________________
+   943→  Row 3: Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha
+   944→
+   945→=== TABLE 115 (1 rows x 3 cols) ===
+   946→  Row 0:  | ASESORÍAS INTEGRALES CyJ \n Condominio Laguna Norte  |  Lampa, Santiago | LV-17 \n ESTACIONAMIENTOS Y ACCESO — MANTENCIÓN MENSUAL \n Versión 1.0  |  2026
+   947→
+   948→=== TABLE 116 (2 rows x 4 cols) ===
+   949→  Row 0: Sector | Control acceso + Estacionamiento | Frecuencia | Mensual (primera semana de cada mes)
+   950→  Row 1: Personal requerido | Aseo B + Electricista + Jefe de Mantenimiento | Mes / Fecha | _______________________  |  Hora: _______
+   951→
+   952→=== TABLE 117 (11 rows x 4 cols) ===
+   953→  Row 0: ÍTEM | CANT. | DISPONIBLE | OBSERVACIÓN
+   954→  Row 1: Hidrolavadora  | 1 | ☐ | 
+   955→  Row 2: Manguera conexión 30m | 1 | ☐ | 
+   956→  Row 3: Detergente desengrasante industrial | 1L | ☐ | 
+   957→  Row 4: Escoba metálica | 2 | ☐ | 
+   958→  Row 5: Soplador de mochila | 1 | ☐ | 
+   959→  Row 6: Chaleco reflectante | 2 | ☐ | 
+   960→  Row 7: Conos de señalización | 4 | ☐ | 
+   961→  Row 8: Cámara / teléfono registro | 1 | ☐ | 
+   962→  Row 9: Llave torque (control de acceso) | 1 juego | ☐ | 
+   963→  Row 10: Grasa PTFE (portón y cremallera) | 1 spray | ☐ | 
+   964→
+   965→=== TABLE 118 (15 rows x 4 cols) ===
+   966→  Row 0: ÍTEM | OK | NO OK | ACCIÓN / OBSERVACIÓN
+   967→  Row 1: Pavimento estacionamientos sin grietas nuevas (inspección visual) | ☐ | ☐ | 
+   968→  Row 2: Hidrolavado completo del pavimento (manchas aceite eliminadas) | ☐ | ☐ | 
+   969→  Row 3: Demarcación de plazas visible y completa | ☐ | ☐ | 
+   970→  Row 4: Numeración de plazas legible | ☐ | ☐ | 
+   971→  Row 5: Señal plaza(s) discapacitados presente y legible | ☐ | ☐ | 
+   972→  Row 6: Señalética de sentido de circulación correcta | ☐ | ☐ | 
+   973→  Row 7: Iluminación estacionamientos: todas las luminarias operativas | ☐ | ☐ | 
+   974→  Row 8: Control de acceso vehicular (motor portón): funcional, sin ruidos | ☐ | ☐ | 
+   975→  Row 9: Sensor de seguridad portón (anti-aplastamiento): operativo | ☐ | ☐ | 
+   976→  Row 10: Mando a distancia portón: funciona en rango normal | ☐ | ☐ | 
+   977→  Row 11: Caseta de portería: limpia, vidrios limpios, equipo funcionando | ☐ | ☐ | 
+   978→  Row 12: Acopio de basura: limpio, contenedores en buen estado | ☐ | ☐ | 
+   979→  Row 13: Señalética de acopio de basura (diferenciación reciclaje) legible | ☐ | ☐ | 
+   980→  Row 14: Veredas y solera perimetral estacionamientos: sin daños | ☐ | ☐ | 
+   981→
+   982→=== TABLE 119 (4 rows x 1 cols) ===
+   983→  Row 0: OBSERVACIONES / ACCIONES CORRECTIVAS:
+   984→  Row 1: 
+   985→  Row 2: 
+   986→  Row 3: 
+   987→
+   988→=== TABLE 120 (4 rows x 3 cols) ===
+   989→  Row 0: Aseo B | Electricista | Jefe de Mantenimiento
+   990→  Row 1:  |  | 
+   991→  Row 2: ________________________________ | ________________________________ | ________________________________
+   992→  Row 3: Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha
+   993→
+   994→=== TABLE 121 (1 rows x 3 cols) ===
+   995→  Row 0:  | ASESORÍAS INTEGRALES CyJ \n Condominio Laguna Norte  |  Lampa, Santiago | LV-18 \n MANTENCIÓN MAYOR TRIMESTRAL — TODOS LOS SECTORES \n Versión 1.0  |  2026
+   996→
+   997→=== TABLE 122 (2 rows x 4 cols) ===
+   998→  Row 0: Sectores | Laguna · Piscinas · Juegos · Ciclovia · Club House · General | Frecuencia | Trimestral (Enero · Abril · Julio · Octubre)
+   999→  Row 1: Personal requerido | Equipo completo + Empresas externas especializadas | Trimestre / Fecha inicio | Q___  |  Fecha: ___________  |  Duración estimada: 3 días
+  1000→
+  1001→=== TABLE 123 (9 rows x 5 cols) ===
+  1002→  Row 0: ROL / EMPRESA | CONFIRMADO | FECHA VISITA | CONTACTO | COSTO EST. CLP
+  1003→  Row 1: Jefe de Mantenimiento (coordinador) | ☐ |  |  | 
+  1004→  Row 2: Supervisor de Jardinería | ☐ |  |  | 
+  1005→  Row 3: Operario Piscinas + Operario Laguna | ☐ |  |  | 
+  1006→  Row 4: Electricista | ☐ |  |  | 
+  1007→  Row 5: Empresa técnica piscinas (mantenimiento trimestral) | ☐ |  |  | 
+  1008→  Row 6: Empresa buzos limpieza fondo laguna (Trim. 1 y 3) | ☐ |  |  | 
+  1009→  Row 7: Empresa control de plagas (bimestral coincidente) | ☐ |  |  | 
+  1010→  Row 8: Arborista / poda de altura (si corresponde al trimestre) | ☐ |  |  | 
+  1011→
+  1012→=== TABLE 124 (6 rows x 4 cols) ===
+  1013→  Row 0: TAREA | REALIZADA | EMPRESA/PERSONAL | OBSERVACIÓN
+  1014→  Row 1: Limpieza fondo laguna (buzos) — Q1 y Q3 | ☐ | Empresa buzos | 
+  1015→  Row 2: Inspección técnica equipos sala de máquinas | ☐ | Op. Laguna + Electricista | 
+  1016→  Row 3: Revisión anclajes y tornillería muelles y embarcadero | ☐ | Jefe de Mantenimiento | 
+  1017→  Row 4: Reposición arena playas (si nivel < mínimo) | ☐ | 2 Jardineros | 
+  1018→  Row 5: Análisis de laboratorio completo + informe | ☐ | Laboratorio SISS | 
+  1019→
+  1020→=== TABLE 125 (7 rows x 5 cols) ===
+  1021→  Row 0: TAREA | P1 | P2 | P3 | OBSERVACIÓN
+  1022→  Row 1: Mantención técnica especializada (empresa externa) | ☐ | ☐ | ☐ | 
+  1023→  Row 2: Revisión integral bombas y motores (rodamiento, sello) | ☐ | ☐ | ☐ | 
+  1024→  Row 3: Revisión y limpieza de prefiltros y conexiones | ☐ | ☐ | ☐ | 
+  1025→  Row 4: Inspección sistema eléctrico sala de máquinas piscinas | ☐ | ☐ | ☐ | 
+  1026→  Row 5: Inspección integridad de recubrimiento interior piscina | ☐ | ☐ | ☐ | 
+  1027→  Row 6: Verificación anclajes escalas y barras de apoyo | ☐ | ☐ | ☐ | 
+  1028→
+  1029→=== TABLE 126 (4 rows x 7 cols) ===
+  1030→  Row 0: TAREA | J1 | J2 | J3 | J4 | J5 | OBSERVACIÓN
+  1031→  Row 1: Inspección y torque de anclajes al suelo (taladro + llave torque) | ☐ | ☐ | ☐ | ☐ | ☐ | 
+  1032→  Row 2: Reposición de material zona de caída (grava/arena certificada) | ☐ | ☐ | ☐ | ☐ | ☐ | 
+  1033→  Row 3: Revisión integridad estructural completa (soldaduras, tubería, uniones) | ☐ | ☐ | ☐ | ☐ | ☐ | 
+  1034→
+  1035→=== TABLE 127 (4 rows x 1 cols) ===
+  1036→  Row 0: RESUMEN TRIMESTRAL — INVERSIÓN EJECUTADA Y HALLAZGOS PRINCIPALES:
+  1037→  Row 1: 
+  1038→  Row 2: 
+  1039→  Row 3: 
+  1040→
+  1041→=== TABLE 128 (4 rows x 3 cols) ===
+  1042→  Row 0: Jefe de Operaciones | Administrador | Comité de Admin.
+  1043→  Row 1:  |  | 
+  1044→  Row 2: ________________________________ | ________________________________ | ________________________________
+  1045→  Row 3: Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha
+  1046→
+  1047→=== TABLE 129 (1 rows x 3 cols) ===
+  1048→  Row 0:  | ASESORÍAS INTEGRALES CyJ \n Condominio Laguna Norte  |  Lampa, Santiago | LV-19 \n REVISIÓN SEMESTRAL COMPLETA — CONDOMINIO LAGUNA NORTE \n Versión 1.0  |  2026
+  1049→
+  1050→=== TABLE 130 (2 rows x 4 cols) ===
+  1051→  Row 0: Alcance | Todos los sectores y sistemas del condominio | Frecuencia | Semestral (Junio / Diciembre)
+  1052→  Row 1: Personal requerido | Jefe Mantenimiento + Supervisor Jardinería + Electricista + Empresa SEC | Semestre | S___ / 2026  |  Fecha inicio: ___________  |  Duración: 2 días
+  1053→
+  1054→=== TABLE 131 (6 rows x 6 cols) ===
+  1055→  Row 0: SERVICIO / CERTIFICACIÓN | PROGRAMADO | EJECUTADO | N° INFORME / CERT. | FECHA PROX. VENC. | COSTO CLP
+  1056→  Row 1: Revisión instalaciones eléctricas BT (empresa habilitada SEC) | ☐ | ☐ |  |  | 
+  1057→  Row 2: Recarga y certificación extintores  | ☐ | ☐ |  |  | 
+  1058→  Row 3: Control de plagas jardines + laguna (empresa sanitaria) | ☐ | ☐ |  |  | 
+  1059→  Row 4: Retrolavado profundo con ácido filtros piscinas (empresa técnica) | ☐ | ☐ |  |  | 
+  1060→  Row 5: Inspección eléctrica sala de máquinas laguna | ☐ | ☐ |  |  | 
+  1061→
+  1062→=== TABLE 132 (13 rows x 4 cols) ===
+  1063→  Row 0: SECTOR | ESTADO (1–4) | TENDENCIA vs. sem. anterior | ACCIÓN PRIORITARIA PRÓX. SEMESTRE
+  1064→  Row 1: Laguna artificial |  |  | 
+  1065→  Row 2: Piscinas 1–5 |  |  | 
+  1066→  Row 3: Áreas verdes / prados |  |  | 
+  1067→  Row 4: Arbustos y árboles |  |  | 
+  1068→  Row 5: Ciclovia y sendero |  |  | 
+  1069→  Row 6: Club House interior |  |  | 
+  1070→  Row 7: Club House exterior |  |  | 
+  1071→  Row 8: Multicancha y canchas |  |  | 
+  1072→  Row 9: Juegos infantiles (5 sectores) |  |  | 
+  1073→  Row 10: Estacionamientos |  |  | 
+  1074→  Row 11: Iluminación exterior |  |  | 
+  1075→  Row 12: Cierros y portones |  |  | 
+  1076→
+  1077→=== TABLE 133 (9 rows x 5 cols) ===
+  1078→  Row 0: CATEGORÍA | PRESUPUESTO SEMESTRE CLP | EJECUTADO CLP | VARIACIÓN % | COMENTARIO
+  1079→  Row 1: Personal fijo |  |  |  | 
+  1080→  Row 2: Personal rotativo |  |  |  | 
+  1081→  Row 3: Servicios externos |  |  |  | 
+  1082→  Row 4: Insumos químicos |  |  |  | 
+  1083→  Row 5: Insumos agrícolas |  |  |  | 
+  1084→  Row 6: Materiales y repuestos |  |  |  | 
+  1085→  Row 7: EPP y seguridad |  |  |  | 
+  1086→  Row 8: Imprevistos |  |  |  | 
+  1087→
+  1088→=== TABLE 134 (4 rows x 1 cols) ===
+  1089→  Row 0: RECOMENDACIONES PARA EL PRÓXIMO SEMESTRE:
+  1090→  Row 1: 
+  1091→  Row 2: 
+  1092→  Row 3: 
+  1093→
+  1094→=== TABLE 135 (4 rows x 3 cols) ===
+  1095→  Row 0: Jefe de Operaciones | Administrador | Comité de Admin.
+  1096→  Row 1:  |  | 
+  1097→  Row 2: ________________________________ | ________________________________ | ________________________________
+  1098→  Row 3: Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha
+  1099→
+  1100→=== TABLE 136 (1 rows x 3 cols) ===
+  1101→  Row 0:  | ASESORÍAS INTEGRALES CyJ \n Condominio Laguna Norte  |  Lampa, Santiago | LV-20 \n REVISIÓN ANUAL — CERTIFICACIONES Y ESTADO GENERAL \n Versión 1.0  |  2026
+  1102→
+  1103→=== TABLE 137 (2 rows x 4 cols) ===
+  1104→  Row 0: Alcance | Certificaciones legales · Estado de activos · Revisión del plan | Frecuencia | Anual (Enero de cada año)
+  1105→  Row 1: Convoca | Administrador + Comité de Administración + Jefe de Mantenimiento | Año | 2026  |  Fecha de revisión: ___________  |  Próxima: Enero 2027
+  1106→
+  1107→=== TABLE 138 (9 rows x 7 cols) ===
+  1108→  Row 0: CERTIFICACIÓN | N° CERTIFICADO | EMPRESA EMISORA | FECHA EMISIÓN | VIGENCIA HASTA | ESTADO | RENOVAR
+  1109→  Row 1: NCh 2926 — Juegos Infantiles (5 sectores) |  |  |  |  | ☐ OK   ☐ NO | ☐
+  1110→  Row 2: Extintores — Revisión y recarga semestral (último semestre) |  |  |  |  | ☐ OK   ☐ NO | ☐
+  1111→  Row 3: Instalaciones eléctricas BT (empresa SEC Sem. 2) |  |  |  |  | ☐ OK   ☐ NO | ☐
+  1112→  Row 4: Control de plagas (último informe empresa sanitaria) |  |  |  |  | ☐ OK   ☐ NO | ☐
+  1113→  Row 5: Póliza seguro responsabilidad civil condominio |  |  |  |  | ☐ OK   ☐ NO | ☐
+  1114→  Row 6: Inscripción Mutual de Seguridad (personal) |  |  |  |  | ☐ OK   ☐ NO | ☐
+  1115→  Row 7: Resolución SEREMI Salud (si aplica laguna recreativa) |  |  |  |  | ☐ OK   ☐ NO | ☐
+  1116→  Row 8: Contratos laborales personal vigentes |  |  |  |  | ☐ OK   ☐ NO | ☐
+  1117→
+  1118→=== TABLE 139 (13 rows x 6 cols) ===
+  1119→  Row 0: KPI | DESCRIPCIÓN | META | RESULTADO REAL | CUMPLIDO | OBSERVACIÓN
+  1120→  Row 1: KPI-01 | % Cobertura vegetal óptima | >92% |  | ☐ | 
+  1121→  Row 2: KPI-02 | % días pH laguna en rango | >95% |  | ☐ | 
+  1122→  Row 3: KPI-03 | % turbidez laguna <10 NTU | >90% |  | ☐ | 
+  1123→  Row 4: KPI-04 | % pH piscinas en rango | >95% |  | ☐ | 
+  1124→  Row 5: KPI-05 | % cloro libre piscinas en rango | >95% |  | ☐ | 
+  1125→  Row 6: KPI-06 | Tiempo respuesta incidencias | <4 hrs |  | ☐ | 
+  1126→  Row 7: KPI-07 | Accidentes laborales con tiempo perdido | 0 |  | ☐ | 
+  1127→  Row 8: KPI-08 | % cumplimiento plan mensual | >95% |  | ☐ | 
+  1128→  Row 9: KPI-09 | Satisfacción residentes (1–5) | >4,0 |  | ☐ | 
+  1129→  Row 10: KPI-10 | % certificaciones vigentes | 100% |  | ☐ | 
+  1130→  Row 11: KPI-11 | Consumo agua riego (vs año anterior) | <110% |  | ☐ | 
+  1131→  Row 12: KPI-12 | Ejecución presupuestaria | 85–105% |  | ☐ | 
+  1132→
+  1133→=== TABLE 140 (8 rows x 5 cols) ===
+  1134→  Row 0: ÍTEM | REVISADO | ACTUALIZADO | APROBADO | RESPONSABLE
+  1135→  Row 1: Plan de mantenimiento 2026 → 2027 (actualización) | ☐ | ☐ | ☐ | Jefe de Mantenimiento
+  1136→  Row 2: Presupuesto anual (ajuste remuneraciones y precios mercado) | ☐ | ☐ | ☐ | Administrador
+  1137→  Row 3: Dotación de personal (altas, bajas, cambios de cargo) | ☐ | ☐ | ☐ | Administrador
+  1138→  Row 4: Inventario de maquinaria y herramientas (altas y bajas) | ☐ | ☐ | ☐ | Jefe de Mantenimiento
+  1139→  Row 5: Contratos de servicios externos (renovación o licitación) | ☐ | ☐ | ☐ | Administrador
+  1140→  Row 6: KPIs: revisión de metas para el nuevo año | ☐ | ☐ | ☐ | Comité de Administración
+  1141→  Row 7: Aprobación del plan en Asamblea de Copropietarios | ☐ | ☐ | ☐ | Administrador + Comité
+  1142→
+  1143→=== TABLE 141 (4 rows x 1 cols) ===
+  1144→  Row 0: OBSERVACIONES FINALES Y COMPROMISOS PARA EL AÑO SIGUIENTE:
+  1145→  Row 1: 
+  1146→  Row 2: 
+  1147→  Row 3: 
+  1148→
+  1149→=== TABLE 142 (4 rows x 3 cols) ===
+  1150→  Row 0: Jefe de Operaciones | Administrador | Presidente Comité Admin.
+  1151→  Row 1:  |  | 
+  1152→  Row 2: ________________________________ | ________________________________ | ________________________________
+  1153→  Row 3: Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha | Nombre  |  Firma  |  RUT  |  Fecha
+  1154→
+  1155→=== TABLE 143 (1 rows x 1 cols) ===
+  1156→  Row 0:  \n ASESORÍAS INTEGRALES CyJ \n Listas de Verificación — Plan de Mantenimiento Integral — Condominio Laguna Norte \n Versión 1.0  |  2026  |  Uso Interno — Confidencial  |  20 Listas de Verificación
+  1157→
+  1158→
+  1159→=== SUMMARY ===
+  1160→Total paragraphs: 370
+  1161→Total tables: 143

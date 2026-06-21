@@ -213,7 +213,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
   const [purchaseStatusFilter, setPurchaseStatusFilter] = useState<string>('')
   const [anticipoStatusFilter, setAnticipoStatusFilter] = useState<string>('')
   const [mantenimientoStatusFilter, setMantenimientoStatusFilter] = useState<string>('')
-  const [view, setView] = useState<'dashboard' | 'table' | 'cards' | 'gantt' | 'materials' | 'rendicion' | 'solicitudes' | 'anticipos' | 'mantenimiento' | 'users'>('dashboard')
+  const [view, setView] = useState<'dashboard' | 'table' | 'cards' | 'gantt' | 'materials' | 'rendicion' | 'solicitudes' | 'anticipos' | 'mantenimiento' | 'users'>('mantenimiento')
   const [filterSector, setFilterSector] = useState('all')
   const [filterPriority, setFilterPriority] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
@@ -3336,7 +3336,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
               variant={view === 'mantenimiento' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setView('mantenimiento')}
-              className="gap-1"
+              className={`gap-1 ${view === 'mantenimiento' ? 'bg-teal-600 hover:bg-teal-700 text-white' : 'text-teal-700 hover:text-teal-900 hover:bg-teal-50'}`}
             >
               <Wrench className="h-4 w-4" /> Mantenimiento
             </Button>
@@ -3784,7 +3784,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
             )}
 
             {/* ═══════════════════════════════════════════════════════════ */}
-            {/* SECCIÓN 5: MANTENIMIENTO                                   */}
+            {/* SECCIÓN 5: MANTENIMIENTO (PRINCIPAL)                       */}
             {/* ═══════════════════════════════════════════════════════════ */}
             {dashboardStats && (
               <Card className="border-teal-200 bg-gradient-to-r from-teal-50 to-white overflow-hidden">
@@ -3803,7 +3803,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
                   </div>
                 </CardHeader>
                 <CardContent className="px-5 pb-5 pt-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
                     <div
                       className="bg-white rounded-xl p-4 border border-amber-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-amber-400 transition-all duration-200 hover:scale-105"
                       onClick={() => { setMantenimientoStatusFilter('PENDIENTE'); setView('mantenimiento'); }}
@@ -3828,10 +3828,53 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
                       <div className="text-xs text-emerald-600 uppercase tracking-wider font-semibold mb-1">Completadas</div>
                       <div className="text-3xl font-bold text-emerald-700">{dashboardStats.mantenimiento.completadas}</div>
                     </div>
-                    <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm text-center">
+                    <div
+                      className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-slate-400 transition-all duration-200 hover:scale-105"
+                      onClick={() => { setMantenimientoStatusFilter('all'); setView('mantenimiento'); }}
+                      title="Ver Avance Promedio"
+                    >
                       <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Avance Promedio</div>
                       <div className="text-3xl font-bold text-teal-700">{Math.round(dashboardStats.mantenimiento.avgProgress)}%</div>
                       <Progress value={dashboardStats.mantenimiento.avgProgress} className="h-2 mt-1" />
+                    </div>
+                  </div>
+                  {/* Mini Calendar Preview */}
+                  <div
+                    className="bg-white rounded-xl border border-teal-200 p-3 cursor-pointer hover:border-teal-400 transition-all"
+                    onClick={() => setView('mantenimiento')}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-teal-700">
+                        {(() => {
+                          const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+                          return months[new Date().getMonth()] + ' ' + new Date().getFullYear()
+                        })()}
+                      </span>
+                      <span className="text-[10px] text-teal-500 font-medium">Ver calendario completo →</span>
+                    </div>
+                    <div className="grid grid-cols-7 gap-0.5 text-[10px]">
+                      {['D', 'L', 'M', 'X', 'J', 'V', 'S'].map(d => (
+                        <div key={d} className="text-center font-bold text-teal-600 py-0.5">{d}</div>
+                      ))}
+                      {(() => {
+                        const now = new Date()
+                        const y = now.getFullYear()
+                        const m = now.getMonth()
+                        const firstDay = new Date(y, m, 1).getDay()
+                        const daysInMonth = new Date(y, m + 1, 0).getDate()
+                        const today = now.getDate()
+                        const cells = []
+                        for (let i = 0; i < firstDay; i++) cells.push(<div key={`e${i}`} />)
+                        for (let d = 1; d <= daysInMonth; d++) {
+                          const isToday = d === today
+                          cells.push(
+                            <div key={d} className={`text-center py-0.5 rounded ${isToday ? 'bg-teal-600 text-white font-bold' : 'text-slate-600'}`}>
+                              {d}
+                            </div>
+                          )
+                        }
+                        return cells
+                      })()}
                     </div>
                   </div>
                 </CardContent>

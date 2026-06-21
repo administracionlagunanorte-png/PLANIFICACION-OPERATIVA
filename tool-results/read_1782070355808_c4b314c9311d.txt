@@ -1,0 +1,1013 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useEffect, useRef } from 'react'
+     4→     4→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+     5→     5→import { Button } from '@/components/ui/button'
+     6→     6→import { Input } from '@/components/ui/input'
+     7→     7→import { Label } from '@/components/ui/label'
+     8→     8→import { Textarea } from '@/components/ui/textarea'
+     9→     9→import { Badge } from '@/components/ui/badge'
+    10→    10→import { Progress } from '@/components/ui/progress'
+    11→    11→import {
+    12→    12→  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+    13→    13→} from '@/components/ui/dialog'
+    14→    14→import {
+    15→    15→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    16→    16→} from '@/components/ui/select'
+    17→    17→import {
+    18→    18→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    19→    19→} from '@/components/ui/table'
+    20→    20→import {
+    21→    21→  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    22→    22→  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+    23→    23→} from '@/components/ui/alert-dialog'
+    24→    24→import {
+    25→    25→  Wrench, Plus, ChevronLeft, CheckCircle, XCircle, Clock,
+    26→    26→  Printer, Upload, Calendar, ChevronRight, ChevronDown,
+    27→    27→} from 'lucide-react'
+    28→    28→import { useToast } from '@/hooks/use-toast'
+    29→    29→
+    30→    30→// ============================================================
+    31→    31→// Types
+    32→    32→// ============================================================
+    33→    33→interface MantenimientoItem {
+    34→    34→  id?: string
+    35→    35→  category: string
+    36→    36→  description: string
+    37→    37→  status: string  // PENDIENTE, OK, NO_OK, N/A
+    38→    38→  value?: string | null
+    39→    39→  observation?: string | null
+    40→    40→  order: number
+    41→    41→}
+    42→    42→
+    43→    43→interface MantenimientoLV {
+    44→    44→  id: string
+    45→    45→  codigo: string
+    46→    46→  nombre: string
+    47→    47→  sector: string
+    48→    48→  frecuencia: string
+    49→    49→  status: string
+    50→    50→  progress: number
+    51→    51→  scheduledDate: string | null
+    52→    52→  completedDate: string | null
+    53→    53→  responsable: string | null
+    54→    54→  turno: string | null
+    55→    55→  observations: string | null
+    56→    56→  attachments: string
+    57→    57→  createdBy: string | null
+    58→    58→  createdAt: string
+    59→    59→  updatedAt: string
+    60→    60→  items: MantenimientoItem[]
+    61→    61→  _count?: { items: number }
+    62→    62→}
+    63→    63→
+    64→    64→// ============================================================
+    65→    65→// LV Templates from document
+    66→    66→// ============================================================
+    67→    67→const LV_TEMPLATES = [
+    68→    68→  { codigo: 'LV-01', nombre: 'Dotación diaria de personal y EPP', sector: 'General — Todos los sectores', frecuencia: 'Diaria',
+    69→    69→    items: [
+    70→    70→      { category: 'A', description: 'Verificación de dotación de personal presente' },
+    71→    71→      { category: 'B', description: 'Verificación de EPP por puesto (guantes, antiparras, protector auditivo, mascarilla, chaleco, botas, protector solar)' },
+    72→    72→      { category: 'C', description: 'Personal con baja / ausencia' },
+    73→    73→      { category: 'C', description: 'EPP deteriorado o faltante' },
+    74→    74→      { category: 'C', description: 'Equipos o maquinaria con falla' },
+    75→    75→      { category: 'C', description: 'Incidencias reportadas de jornada anterior' },
+    76→    76→      { category: 'C', description: 'Zonas con acceso restringido hoy' },
+    77→    77→      { category: 'C', description: 'Trabajos de terceros en condominio hoy' },
+    78→    78→    ]
+    79→    79→  },
+    80→    80→  { codigo: 'LV-02', nombre: 'Laguna artificial — Control diario de agua', sector: 'Laguna', frecuencia: 'Diaria',
+    81→    81→    items: [
+    82→    82→      { category: 'A', description: 'EPP y materiales requeridos disponibles y en buen estado' },
+    83→    83→      { category: 'B', description: 'Medición pH (rango 7,2–8,0)' },
+    84→    84→      { category: 'B', description: 'Medición Turbidez NTU (< 10 NTU)' },
+    85→    85→      { category: 'B', description: 'Medición Temperatura (15–28°C)' },
+    86→    86→      { category: 'B', description: 'Medición Oxígeno disuelto (≥ 5 mg/L)' },
+    87→    87→      { category: 'B', description: 'Aspecto visual del agua' },
+    88→    88→      { category: 'C', description: 'Color del agua normal' },
+    89→    89→      { category: 'C', description: 'Ausencia de espuma o películas en superficie' },
+    90→    90→      { category: 'C', description: 'Ausencia de olores inusuales' },
+    91→    91→      { category: 'C', description: 'Bordes y muretes sin grietas ni desprendimientos' },
+    92→    92→      { category: 'C', description: 'Cierros perimetrales en buen estado' },
+    93→    93→      { category: 'C', description: 'Embarcadero y muelle sin daños visibles' },
+    94→    94→      { category: 'C', description: 'Rack de botes en buen estado' },
+    95→    95→      { category: 'C', description: 'Playas sin residuos peligrosos' },
+    96→    96→      { category: 'C', description: 'Señalética de seguridad completa y legible' },
+    97→    97→      { category: 'C', description: 'Sin presencia de fauna muerta' },
+    98→    98→      { category: 'C', description: 'Sistema de aireación/circulación funcionando' },
+    99→    99→      { category: 'D', description: 'Dosificación de floculante registrada' },
+   100→   100→      { category: 'D', description: 'Dosificación de algicida registrada (si aplica)' },
+   101→   101→    ]
+   102→   102→  },
+   103→   103→  { codigo: 'LV-03', nombre: 'Piscinas 1–3 — Control diario de agua y limpieza', sector: 'Piscinas 1–2–3', frecuencia: 'Diaria',
+   104→   104→    items: [
+   105→   105→      { category: 'A', description: 'EPP y equipos requeridos disponibles' },
+   106→   106→      { category: 'B', description: 'Medición pH mañana (rango 7,2–7,6)' },
+   107→   107→      { category: 'B', description: 'Medición Cloro libre mañana (1,0–3,0 ppm)' },
+   108→   108→      { category: 'B', description: 'Medición Temperatura mañana (24–28°C)' },
+   109→   109→      { category: 'C', description: 'Medición pH tarde' },
+   110→   110→      { category: 'C', description: 'Medición Cloro libre tarde' },
+   111→   111→      { category: 'C', description: 'Medición Temperatura tarde' },
+   112→   112→      { category: 'D', description: 'Robot aspirador operando (ciclo nocturno ejecutado)' },
+   113→   113→      { category: 'D', description: 'Cepillado manual paredes y bordes' },
+   114→   114→      { category: 'D', description: 'Vaciado y limpieza cesta prefiltro bomba' },
+   115→   115→      { category: 'D', description: 'Retiro debris flotante (skimmer manual)' },
+   116→   116→      { category: 'D', description: 'Limpieza cesto skimmer de pared' },
+   117→   117→      { category: 'D', description: 'Limpieza borde perimetral y escalas' },
+   118→   118→      { category: 'D', description: 'Piscina habilitada para uso residentes' },
+   119→   119→    ]
+   120→   120→  },
+   121→   121→  { codigo: 'LV-04', nombre: 'Playas artificiales — Rastrillado y limpieza', sector: 'Playas 1–2–3', frecuencia: 'Diaria',
+   122→   122→    items: [
+   123→   123→      { category: 'A', description: 'Herramientas y materiales disponibles' },
+   124→   124→      { category: 'B', description: 'Rastrillado profundo de toda la superficie de arena' },
+   125→   125→      { category: 'B', description: 'Retiro manual de residuos sólidos' },
+   126→   126→      { category: 'B', description: 'Inspección: ausencia de vidrios, metales u objetos cortantes' },
+   127→   127→      { category: 'B', description: 'Nivelación de arena en bordes' },
+   128→   128→      { category: 'B', description: 'Verificación nivel de arena (mínimo 30cm zona caída)' },
+   129→   129→      { category: 'B', description: 'Limpieza de accesos y bordes perimetrales' },
+   130→   130→      { category: 'B', description: 'Verificación señalética de playa' },
+   131→   131→      { category: 'B', description: 'Inspección estado de reposeras y mobiliario cercano' },
+   132→   132→      { category: 'B', description: 'Sin presencia de fauna nociva' },
+   133→   133→    ]
+   134→   134→  },
+   135→   135→  { codigo: 'LV-05', nombre: 'Aseo y limpieza — Áreas comunes diaria', sector: 'Club House / Ciclovía / Estacionamientos', frecuencia: 'Diaria',
+   136→   136→    items: [
+   137→   137→      { category: 'A', description: 'Insumos y herramientas de aseo disponibles' },
+   138→   138→      { category: 'B', description: 'Barrido y fregado de pisos interiores Club House' },
+   139→   139→      { category: 'B', description: 'Limpieza y desinfección de mesones y superficies' },
+   140→   140→      { category: 'B', description: 'Limpieza y desinfección completa de baños' },
+   141→   141→      { category: 'B', description: 'Reposición de papel higiénico y jabón en baños' },
+   142→   142→      { category: 'B', description: 'Vaciado y limpieza de papeleras interiores' },
+   143→   143→      { category: 'B', description: 'Limpieza de vidrios y espejos Club House' },
+   144→   144→      { category: 'B', description: 'Aseo de quinchos (post-uso): parrillas, mesas, pisos' },
+   145→   145→      { category: 'B', description: 'Limpieza de cocina y área de servicios Club House' },
+   146→   146→      { category: 'B', description: 'Desinfección de pomos de puertas e interruptores' },
+   147→   147→      { category: 'C', description: 'Barrido ciclovía completa con soplador' },
+   148→   148→      { category: 'C', description: 'Barrido sendero peatonal completo' },
+   149→   149→      { category: 'C', description: 'Retiro de residuos en papeleras del circuito perimetral' },
+   150→   150→      { category: 'C', description: 'Limpieza de acceso principal y portería exterior' },
+   151→   151→      { category: 'C', description: 'Barrido estacionamientos' },
+   152→   152→      { category: 'C', description: 'Limpieza zona de acopio de basura' },
+   153→   153→      { category: 'C', description: 'Retiro de hojas y restos en zonas de juegos infantiles' },
+   154→   154→    ]
+   155→   155→  },
+   156→   156→  { codigo: 'LV-06', nombre: 'Juegos infantiles — Inspección visual diaria', sector: 'Juegos Infantiles (5 sectores)', frecuencia: 'Diaria',
+   157→   157→    items: [
+   158→   158→      { category: 'A', description: 'Materiales requeridos para la inspección disponibles' },
+   159→   159→      { category: 'B', description: 'Ausencia de residuos peligrosos (vidrios, agujas, excrementos)' },
+   160→   160→      { category: 'B', description: 'Ausencia de objetos cortantes o filosos' },
+   161→   161→      { category: 'B', description: 'Zona de caída sin objetos duros enterrados' },
+   162→   162→      { category: 'B', description: 'Piezas metálicas sin bordes cortantes ni astillas' },
+   163→   163→      { category: 'B', description: 'Toboganes sin grietas, bordes rotos o astillas' },
+   164→   164→      { category: 'B', description: 'Balancines: resortes presentes, sin fracturas visibles' },
+   165→   165→      { category: 'B', description: 'Escaleras de acceso: peldaños firmes y antideslizantes' },
+   166→   166→      { category: 'B', description: 'Barandas y pasamanos firmes' },
+   167→   167→      { category: 'B', description: 'Señalética de seguridad del sector presente y legible' },
+   168→   168→      { category: 'B', description: 'Sin presencia de animales o nidos en estructura' },
+   169→   169→      { category: 'B', description: 'SECTOR HABILITADO para uso de niños' },
+   170→   170→      { category: 'C', description: 'Registro de sectores con cierre preventivo' },
+   171→   171→    ]
+   172→   172→  },
+   173→   173→  { codigo: 'LV-07', nombre: 'Laguna — Control técnico semanal', sector: 'Laguna', frecuencia: 'Semanal',
+   174→   174→    items: [
+   175→   175→      { category: 'A', description: 'EPP y herramientas semana disponibles' },
+   176→   176→      { category: 'B', description: 'Medición pH, turbidez y temperatura (3 puntos)' },
+   177→   177→      { category: 'B', description: 'Retiro de algas flotantes con red en toda la orilla' },
+   178→   178→      { category: 'B', description: 'Retiro de macroalgas del fondo (cerca de bordes)' },
+   179→   179→      { category: 'B', description: 'Dosificación de floculante (según turbidez)' },
+   180→   180→      { category: 'B', description: 'Inspección visual completa del perímetro (fotografiar anomalías)' },
+   181→   181→      { category: 'B', description: 'Verificación funcionamiento bomba de circulación' },
+   182→   182→      { category: 'B', description: 'Limpieza de reja de filtro de entrada' },
+   183→   183→      { category: 'B', description: 'Rastrillado profundo playas 1–2–3' },
+   184→   184→      { category: 'B', description: 'Registro de todos los parámetros en planilla semanal' },
+   185→   185→      { category: 'C', description: 'Registro de parámetros semana (tendencia) completo' },
+   186→   186→    ]
+   187→   187→  },
+   188→   188→  { codigo: 'LV-08', nombre: 'Piscinas — Mantenimiento semanal', sector: 'Piscinas 1–2–3', frecuencia: 'Semanal',
+   189→   189→    items: [
+   190→   190→      { category: 'A', description: 'Herramientas y materiales semana disponibles' },
+   191→   191→      { category: 'B', description: 'Retrolavado de filtros — Girar válvula a BACKWASH' },
+   192→   192→      { category: 'B', description: 'Retrolavado — Encender bomba y esperar agua clara' },
+   193→   193→      { category: 'B', description: 'Retrolavado — Enjuague 30 segundos' },
+   194→   194→      { category: 'B', description: 'Retrolavado — Volver a posición FILTRO y verificar presión' },
+   195→   195→      { category: 'B', description: 'Registrar presión de trabajo post-retrolavado' },
+   196→   196→      { category: 'C', description: 'Cepillado a fondo de paredes, escalas y fondo' },
+   197→   197→      { category: 'C', description: 'Limpieza completa de skimmers de pared' },
+   198→   198→      { category: 'C', description: 'Verificación y limpieza de canaletas de rebalse' },
+   199→   199→      { category: 'C', description: 'Revisión de bombas (ruido, vibración, temperatura)' },
+   200→   200→      { category: 'C', description: 'Verificación de cloro residual y ajuste de dosificación' },
+   201→   201→    ]
+   202→   202→  },
+   203→   203→  { codigo: 'LV-09', nombre: 'Áreas verdes — Tareas semanales', sector: 'Jardines / Prados', frecuencia: 'Semanal',
+   204→   204→    items: [
+   205→   205→      { category: 'A', description: 'Maquinaria y herramientas — verificación pre-jornada' },
+   206→   206→      { category: 'B', description: 'Corte de césped por sector' },
+   207→   207→      { category: 'B', description: 'Bordeado de canteros y senderos' },
+   208→   208→      { category: 'B', description: 'Soplado de restos de corte en ciclovía y senderos' },
+   209→   209→      { category: 'B', description: 'Retiro de maleza en canteros y macizos' },
+   210→   210→      { category: 'B', description: 'Riego complementario (si no llueve en 48 hrs)' },
+   211→   211→      { category: 'C', description: 'Verificación sistema de riego (supervisión diaria incluida)' },
+   212→   212→      { category: 'C', description: 'Revisión de aspersores (sin obstrucciones, cobertura ok)' },
+   213→   213→      { category: 'C', description: 'Verificación programación controlador de riego' },
+   214→   214→    ]
+   215→   215→  },
+   216→   216→  { codigo: 'LV-10', nombre: 'Ciclovía y sendero — Mantenimiento', sector: 'Ciclovía / Sendero Peatonal', frecuencia: 'Semanal',
+   217→   217→    items: [
+   218→   218→      { category: 'A', description: 'Herramientas y materiales disponibles' },
+   219→   219→      { category: 'B', description: 'Barrido y soplado completo de ciclovía' },
+   220→   220→      { category: 'B', description: 'Barrido de sendero peatonal' },
+   221→   221→      { category: 'B', description: 'Retiro de maleza en bordes de ciclovía' },
+   222→   222→      { category: 'B', description: 'Inspección visual de pavimento (grietas, hundimientos)' },
+   223→   223→      { category: 'B', description: 'Verificación de señalética horizontal y vertical' },
+   224→   224→    ]
+   225→   225→  },
+   226→   226→  { codigo: 'LV-11', nombre: 'Inspección quincenal infraestructura', sector: 'Ciclovía / Muelles / Iluminación', frecuencia: 'Quincenal',
+   227→   227→    items: [
+   228→   228→      { category: 'A', description: 'Equipos y herramientas disponibles' },
+   229→   229→      { category: 'B', description: 'Muelles, embarcadero y rack de botes en buen estado' },
+   230→   230→      { category: 'B', description: 'Iluminación exterior — circuito nocturno completo' },
+   231→   231→      { category: 'B', description: 'Cierros, portones y accesos en buen estado' },
+   232→   232→    ]
+   233→   233→  },
+   234→   234→  { codigo: 'LV-12', nombre: 'Piscinas — Control quincenal completo', sector: 'Piscinas 1–2–3', frecuencia: 'Quincenal',
+   235→   235→    items: [
+   236→   236→      { category: 'A', description: 'Materiales y equipos disponibles' },
+   237→   237→      { category: 'B', description: 'Análisis completo de parámetros' },
+   238→   238→      { category: 'B', description: 'Revisión dosificadores automáticos' },
+   239→   239→    ]
+   240→   240→  },
+   241→   241→  { codigo: 'LV-13', nombre: 'Áreas verdes — Mantenimiento mensual', sector: 'Jardines / Prados', frecuencia: 'Mensual',
+   242→   242→    items: [
+   243→   243→      { category: 'A', description: 'Materiales e insumos del mes disponibles' },
+   244→   244→      { category: 'B', description: 'Estado de prados por sector — evaluación mensual' },
+   245→   245→      { category: 'B', description: 'Revisión árboles y arbustos' },
+   246→   246→    ]
+   247→   247→  },
+   248→   248→  { codigo: 'LV-14', nombre: 'Laguna — Revisión mensual sala de máquinas', sector: 'Laguna / Sala de máquinas', frecuencia: 'Mensual',
+   249→   249→    items: [
+   250→   250→      { category: 'A', description: 'Equipos y herramientas para revisión disponibles' },
+   251→   251→      { category: 'B', description: 'Verificación equipos sala de máquinas' },
+   252→   252→    ]
+   253→   253→  },
+   254→   254→  { codigo: 'LV-15', nombre: 'Club House — Mantención mensual integral', sector: 'Club House / Canchas / Quinchos', frecuencia: 'Mensual',
+   255→   255→    items: [
+   256→   256→      { category: 'A', description: 'Materiales para mantención mensual disponibles' },
+   257→   257→      { category: 'B', description: 'Verificación instalaciones eléctricas Club House' },
+   258→   258→      { category: 'B', description: 'Verificación instalaciones sanitarias y civil' },
+   259→   259→    ]
+   260→   260→  },
+   261→   261→  { codigo: 'LV-16', nombre: 'Juegos infantiles — Inspección técnica mensual', sector: 'Juegos Infantiles', frecuencia: 'Mensual',
+   262→   262→    items: [
+   263→   263→      { category: 'A', description: 'Herramientas de inspección técnica disponibles' },
+   264→   264→      { category: 'B', description: 'Inspección técnica estructural — por sector' },
+   265→   265→      { category: 'B', description: 'Lubricación de articulaciones' },
+   266→   266→    ]
+   267→   267→  },
+   268→   268→  { codigo: 'LV-17', nombre: 'Estacionamientos — Mantención mensual', sector: 'Estacionamientos / Acceso', frecuencia: 'Mensual',
+   269→   269→    items: [
+   270→   270→      { category: 'A', description: 'Herramientas y materiales disponibles' },
+   271→   271→      { category: 'B', description: 'Verificación de tareas mensuales' },
+   272→   272→      { category: 'B', description: 'Mapa de daños detectados en pavimento' },
+   273→   273→    ]
+   274→   274→  },
+   275→   275→  { codigo: 'LV-18', nombre: 'Mantención mayor trimestral', sector: 'Todos los sectores críticos', frecuencia: 'Trimestral',
+   276→   276→    items: [
+   277→   277→      { category: 'A', description: 'Personal y empresas convocadas' },
+   278→   278→      { category: 'B', description: 'Laguna — actividades trimestrales' },
+   279→   279→      { category: 'B', description: 'Piscinas — actividades trimestrales' },
+   280→   280→      { category: 'B', description: 'Juegos infantiles — actividades trimestrales' },
+   281→   281→    ]
+   282→   282→  },
+   283→   283→  { codigo: 'LV-19', nombre: 'Revisión semestral completa', sector: 'Condominio completo', frecuencia: 'Semestral',
+   284→   284→    items: [
+   285→   285→      { category: 'A', description: 'Certificaciones y servicios externos — verificación semestral' },
+   286→   286→      { category: 'B', description: 'Estado de conservación por sector (escala 1-4)' },
+   287→   287→      { category: 'B', description: 'Presupuesto semestral — ejecución vs. planificado' },
+   288→   288→    ]
+   289→   289→  },
+   290→   290→  { codigo: 'LV-20', nombre: 'Revisión anual — Certificaciones y estado', sector: 'Condominio completo', frecuencia: 'Anual',
+   291→   291→    items: [
+   292→   292→      { category: 'A', description: 'Certificaciones obligatorias — vigencia al 31 de diciembre' },
+   293→   293→      { category: 'B', description: 'KPIs anuales — resultados finales' },
+   294→   294→      { category: 'B', description: 'Revisión y aprobación del plan para el próximo año' },
+   295→   295→    ]
+   296→   296→  },
+   297→   297→]
+   298→   298→
+   299→   299→// Frequency colors
+   300→   300→const freqColors: Record<string, { bg: string; text: string; border: string }> = {
+   301→   301→  'Diaria': { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-300' },
+   302→   302→  'Semanal': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300' },
+   303→   303→  'Quincenal': { bg: 'bg-cyan-100', text: 'text-cyan-700', border: 'border-cyan-300' },
+   304→   304→  'Mensual': { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-300' },
+   305→   305→  'Trimestral': { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300' },
+   306→   306→  'Semestral': { bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-300' },
+   307→   307→  'Anual': { bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-300' },
+   308→   308→}
+   309→   309→
+   310→   310→const statusColors: Record<string, { bg: string; text: string }> = {
+   311→   311→  'PENDIENTE': { bg: 'bg-amber-50', text: 'text-amber-700' },
+   312→   312→  'EN_PROGRESO': { bg: 'bg-blue-50', text: 'text-blue-700' },
+   313→   313→  'COMPLETADA': { bg: 'bg-emerald-50', text: 'text-emerald-700' },
+   314→   314→}
+   315→   315→
+   316→   316→// ============================================================
+   317→   317→// Props
+   318→   318→// ============================================================
+   319→   319→interface MantenimientoPanelProps {
+   320→   320→  userRole?: string
+   321→   321→  initialStatusFilter?: string
+   322→   322→  onStatusFilterConsumed?: () => void
+   323→   323→}
+   324→   324→
+   325→   325→// ============================================================
+   326→   326→// Component
+   327→   327→// ============================================================
+   328→   328→export default function MantenimientoPanel({ userRole = 'USER', initialStatusFilter, onStatusFilterConsumed }: MantenimientoPanelProps) {
+   329→   329→  const { toast } = useToast()
+   330→   330→  const canEdit = userRole === 'ADMIN' || userRole === 'SUPERVISOR'
+   331→   331→
+   332→   332→  // --- View state ---
+   333→   333→  const [currentView, setCurrentView] = useState<'list' | 'detail' | 'calendar'>('list')
+   334→   334→  const [lvs, setLvs] = useState<MantenimientoLV[]>([])
+   335→   335→  const [selectedLV, setSelectedLV] = useState<MantenimientoLV | null>(null)
+   336→   336→  const [loading, setLoading] = useState(false)
+   337→   337→
+   338→   338→  // --- Filters ---
+   339→   339→  const [filterFrecuencia, setFilterFrecuencia] = useState('all')
+   340→   340→  const [filterStatus, setFilterStatus] = useState<string>(initialStatusFilter || 'all')
+   341→   341→  const [searchQuery, setSearchQuery] = useState('')
+   342→   342→
+   343→   343→  // --- Dialogs ---
+   344→   344→  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+   345→   345→  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+   346→   346→  const [deleteId, setDeleteId] = useState<string | null>(null)
+   347→   347→  const [selectedTemplate, setSelectedTemplate] = useState<string>('')
+   348→   348→
+   349→   349→  // --- Form ---
+   350→   350→  const [formDate, setFormDate] = useState('')
+   351→   351→  const [formResponsable, setFormResponsable] = useState('')
+   352→   352→  const [formTurno, setFormTurno] = useState('')
+   353→   353→
+   354→   354→  // --- Attach upload ---
+   355→   355→  const fileInputRef = useRef<HTMLInputElement>(null)
+   356→   356→  const [uploading, setUploading] = useState(false)
+   357→   357→
+   358→   358→  // ============================================================
+   359→   359→  // React to filter from parent
+   360→   360→  // ============================================================
+   361→   361→  useEffect(() => {
+   362→   362→    if (initialStatusFilter && initialStatusFilter !== 'all') {
+   363→   363→      setFilterStatus(initialStatusFilter)
+   364→   364→      if (onStatusFilterConsumed) onStatusFilterConsumed()
+   365→   365→    }
+   366→   366→  }, [initialStatusFilter])
+   367→   367→
+   368→   368→  // ============================================================
+   369→   369→  // Data fetching
+   370→   370→  // ============================================================
+   371→   371→  const fetchLVs = async () => {
+   372→   372→    setLoading(true)
+   373→   373→    try {
+   374→   374→      const params = new URLSearchParams()
+   375→   375→      if (filterFrecuencia !== 'all') params.set('frecuencia', filterFrecuencia)
+   376→   376→      if (filterStatus !== 'all') params.set('status', filterStatus)
+   377→   377→      const res = await fetch(`/api/mantenimiento-lv?${params.toString()}`)
+   378→   378→      if (res.ok) setLvs(await res.json())
+   379→   379→    } catch (err) {
+   380→   380→      console.error(err)
+   381→   381→      toast({ title: 'Error', description: 'No se pudieron cargar las listas', variant: 'destructive' })
+   382→   382→    } finally {
+   383→   383→      setLoading(false)
+   384→   384→    }
+   385→   385→  }
+   386→   386→
+   387→   387→  const fetchLVDetail = async (id: string) => {
+   388→   388→    try {
+   389→   389→      const res = await fetch(`/api/mantenimiento-lv/${id}`)
+   390→   390→      if (res.ok) {
+   391→   391→        const data = await res.json()
+   392→   392→        setSelectedLV(data)
+   393→   393→      }
+   394→   394→    } catch (err) {
+   395→   395→      console.error(err)
+   396→   396→    }
+   397→   397→  }
+   398→   398→
+   399→   399→  useEffect(() => { fetchLVs() }, [filterFrecuencia, filterStatus])
+   400→   400→
+   401→   401→  // ============================================================
+   402→   402→  // Create from template
+   403→   403→  // ============================================================
+   404→   404→  const handleCreateFromTemplate = async () => {
+   405→   405→    const template = LV_TEMPLATES.find(t => t.codigo === selectedTemplate)
+   406→   406→    if (!template) return
+   407→   407→
+   408→   408→    try {
+   409→   409→      const res = await fetch('/api/mantenimiento-lv', {
+   410→   410→        method: 'POST',
+   411→   411→        headers: { 'Content-Type': 'application/json' },
+   412→   412→        body: JSON.stringify({
+   413→   413→          codigo: template.codigo,
+   414→   414→          nombre: template.nombre,
+   415→   415→          sector: template.sector,
+   416→   416→          frecuencia: template.frecuencia,
+   417→   417→          scheduledDate: formDate || null,
+   418→   418→          responsable: formResponsable || null,
+   419→   419→          turno: formTurno || null,
+   420→   420→          items: template.items,
+   421→   421→        }),
+   422→   422→      })
+   423→   423→      if (res.ok) {
+   424→   424→        toast({ title: 'Lista creada', description: `${template.codigo} — ${template.nombre}` })
+   425→   425→        setCreateDialogOpen(false)
+   426→   426→        setSelectedTemplate('')
+   427→   427→        setFormDate('')
+   428→   428→        setFormResponsable('')
+   429→   429→        setFormTurno('')
+   430→   430→        fetchLVs()
+   431→   431→      } else {
+   432→   432→        const err = await res.json()
+   433→   433→        toast({ title: 'Error', description: err.error, variant: 'destructive' })
+   434→   434→      }
+   435→   435→    } catch {
+   436→   436→      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+   437→   437→    }
+   438→   438→  }
+   439→   439→
+   440→   440→  // ============================================================
+   441→   441→  // Update item status
+   442→   442→  // ============================================================
+   443→   443→  const handleItemStatusChange = async (itemId: string, newStatus: string) => {
+   444→   444→    if (!selectedLV) return
+   445→   445→    const updatedItems = selectedLV.items.map(item =>
+   446→   446→      item.id === itemId ? { ...item, status: newStatus } : item
+   447→   447→    )
+   448→   448→    // Optimistic update
+   449→   449→    setSelectedLV({ ...selectedLV, items: updatedItems })
+   450→   450→
+   451→   451→    try {
+   452→   452→      await fetch(`/api/mantenimiento-lv/${selectedLV.id}`, {
+   453→   453→        method: 'PUT',
+   454→   454→        headers: { 'Content-Type': 'application/json' },
+   455→   455→        body: JSON.stringify({ items: updatedItems }),
+   456→   456→      })
+   457→   457→      fetchLVs()
+   458→   458→      fetchLVDetail(selectedLV.id)
+   459→   459→    } catch {
+   460→   460→      toast({ title: 'Error', description: 'No se pudo actualizar', variant: 'destructive' })
+   461→   461→    }
+   462→   462→  }
+   463→   463→
+   464→   464→  // ============================================================
+   465→   465→  // Update item value/observation
+   466→   466→  // ============================================================
+   467→   467→  const handleItemValueChange = async (itemId: string, field: 'value' | 'observation', val: string) => {
+   468→   468→    if (!selectedLV) return
+   469→   469→    const updatedItems = selectedLV.items.map(item =>
+   470→   470→      item.id === itemId ? { ...item, [field]: val } : item
+   471→   471→    )
+   472→   472→    setSelectedLV({ ...selectedLV, items: updatedItems })
+   473→   473→  }
+   474→   474→
+   475→   475→  const handleSaveItemChanges = async () => {
+   476→   476→    if (!selectedLV) return
+   477→   477→    try {
+   478→   478→      await fetch(`/api/mantenimiento-lv/${selectedLV.id}`, {
+   479→   479→        method: 'PUT',
+   480→   480→        headers: { 'Content-Type': 'application/json' },
+   481→   481→        body: JSON.stringify({ items: selectedLV.items, observations: selectedLV.observations }),
+   482→   482→      })
+   483→   483→      fetchLVs()
+   484→   484→      fetchLVDetail(selectedLV.id)
+   485→   485→      toast({ title: 'Guardado', description: 'Cambios guardados exitosamente' })
+   486→   486→    } catch {
+   487→   487→      toast({ title: 'Error', description: 'No se pudo guardar', variant: 'destructive' })
+   488→   488→    }
+   489→   489→  }
+   490→   490→
+   491→   491→  // ============================================================
+   492→   492→  // Delete
+   493→   493→  // ============================================================
+   494→   494→  const handleDelete = async () => {
+   495→   495→    if (!deleteId) return
+   496→   496→    try {
+   497→   497→      await fetch(`/api/mantenimiento-lv/${deleteId}`, { method: 'DELETE' })
+   498→   498→      toast({ title: 'Eliminado', description: 'Lista eliminada exitosamente' })
+   499→   499→      fetchLVs()
+   500→   500→      if (selectedLV?.id === deleteId) { setCurrentView('list'); setSelectedLV(null) }
+   501→   501→    } catch {
+   502→   502→      toast({ title: 'Error', description: 'No se pudo eliminar', variant: 'destructive' })
+   503→   503→    } finally {
+   504→   504→      setDeleteDialogOpen(false); setDeleteId(null)
+   505→   505→    }
+   506→   506→  }
+   507→   507→
+   508→   508→  // ============================================================
+   509→   509→  // Print
+   510→   510→  // ============================================================
+   511→   511→  const handlePrint = (lv: MantenimientoLV) => {
+   512→   512→    const w = window.open('', '_blank')
+   513→   513→    if (!w) return
+   514→   514→    const categories = [...new Set(lv.items.map(i => i.category))]
+   515→   515→    const categoryLabels: Record<string, string> = { A: 'A. EPP / Materiales', B: 'B. Verificación de Tareas', C: 'C. Inspección / Registros', D: 'D. Dosificaciones / Limpieza' }
+   516→   516→
+   517→   517→    w.document.write(`<!DOCTYPE html><html><head><title>${lv.codigo} — ${lv.nombre}</title>
+   518→   518→    <style>
+   519→   519→      body{font-family:Arial,sans-serif;margin:20px;font-size:12px;color:#1e293b}
+   520→   520→      h1{font-size:16px;margin:0 0 4px}h2{font-size:13px;margin:8px 0 4px;color:#475569}
+   521→   521→      .header{display:flex;justify-content:space-between;border-bottom:2px solid #2563eb;padding-bottom:8px;margin-bottom:12px}
+   522→   522→      .meta{display:flex;gap:20px;font-size:11px;margin-bottom:8px}
+   523→   523→      table{width:100%;border-collapse:collapse;margin-bottom:12px}
+   524→   524→      th{background:#f1f5f9;padding:6px 8px;text-align:left;border:1px solid #cbd5e1;font-size:11px}
+   525→   525→      td{padding:5px 8px;border:1px solid #e2e8f0;font-size:11px}
+   526→   526→      .ok{color:#16a34a;font-weight:bold}.no{color:#dc2626;font-weight:bold}
+   527→   527→      .progress-bar{height:16px;background:#e2e8f0;border-radius:4px;overflow:hidden;margin:4px 0}
+   528→   528→      .progress-fill{height:100%;background:#2563eb}
+   529→   529→      .signatures{display:flex;gap:40px;margin-top:30px;font-size:11px}
+   530→   530→      .sig-line{border-top:1px solid #000;width:200px;padding-top:4px;margin-top:30px}
+   531→   531→    </style></head><body>
+   532→   532→    <div class="header"><div><h1>${lv.codigo} — ${lv.nombre}</h1><div style="font-size:11px;color:#64748b">Asesorías Integrales CyJ — Condominio Laguna Norte</div></div>
+   533→   533→    <div style="text-align:right;font-size:11px">Progreso: ${lv.progress}%<div class="progress-bar" style="width:120px"><div class="progress-fill" style="width:${lv.progress}%"></div></div></div></div>
+   534→   534→    <div class="meta"><div><b>Sector:</b> ${lv.sector}</div><div><b>Frecuencia:</b> ${lv.frecuencia}</div><div><b>Responsable:</b> ${lv.responsable || '-'}</div><div><b>Fecha:</b> ${lv.scheduledDate ? new Date(lv.scheduledDate).toLocaleDateString('es-CL') : '-'}</div></div>
+   535→   535→    ${categories.map(cat => {
+   536→   536→      const catItems = lv.items.filter(i => i.category === cat)
+   537→   537→      return `<h2>${categoryLabels[cat] || cat}</h2><table><tr><th style="width:5%">N°</th><th style="width:55%">Descripción</th><th style="width:10%">Estado</th><th style="width:15%">Valor</th><th style="width:15%">Observación</th></tr>
+   538→   538→      ${catItems.map((item, idx) => `<tr><td>${idx + 1}</td><td>${item.description}</td><td class="${item.status === 'OK' ? 'ok' : item.status === 'NO_OK' ? 'no' : ''}">${item.status === 'OK' ? '✓ OK' : item.status === 'NO_OK' ? '✗ NO OK' : item.status === 'N/A' ? 'N/A' : '☐'}</td><td>${item.value || ''}</td><td>${item.observation || ''}</td></tr>`).join('')}</table>`
+   539→   539→    }).join('')}
+   540→   540→    ${lv.observations ? `<h2>Observaciones</h2><p>${lv.observations}</p>` : ''}
+   541→   541→    <div class="signatures"><div><div class="sig-line">Responsable — Nombre, Firma, RUT, Fecha</div></div><div><div class="sig-line">Supervisor — Nombre, Firma, RUT, Fecha</div></div></div>
+   542→   542→    </body></html>`)
+   543→   543→    w.document.close()
+   544→   544→    w.print()
+   545→   545→  }
+   546→   546→
+   547→   547→  // ============================================================
+   548→   548→  // Upload attachment
+   549→   549→  // ============================================================
+   550→   550→  const handleUploadAttachment = async (e: React.ChangeEvent<HTMLInputElement>) => {
+   551→   551→    const file = e.target.files?.[0]
+   552→   552→    if (!file || !selectedLV) return
+   553→   553→    setUploading(true)
+   554→   554→    try {
+   555→   555→      const formData = new FormData()
+   556→   556→      formData.append('file', file)
+   557→   557→      const res = await fetch('/api/upload', { method: 'POST', body: formData })
+   558→   558→      if (res.ok) {
+   559→   559→        const { url } = await res.json()
+   560→   560→        const currentAttachments = JSON.parse(selectedLV.attachments || '[]')
+   561→   561→        const newAttachments = [...currentAttachments, url]
+   562→   562→        await fetch(`/api/mantenimiento-lv/${selectedLV.id}`, {
+   563→   563→          method: 'PUT',
+   564→   564→          headers: { 'Content-Type': 'application/json' },
+   565→   565→          body: JSON.stringify({ attachments: JSON.stringify(newAttachments) }),
+   566→   566→        })
+   567→   567→        fetchLVDetail(selectedLV.id)
+   568→   568→        toast({ title: 'Archivo adjuntado', description: file.name })
+   569→   569→      }
+   570→   570→    } catch {
+   571→   571→      toast({ title: 'Error', description: 'No se pudo subir el archivo', variant: 'destructive' })
+   572→   572→    } finally {
+   573→   573→      setUploading(false)
+   574→   574→      if (fileInputRef.current) fileInputRef.current.value = ''
+   575→   575→    }
+   576→   576→  }
+   577→   577→
+   578→   578→  // ============================================================
+   579→   579→  // Calendar helpers
+   580→   580→  // ============================================================
+   581→   581→  const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate()
+   582→   582→  const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay()
+   583→   583→  const [calYear, setCalYear] = useState(new Date().getFullYear())
+   584→   584→  const [calMonth, setCalMonth] = useState(new Date().getMonth())
+   585→   585→
+   586→   586→  const getLVsForDate = (day: number) => {
+   587→   587→    const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+   588→   588→    return lvs.filter(lv => lv.scheduledDate && lv.scheduledDate.startsWith(dateStr))
+   589→   589→  }
+   590→   590→
+   591→   591→  // ============================================================
+   592→   592→  // Format
+   593→   593→  // ============================================================
+   594→   594→  const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString('es-CL') : '-'
+   595→   595→
+   596→   596→  // ============================================================
+   597→   597→  // Filtered
+   598→   598→  // ============================================================
+   599→   599→  const filteredLVs = lvs.filter(lv => {
+   600→   600→    if (searchQuery.trim()) {
+   601→   601→      const q = searchQuery.toLowerCase()
+   602→   602→      return lv.nombre.toLowerCase().includes(q) || lv.codigo.toLowerCase().includes(q) || lv.sector.toLowerCase().includes(q)
+   603→   603→    }
+   604→   604→    return true
+   605→   605→  })
+   606→   606→
+   607→   607→  // Stats
+   608→   608→  const totalLVs = lvs.length
+   609→   609→  const pendientes = lvs.filter(l => l.status === 'PENDIENTE').length
+   610→   610→  const enProgreso = lvs.filter(l => l.status === 'EN_PROGRESO').length
+   611→   611→  const completadas = lvs.filter(l => l.status === 'COMPLETADA').length
+   612→   612→  const avgProgress = totalLVs > 0 ? Math.round(lvs.reduce((s, l) => s + l.progress, 0) / totalLVs) : 0
+   613→   613→
+   614→   614→  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+   615→   615→
+   616→   616→  // ============================================================
+   617→   617→  // RENDER
+   618→   618→  // ============================================================
+   619→   619→  return (
+   620→   620→    <div className="space-y-4">
+   621→   621→      {/* Stats bar */}
+   622→   622→      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   623→   623→        <div className="bg-white rounded-xl p-3 border border-amber-200 shadow-sm text-center">
+   624→   624→          <div className="text-xs text-amber-600 uppercase tracking-wider font-semibold">Pendientes</div>
+   625→   625→          <div className="text-2xl font-bold text-amber-700">{pendientes}</div>
+   626→   626→        </div>
+   627→   627→        <div className="bg-white rounded-xl p-3 border border-blue-200 shadow-sm text-center">
+   628→   628→          <div className="text-xs text-blue-600 uppercase tracking-wider font-semibold">En Progreso</div>
+   629→   629→          <div className="text-2xl font-bold text-blue-700">{enProgreso}</div>
+   630→   630→        </div>
+   631→   631→        <div className="bg-white rounded-xl p-3 border border-emerald-200 shadow-sm text-center">
+   632→   632→          <div className="text-xs text-emerald-600 uppercase tracking-wider font-semibold">Completadas</div>
+   633→   633→          <div className="text-2xl font-bold text-emerald-700">{completadas}</div>
+   634→   634→        </div>
+   635→   635→        <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm text-center">
+   636→   636→          <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Avance Promedio</div>
+   637→   637→          <div className="text-2xl font-bold text-slate-800">{avgProgress}%</div>
+   638→   638→          <Progress value={avgProgress} className="h-2 mt-1" />
+   639→   639→        </div>
+   640→   640→      </div>
+   641→   641→
+   642→   642→      {/* Header */}
+   643→   643→      <div className="flex items-center justify-between">
+   644→   644→        <div className="flex items-center gap-3">
+   645→   645→          {currentView !== 'list' && (
+   646→   646→            <Button variant="ghost" size="sm" onClick={() => { setCurrentView('list'); setSelectedLV(null) }} className="gap-1">
+   647→   647→              <ChevronLeft className="h-4 w-4" /> Volver
+   648→   648→            </Button>
+   649→   649→          )}
+   650→   650→          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+   651→   651→            <Wrench className="h-5 w-5 text-teal-600" />
+   652→   652→            Mantenimiento
+   653→   653→          </h2>
+   654→   654→        </div>
+   655→   655→        <div className="flex items-center gap-2">
+   656→   656→          <Button variant={currentView === 'calendar' ? 'default' : 'outline'} size="sm" className="gap-1" onClick={() => setCurrentView('calendar')}>
+   657→   657→            <Calendar className="h-4 w-4" /> Calendario
+   658→   658→          </Button>
+   659→   659→          <Button variant={currentView === 'list' ? 'default' : 'outline'} size="sm" className="gap-1" onClick={() => setCurrentView('list')}>
+   660→   660→            Lista
+   661→   661→          </Button>
+   662→   662→          {canEdit && (
+   663→   663→            <Button className="gap-1.5 bg-teal-600 hover:bg-teal-700 text-white" onClick={() => setCreateDialogOpen(true)}>
+   664→   664→              <Plus className="h-4 w-4" /> Nueva LV
+   665→   665→            </Button>
+   666→   666→          )}
+   667→   667→        </div>
+   668→   668→      </div>
+   669→   669→
+   670→   670→      {/* Filters */}
+   671→   671→      <div className="flex items-center gap-2 flex-wrap">
+   672→   672→        <Select value={filterFrecuencia} onValueChange={setFilterFrecuencia}>
+   673→   673→          <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder="Frecuencia" /></SelectTrigger>
+   674→   674→          <SelectContent>
+   675→   675→            <SelectItem value="all">Todas</SelectItem>
+   676→   676→            <SelectItem value="Diaria">Diaria</SelectItem>
+   677→   677→            <SelectItem value="Semanal">Semanal</SelectItem>
+   678→   678→            <SelectItem value="Quincenal">Quincenal</SelectItem>
+   679→   679→            <SelectItem value="Mensual">Mensual</SelectItem>
+   680→   680→            <SelectItem value="Trimestral">Trimestral</SelectItem>
+   681→   681→            <SelectItem value="Semestral">Semestral</SelectItem>
+   682→   682→            <SelectItem value="Anual">Anual</SelectItem>
+   683→   683→          </SelectContent>
+   684→   684→        </Select>
+   685→   685→        <Select value={filterStatus} onValueChange={setFilterStatus}>
+   686→   686→          <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder="Estado" /></SelectTrigger>
+   687→   687→          <SelectContent>
+   688→   688→            <SelectItem value="all">Todos</SelectItem>
+   689→   689→            <SelectItem value="PENDIENTE">Pendiente</SelectItem>
+   690→   690→            <SelectItem value="EN_PROGRESO">En Progreso</SelectItem>
+   691→   691→            <SelectItem value="COMPLETADA">Completada</SelectItem>
+   692→   692→          </SelectContent>
+   693→   693→        </Select>
+   694→   694→        <Input placeholder="Buscar..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-[200px] h-8 text-xs" />
+   695→   695→      </div>
+   696→   696→
+   697→   697→      {/* ============================================================ */}
+   698→   698→      {/* LIST VIEW                                                     */}
+   699→   699→      {/* ============================================================ */}
+   700→   700→      {currentView === 'list' && (
+   701→   701→        <>
+   702→   702→          {loading ? (
+   703→   703→            <div className="text-center py-12 text-slate-500">Cargando...</div>
+   704→   704→          ) : filteredLVs.length === 0 ? (
+   705→   705→            <div className="text-center py-12 text-slate-400">
+   706→   706→              <Wrench className="h-12 w-12 mx-auto mb-3 opacity-40" />
+   707→   707→              <p className="text-lg font-medium">No hay listas de verificación</p>
+   708→   708→              <p className="text-sm mt-1">Crea una nueva LV desde una plantilla</p>
+   709→   709→            </div>
+   710→   710→          ) : (
+   711→   711→            <div className="space-y-3">
+   712→   712→              {filteredLVs.map(lv => {
+   713→   713→                const fc = freqColors[lv.frecuencia] || freqColors['Mensual']
+   714→   714→                const sc = statusColors[lv.status] || statusColors['PENDIENTE']
+   715→   715→                return (
+   716→   716→                  <Card key={lv.id} className="border-l-4 border-l-teal-400 hover:shadow-md transition-all cursor-pointer"
+   717→   717→                    onClick={() => { fetchLVDetail(lv.id); setCurrentView('detail') }}>
+   718→   718→                    <CardContent className="px-4 py-3">
+   719→   719→                      <div className="flex items-center justify-between">
+   720→   720→                        <div className="flex items-center gap-3">
+   721→   721→                          <Badge className={`${fc.bg} ${fc.text} text-xs font-bold`}>{lv.codigo}</Badge>
+   722→   722→                          <div>
+   723→   723→                            <div className="font-semibold text-sm text-slate-800">{lv.nombre}</div>
+   724→   724→                            <div className="text-xs text-slate-500">{lv.sector} · {lv.responsable || 'Sin responsable'} · {formatDate(lv.scheduledDate)}</div>
+   725→   725→                          </div>
+   726→   726→                        </div>
+   727→   727→                        <div className="flex items-center gap-3">
+   728→   728→                          <Badge className={`${fc.bg} ${fc.text} text-xs`}>{lv.frecuencia}</Badge>
+   729→   729→                          <Badge className={`${sc.bg} ${sc.text} text-xs gap-1`}>
+   730→   730→                            {lv.status === 'COMPLETADA' && <CheckCircle className="h-3 w-3" />}
+   731→   731→                            {lv.status === 'EN_PROGRESO' && <Clock className="h-3 w-3" />}
+   732→   732→                            {lv.status === 'PENDIENTE' && <Clock className="h-3 w-3" />}
+   733→   733→                            {lv.status === 'PENDIENTE' ? 'Pendiente' : lv.status === 'EN_PROGRESO' ? 'En Progreso' : 'Completada'}
+   734→   734→                          </Badge>
+   735→   735→                          <div className="w-24">
+   736→   736→                            <div className="text-xs text-right text-slate-500 mb-0.5">{lv.progress}%</div>
+   737→   737→                            <Progress value={lv.progress} className="h-2" />
+   738→   738→                          </div>
+   739→   739→                        </div>
+   740→   740→                      </div>
+   741→   741→                    </CardContent>
+   742→   742→                  </Card>
+   743→   743→                )
+   744→   744→              })}
+   745→   745→            </div>
+   746→   746→          )}
+   747→   747→        </>
+   748→   748→      )}
+   749→   749→
+   750→   750→      {/* ============================================================ */}
+   751→   751→      {/* DETAIL VIEW                                                   */}
+   752→   752→      {/* ============================================================ */}
+   753→   753→      {currentView === 'detail' && selectedLV && (
+   754→   754→        <>
+   755→   755→          <div className="flex items-center justify-between">
+   756→   756→            <div>
+   757→   757→              <h3 className="text-lg font-bold text-slate-800">{selectedLV.codigo} — {selectedLV.nombre}</h3>
+   758→   758→              <p className="text-sm text-slate-500">{selectedLV.sector} · Frecuencia: {selectedLV.frecuencia} · Responsable: {selectedLV.responsable || '-'}</p>
+   759→   759→            </div>
+   760→   760→            <div className="flex items-center gap-2">
+   761→   761→              <Button variant="outline" size="sm" className="gap-1" onClick={() => handlePrint(selectedLV)}>
+   762→   762→                <Printer className="h-4 w-4" /> Imprimir
+   763→   763→              </Button>
+   764→   764→              <Button variant="outline" size="sm" className="gap-1" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+   765→   765→                <Upload className="h-4 w-4" /> {uploading ? 'Subiendo...' : 'Adjuntar'}
+   766→   766→              </Button>
+   767→   767→              <input ref={fileInputRef} type="file" className="hidden" onChange={handleUploadAttachment} accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xlsx" />
+   768→   768→              {canEdit && (
+   769→   769→                <Button size="sm" className="gap-1 bg-teal-600 hover:bg-teal-700 text-white" onClick={handleSaveItemChanges}>
+   770→   770→                  Guardar Cambios
+   771→   771→                </Button>
+   772→   772→              )}
+   773→   773→              <Button variant="ghost" size="sm" className="text-red-500" onClick={() => { setDeleteId(selectedLV.id); setDeleteDialogOpen(true) }}>
+   774→   774→                <Trash2 className="h-4 w-4" />
+   775→   775→              </Button>
+   776→   776→            </div>
+   777→   777→          </div>
+   778→   778→
+   779→   779→          {/* Progress bar */}
+   780→   780→          <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+   781→   781→            <div className="flex items-center justify-between mb-2">
+   782→   782→              <span className="text-sm font-semibold text-slate-700">Avance: {selectedLV.progress}%</span>
+   783→   783→              <Badge className={`${statusColors[selectedLV.status]?.bg} ${statusColors[selectedLV.status]?.text}`}>
+   784→   784→                {selectedLV.status === 'PENDIENTE' ? 'Pendiente' : selectedLV.status === 'EN_PROGRESO' ? 'En Progreso' : 'Completada'}
+   785→   785→              </Badge>
+   786→   786→            </div>
+   787→   787→            <Progress value={selectedLV.progress} className="h-3" />
+   788→   788→          </div>
+   789→   789→
+   790→   790→          {/* Attachments */}
+   791→   791→          {JSON.parse(selectedLV.attachments || '[]').length > 0 && (
+   792→   792→            <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm">
+   793→   793→              <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2">Adjuntos</div>
+   794→   794→              <div className="flex gap-2 flex-wrap">
+   795→   795→                {JSON.parse(selectedLV.attachments).map((url: string, idx: number) => (
+   796→   796→                  <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:text-blue-800 underline">
+   797→   797→                    Archivo {idx + 1}
+   798→   798→                  </a>
+   799→   799→                ))}
+   800→   800→              </div>
+   801→   801→            </div>
+   802→   802→          )}
+   803→   803→
+   804→   804→          {/* Checklist items by category */}
+   805→   805→          {(() => {
+   806→   806→            const categories = [...new Set(selectedLV.items.map(i => i.category))]
+   807→   807→            const categoryLabels: Record<string, string> = { A: 'A. EPP / Materiales', B: 'B. Verificación de Tareas', C: 'C. Inspección / Registros', D: 'D. Dosificaciones / Limpieza' }
+   808→   808→            return categories.map(cat => {
+   809→   809→              const catItems = selectedLV.items.filter(i => i.category === cat)
+   810→   810→              return (
+   811→   811→                <Card key={cat} className="border border-slate-200">
+   812→   812→                  <CardHeader className="py-2 px-4 bg-slate-50">
+   813→   813→                    <CardTitle className="text-sm font-bold text-slate-700">{categoryLabels[cat] || `Sección ${cat}`}</CardTitle>
+   814→   814→                  </CardHeader>
+   815→   815→                  <CardContent className="p-0">
+   816→   816→                    <Table>
+   817→   817→                      <TableHeader>
+   818→   818→                        <TableRow>
+   819→   819→                          <TableHead className="w-[30px] text-center px-2 py-1 text-xs">N°</TableHead>
+   820→   820→                          <TableHead className="px-2 py-1 text-xs">Descripción</TableHead>
+   821→   821→                          <TableHead className="w-[90px] text-center px-2 py-1 text-xs">Estado</TableHead>
+   822→   822→                          <TableHead className="w-[100px] px-2 py-1 text-xs">Valor</TableHead>
+   823→   823→                          <TableHead className="w-[120px] px-2 py-1 text-xs">Observación</TableHead>
+   824→   824→                        </TableRow>
+   825→   825→                      </TableHeader>
+   826→   826→                      <TableBody>
+   827→   827→                        {catItems.map((item, idx) => (
+   828→   828→                          <TableRow key={item.id || idx} className={item.status === 'OK' ? 'bg-emerald-50/50' : item.status === 'NO_OK' ? 'bg-red-50/50' : ''}>
+   829→   829→                            <TableCell className="text-center text-xs text-slate-400 px-2 py-1">{idx + 1}</TableCell>
+   830→   830→                            <TableCell className="text-xs px-2 py-1 text-slate-700">{item.description}</TableCell>
+   831→   831→                            <TableCell className="text-center px-2 py-1">
+   832→   832→                              {canEdit ? (
+   833→   833→                                <Select value={item.status} onValueChange={(v) => handleItemStatusChange(item.id!, v)}>
+   834→   834→                                  <SelectTrigger className="h-7 text-xs w-[80px]">
+   835→   835→                                    <SelectValue />
+   836→   836→                                  </SelectTrigger>
+   837→   837→                                  <SelectContent>
+   838→   838→                                    <SelectItem value="PENDIENTE">☐ Pendiente</SelectItem>
+   839→   839→                                    <SelectItem value="OK">✓ OK</SelectItem>
+   840→   840→                                    <SelectItem value="NO_OK">✗ NO OK</SelectItem>
+   841→   841→                                    <SelectItem value="N/A">N/A</SelectItem>
+   842→   842→                                  </SelectContent>
+   843→   843→                                </Select>
+   844→   844→                              ) : (
+   845→   845→                                <Badge className={`text-xs ${item.status === 'OK' ? 'bg-emerald-100 text-emerald-700' : item.status === 'NO_OK' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
+   846→   846→                                  {item.status === 'OK' ? '✓ OK' : item.status === 'NO_OK' ? '✗ NO' : item.status === 'N/A' ? 'N/A' : '☐'}
+   847→   847→                                </Badge>
+   848→   848→                              )}
+   849→   849→                            </TableCell>
+   850→   850→                            <TableCell className="px-2 py-1">
+   851→   851→                              {canEdit ? (
+   852→   852→                                <Input className="h-7 text-xs" value={item.value || ''} onChange={(e) => handleItemValueChange(item.id!, 'value', e.target.value)} placeholder="Valor" />
+   853→   853→                              ) : <span className="text-xs">{item.value || '-'}</span>}
+   854→   854→                            </TableCell>
+   855→   855→                            <TableCell className="px-2 py-1">
+   856→   856→                              {canEdit ? (
+   857→   857→                                <Input className="h-7 text-xs" value={item.observation || ''} onChange={(e) => handleItemValueChange(item.id!, 'observation', e.target.value)} placeholder="Obs." />
+   858→   858→                              ) : <span className="text-xs">{item.observation || '-'}</span>}
+   859→   859→                            </TableCell>
+   860→   860→                          </TableRow>
+   861→   861→                        ))}
+   862→   862→                      </TableBody>
+   863→   863→                    </Table>
+   864→   864→                  </CardContent>
+   865→   865→                </Card>
+   866→   866→              )
+   867→   867→            })
+   868→   868→          })()}
+   869→   869→
+   870→   870→          {/* Observations */}
+   871→   871→          <Card className="border border-slate-200">
+   872→   872→            <CardHeader className="py-2 px-4 bg-slate-50">
+   873→   873→              <CardTitle className="text-sm font-bold text-slate-700">Observaciones / Acciones Correctivas</CardTitle>
+   874→   874→            </CardHeader>
+   875→   875→            <CardContent className="p-4">
+   876→   876→              {canEdit ? (
+   877→   877→                <Textarea value={selectedLV.observations || ''} onChange={(e) => setSelectedLV({ ...selectedLV, observations: e.target.value })} placeholder="Ingrese observaciones..." rows={3} />
+   878→   878→              ) : (
+   879→   879→                <p className="text-sm text-slate-600">{selectedLV.observations || 'Sin observaciones'}</p>
+   880→   880→              )}
+   881→   881→            </CardContent>
+   882→   882→          </Card>
+   883→   883→        </>
+   884→   884→      )}
+   885→   885→
+   886→   886→      {/* ============================================================ */}
+   887→   887→      {/* CALENDAR VIEW                                                 */}
+   888→   888→      {/* ============================================================ */}
+   889→   889→      {currentView === 'calendar' && (
+   890→   890→        <Card>
+   891→   891→          <CardHeader className="pb-2">
+   892→   892→            <div className="flex items-center justify-between">
+   893→   893→              <Button variant="ghost" size="sm" onClick={() => { if (calMonth === 0) { setCalMonth(11); setCalYear(calYear - 1) } else setCalMonth(calMonth - 1) }}>
+   894→   894→                <ChevronLeft className="h-4 w-4" />
+   895→   895→              </Button>
+   896→   896→              <CardTitle className="text-base">{monthNames[calMonth]} {calYear}</CardTitle>
+   897→   897→              <Button variant="ghost" size="sm" onClick={() => { if (calMonth === 11) { setCalMonth(0); setCalYear(calYear + 1) } else setCalMonth(calMonth + 1) }}>
+   898→   898→                <ChevronRight className="h-4 w-4" />
+   899→   899→              </Button>
+   900→   900→            </div>
+   901→   901→          </CardHeader>
+   902→   902→          <CardContent>
+   903→   903→            <div className="grid grid-cols-7 gap-1">
+   904→   904→              {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (
+   905→   905→                <div key={d} className="text-center text-xs font-semibold text-slate-500 py-1">{d}</div>
+   906→   906→              ))}
+   907→   907→              {Array.from({ length: getFirstDayOfMonth(calYear, calMonth) }, (_, i) => (
+   908→   908→                <div key={`empty-${i}`} className="h-24" />
+   909→   909→              ))}
+   910→   910→              {Array.from({ length: getDaysInMonth(calYear, calMonth) }, (_, i) => {
+   911→   911→                const day = i + 1
+   912→   912→                const dayLVs = getLVsForDate(day)
+   913→   913→                const isToday = calYear === new Date().getFullYear() && calMonth === new Date().getMonth() && day === new Date().getDate()
+   914→   914→                return (
+   915→   915→                  <div key={day} className={`h-24 border rounded-lg p-1 text-xs overflow-hidden ${isToday ? 'border-teal-400 bg-teal-50/30' : 'border-slate-200'}`}>
+   916→   916→                    <div className={`font-semibold ${isToday ? 'text-teal-700' : 'text-slate-600'}`}>{day}</div>
+   917→   917→                    <div className="space-y-0.5 mt-0.5">
+   918→   918→                      {dayLVs.slice(0, 3).map(lv => (
+   919→   919→                        <div key={lv.id} className={`truncate rounded px-1 py-0.5 text-[10px] cursor-pointer ${lv.status === 'COMPLETADA' ? 'bg-emerald-100 text-emerald-700' : lv.status === 'EN_PROGRESO' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}
+   920→   920→                          onClick={() => { fetchLVDetail(lv.id); setCurrentView('detail') }} title={`${lv.codigo} — ${lv.nombre}`}>
+   921→   921→                          {lv.codigo}
+   922→   922→                        </div>
+   923→   923→                      ))}
+   924→   924→                      {dayLVs.length > 3 && <div className="text-[10px] text-slate-400">+{dayLVs.length - 3} más</div>}
+   925→   925→                    </div>
+   926→   926→                  </div>
+   927→   927→                )
+   928→   928→              })}
+   929→   929→            </div>
+   930→   930→            {/* Legend */}
+   931→   931→            <div className="flex gap-4 mt-3 text-xs">
+   932→   932→              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-amber-100 border border-amber-300" /> Pendiente</div>
+   933→   933→              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-blue-100 border border-blue-300" /> En Progreso</div>
+   934→   934→              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-emerald-100 border border-emerald-300" /> Completada</div>
+   935→   935→            </div>
+   936→   936→          </CardContent>
+   937→   937→        </Card>
+   938→   938→      )}
+   939→   939→
+   940→   940→      {/* ============================================================ */}
+   941→   941→      {/* CREATE DIALOG                                                 */}
+   942→   942→      {/* ============================================================ */}
+   943→   943→      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+   944→   944→        <DialogContent className="sm:max-w-lg">
+   945→   945→          <DialogHeader>
+   946→   946→            <DialogTitle>Nueva Lista de Verificación</DialogTitle>
+   947→   947→            <DialogDescription>Selecciona una plantilla para crear la lista de verificación</DialogDescription>
+   948→   948→          </DialogHeader>
+   949→   949→          <div className="space-y-4">
+   950→   950→            <div>
+   951→   951→              <Label>Plantilla LV *</Label>
+   952→   952→              <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+   953→   953→                <SelectTrigger><SelectValue placeholder="Seleccionar plantilla..." /></SelectTrigger>
+   954→   954→                <SelectContent>
+   955→   955→                  {LV_TEMPLATES.map(t => (
+   956→   956→                    <SelectItem key={t.codigo} value={t.codigo}>
+   957→   957→                      {t.codigo} — {t.nombre} ({t.frecuencia})
+   958→   958→                    </SelectItem>
+   959→   959→                  ))}
+   960→   960→                </SelectContent>
+   961→   961→              </Select>
+   962→   962→            </div>
+   963→   963→            <div className="grid grid-cols-2 gap-4">
+   964→   964→              <div>
+   965→   965→                <Label>Fecha Programada</Label>
+   966→   966→                <Input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
+   967→   967→              </div>
+   968→   968→              <div>
+   969→   969→                <Label>Responsable</Label>
+   970→   970→                <Input placeholder="Nombre del responsable" value={formResponsable} onChange={(e) => setFormResponsable(e.target.value)} />
+   971→   971→              </div>
+   972→   972→            </div>
+   973→   973→            <div>
+   974→   974→              <Label>Turno</Label>
+   975→   975→              <Input placeholder="Ej: Mañana 07:00" value={formTurno} onChange={(e) => setFormTurno(e.target.value)} />
+   976→   976→            </div>
+   977→   977→            {selectedTemplate && (
+   978→   978→              <div className="border rounded-lg p-3 bg-slate-50 max-h-40 overflow-y-auto">
+   979→   979→                <div className="text-xs font-semibold text-slate-600 mb-1">Items incluidos ({LV_TEMPLATES.find(t => t.codigo === selectedTemplate)?.items.length}):</div>
+   980→   980→                {LV_TEMPLATES.find(t => t.codigo === selectedTemplate)?.items.map((item, idx) => (
+   981→   981→                  <div key={idx} className="text-xs text-slate-500 py-0.5">
+   982→   982→                    <span className="font-medium text-slate-600">{item.category}.</span> {item.description}
+   983→   983→                  </div>
+   984→   984→                ))}
+   985→   985→              </div>
+   986→   986→            )}
+   987→   987→          </div>
+   988→   988→          <DialogFooter>
+   989→   989→            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Cancelar</Button>
+   990→   990→            <Button className="bg-teal-600 hover:bg-teal-700 text-white" onClick={handleCreateFromTemplate} disabled={!selectedTemplate}>
+   991→   991→              Crear Lista
+   992→   992→            </Button>
+   993→   993→          </DialogFooter>
+   994→   994→        </DialogContent>
+   995→   995→      </Dialog>
+   996→   996→
+   997→   997→      {/* Delete dialog */}
+   998→   998→      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+   999→   999→        <AlertDialogContent>
+  1000→  1000→          <AlertDialogHeader>
+  1001→  1001→            <AlertDialogTitle>¿Eliminar esta lista?</AlertDialogTitle>
+  1002→  1002→            <AlertDialogDescription>Se eliminará la lista de verificación y todos sus items. Esta acción no se puede deshacer.</AlertDialogDescription>
+  1003→  1003→          </AlertDialogHeader>
+  1004→  1004→          <AlertDialogFooter>
+  1005→  1005→            <AlertDialogCancel onClick={() => setDeleteId(null)}>Cancelar</AlertDialogCancel>
+  1006→  1006→            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white">Eliminar</AlertDialogAction>
+  1007→  1007→          </AlertDialogFooter>
+  1008→  1008→        </AlertDialogContent>
+  1009→  1009→      </AlertDialog>
+  1010→  1010→    </div>
+  1011→  1011→  )
+  1012→  1012→}
+  1013→  1013→
