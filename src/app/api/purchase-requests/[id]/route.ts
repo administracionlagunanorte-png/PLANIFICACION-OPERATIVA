@@ -18,6 +18,9 @@ export async function GET(
         quotes: {
           orderBy: { createdAt: 'asc' },
         },
+        items: {
+          orderBy: { createdAt: 'asc' },
+        },
       },
     })
 
@@ -73,6 +76,7 @@ export async function PUT(
         },
         include: {
           quotes: { orderBy: { createdAt: 'asc' } },
+          items: { orderBy: { createdAt: 'asc' } },
         },
       })
 
@@ -97,6 +101,7 @@ export async function PUT(
 
     const updateData: Record<string, unknown> = {}
 
+    if (body.title !== undefined) updateData.title = body.title
     if (body.productDescription !== undefined) updateData.productDescription = body.productDescription
     if (body.brand !== undefined) updateData.brand = body.brand || null
     if (body.quantity !== undefined) updateData.quantity = parseInt(body.quantity) || 1
@@ -112,6 +117,7 @@ export async function PUT(
       data: updateData,
       include: {
         quotes: { orderBy: { createdAt: 'asc' } },
+        items: { orderBy: { createdAt: 'asc' } },
       },
     })
 

@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
         { productDescription: { contains: search, mode: 'insensitive' } },
         { brand: { contains: search, mode: 'insensitive' } },
         { directProvider: { contains: search, mode: 'insensitive' } },
@@ -42,6 +43,10 @@ export async function GET(request: NextRequest) {
           quotes: {
             orderBy: { createdAt: 'asc' },
           },
+          items: {
+            select: { id: true },
+            orderBy: { createdAt: 'asc' },
+          },
         },
         orderBy: { correlativeNumber: 'desc' },
         skip,
@@ -50,8 +55,15 @@ export async function GET(request: NextRequest) {
       db.purchaseRequest.count({ where }),
     ])
 
+    // Add itemCount to each request
+    const enriched = items.map((r) => ({
+      ...r,
+      itemCount: r.items.length,
+      items: undefined,
+    }))
+
     return NextResponse.json({
-      data: items,
+      data: enriched,
       pagination: {
         page,
         limit,
@@ -73,9 +85,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     // Validate required fields
-    if (!body.productDescription) {
+    if (!body.title && !body.productDescription) {
       return NextResponse.json(
-        { error: 'productDescription is required' },
+        { error: 'El título o descripción es requerido' },
         { status: 400 }
       )
     }
@@ -97,7 +109,8 @@ export async function POST(request: NextRequest) {
     const purchaseRequest = await db.purchaseRequest.create({
       data: {
         correlativeNumber: nextCorrelative,
-        productDescription: body.productDescription,
+        title: body.title || body.productDescription || '',
+        productDescription: body.productDescription || body.title || '',
         brand: body.brand || null,
         quantity: body.quantity ? parseInt(body.quantity) : 1,
         priority: body.priority || 'MEDIA',
@@ -110,6 +123,7 @@ export async function POST(request: NextRequest) {
       },
       include: {
         quotes: true,
+        items: { orderBy: { createdAt: 'asc' } },
       },
     })
 

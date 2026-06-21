@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
-import { Plus, Pencil, Trash2, Eye, ArrowLeft, Upload, X, CheckCircle, XCircle, Clock, FileText, FileSpreadsheet, Download, Camera, Send, Star, ShoppingBag, ExternalLink, ShieldCheck, Shield } from 'lucide-react'
+import { Plus, Pencil, Trash2, Eye, ArrowLeft, Upload, X, CheckCircle, XCircle, Clock, FileText, FileSpreadsheet, Download, Camera, Send, Star, ShoppingBag, ExternalLink, ShieldCheck, Shield, Package, ImageIcon } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { jsPDF } from 'jspdf'
 import ExcelJS from 'exceljs'
@@ -19,9 +19,24 @@ import ExcelJS from 'exceljs'
 // Types
 // ============================================================
 
+interface PurchaseItem {
+  id: string
+  productDescription: string
+  brand: string | null
+  quantity: number
+  productLink: string | null
+  referencePhotoUrl: string | null
+  directProvider: string | null
+  notes: string | null
+  requestId: string
+  createdAt: string
+  updatedAt: string
+}
+
 interface PurchaseRequest {
   id: string
   correlativeNumber: number
+  title: string
   productDescription: string
   brand: string | null
   quantity: number
@@ -38,6 +53,8 @@ interface PurchaseRequest {
   createdAt: string
   updatedAt: string
   quotes?: PurchaseQuote[]
+  items?: PurchaseItem[]
+  itemCount?: number
 }
 
 interface PurchaseQuote {
@@ -64,34 +81,21 @@ const formatCLP = (amount: number | null | undefined): string => {
   return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(amount))
 }
 
-const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
-  PENDIENTE: { label: 'Pendiente', color: 'text-amber-600', bgColor: 'bg-amber-100' },
-  APROBADA_SUPERVISOR: { label: 'Aprobada (Supervisor)', color: 'text-blue-600', bgColor: 'bg-blue-100' },
-  APROBADA: { label: 'Aprobada (Admin)', color: 'text-green-600', bgColor: 'bg-green-100' },
-  RECHAZADA: { label: 'Rechazada', color: 'text-red-600', bgColor: 'bg-red-100' },
-  EN_COMPRA: { label: 'En Compra', color: 'text-blue-600', bgColor: 'bg-blue-100' },
-  COMPRADA: { label: 'Comprada', color: 'text-emerald-600', bgColor: 'bg-emerald-100' },
-  CANCELADA: { label: 'Cancelada', color: 'text-gray-600', bgColor: 'bg-gray-100' },
+const statusConfig: Record<string, { label: string; color: string; bgColor: string; borderColor: string; icon: React.ReactNode }> = {
+  PENDIENTE: { label: 'Pendiente', color: 'text-amber-700', bgColor: 'bg-amber-50', borderColor: 'border-l-amber-500', icon: <Clock className="h-3.5 w-3.5" /> },
+  APROBADA_SUPERVISOR: { label: 'Aprobada (Supervisor)', color: 'text-blue-700', bgColor: 'bg-blue-50', borderColor: 'border-l-blue-500', icon: <ShieldCheck className="h-3.5 w-3.5" /> },
+  APROBADA: { label: 'Aprobada (Admin)', color: 'text-emerald-700', bgColor: 'bg-emerald-50', borderColor: 'border-l-emerald-500', icon: <CheckCircle className="h-3.5 w-3.5" /> },
+  RECHAZADA: { label: 'Rechazada', color: 'text-red-700', bgColor: 'bg-red-50', borderColor: 'border-l-red-500', icon: <XCircle className="h-3.5 w-3.5" /> },
+  EN_COMPRA: { label: 'En Compra', color: 'text-blue-700', bgColor: 'bg-blue-50', borderColor: 'border-l-blue-500', icon: <ShoppingBag className="h-3.5 w-3.5" /> },
+  COMPRADA: { label: 'Comprada', color: 'text-emerald-700', bgColor: 'bg-emerald-50', borderColor: 'border-l-emerald-500', icon: <CheckCircle className="h-3.5 w-3.5" /> },
+  CANCELADA: { label: 'Cancelada', color: 'text-slate-600', bgColor: 'bg-slate-100', borderColor: 'border-l-slate-400', icon: <XCircle className="h-3.5 w-3.5" /> },
 }
 
 const priorityConfig: Record<string, { label: string; color: string }> = {
-  BAJA: { label: 'Baja', color: 'bg-gray-400' },
+  BAJA: { label: 'Baja', color: 'bg-slate-400' },
   MEDIA: { label: 'Media', color: 'bg-blue-400' },
   ALTA: { label: 'Alta', color: 'bg-amber-400' },
   URGENTE: { label: 'Urgente', color: 'bg-red-500' },
-}
-
-const statusIcon = (status: string) => {
-  switch (status) {
-    case 'PENDIENTE': return <Clock className="h-3.5 w-3.5" />
-    case 'APROBADA_SUPERVISOR': return <ShieldCheck className="h-3.5 w-3.5" />
-    case 'APROBADA': return <CheckCircle className="h-3.5 w-3.5" />
-    case 'RECHAZADA': return <XCircle className="h-3.5 w-3.5" />
-    case 'EN_COMPRA': return <ShoppingBag className="h-3.5 w-3.5" />
-    case 'COMPRADA': return <CheckCircle className="h-3.5 w-3.5" />
-    case 'CANCELADA': return <XCircle className="h-3.5 w-3.5" />
-    default: return <Clock className="h-3.5 w-3.5" />
-  }
 }
 
 const correlativeStr = (n: number) => `SC-${String(n).padStart(3, '0')}`
@@ -156,14 +160,15 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
   const [editingId, setEditingId] = useState<string | null>(null)
   const [quoteDialogOpen, setQuoteDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<{ type: 'request' | 'quote'; id: string } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'request' | 'quote' | 'item'; id: string } | null>(null)
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
   const [reviewAction, setReviewAction] = useState<'APROBADA' | 'APROBADA_SUPERVISOR' | 'RECHAZADA' | 'EN_COMPRA' | 'COMPRADA' | null>(null)
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
   const [previewImageUrl, setPreviewImageUrl] = useState('')
 
-  // --- Form state ---
+  // --- Request form state ---
   const [formData, setFormData] = useState({
+    title: '',
     productDescription: '',
     brand: '',
     quantity: '1',
@@ -176,6 +181,22 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
   })
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const photoInputRef = useRef<HTMLInputElement>(null)
+
+  // --- Item form state ---
+  const [itemFormOpen, setItemFormOpen] = useState(false)
+  const [editingItem, setEditingItem] = useState<PurchaseItem | null>(null)
+  const [itemForm, setItemForm] = useState({
+    productDescription: '',
+    brand: '',
+    quantity: '1',
+    productLink: '',
+    referencePhotoUrl: '',
+    directProvider: '',
+    notes: '',
+  })
+  const [uploadingItemPhoto, setUploadingItemPhoto] = useState(false)
+  const [savingItem, setSavingItem] = useState(false)
+  const itemPhotoInputRef = useRef<HTMLInputElement>(null)
 
   // --- Quote form state ---
   const [quoteFormData, setQuoteFormData] = useState({
@@ -247,11 +268,12 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
   }, [searchTerm])
 
   // ============================================================
-  // Form handlers
+  // Request form handlers
   // ============================================================
 
   const resetForm = () => {
     setFormData({
+      title: '',
       productDescription: '',
       brand: '',
       quantity: '1',
@@ -272,7 +294,8 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
 
   const openEditForm = (req: PurchaseRequest) => {
     setFormData({
-      productDescription: req.productDescription,
+      title: req.title || req.productDescription,
+      productDescription: req.productDescription || req.title,
       brand: req.brand || '',
       quantity: String(req.quantity),
       priority: req.priority,
@@ -287,14 +310,15 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
   }
 
   const handleFormSubmit = async () => {
-    if (!formData.productDescription.trim()) {
-      toast({ title: 'Error', description: 'La descripción del producto es obligatoria', variant: 'destructive' })
+    if (!formData.title.trim() && !formData.productDescription.trim()) {
+      toast({ title: 'Error', description: 'El título o descripción es obligatorio', variant: 'destructive' })
       return
     }
 
     try {
       const body = {
-        productDescription: formData.productDescription.trim(),
+        title: formData.title.trim() || formData.productDescription.trim(),
+        productDescription: formData.productDescription.trim() || formData.title.trim(),
         brand: formData.brand.trim() || null,
         quantity: parseInt(formData.quantity) || 1,
         priority: formData.priority,
@@ -321,13 +345,13 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
       }
 
       if (res.ok) {
-        toast({ title: editingId ? 'Solicitud actualizada' : 'Solicitud creada', description: editingId ? 'La solicitud se actualizó correctamente' : 'La solicitud se creó correctamente' })
+        toast({ title: editingId ? 'Solicitud actualizada' : 'Solicitud creada', description: editingId ? 'La solicitud se actualizó correctamente' : 'La solicitud se creó correctamente. Ahora puedes agregar items.' })
         setFormOpen(false)
         resetForm()
-        fetchRequests()
-        if (selectedRequest?.id === editingId) {
-          fetchRequestDetail(editingId)
+        if (editingId && selectedRequest?.id === editingId) {
+          const updated = await fetchRequestDetail(editingId)
         }
+        fetchRequests()
       } else {
         const err = await res.json()
         toast({ title: 'Error', description: err.error || 'No se pudo guardar la solicitud', variant: 'destructive' })
@@ -360,19 +384,124 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
   }
 
   // ============================================================
+  // Item CRUD
+  // ============================================================
+
+  const openCreateItem = () => {
+    setEditingItem(null)
+    setItemForm({
+      productDescription: '',
+      brand: '',
+      quantity: '1',
+      productLink: '',
+      referencePhotoUrl: '',
+      directProvider: '',
+      notes: '',
+    })
+    setItemFormOpen(true)
+  }
+
+  const openEditItem = (item: PurchaseItem) => {
+    setEditingItem(item)
+    setItemForm({
+      productDescription: item.productDescription,
+      brand: item.brand || '',
+      quantity: String(item.quantity),
+      productLink: item.productLink || '',
+      referencePhotoUrl: item.referencePhotoUrl || '',
+      directProvider: item.directProvider || '',
+      notes: item.notes || '',
+    })
+    setItemFormOpen(true)
+  }
+
+  const handleSaveItem = async () => {
+    if (!selectedRequest) return
+    if (!itemForm.productDescription.trim()) {
+      toast({ title: 'Error', description: 'La descripción del producto es requerida', variant: 'destructive' })
+      return
+    }
+
+    setSavingItem(true)
+    try {
+      const body = {
+        productDescription: itemForm.productDescription.trim(),
+        brand: itemForm.brand.trim() || null,
+        quantity: parseInt(itemForm.quantity) || 1,
+        productLink: itemForm.productLink.trim() || null,
+        referencePhotoUrl: itemForm.referencePhotoUrl.trim() || null,
+        directProvider: itemForm.directProvider.trim() || null,
+        notes: itemForm.notes.trim() || null,
+        requestId: selectedRequest.id,
+      }
+
+      let res: Response
+      if (editingItem) {
+        res = await fetch(`/api/purchase-items/${editingItem.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+      } else {
+        res = await fetch('/api/purchase-items', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+      }
+
+      if (res.ok) {
+        toast({ title: editingItem ? 'Item actualizado' : 'Item agregado', description: editingItem ? 'Los cambios han sido guardados' : 'Se ha agregado un nuevo item a la solicitud' })
+        setItemFormOpen(false)
+        const updated = await fetchRequestDetail(selectedRequest.id)
+        if (updated) setSelectedRequest(updated)
+      } else {
+        const err = await res.json()
+        toast({ title: 'Error', description: err.error || 'No se pudo guardar el item', variant: 'destructive' })
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+    } finally {
+      setSavingItem(false)
+    }
+  }
+
+  const handleItemPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingItemPhoto(true)
+    const url = await handleFileUpload(file)
+    if (url) setItemForm(prev => ({ ...prev, referencePhotoUrl: url }))
+    else toast({ title: 'Error', description: 'No se pudo subir la imagen', variant: 'destructive' })
+    setUploadingItemPhoto(false)
+    if (itemPhotoInputRef.current) itemPhotoInputRef.current.value = ''
+  }
+
+  const handleDeleteItem = async (itemId: string) => {
+    if (!selectedRequest) return
+    try {
+      const res = await fetch(`/api/purchase-items/${itemId}`, { method: 'DELETE' })
+      if (res.ok) {
+        toast({ title: 'Item eliminado', description: 'El item ha sido eliminado correctamente' })
+        const updated = await fetchRequestDetail(selectedRequest.id)
+        if (updated) setSelectedRequest(updated)
+      } else {
+        const err = await res.json()
+        toast({ title: 'Error', description: err.error || 'No se pudo eliminar', variant: 'destructive' })
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+    }
+    setDeleteDialogOpen(false)
+    setDeleteTarget(null)
+  }
+
+  // ============================================================
   // Quote handlers
   // ============================================================
 
   const resetQuoteForm = () => {
-    setQuoteFormData({
-      providerName: '',
-      amount: '',
-      currency: 'CLP',
-      notes: '',
-      fileUrl: '',
-      fileName: '',
-      fileType: '',
-    })
+    setQuoteFormData({ providerName: '', amount: '', currency: 'CLP', notes: '', fileUrl: '', fileName: '', fileType: '' })
   }
 
   const openQuoteDialog = () => {
@@ -386,21 +515,10 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
     setUploadingQuoteFile(true)
     const url = await handleFileUpload(file)
     if (url) {
-      setQuoteFormData(prev => ({
-        ...prev,
-        fileUrl: url,
-        fileName: file.name,
-        fileType: file.type,
-      }))
-    } else {
-      toast({ title: 'Error', description: 'No se pudo subir el archivo', variant: 'destructive' })
+      setQuoteFormData(prev => ({ ...prev, fileUrl: url, fileName: file.name, fileType: file.type }))
     }
     setUploadingQuoteFile(false)
     if (quoteFileInputRef.current) quoteFileInputRef.current.value = ''
-  }
-
-  const removeQuoteFile = () => {
-    setQuoteFormData(prev => ({ ...prev, fileUrl: '', fileName: '', fileType: '' }))
   }
 
   const handleQuoteSubmit = async () => {
@@ -466,9 +584,7 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
   const deleteQuote = async (quoteId: string) => {
     if (!selectedRequest) return
     try {
-      const res = await fetch(`/api/purchase-requests/${selectedRequest.id}/quotes/${quoteId}`, {
-        method: 'DELETE',
-      })
+      const res = await fetch(`/api/purchase-requests/${selectedRequest.id}/quotes/${quoteId}`, { method: 'DELETE' })
       if (res.ok) {
         toast({ title: 'Cotización eliminada', description: 'La cotización se eliminó correctamente' })
         fetchRequestDetail(selectedRequest.id)
@@ -501,6 +617,8 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
         }
       } else if (deleteTarget.type === 'quote') {
         await deleteQuote(deleteTarget.id)
+      } else if (deleteTarget.type === 'item') {
+        await handleDeleteItem(deleteTarget.id)
       }
     } catch {
       toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
@@ -525,35 +643,21 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
     if (!selectedRequest || !reviewAction) return
 
     try {
-      let res: Response
-      if (reviewAction === 'APROBADA' || reviewAction === 'APROBADA_SUPERVISOR' || reviewAction === 'RECHAZADA') {
-        res = await fetch(`/api/purchase-requests/${selectedRequest.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'review',
-            status: reviewAction,
-            reviewNote: reviewNote.trim() || null,
-            reviewedBy: reviewedBy.trim() || null,
-          }),
-        })
-      } else {
-        // EN_COMPRA or COMPRADA — direct status update via review action
-        res = await fetch(`/api/purchase-requests/${selectedRequest.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'review',
-            status: reviewAction,
-            reviewNote: reviewNote.trim() || null,
-            reviewedBy: reviewedBy.trim() || null,
-          }),
-        })
-      }
+      const res = await fetch(`/api/purchase-requests/${selectedRequest.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'review',
+          status: reviewAction,
+          reviewNote: reviewNote.trim() || null,
+          reviewedBy: reviewedBy.trim() || null,
+        }),
+      })
 
       if (res.ok) {
         const actionLabels: Record<string, string> = {
           APROBADA: 'aprobada',
+          APROBADA_SUPERVISOR: 'aprobada por supervisor',
           RECHAZADA: 'rechazada',
           EN_COMPRA: 'marcada en compra',
           COMPRADA: 'marcada como comprada',
@@ -587,193 +691,6 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
   }
 
   // ============================================================
-  // PDF Export
-  // ============================================================
-
-  const exportPDF = (req: PurchaseRequest) => {
-    const doc = new jsPDF()
-    const sc = correlativeStr(req.correlativeNumber)
-    const st = statusConfig[req.status] || { label: req.status }
-
-    // Header
-    doc.setFontSize(18)
-    doc.setTextColor(30, 64, 175)
-    doc.text(`Solicitud de Compra ${sc}`, 14, 22)
-
-    doc.setFontSize(10)
-    doc.setTextColor(100)
-    doc.text(`Fecha: ${formatDate(req.createdAt)}`, 14, 30)
-    doc.text(`Estado: ${st.label}`, 14, 36)
-
-    // Separator
-    doc.setDrawColor(200)
-    doc.line(14, 40, 196, 40)
-
-    // Info section
-    doc.setFontSize(12)
-    doc.setTextColor(30)
-    let y = 48
-
-    const addField = (label: string, value: string) => {
-      doc.setFontSize(10)
-      doc.setTextColor(100)
-      doc.text(`${label}:`, 14, y)
-      doc.setTextColor(30)
-      doc.text(value || '-', 60, y)
-      y += 7
-    }
-
-    addField('Producto', req.productDescription)
-    addField('Marca', req.brand || '-')
-    addField('Cantidad', String(req.quantity))
-    addField('Prioridad', priorityConfig[req.priority]?.label || req.priority)
-    addField('Proveedor Directo', req.directProvider || '-')
-    addField('Responsable', req.responsible || '-')
-    if (req.productLink) addField('Link', req.productLink.substring(0, 80))
-    if (req.notes) {
-      doc.setFontSize(10)
-      doc.setTextColor(100)
-      doc.text('Notas:', 14, y)
-      doc.setTextColor(30)
-      const lines = doc.splitTextToSize(req.notes, 130)
-      doc.text(lines, 60, y)
-      y += lines.length * 5
-    }
-
-    if (req.reviewNote) {
-      y += 4
-      addField('Nota Revisión', req.reviewNote)
-      addField('Revisado por', req.reviewedBy || '-')
-      if (req.reviewedAt) addField('Fecha Revisión', formatDateTime(req.reviewedAt))
-    }
-
-    // Quotes table
-    if (req.quotes && req.quotes.length > 0) {
-      y += 10
-      doc.setFontSize(12)
-      doc.setTextColor(30, 64, 175)
-      doc.text('Cotizaciones', 14, y)
-      y += 8
-
-      // Table header
-      doc.setFontSize(9)
-      doc.setFillColor(240, 240, 240)
-      doc.rect(14, y - 4, 182, 8, 'F')
-      doc.setTextColor(60)
-      doc.text('Proveedor', 16, y)
-      doc.text('Monto', 90, y)
-      doc.text('Moneda', 130, y)
-      doc.text('Ganadora', 155, y)
-      doc.text('Notas', 175, y)
-      y += 8
-
-      const winnerQuote = req.quotes.find(q => q.isWinner)
-      const bestPrice = !winnerQuote && req.quotes.length > 0
-        ? Math.min(...req.quotes.map(q => q.amount))
-        : null
-
-      req.quotes.forEach(q => {
-        if (y > 270) {
-          doc.addPage()
-          y = 20
-        }
-        const isWin = q.isWinner || (bestPrice !== null && q.amount === bestPrice)
-        doc.setTextColor(isWin ? 0 : 30)
-        doc.text(q.providerName.substring(0, 20), 16, y)
-        doc.text(formatCLP(q.amount), 90, y)
-        doc.text(q.currency, 130, y)
-        doc.text(q.isWinner ? '★' : bestPrice && q.amount === bestPrice ? '▸' : '', 158, y)
-        doc.text((q.notes || '').substring(0, 15), 175, y)
-        y += 7
-      })
-    }
-
-    doc.save(`solicitud-compra-${sc}.pdf`)
-  }
-
-  // ============================================================
-  // Excel Export
-  // ============================================================
-
-  const exportExcel = async (req: PurchaseRequest) => {
-    const workbook = new ExcelJS.Workbook()
-    const sc = correlativeStr(req.correlativeNumber)
-
-    // --- Sheet 1: Resumen ---
-    const ws1 = workbook.addWorksheet('Resumen')
-    ws1.columns = [
-      { header: 'Campo', key: 'campo', width: 25 },
-      { header: 'Valor', key: 'valor', width: 50 },
-    ]
-
-    const st = statusConfig[req.status] || { label: req.status }
-    const summaryRows = [
-      { campo: 'Correlativo', valor: sc },
-      { campo: 'Producto', valor: req.productDescription },
-      { campo: 'Marca', valor: req.brand || '-' },
-      { campo: 'Cantidad', valor: String(req.quantity) },
-      { campo: 'Prioridad', valor: priorityConfig[req.priority]?.label || req.priority },
-      { campo: 'Estado', valor: st.label },
-      { campo: 'Proveedor Directo', valor: req.directProvider || '-' },
-      { campo: 'Responsable', valor: req.responsible || '-' },
-      { campo: 'Link Producto', valor: req.productLink || '-' },
-      { campo: 'Notas', valor: req.notes || '-' },
-      { campo: 'Fecha Creación', valor: formatDateTime(req.createdAt) },
-      { campo: 'Revisado por', valor: req.reviewedBy || '-' },
-      { campo: 'Nota Revisión', valor: req.reviewNote || '-' },
-      { campo: 'Fecha Revisión', valor: req.reviewedAt ? formatDateTime(req.reviewedAt) : '-' },
-    ]
-    ws1.addRows(summaryRows)
-
-    // Style header
-    const headerRow = ws1.getRow(1)
-    headerRow.font = { bold: true, color: { argb: 'FF1E40AF' } }
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEF2FF' } }
-
-    // --- Sheet 2: Cotizaciones ---
-    const ws2 = workbook.addWorksheet('Cotizaciones')
-    ws2.columns = [
-      { header: 'Proveedor', key: 'provider', width: 25 },
-      { header: 'Monto', key: 'amount', width: 18 },
-      { header: 'Moneda', key: 'currency', width: 10 },
-      { header: 'Ganadora', key: 'winner', width: 12 },
-      { header: 'Notas', key: 'notes', width: 30 },
-      { header: 'Archivo', key: 'file', width: 20 },
-      { header: 'Fecha', key: 'date', width: 18 },
-    ]
-
-    if (req.quotes && req.quotes.length > 0) {
-      req.quotes.forEach(q => {
-        ws2.addRow({
-          provider: q.providerName,
-          amount: q.amount,
-          currency: q.currency,
-          winner: q.isWinner ? '★ Sí' : 'No',
-          notes: q.notes || '-',
-          file: q.fileName || '-',
-          date: formatDateTime(q.createdAt),
-        })
-      })
-    }
-
-    const headerRow2 = ws2.getRow(1)
-    headerRow2.font = { bold: true, color: { argb: 'FF1E40AF' } }
-    headerRow2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEF2FF' } }
-
-    // Format amount column
-    ws2.getColumn('amount').numFmt = '#,##0'
-
-    const buffer = await workbook.xlsx.writeBuffer()
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `solicitud-compra-${sc}.xlsx`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  // ============================================================
   // Computed helpers
   // ============================================================
 
@@ -785,22 +702,24 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
     return formatCLP(min)
   }
 
+  const canEditRequest = selectedRequest?.status === 'PENDIENTE' && canEditAll
+
   // ============================================================
   // RENDER: List View
   // ============================================================
 
   const renderListView = () => (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Header & Filters */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
             <ShoppingBag className="h-5 w-5 text-blue-600" />
             Solicitudes de Compra
           </h2>
-          <p className="text-sm text-gray-500 mt-0.5">Gestiona las solicitudes de compra del proyecto</p>
+          <p className="text-sm text-slate-500 mt-0.5">Gestiona las solicitudes de compra del proyecto</p>
         </div>
-        <Button onClick={openCreateForm} className="gap-2 shrink-0">
+        <Button onClick={openCreateForm} className="gap-2 shrink-0 bg-blue-600 hover:bg-blue-700 text-white">
           <Plus className="h-4 w-4" />
           Nueva Solicitud
         </Button>
@@ -812,27 +731,34 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
           placeholder="Buscar producto, marca, proveedor..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
-          className="max-w-xs h-9 text-sm"
+          className="max-w-xs h-9 text-sm bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
         />
         <Select value={filterStatus} onValueChange={v => { setFilterStatus(v); setPage(1) }}>
-          <SelectTrigger className="w-[140px] h-9 text-sm">
+          <SelectTrigger className="w-[180px] h-9 text-sm bg-white border-slate-300 text-slate-800">
             <SelectValue placeholder="Estado" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-white">
             <SelectItem value="all">Todos los estados</SelectItem>
             {Object.entries(statusConfig).map(([k, v]) => (
-              <SelectItem key={k} value={k}>{v.label}</SelectItem>
+              <SelectItem key={k} value={k}>
+                <span className="flex items-center gap-1.5">{v.icon} {v.label}</span>
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Select value={filterPriority} onValueChange={v => { setFilterPriority(v); setPage(1) }}>
-          <SelectTrigger className="w-[130px] h-9 text-sm">
+          <SelectTrigger className="w-[130px] h-9 text-sm bg-white border-slate-300 text-slate-800">
             <SelectValue placeholder="Prioridad" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-white">
             <SelectItem value="all">Todas</SelectItem>
             {Object.entries(priorityConfig).map(([k, v]) => (
-              <SelectItem key={k} value={k}>{v.label}</SelectItem>
+              <SelectItem key={k} value={k}>
+                <span className="flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full ${v.color}`} />
+                  {v.label}
+                </span>
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -844,47 +770,49 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
         </div>
       ) : requests.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <ShoppingBag className="h-12 w-12 mx-auto mb-3 opacity-50" />
-          <p className="text-lg font-medium">No hay solicitudes</p>
-          <p className="text-sm">Crea una nueva solicitud de compra para comenzar</p>
+        <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
+          <ShoppingBag className="h-14 w-14 mx-auto mb-3 text-slate-300" />
+          <p className="text-lg font-semibold text-slate-700">No hay solicitudes</p>
+          <p className="text-sm text-slate-500 mt-1">Crea una nueva solicitud de compra para comenzar</p>
         </div>
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {requests.map(req => {
-              const st = statusConfig[req.status] || { label: req.status, color: 'text-gray-600', bgColor: 'bg-gray-100' }
-              const pr = priorityConfig[req.priority] || { label: req.priority, color: 'bg-gray-400' }
+              const st = statusConfig[req.status] || statusConfig.PENDIENTE
+              const pr = priorityConfig[req.priority] || priorityConfig.MEDIA
+              const itemCount = req.itemCount ?? (req.items?.length ?? 0)
               return (
                 <Card
                   key={req.id}
-                  className="cursor-pointer hover:shadow-md transition-shadow border-l-4"
-                  style={{ borderLeftColor: req.status === 'COMPRADA' ? '#10b981' : req.status === 'APROBADA' ? '#22c55e' : req.status === 'APROBADA_SUPERVISOR' ? '#3b82f6' : req.status === 'RECHAZADA' ? '#ef4444' : req.status === 'EN_COMPRA' ? '#3b82f6' : req.status === 'URGENTE' ? '#ef4444' : '#f59e0b' }}
+                  className={`cursor-pointer hover:shadow-lg transition-all border-l-4 bg-white ${st.borderColor}`}
                   onClick={() => goToDetail(req)}
                 >
                   <CardHeader className="pb-2 pt-4 px-4">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-bold text-blue-700">{correlativeStr(req.correlativeNumber)}</span>
-                      <Badge className={`${st.bgColor} ${st.color} gap-1 text-[11px]`}>
-                        {statusIcon(req.status)}
-                        {st.label}
+                      <Badge className={`${st.bgColor} ${st.color} gap-1 text-[11px] border-0 font-medium`}>
+                        <span className="flex items-center gap-1">{st.icon} {st.label}</span>
                       </Badge>
                     </div>
-                    <CardTitle className="text-sm font-semibold text-gray-800 leading-tight mt-1 line-clamp-2">
-                      {req.productDescription}
+                    <CardTitle className="text-sm font-semibold text-slate-800 leading-tight mt-1 line-clamp-2">
+                      {req.title || req.productDescription}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="px-4 pb-4 pt-0">
                     <div className="flex items-center gap-2 flex-wrap mt-2">
                       {req.brand && (
-                        <Badge variant="outline" className="text-[11px] font-normal">{req.brand}</Badge>
+                        <Badge variant="outline" className="text-[11px] font-normal border-slate-200 text-slate-600">{req.brand}</Badge>
                       )}
-                      <Badge variant="outline" className="text-[11px] font-normal">Qty: {req.quantity}</Badge>
+                      <Badge variant="outline" className="text-[11px] font-normal border-blue-200 text-blue-700 bg-blue-50">
+                        <Package className="w-3 h-3 mr-0.5" />
+                        {itemCount} item{itemCount !== 1 ? 's' : ''}
+                      </Badge>
                       <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full text-white ${pr.color}`}>
                         {pr.label}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
+                    <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
                       <span>{formatDate(req.createdAt)}</span>
                       <div className="flex items-center gap-3">
                         {req.quotes && req.quotes.length > 0 && (
@@ -893,7 +821,7 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
                             {req.quotes.length} cot.
                           </span>
                         )}
-                        <span className="font-semibold text-gray-700">{getBestQuoteAmount(req)}</span>
+                        <span className="font-semibold text-slate-700">{getBestQuoteAmount(req)}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -905,25 +833,9 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-              >
-                Anterior
-              </Button>
-              <span className="text-sm text-gray-500">
-                Página {page} de {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage(p => p + 1)}
-              >
-                Siguiente
-              </Button>
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="border-slate-300 text-slate-700">Anterior</Button>
+              <span className="text-sm text-slate-600 font-medium">Pag. {page} de {totalPages}</span>
+              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="border-slate-300 text-slate-700">Siguiente</Button>
             </div>
           )}
         </>
@@ -938,9 +850,9 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
   const renderDetailView = () => {
     if (!selectedRequest) return null
     const req = selectedRequest
-    const st = statusConfig[req.status] || { label: req.status, color: 'text-gray-600', bgColor: 'bg-gray-100' }
-    const pr = priorityConfig[req.priority] || { label: req.priority, color: 'bg-gray-400' }
-
+    const st = statusConfig[req.status] || statusConfig.PENDIENTE
+    const pr = priorityConfig[req.priority] || priorityConfig.MEDIA
+    const items = req.items || []
     const winnerQuote = req.quotes?.find(q => q.isWinner)
     const bestPrice = !winnerQuote && req.quotes && req.quotes.length > 0
       ? Math.min(...req.quotes.map(q => q.amount))
@@ -950,111 +862,61 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
       <div className="space-y-5">
         {/* Header */}
         <div className="flex items-start gap-3">
-          <Button variant="ghost" size="sm" onClick={goToList} className="shrink-0 -ml-2">
+          <Button variant="outline" size="sm" onClick={goToList} className="shrink-0 border-slate-300 text-slate-700">
             <ArrowLeft className="h-4 w-4 mr-1" /> Volver
           </Button>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-xl font-bold text-gray-800">{correlativeStr(req.correlativeNumber)}</h2>
-              <Badge className={`${st.bgColor} ${st.color} gap-1`}>
-                {statusIcon(req.status)}
-                {st.label}
+              <h2 className="text-xl font-bold text-blue-700">{correlativeStr(req.correlativeNumber)}</h2>
+              <Badge className={`${st.bgColor} ${st.color} gap-1 border-0 font-medium`}>
+                <span className="flex items-center gap-1">{st.icon} {st.label}</span>
               </Badge>
               <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full text-white ${pr.color}`}>
                 {pr.label}
               </span>
             </div>
-            <p className="text-gray-600 mt-1">{req.productDescription}</p>
+            <p className="text-slate-700 font-medium mt-1">{req.title || req.productDescription}</p>
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            <Button variant="outline" size="sm" onClick={() => exportPDF(req)} title="Exportar PDF">
+            <Button variant="outline" size="sm" onClick={() => exportPDF(req)} title="Exportar PDF" className="border-slate-300 text-slate-700">
               <FileText className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="sm" onClick={() => exportExcel(req)} title="Exportar Excel">
+            <Button variant="outline" size="sm" onClick={() => exportExcel(req)} title="Exportar Excel" className="border-slate-300 text-slate-700">
               <FileSpreadsheet className="h-4 w-4" />
             </Button>
           </div>
         </div>
 
         {/* Info Card */}
-        <Card>
+        <Card className="bg-white border-slate-200">
           <CardContent className="p-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
-              {req.brand && (
-                <div>
-                  <span className="text-xs text-gray-400 uppercase tracking-wide">Marca</span>
-                  <p className="text-sm font-medium text-gray-800">{req.brand}</p>
-                </div>
-              )}
-              <div>
-                <span className="text-xs text-gray-400 uppercase tracking-wide">Cantidad</span>
-                <p className="text-sm font-medium text-gray-800">{req.quantity}</p>
-              </div>
-              {req.directProvider && (
-                <div>
-                  <span className="text-xs text-gray-400 uppercase tracking-wide">Proveedor Directo</span>
-                  <p className="text-sm font-medium text-gray-800">{req.directProvider}</p>
-                </div>
-              )}
               {req.responsible && (
                 <div>
-                  <span className="text-xs text-gray-400 uppercase tracking-wide">Responsable</span>
-                  <p className="text-sm font-medium text-gray-800">{req.responsible}</p>
-                </div>
-              )}
-              {req.productLink && (
-                <div className="sm:col-span-2">
-                  <span className="text-xs text-gray-400 uppercase tracking-wide">Link del Producto</span>
-                  <a
-                    href={req.productLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-600 hover:underline flex items-center gap-1 mt-0.5"
-                  >
-                    {req.productLink.length > 60 ? req.productLink.substring(0, 60) + '...' : req.productLink}
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
-              )}
-              {req.notes && (
-                <div className="sm:col-span-2">
-                  <span className="text-xs text-gray-400 uppercase tracking-wide">Notas</span>
-                  <p className="text-sm text-gray-700 mt-0.5 whitespace-pre-wrap">{req.notes}</p>
-                </div>
-              )}
-              {req.referencePhotoUrl && (
-                <div className="sm:col-span-2">
-                  <span className="text-xs text-gray-400 uppercase tracking-wide">Foto Referencia</span>
-                  <div className="mt-1.5">
-                    <img
-                      src={req.referencePhotoUrl}
-                      alt="Referencia"
-                      className="h-24 w-24 object-cover rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={() => { setPreviewImageUrl(req.referencePhotoUrl!); setImagePreviewOpen(true) }}
-                    />
-                  </div>
+                  <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Responsable</span>
+                  <p className="text-sm font-medium text-slate-800">{req.responsible}</p>
                 </div>
               )}
               <div>
-                <span className="text-xs text-gray-400 uppercase tracking-wide">Fecha Creación</span>
-                <p className="text-sm text-gray-700">{formatDateTime(req.createdAt)}</p>
+                <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Fecha Creacion</span>
+                <p className="text-sm text-slate-700">{formatDateTime(req.createdAt)}</p>
               </div>
+              {req.notes && (
+                <div className="sm:col-span-2">
+                  <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Notas</span>
+                  <p className="text-sm text-slate-700 mt-0.5 whitespace-pre-wrap">{req.notes}</p>
+                </div>
+              )}
               {req.reviewedBy && (
                 <div>
-                  <span className="text-xs text-gray-400 uppercase tracking-wide">Revisado por</span>
-                  <p className="text-sm text-gray-700">{req.reviewedBy}</p>
+                  <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Revisado por</span>
+                  <p className="text-sm text-slate-700">{req.reviewedBy}</p>
                 </div>
               )}
               {req.reviewNote && (
                 <div className="sm:col-span-2">
-                  <span className="text-xs text-gray-400 uppercase tracking-wide">Nota de Revisión</span>
-                  <p className="text-sm text-gray-700 mt-0.5 bg-amber-50 p-2 rounded border border-amber-200 whitespace-pre-wrap">{req.reviewNote}</p>
-                </div>
-              )}
-              {req.reviewedAt && (
-                <div>
-                  <span className="text-xs text-gray-400 uppercase tracking-wide">Fecha Revisión</span>
-                  <p className="text-sm text-gray-700">{formatDateTime(req.reviewedAt)}</p>
+                  <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Nota de Revision</span>
+                  <p className="text-sm text-slate-700 mt-0.5 bg-amber-50 p-2 rounded border border-amber-200 whitespace-pre-wrap">{req.reviewNote}</p>
                 </div>
               )}
             </div>
@@ -1066,12 +928,12 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
           {req.status === 'PENDIENTE' && canApprove && (
             <>
               {isSupervisor && (
-                <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700" onClick={() => openReviewDialog('APROBADA_SUPERVISOR')}>
+                <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={() => openReviewDialog('APROBADA_SUPERVISOR')}>
                   <ShieldCheck className="h-4 w-4" /> Aprobar (Supervisor)
                 </Button>
               )}
               {isAdmin && (
-                <Button size="sm" className="gap-1 bg-green-600 hover:bg-green-700" onClick={() => openReviewDialog('APROBADA')}>
+                <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => openReviewDialog('APROBADA')}>
                   <CheckCircle className="h-4 w-4" /> Aprobar (Admin)
                 </Button>
               )}
@@ -1080,19 +942,19 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
               </Button>
             </>
           )}
-          {req.status === 'PENDIENTE' && canEditAll && (
+          {canEditRequest && (
             <>
-              <Button size="sm" variant="outline" className="gap-1" onClick={() => openEditForm(req)}>
+              <Button size="sm" variant="outline" className="gap-1 border-slate-300 text-slate-700" onClick={() => openEditForm(req)}>
                 <Pencil className="h-4 w-4" /> Editar
               </Button>
-              <Button size="sm" variant="outline" className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => { setDeleteTarget({ type: 'request', id: req.id }); setDeleteDialogOpen(true) }}>
+              <Button size="sm" variant="outline" className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" onClick={() => { setDeleteTarget({ type: 'request', id: req.id }); setDeleteDialogOpen(true) }}>
                 <Trash2 className="h-4 w-4" /> Eliminar
               </Button>
             </>
           )}
           {req.status === 'APROBADA_SUPERVISOR' && isAdmin && (
             <>
-              <Button size="sm" className="gap-1 bg-green-600 hover:bg-green-700" onClick={() => openReviewDialog('APROBADA')}>
+              <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => openReviewDialog('APROBADA')}>
                 <CheckCircle className="h-4 w-4" /> Aprobar (Admin)
               </Button>
               <Button size="sm" variant="destructive" className="gap-1" onClick={() => openReviewDialog('RECHAZADA')}>
@@ -1102,42 +964,121 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
           )}
           {req.status === 'APROBADA' && (
             <>
-              <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700" onClick={() => openReviewDialog('EN_COMPRA')}>
+              <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={() => openReviewDialog('EN_COMPRA')}>
                 <ShoppingBag className="h-4 w-4" /> Marcar En Compra
               </Button>
-              <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700" onClick={() => openReviewDialog('COMPRADA')}>
+              <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => openReviewDialog('COMPRADA')}>
                 <CheckCircle className="h-4 w-4" /> Marcar Comprada
               </Button>
             </>
           )}
           {req.status === 'EN_COMPRA' && (
-            <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700" onClick={() => openReviewDialog('COMPRADA')}>
+            <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => openReviewDialog('COMPRADA')}>
               <CheckCircle className="h-4 w-4" /> Marcar Comprada
             </Button>
           )}
         </div>
 
-        {/* Quotes Section */}
-        <Card>
+        {/* Items Section */}
+        <Card className="bg-white border-slate-200">
           <CardHeader className="pb-3 pt-4 px-5">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                <Package className="h-4 w-4 text-blue-600" />
+                Items de Compra ({items.length})
+              </CardTitle>
+              {canEditRequest && (
+                <Button size="sm" onClick={openCreateItem} className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
+                  <Plus className="h-4 w-4" /> Agregar Item
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="px-5 pb-4">
+            {items.length === 0 ? (
+              <div className="text-center py-8">
+                <Package className="h-12 w-12 mx-auto mb-2 text-slate-300" />
+                <p className="text-slate-600 font-medium">No hay items en esta solicitud</p>
+                <p className="text-sm text-slate-400 mt-1">Agrega los productos o servicios que necesitas comprar</p>
+                {canEditRequest && (
+                  <Button size="sm" variant="outline" onClick={openCreateItem} className="mt-3 gap-1.5 border-blue-300 text-blue-700 hover:bg-blue-50">
+                    <Plus className="h-4 w-4" /> Agregar Primer Item
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                {items.map((item, idx) => (
+                  <div key={item.id} className="border border-slate-200 rounded-lg p-4 hover:bg-slate-50 transition-colors bg-white">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-[11px] font-bold shrink-0">{idx + 1}</span>
+                          <span className="font-semibold text-slate-800">{item.productDescription}</span>
+                          {item.brand && <Badge variant="outline" className="text-[10px] border-slate-200 text-slate-600">{item.brand}</Badge>}
+                          <Badge variant="outline" className="text-[10px] border-blue-200 text-blue-700 bg-blue-50">Qty: {item.quantity}</Badge>
+                        </div>
+                        <div className="flex items-center gap-4 mt-1.5 text-sm text-slate-500 ml-8">
+                          {item.directProvider && <span>Proveedor: <span className="text-slate-700 font-medium">{item.directProvider}</span></span>}
+                        </div>
+                        {item.notes && (
+                          <p className="text-xs text-slate-500 mt-1 ml-8">{item.notes}</p>
+                        )}
+                        {item.productLink && (
+                          <a href={item.productLink} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-1 ml-8">
+                            <ExternalLink className="h-3 w-3" /> Ver enlace del producto
+                          </a>
+                        )}
+                        {item.referencePhotoUrl && (
+                          <div className="mt-2 ml-8">
+                            <img
+                              src={item.referencePhotoUrl}
+                              alt="Referencia"
+                              className="w-20 h-20 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity shadow-sm"
+                              onClick={() => { setPreviewImageUrl(item.referencePhotoUrl!); setImagePreviewOpen(true) }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      {canEditRequest && (
+                        <div className="flex gap-1 shrink-0">
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50" onClick={() => openEditItem(item)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50" onClick={() => { setDeleteTarget({ type: 'item', id: item.id }); setDeleteDialogOpen(true) }}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Quotes Section */}
+        <Card className="bg-white border-slate-200">
+          <CardHeader className="pb-3 pt-4 px-5">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
                 <FileText className="h-4 w-4 text-blue-600" />
                 Cotizaciones
                 {req.quotes && req.quotes.length > 0 && (
                   <Badge variant="secondary" className="text-xs">{req.quotes.length}</Badge>
                 )}
               </CardTitle>
-              <Button size="sm" variant="outline" className="gap-1" onClick={openQuoteDialog}>
-                <Plus className="h-3.5 w-3.5" /> Agregar Cotización
+              <Button size="sm" variant="outline" className="gap-1 border-slate-300 text-slate-700" onClick={openQuoteDialog}>
+                <Plus className="h-3.5 w-3.5" /> Agregar Cotizacion
               </Button>
             </div>
           </CardHeader>
           <CardContent className="px-5 pb-4">
             {!req.quotes || req.quotes.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No hay cotizaciones registradas</p>
+              <div className="text-center py-8 text-slate-500">
+                <FileText className="h-10 w-10 mx-auto mb-2 text-slate-300" />
+                <p className="font-medium text-slate-600">No hay cotizaciones registradas</p>
                 <p className="text-xs mt-1">Agrega cotizaciones de proveedores para esta solicitud</p>
               </div>
             ) : (
@@ -1146,61 +1087,29 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
                   const isWinner = q.isWinner
                   const isBestPrice = bestPrice !== null && q.amount === bestPrice
                   return (
-                    <div
-                      key={q.id}
-                      className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
-                        isWinner ? 'bg-green-50 border-green-300' : isBestPrice ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200'
-                      }`}
-                    >
-                      {/* Star / Winner selector */}
-                      <button
-                        onClick={() => !isWinner && setWinner(q.id)}
-                        className={`mt-0.5 shrink-0 ${isWinner ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-400'} transition-colors`}
-                        title={isWinner ? 'Cotización ganadora' : 'Seleccionar como ganadora'}
-                      >
+                    <div key={q.id} className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${isWinner ? 'bg-emerald-50 border-emerald-300' : isBestPrice ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-200'}`}>
+                      <button onClick={() => !isWinner && setWinner(q.id)} className={`mt-0.5 shrink-0 ${isWinner ? 'text-yellow-500' : 'text-slate-300 hover:text-yellow-400'} transition-colors`} title={isWinner ? 'Cotización ganadora' : 'Seleccionar como ganadora'}>
                         <Star className={`h-5 w-5 ${isWinner ? 'fill-current' : ''}`} />
                       </button>
-
-                      {/* Quote Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-sm text-gray-800">{q.providerName}</span>
-                          {isWinner && (
-                            <Badge className="bg-green-100 text-green-700 text-[10px] gap-0.5">
-                              <CheckCircle className="h-3 w-3" /> Ganadora
-                            </Badge>
-                          )}
-                          {isBestPrice && !isWinner && (
-                            <Badge className="bg-blue-100 text-blue-700 text-[10px]">Mejor precio</Badge>
-                          )}
+                          <span className="font-medium text-sm text-slate-800">{q.providerName}</span>
+                          {isWinner && <Badge className="bg-emerald-100 text-emerald-700 text-[10px] gap-0.5 border-0"><CheckCircle className="h-3 w-3" /> Ganadora</Badge>}
+                          {isBestPrice && !isWinner && <Badge className="bg-blue-100 text-blue-700 text-[10px] border-0">Mejor precio</Badge>}
                         </div>
                         <div className="flex items-center gap-3 mt-1">
-                          <span className="text-lg font-bold text-gray-900">{formatCLP(q.amount)}</span>
-                          <span className="text-xs text-gray-400 uppercase">{q.currency}</span>
+                          <span className="text-lg font-bold text-slate-900">{formatCLP(q.amount)}</span>
+                          <span className="text-xs text-slate-400 uppercase">{q.currency}</span>
                         </div>
-                        {q.notes && (
-                          <p className="text-xs text-gray-500 mt-1">{q.notes}</p>
-                        )}
+                        {q.notes && <p className="text-xs text-slate-500 mt-1">{q.notes}</p>}
                         {q.fileName && (
-                          <a
-                            href={q.fileUrl || '#'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-blue-500 hover:underline flex items-center gap-1 mt-1"
-                          >
+                          <a href={q.fileUrl || '#'} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-1">
                             <Download className="h-3 w-3" /> {q.fileName}
                           </a>
                         )}
-                        <span className="text-[10px] text-gray-400 mt-1 block">{formatDateTime(q.createdAt)}</span>
+                        <span className="text-[10px] text-slate-400 mt-1 block">{formatDateTime(q.createdAt)}</span>
                       </div>
-
-                      {/* Delete quote */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="shrink-0 text-gray-400 hover:text-red-500 h-8 w-8 p-0"
-                        onClick={() => { setDeleteTarget({ type: 'quote', id: q.id }); setDeleteDialogOpen(true) }}
-                      >
+                      <Button variant="ghost" size="sm" className="shrink-0 text-slate-400 hover:text-red-500 h-8 w-8 p-0" onClick={() => { setDeleteTarget({ type: 'quote', id: q.id }); setDeleteDialogOpen(true) }}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -1215,167 +1124,227 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
   }
 
   // ============================================================
-  // RENDER: Create / Edit Form Dialog
+  // PDF Export
+  // ============================================================
+
+  const exportPDF = (req: PurchaseRequest) => {
+    const doc = new jsPDF()
+    const sc = correlativeStr(req.correlativeNumber)
+    const st = statusConfig[req.status] || { label: req.status }
+
+    doc.setFontSize(18)
+    doc.setTextColor(30, 64, 175)
+    doc.text(`Solicitud de Compra ${sc}`, 14, 22)
+    doc.setFontSize(10)
+    doc.setTextColor(100)
+    doc.text(`Fecha: ${formatDate(req.createdAt)}`, 14, 30)
+    doc.text(`Estado: ${st.label}`, 14, 36)
+    doc.setDrawColor(200)
+    doc.line(14, 40, 196, 40)
+
+    let y = 48
+    const addField = (label: string, value: string) => {
+      doc.setFontSize(10)
+      doc.setTextColor(100)
+      doc.text(`${label}:`, 14, y)
+      doc.setTextColor(30)
+      doc.text(value || '-', 60, y)
+      y += 7
+    }
+
+    addField('Titulo', req.title || req.productDescription)
+    addField('Responsable', req.responsible || '-')
+    if (req.notes) addField('Notas', req.notes)
+    if (req.reviewedBy) addField('Revisado por', req.reviewedBy)
+    if (req.reviewNote) addField('Nota Revision', req.reviewNote)
+
+    // Items table
+    const items = req.items || []
+    if (items.length > 0) {
+      y += 5
+      doc.setFontSize(12)
+      doc.setTextColor(30, 64, 175)
+      doc.text('Items de Compra', 14, y)
+      y += 7
+      doc.setFontSize(9)
+      doc.setFillColor(240, 240, 240)
+      doc.rect(14, y - 4, 182, 8, 'F')
+      doc.setTextColor(60)
+      doc.text('N', 16, y)
+      doc.text('Producto', 24, y)
+      doc.text('Marca', 90, y)
+      doc.text('Cant.', 125, y)
+      doc.text('Proveedor', 145, y)
+      y += 8
+
+      items.forEach((item, idx) => {
+        if (y > 270) { doc.addPage(); y = 20 }
+        doc.setTextColor(30)
+        doc.text(String(idx + 1), 16, y)
+        const descLines = doc.splitTextToSize(item.productDescription, 62)
+        doc.text(descLines, 24, y)
+        doc.text((item.brand || '-').substring(0, 15), 90, y)
+        doc.text(String(item.quantity), 128, y)
+        doc.text((item.directProvider || '-').substring(0, 18), 145, y)
+        y += Math.max(descLines.length * 4, 5) + 3
+      })
+    }
+
+    // Quotes table
+    if (req.quotes && req.quotes.length > 0) {
+      y += 5
+      doc.setFontSize(12)
+      doc.setTextColor(30, 64, 175)
+      doc.text('Cotizaciones', 14, y)
+      y += 7
+      doc.setFontSize(9)
+      doc.setFillColor(240, 240, 240)
+      doc.rect(14, y - 4, 182, 8, 'F')
+      doc.setTextColor(60)
+      doc.text('Proveedor', 16, y)
+      doc.text('Monto', 90, y)
+      doc.text('Moneda', 130, y)
+      doc.text('Ganadora', 155, y)
+      y += 8
+
+      req.quotes.forEach(q => {
+        if (y > 270) { doc.addPage(); y = 20 }
+        doc.setTextColor(q.isWinner ? 0 : 30)
+        doc.text(q.providerName.substring(0, 20), 16, y)
+        doc.text(formatCLP(q.amount), 90, y)
+        doc.text(q.currency, 130, y)
+        doc.text(q.isWinner ? 'Si' : '', 158, y)
+        y += 7
+      })
+    }
+
+    doc.save(`solicitud-compra-${sc}.pdf`)
+  }
+
+  // ============================================================
+  // Excel Export
+  // ============================================================
+
+  const exportExcel = async (req: PurchaseRequest) => {
+    const workbook = new ExcelJS.Workbook()
+    const sc = correlativeStr(req.correlativeNumber)
+    const st = statusConfig[req.status] || { label: req.status }
+    const items = req.items || []
+
+    // Sheet 1: Resumen
+    const ws1 = workbook.addWorksheet('Resumen')
+    ws1.columns = [
+      { header: 'Campo', key: 'campo', width: 25 },
+      { header: 'Valor', key: 'valor', width: 50 },
+    ]
+    ws1.addRows([
+      { campo: 'Correlativo', valor: sc },
+      { campo: 'Titulo', valor: req.title || req.productDescription },
+      { campo: 'Prioridad', valor: priorityConfig[req.priority]?.label || req.priority },
+      { campo: 'Estado', valor: st.label },
+      { campo: 'Responsable', valor: req.responsible || '-' },
+      { campo: 'Notas', valor: req.notes || '-' },
+      { campo: 'Fecha Creacion', valor: formatDateTime(req.createdAt) },
+      { campo: 'Revisado por', valor: req.reviewedBy || '-' },
+      { campo: 'Nota Revision', valor: req.reviewNote || '-' },
+    ])
+    ws1.getRow(1).font = { bold: true, color: { argb: 'FF1E40AF' } }
+
+    // Sheet 2: Items
+    if (items.length > 0) {
+      const ws2 = workbook.addWorksheet('Items')
+      ws2.columns = [
+        { header: 'N', key: 'n', width: 5 },
+        { header: 'Producto', key: 'product', width: 35 },
+        { header: 'Marca', key: 'brand', width: 15 },
+        { header: 'Cantidad', key: 'qty', width: 10 },
+        { header: 'Proveedor', key: 'provider', width: 20 },
+        { header: 'Link', key: 'link', width: 30 },
+        { header: 'Notas', key: 'notes', width: 25 },
+      ]
+      items.forEach((item, idx) => {
+        ws2.addRow({ n: idx + 1, product: item.productDescription, brand: item.brand || '-', qty: item.quantity, provider: item.directProvider || '-', link: item.productLink || '-', notes: item.notes || '-' })
+      })
+      ws2.getRow(1).font = { bold: true, color: { argb: 'FF1E40AF' } }
+    }
+
+    // Sheet 3: Cotizaciones
+    if (req.quotes && req.quotes.length > 0) {
+      const ws3 = workbook.addWorksheet('Cotizaciones')
+      ws3.columns = [
+        { header: 'Proveedor', key: 'provider', width: 25 },
+        { header: 'Monto', key: 'amount', width: 18 },
+        { header: 'Moneda', key: 'currency', width: 10 },
+        { header: 'Ganadora', key: 'winner', width: 12 },
+        { header: 'Notas', key: 'notes', width: 30 },
+      ]
+      req.quotes.forEach(q => {
+        ws3.addRow({ provider: q.providerName, amount: q.amount, currency: q.currency, winner: q.isWinner ? 'Si' : 'No', notes: q.notes || '-' })
+      })
+      ws3.getRow(1).font = { bold: true, color: { argb: 'FF1E40AF' } }
+      ws3.getColumn('amount').numFmt = '#,##0'
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `solicitud-compra-${sc}.xlsx`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // ============================================================
+  // RENDER: Create / Edit Request Dialog
   // ============================================================
 
   const renderFormDialog = () => (
     <Dialog open={formOpen} onOpenChange={v => { setFormOpen(v); if (!v) resetForm() }}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto bg-white border-slate-200">
         <DialogHeader>
-          <DialogTitle>{editingId ? 'Editar Solicitud' : 'Nueva Solicitud de Compra'}</DialogTitle>
-          <DialogDescription>
-            {editingId ? 'Modifica los campos de la solicitud' : 'Completa los datos para crear una nueva solicitud de compra'}
+          <DialogTitle className="text-slate-800">{editingId ? 'Editar Solicitud' : 'Nueva Solicitud de Compra'}</DialogTitle>
+          <DialogDescription className="text-slate-500">
+            {editingId ? 'Modifica los campos de la solicitud' : 'Completa los datos generales. Podras agregar multiples items despues.'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* Product Description */}
           <div className="space-y-1.5">
-            <Label htmlFor="productDescription" className="text-sm font-medium">
-              Descripción del Producto <span className="text-red-500">*</span>
-            </Label>
-            <Textarea
-              id="productDescription"
-              value={formData.productDescription}
-              onChange={e => setFormData(prev => ({ ...prev, productDescription: e.target.value }))}
-              placeholder="Describe el producto o servicio solicitado..."
-              rows={3}
-            />
+            <Label htmlFor="title" className="text-sm font-medium text-slate-700">Titulo de la Solicitud <span className="text-red-500">*</span></Label>
+            <Input id="title" value={formData.title} onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))} placeholder="Ej: Compra materiales junio 2026" className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
           </div>
 
-          {/* Brand & Quantity */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="brand" className="text-sm font-medium">Marca</Label>
-              <Input
-                id="brand"
-                value={formData.brand}
-                onChange={e => setFormData(prev => ({ ...prev, brand: e.target.value }))}
-                placeholder="Ej: Bosch, 3M..."
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="quantity" className="text-sm font-medium">Cantidad</Label>
-              <Input
-                id="quantity"
-                type="number"
-                min="1"
-                value={formData.quantity}
-                onChange={e => setFormData(prev => ({ ...prev, quantity: e.target.value }))}
-              />
-            </div>
-          </div>
-
-          {/* Priority */}
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium">Prioridad</Label>
+            <Label className="text-sm font-medium text-slate-700">Prioridad</Label>
             <Select value={formData.priority} onValueChange={v => setFormData(prev => ({ ...prev, priority: v }))}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-white border-slate-300 text-slate-800">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white">
                 {Object.entries(priorityConfig).map(([k, v]) => (
                   <SelectItem key={k} value={k}>
-                    <span className="flex items-center gap-2">
-                      <span className={`w-2.5 h-2.5 rounded-full ${v.color}`} />
-                      {v.label}
-                    </span>
+                    <span className="flex items-center gap-2"><span className={`w-2.5 h-2.5 rounded-full ${v.color}`} />{v.label}</span>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Product Link */}
           <div className="space-y-1.5">
-            <Label htmlFor="productLink" className="text-sm font-medium">Link del Producto</Label>
-            <Input
-              id="productLink"
-              value={formData.productLink}
-              onChange={e => setFormData(prev => ({ ...prev, productLink: e.target.value }))}
-              placeholder="https://..."
-            />
+            <Label htmlFor="responsible" className="text-sm font-medium text-slate-700">Responsable</Label>
+            <Input id="responsible" value={formData.responsible} onChange={e => setFormData(prev => ({ ...prev, responsible: e.target.value }))} placeholder="Nombre del responsable..." className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
           </div>
 
-          {/* Reference Photo */}
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium">Foto de Referencia</Label>
-            {formData.referencePhotoUrl ? (
-              <div className="relative inline-block">
-                <img
-                  src={formData.referencePhotoUrl}
-                  alt="Referencia"
-                  className="h-24 w-24 object-cover rounded-lg border"
-                />
-                <button
-                  onClick={removePhoto}
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ) : (
-              <div
-                onClick={() => photoInputRef.current?.click()}
-                className="flex items-center justify-center h-24 w-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
-              >
-                {uploadingPhoto ? (
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
-                ) : (
-                  <div className="text-center">
-                    <Camera className="h-6 w-6 mx-auto text-gray-400" />
-                    <span className="text-[10px] text-gray-400 mt-1 block">Subir foto</span>
-                  </div>
-                )}
-              </div>
-            )}
-            <input
-              ref={photoInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handlePhotoUpload}
-            />
-          </div>
-
-          {/* Direct Provider */}
-          <div className="space-y-1.5">
-            <Label htmlFor="directProvider" className="text-sm font-medium">Proveedor Directo</Label>
-            <Input
-              id="directProvider"
-              value={formData.directProvider}
-              onChange={e => setFormData(prev => ({ ...prev, directProvider: e.target.value }))}
-              placeholder="Nombre del proveedor sugerido..."
-            />
-          </div>
-
-          {/* Responsible */}
-          <div className="space-y-1.5">
-            <Label htmlFor="responsible" className="text-sm font-medium">Responsable</Label>
-            <Input
-              id="responsible"
-              value={formData.responsible}
-              onChange={e => setFormData(prev => ({ ...prev, responsible: e.target.value }))}
-              placeholder="Nombre del responsable..."
-            />
-          </div>
-
-          {/* Notes */}
-          <div className="space-y-1.5">
-            <Label htmlFor="notes" className="text-sm font-medium">Notas</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-              placeholder="Observaciones adicionales..."
-              rows={2}
-            />
+            <Label htmlFor="notes" className="text-sm font-medium text-slate-700">Notas</Label>
+            <Textarea id="notes" value={formData.notes} onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))} placeholder="Observaciones generales..." rows={2} className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => { setFormOpen(false); resetForm() }}>Cancelar</Button>
-          <Button onClick={handleFormSubmit} className="gap-1">
+          <Button variant="outline" onClick={() => { setFormOpen(false); resetForm() }} className="border-slate-300 text-slate-700">Cancelar</Button>
+          <Button onClick={handleFormSubmit} className="gap-1 bg-blue-600 hover:bg-blue-700 text-white" disabled={!formData.title.trim()}>
             <Send className="h-4 w-4" />
             {editingId ? 'Guardar Cambios' : 'Crear Solicitud'}
           </Button>
@@ -1385,121 +1354,146 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
   )
 
   // ============================================================
-  // RENDER: Add Quote Dialog
+  // RENDER: Item Form Dialog
   // ============================================================
 
-  const renderQuoteDialog = () => (
-    <Dialog open={quoteDialogOpen} onOpenChange={v => { setQuoteDialogOpen(v); if (!v) resetQuoteForm() }}>
-      <DialogContent className="max-w-md">
+  const renderItemFormDialog = () => (
+    <Dialog open={itemFormOpen} onOpenChange={setItemFormOpen}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto bg-white border-slate-200">
         <DialogHeader>
-          <DialogTitle>Agregar Cotización</DialogTitle>
-          <DialogDescription>
-            Ingresa los datos de la cotización del proveedor
+          <DialogTitle className="text-slate-800">{editingItem ? 'Editar Item de Compra' : 'Agregar Item de Compra'}</DialogTitle>
+          <DialogDescription className="text-slate-500">
+            {editingItem ? 'Modifica los datos del item' : 'Agrega un producto o servicio a la solicitud de compra'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* Provider Name */}
           <div className="space-y-1.5">
-            <Label htmlFor="providerName" className="text-sm font-medium">
-              Proveedor <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="providerName"
-              value={quoteFormData.providerName}
-              onChange={e => setQuoteFormData(prev => ({ ...prev, providerName: e.target.value }))}
-              placeholder="Nombre del proveedor..."
-            />
+            <Label htmlFor="itemProductDescription" className="text-sm font-medium text-slate-700">Descripcion del Producto <span className="text-red-500">*</span></Label>
+            <Textarea id="itemProductDescription" value={itemForm.productDescription} onChange={e => setItemForm(prev => ({ ...prev, productDescription: e.target.value }))} placeholder="Describe el producto o servicio..." rows={2} className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
           </div>
 
-          {/* Amount & Currency */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2 space-y-1.5">
-              <Label htmlFor="quoteAmount" className="text-sm font-medium">
-                Monto <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="quoteAmount"
-                type="number"
-                min="0"
-                step="any"
-                value={quoteFormData.amount}
-                onChange={e => setQuoteFormData(prev => ({ ...prev, amount: e.target.value }))}
-                placeholder="0"
-              />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="itemBrand" className="text-sm font-medium text-slate-700">Marca</Label>
+              <Input id="itemBrand" value={itemForm.brand} onChange={e => setItemForm(prev => ({ ...prev, brand: e.target.value }))} placeholder="Ej: Bosch, 3M..." className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Moneda</Label>
-              <Select value={quoteFormData.currency} onValueChange={v => setQuoteFormData(prev => ({ ...prev, currency: v }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CLP">CLP</SelectItem>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="EUR">EUR</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="itemQuantity" className="text-sm font-medium text-slate-700">Cantidad</Label>
+              <Input id="itemQuantity" type="number" min="1" value={itemForm.quantity} onChange={e => setItemForm(prev => ({ ...prev, quantity: e.target.value }))} className="bg-white border-slate-300 text-slate-800" />
             </div>
           </div>
 
-          {/* File attachment */}
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium">Archivo Adjunto</Label>
-            {quoteFormData.fileUrl ? (
-              <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg border">
-                <FileText className="h-4 w-4 text-gray-500 shrink-0" />
-                <span className="text-sm text-gray-700 truncate flex-1">{quoteFormData.fileName}</span>
-                <button
-                  onClick={removeQuoteFile}
-                  className="text-red-500 hover:text-red-700 shrink-0"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
-              <div
-                onClick={() => quoteFileInputRef.current?.click()}
-                className="flex items-center justify-center h-16 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
-              >
-                {uploadingQuoteFile ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600" />
-                ) : (
-                  <div className="text-center">
-                    <Upload className="h-5 w-5 mx-auto text-gray-400" />
-                    <span className="text-[10px] text-gray-400 mt-0.5 block">Subir archivo</span>
-                  </div>
-                )}
-              </div>
-            )}
-            <input
-              ref={quoteFileInputRef}
-              type="file"
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
-              className="hidden"
-              onChange={handleQuoteFileUpload}
-            />
+            <Label htmlFor="itemProductLink" className="text-sm font-medium text-slate-700">Link del Producto</Label>
+            <Input id="itemProductLink" value={itemForm.productLink} onChange={e => setItemForm(prev => ({ ...prev, productLink: e.target.value }))} placeholder="https://..." className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
           </div>
 
-          {/* Notes */}
           <div className="space-y-1.5">
-            <Label htmlFor="quoteNotes" className="text-sm font-medium">Notas</Label>
-            <Textarea
-              id="quoteNotes"
-              value={quoteFormData.notes}
-              onChange={e => setQuoteFormData(prev => ({ ...prev, notes: e.target.value }))}
-              placeholder="Observaciones sobre la cotización..."
-              rows={2}
-            />
+            <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+              <Camera className="w-4 h-4 text-blue-600" />
+              Foto de Referencia
+            </Label>
+            {itemForm.referencePhotoUrl ? (
+              <div className="relative inline-block">
+                <img src={itemForm.referencePhotoUrl} alt="Referencia" className="h-24 w-24 object-cover rounded-lg border border-slate-200 shadow-sm cursor-pointer hover:opacity-80" onClick={() => { setPreviewImageUrl(itemForm.referencePhotoUrl); setImagePreviewOpen(true) }} />
+                <Button variant="destructive" size="sm" className="absolute top-1 right-1 h-6 w-6 p-0" onClick={() => setItemForm(prev => ({ ...prev, referencePhotoUrl: '' }))}>
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center h-24 w-24 border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors">
+                {uploadingItemPhoto ? (
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                ) : (
+                  <div className="text-center">
+                    <Camera className="h-6 w-6 mx-auto text-slate-400" />
+                    <span className="text-[10px] text-slate-500 mt-1 block">Subir foto</span>
+                  </div>
+                )}
+                <input ref={itemPhotoInputRef} type="file" accept="image/*" className="hidden" onChange={handleItemPhotoUpload} />
+              </label>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="itemDirectProvider" className="text-sm font-medium text-slate-700">Proveedor Directo</Label>
+            <Input id="itemDirectProvider" value={itemForm.directProvider} onChange={e => setItemForm(prev => ({ ...prev, directProvider: e.target.value }))} placeholder="Nombre del proveedor sugerido..." className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="itemNotes" className="text-sm font-medium text-slate-700">Notas</Label>
+            <Textarea id="itemNotes" value={itemForm.notes} onChange={e => setItemForm(prev => ({ ...prev, notes: e.target.value }))} placeholder="Observaciones adicionales..." rows={2} className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => { setQuoteDialogOpen(false); resetQuoteForm() }}>Cancelar</Button>
-          <Button onClick={handleQuoteSubmit} className="gap-1">
-            <Plus className="h-4 w-4" />
-            Agregar
+          <Button variant="outline" onClick={() => setItemFormOpen(false)} disabled={savingItem} className="border-slate-300 text-slate-700">Cancelar</Button>
+          <Button onClick={handleSaveItem} disabled={!itemForm.productDescription.trim() || savingItem} className="bg-blue-600 hover:bg-blue-700 text-white">
+            {savingItem ? 'Guardando...' : editingItem ? 'Guardar Cambios' : 'Agregar Item'}
           </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+
+  // ============================================================
+  // RENDER: Quote Dialog
+  // ============================================================
+
+  const renderQuoteDialog = () => (
+    <Dialog open={quoteDialogOpen} onOpenChange={v => { setQuoteDialogOpen(v); if (!v) resetQuoteForm() }}>
+      <DialogContent className="max-w-md bg-white border-slate-200">
+        <DialogHeader>
+          <DialogTitle className="text-slate-800">Agregar Cotizacion</DialogTitle>
+          <DialogDescription className="text-slate-500">Ingresa los datos de la cotizacion del proveedor</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="providerName" className="text-sm font-medium text-slate-700">Proveedor <span className="text-red-500">*</span></Label>
+            <Input id="providerName" value={quoteFormData.providerName} onChange={e => setQuoteFormData(prev => ({ ...prev, providerName: e.target.value }))} placeholder="Nombre del proveedor..." className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2 space-y-1.5">
+              <Label htmlFor="quoteAmount" className="text-sm font-medium text-slate-700">Monto <span className="text-red-500">*</span></Label>
+              <Input id="quoteAmount" type="number" min="0" step="any" value={quoteFormData.amount} onChange={e => setQuoteFormData(prev => ({ ...prev, amount: e.target.value }))} placeholder="0" className="bg-white border-slate-300 text-slate-800" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-slate-700">Moneda</Label>
+              <Select value={quoteFormData.currency} onValueChange={v => setQuoteFormData(prev => ({ ...prev, currency: v }))}>
+                <SelectTrigger className="bg-white border-slate-300 text-slate-800"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-white"><SelectItem value="CLP">CLP</SelectItem><SelectItem value="USD">USD</SelectItem><SelectItem value="EUR">EUR</SelectItem></SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium text-slate-700">Archivo Adjunto</Label>
+            {quoteFormData.fileUrl ? (
+              <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
+                <FileText className="h-4 w-4 text-slate-500 shrink-0" />
+                <span className="text-sm text-slate-700 truncate flex-1">{quoteFormData.fileName}</span>
+                <button onClick={() => setQuoteFormData(prev => ({ ...prev, fileUrl: '', fileName: '', fileType: '' }))} className="text-red-500 hover:text-red-700 shrink-0"><X className="h-4 w-4" /></button>
+              </div>
+            ) : (
+              <div onClick={() => quoteFileInputRef.current?.click()} className="flex items-center justify-center h-16 border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                {uploadingQuoteFile ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600" /> : <div className="text-center"><Upload className="h-5 w-5 mx-auto text-slate-400" /><span className="text-[10px] text-slate-500 mt-0.5 block">Subir archivo</span></div>}
+              </div>
+            )}
+            <input ref={quoteFileInputRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" className="hidden" onChange={handleQuoteFileUpload} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="quoteNotes" className="text-sm font-medium text-slate-700">Notas</Label>
+            <Textarea id="quoteNotes" value={quoteFormData.notes} onChange={e => setQuoteFormData(prev => ({ ...prev, notes: e.target.value }))} placeholder="Observaciones..." rows={2} className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => { setQuoteDialogOpen(false); resetQuoteForm() }} className="border-slate-300 text-slate-700">Cancelar</Button>
+          <Button onClick={handleQuoteSubmit} className="gap-1 bg-blue-600 hover:bg-blue-700 text-white"><Plus className="h-4 w-4" />Agregar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -1511,53 +1505,34 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
 
   const renderReviewDialog = () => {
     const actionLabels: Record<string, string> = {
-      APROBADA: 'Aprobar (Admin)',
-      APROBADA_SUPERVISOR: 'Aprobar (Supervisor)',
-      RECHAZADA: 'Rechazar',
-      EN_COMPRA: 'Marcar En Compra',
-      COMPRADA: 'Marcar Comprada',
+      APROBADA: 'Aprobar (Admin)', APROBADA_SUPERVISOR: 'Aprobar (Supervisor)', RECHAZADA: 'Rechazar', EN_COMPRA: 'Marcar En Compra', COMPRADA: 'Marcar Comprada',
     }
     return (
       <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm bg-white border-slate-200">
           <DialogHeader>
-            <DialogTitle>{reviewAction ? actionLabels[reviewAction] : 'Acción'}</DialogTitle>
-            <DialogDescription>
-              {reviewAction === 'APROBADA' && '¿Estás seguro de aprobar esta solicitud?'}
+            <DialogTitle className="text-slate-800">{reviewAction ? actionLabels[reviewAction] : 'Accion'}</DialogTitle>
+            <DialogDescription className="text-slate-500">
               {reviewAction === 'RECHAZADA' && 'Indica el motivo del rechazo'}
-              {reviewAction === 'EN_COMPRA' && '¿Confirmas que esta solicitud está en proceso de compra?'}
-              {reviewAction === 'COMPRADA' && '¿Confirmas que esta solicitud ya fue comprada?'}
+              {reviewAction === 'APROBADA' && 'Confirmas la aprobacion de esta solicitud?'}
+              {reviewAction === 'APROBADA_SUPERVISOR' && 'Confirmas la aprobacion como supervisor?'}
+              {reviewAction === 'EN_COMPRA' && 'Confirmas que esta solicitud esta en proceso de compra?'}
+              {reviewAction === 'COMPRADA' && 'Confirmas que esta solicitud ya fue comprada?'}
             </DialogDescription>
           </DialogHeader>
-
           <div className="space-y-3 py-2">
             <div className="space-y-1.5">
-              <Label htmlFor="reviewedBy" className="text-sm font-medium">Revisado por</Label>
-              <Input
-                id="reviewedBy"
-                value={reviewedBy}
-                onChange={e => setReviewedBy(e.target.value)}
-                placeholder="Tu nombre..."
-              />
+              <Label htmlFor="reviewedBy" className="text-sm font-medium text-slate-700">Revisado por</Label>
+              <Input id="reviewedBy" value={reviewedBy} onChange={e => setReviewedBy(e.target.value)} placeholder="Tu nombre..." className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="reviewNote" className="text-sm font-medium">Nota</Label>
-              <Textarea
-                id="reviewNote"
-                value={reviewNote}
-                onChange={e => setReviewNote(e.target.value)}
-                placeholder={reviewAction === 'RECHAZADA' ? 'Motivo del rechazo...' : 'Observaciones (opcional)...'}
-                rows={2}
-              />
+              <Label htmlFor="reviewNote" className="text-sm font-medium text-slate-700">Nota</Label>
+              <Textarea id="reviewNote" value={reviewNote} onChange={e => setReviewNote(e.target.value)} placeholder={reviewAction === 'RECHAZADA' ? 'Motivo del rechazo...' : 'Observaciones (opcional)...'} rows={2} className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
             </div>
           </div>
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>Cancelar</Button>
-            <Button
-              onClick={handleReviewSubmit}
-              className={reviewAction === 'RECHAZADA' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}
-            >
+            <Button variant="outline" onClick={() => setReviewDialogOpen(false)} className="border-slate-300 text-slate-700">Cancelar</Button>
+            <Button onClick={handleReviewSubmit} className={reviewAction === 'RECHAZADA' ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}>
               {reviewAction ? actionLabels[reviewAction] : 'Confirmar'}
             </Button>
           </DialogFooter>
@@ -1572,18 +1547,20 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
 
   const renderDeleteDialog = () => (
     <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-      <AlertDialogContent>
+      <AlertDialogContent className="bg-white">
         <AlertDialogHeader>
-          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-          <AlertDialogDescription>
+          <AlertDialogTitle className="text-slate-800">Estas seguro?</AlertDialogTitle>
+          <AlertDialogDescription className="text-slate-600">
             {deleteTarget?.type === 'request'
-              ? 'Esta acción eliminará la solicitud de compra y todas sus cotizaciones. No se puede deshacer.'
-              : 'Esta acción eliminará la cotización. No se puede deshacer.'}
+              ? 'Esta accion eliminara la solicitud de compra y todos sus items y cotizaciones. No se puede deshacer.'
+              : deleteTarget?.type === 'item'
+              ? 'Esta accion eliminara este item de compra. No se puede deshacer.'
+              : 'Esta accion eliminara la cotizacion. No se puede deshacer.'}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => { setDeleteDialogOpen(false); setDeleteTarget(null) }}>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">Eliminar</AlertDialogAction>
+          <AlertDialogCancel onClick={() => { setDeleteDialogOpen(false); setDeleteTarget(null) }} className="border-slate-300 text-slate-700">Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 text-white">Eliminar</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
@@ -1595,18 +1572,12 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
 
   const renderImagePreview = () => (
     <Dialog open={imagePreviewOpen} onOpenChange={setImagePreviewOpen}>
-      <DialogContent className="max-w-lg p-2">
+      <DialogContent className="max-w-lg p-2 bg-black">
         <DialogHeader className="sr-only">
           <DialogTitle>Vista previa de imagen</DialogTitle>
           <DialogDescription>Imagen de referencia ampliada</DialogDescription>
         </DialogHeader>
-        {previewImageUrl && (
-          <img
-            src={previewImageUrl}
-            alt="Vista previa"
-            className="w-full h-auto rounded-lg"
-          />
-        )}
+        {previewImageUrl && <img src={previewImageUrl} alt="Vista previa" className="w-full h-auto rounded-lg" />}
       </DialogContent>
     </Dialog>
   )
@@ -1618,8 +1589,8 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
   return (
     <div className="w-full">
       {view === 'list' ? renderListView() : renderDetailView()}
-
       {renderFormDialog()}
+      {renderItemFormDialog()}
       {renderQuoteDialog()}
       {renderReviewDialog()}
       {renderDeleteDialog()}

@@ -179,7 +179,8 @@ model ExpenseCategory {
 model PurchaseRequest {
   id                 String            @id @default(cuid())
   correlativeNumber  Int               @unique
-  productDescription String
+  title              String            @default("")
+  productDescription String            @default("")
   brand              String?
   quantity           Int               @default(1)
   priority           String            @default("MEDIA")
@@ -195,8 +196,26 @@ model PurchaseRequest {
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   quotes             PurchaseQuote[]
+  items              PurchaseItem[]
 
   @@map("purchase_requests")
+}
+
+model PurchaseItem {
+  id                String           @id @default(cuid())
+  productDescription String
+  brand             String?
+  quantity          Int              @default(1)
+  productLink       String?          @db.Text
+  referencePhotoUrl String?          @db.Text
+  directProvider    String?
+  notes             String?
+  requestId         String
+  request           PurchaseRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@map("purchase_items")
 }
 
 model PurchaseQuote {
