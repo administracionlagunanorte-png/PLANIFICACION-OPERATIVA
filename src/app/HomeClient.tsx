@@ -3415,313 +3415,195 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
         {/* Dashboard View */}
         {view === 'dashboard' && (
           <div className="space-y-6">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500">Total Tareas</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold">{totalTasks}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-yellow-600">Pendientes</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-yellow-600">{pendingTasks}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-blue-600">En Proceso</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-blue-600">{inProgressTasks}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-green-600">Completadas</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-green-600">{completedTasks}</div>
-                </CardContent>
-              </Card>
-            </div>
 
-            {/* Approval Status Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card className="border-green-200 bg-green-50/50">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-green-700 flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4" /> Aprobadas (Admin)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-green-700">{approvedTasks}</div>
-                  <div className="text-xs text-green-600 mt-1">
-                    {totalTasks > 0 ? Math.round((approvedTasks / totalTasks) * 100) : 0}% del total
+            {/* ═══════════════════════════════════════════════════════════ */}
+            {/* SECCIÓN 1: PLANIFICACIÓN OPERATIVA                        */}
+            {/* ═══════════════════════════════════════════════════════════ */}
+            <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-white overflow-hidden">
+              <CardHeader className="pb-3 pt-4 px-5 border-b border-blue-100 bg-blue-50/50">
+                <CardTitle className="text-lg font-bold text-blue-900 flex items-center gap-2.5">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600 text-white">
+                    <LayoutDashboard className="h-4.5 w-4.5" />
                   </div>
-                </CardContent>
-              </Card>
-              <Card className="border-blue-200 bg-blue-50/50">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-blue-700 flex items-center gap-2">
-                    <ShieldCheck className="h-4 w-4" /> Aprobadas (Supervisor)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-blue-700">{supervisorApprovedTasks}</div>
-                  <div className="text-xs text-blue-600 mt-1">
-                    {totalTasks > 0 ? Math.round((supervisorApprovedTasks / totalTasks) * 100) : 0}% del total - Esperan Admin
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="border-red-200 bg-red-50/50">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-red-700 flex items-center gap-2">
-                    <XCircle className="h-4 w-4" /> No Aprobadas
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-red-700">{notApprovedTasks}</div>
-                  <div className="text-xs text-red-600 mt-1">
-                    {totalTasks > 0 ? Math.round((notApprovedTasks / totalTasks) * 100) : 0}% del total
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="border-amber-200 bg-amber-50/50">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-amber-700 flex items-center gap-2">
-                    <Clock className="h-4 w-4" /> En Espera
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-amber-700">{waitingApprovalTasks}</div>
-                  <div className="text-xs text-amber-600 mt-1">
-                    {totalTasks > 0 ? Math.round((waitingApprovalTasks / totalTasks) * 100) : 0}% del total
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Progress */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Progreso General</CardTitle>
+                  Planificación Operativa
+                </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span>{completedTasks} de {totalTasks} tareas completadas</span>
-                    <span className="font-bold">{progressPercent}%</span>
+              <CardContent className="px-5 pb-5 pt-4">
+                {/* Indicadores de Tareas */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                  <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm text-center">
+                    <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Total Tareas</div>
+                    <div className="text-3xl font-bold text-slate-800">{totalTasks}</div>
                   </div>
-                  <Progress value={progressPercent} className="h-3" />
-                  <div className="flex justify-between text-sm text-gray-500">
-                    <span>Presupuesto ejecutado: {formatCurrency(completedAmount)}</span>
-                    <span>Total: {formatCurrency(totalAmount)}</span>
+                  <div className="bg-white rounded-xl p-4 border border-amber-200 shadow-sm text-center">
+                    <div className="text-xs text-amber-600 uppercase tracking-wider font-semibold mb-1">Pendientes</div>
+                    <div className="text-3xl font-bold text-amber-600">{pendingTasks}</div>
+                  </div>
+                  <div className="bg-white rounded-xl p-4 border border-blue-200 shadow-sm text-center">
+                    <div className="text-xs text-blue-600 uppercase tracking-wider font-semibold mb-1">En Proceso</div>
+                    <div className="text-3xl font-bold text-blue-600">{inProgressTasks}</div>
+                  </div>
+                  <div className="bg-white rounded-xl p-4 border border-emerald-200 shadow-sm text-center">
+                    <div className="text-xs text-emerald-600 uppercase tracking-wider font-semibold mb-1">Completadas</div>
+                    <div className="text-3xl font-bold text-emerald-600">{completedTasks}</div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* By Sector */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Por Sector</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {sectors.map(sector => {
-                      const sectorTasks = tasks.filter(t => t.sector === sector.name)
-                      if (sectorTasks.length === 0) return null
-                      const sectorCompleted = sectorTasks.filter(t => t.status === 'Completada').length
-                      const percent = Math.round((sectorCompleted / sectorTasks.length) * 100)
-                      return (
-                        <div key={sector.id}>
-                          <div className="flex justify-between text-sm mb-1">
-                            <span>{sector.name}</span>
-                            <span>{sectorCompleted}/{sectorTasks.length} ({percent}%)</span>
-                          </div>
-                          <Progress value={percent} className="h-2" />
-                        </div>
-                      )
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Por Prioridad</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {priorities.map(priority => {
-                      const pTasks = tasks.filter(t => t.priority === priority.name)
-                      if (pTasks.length === 0) return null
-                      const pCompleted = pTasks.filter(t => t.status === 'Completada').length
-                      const percent = Math.round((pCompleted / pTasks.length) * 100)
-                      return (
-                        <div key={priority.id}>
-                          <div className="flex justify-between text-sm mb-1">
-                            <span className="flex items-center gap-2">
-                              <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: priority.color }}></span>
-                              {priority.name}
-                            </span>
-                            <span>{pCompleted}/{pTasks.length} ({percent}%)</span>
-                          </div>
-                          <Progress value={percent} className="h-2" />
-                        </div>
-                      )
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Recent Tasks */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Tareas Recientes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {tasks.slice(0, 5).map(task => (
-                    <div key={task.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg group">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: getPriorityColor(task.priority) }}></span>
-                          <span className="text-sm font-medium truncate">{task.description}</span>
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">{task.sector} · {task.repairType}</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={getStatusBadgeClass(task.status) || ''}>
-                          {task.status}
-                        </Badge>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity" title="Exportar">
-                              <Download className="h-3.5 w-3.5" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => exportTaskPDF(task)}>
-                              <FileText className="h-4 w-4 mr-2" />
-                              Exportar PDF
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => exportTaskExcel(task)}>
-                              <FileSpreadsheet className="h-4 w-4 mr-2" />
-                              Exportar Excel
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                        {canEditAll && (
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => openEditTask(task)} title="Editar">
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        )}
-                      </div>
+                {/* Indicadores de Aprobación */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                  <div className="bg-white rounded-xl p-3 border border-emerald-200 shadow-sm text-center">
+                    <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-600 uppercase tracking-wider font-semibold mb-1">
+                      <CheckCircle className="h-3.5 w-3.5" /> Aprobadas (Admin)
                     </div>
-                  ))}
+                    <div className="text-2xl font-bold text-emerald-700">{approvedTasks}</div>
+                    <div className="text-[11px] text-emerald-500 mt-0.5">
+                      {totalTasks > 0 ? Math.round((approvedTasks / totalTasks) * 100) : 0}% del total
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-xl p-3 border border-blue-200 shadow-sm text-center">
+                    <div className="flex items-center justify-center gap-1.5 text-xs text-blue-600 uppercase tracking-wider font-semibold mb-1">
+                      <ShieldCheck className="h-3.5 w-3.5" /> Aprobadas (Supervisor)
+                    </div>
+                    <div className="text-2xl font-bold text-blue-700">{supervisorApprovedTasks}</div>
+                    <div className="text-[11px] text-blue-500 mt-0.5">
+                      {totalTasks > 0 ? Math.round((supervisorApprovedTasks / totalTasks) * 100) : 0}% del total
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-xl p-3 border border-red-200 shadow-sm text-center">
+                    <div className="flex items-center justify-center gap-1.5 text-xs text-red-600 uppercase tracking-wider font-semibold mb-1">
+                      <XCircle className="h-3.5 w-3.5" /> No Aprobadas
+                    </div>
+                    <div className="text-2xl font-bold text-red-700">{notApprovedTasks}</div>
+                    <div className="text-[11px] text-red-500 mt-0.5">
+                      {totalTasks > 0 ? Math.round((notApprovedTasks / totalTasks) * 100) : 0}% del total
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-xl p-3 border border-amber-200 shadow-sm text-center">
+                    <div className="flex items-center justify-center gap-1.5 text-xs text-amber-600 uppercase tracking-wider font-semibold mb-1">
+                      <Clock className="h-3.5 w-3.5" /> En Espera
+                    </div>
+                    <div className="text-2xl font-bold text-amber-700">{waitingApprovalTasks}</div>
+                    <div className="text-[11px] text-amber-500 mt-0.5">
+                      {totalTasks > 0 ? Math.round((waitingApprovalTasks / totalTasks) * 100) : 0}% del total
+                    </div>
+                  </div>
+                </div>
+
+                {/* Progreso General */}
+                <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm font-medium">
+                      <span className="text-slate-700">{completedTasks} de {totalTasks} tareas completadas</span>
+                      <span className="text-blue-700 font-bold">{progressPercent}%</span>
+                    </div>
+                    <Progress value={progressPercent} className="h-3" />
+                    <div className="flex justify-between text-xs text-slate-500">
+                      <span>Presupuesto ejecutado: {formatCurrency(completedAmount)}</span>
+                      <span>Total: {formatCurrency(totalAmount)}</span>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Rendiciones de Gastos - Resumen por Estado */}
+            {/* ═══════════════════════════════════════════════════════════ */}
+            {/* SECCIÓN 2: RENDICIÓN DE GASTOS                            */}
+            {/* ═══════════════════════════════════════════════════════════ */}
             {dashboardStats && (
-              <Card className="border-slate-200">
-                <CardHeader className="pb-3 pt-4 px-5">
+              <Card className="border-emerald-200 bg-gradient-to-r from-emerald-50 to-white overflow-hidden">
+                <CardHeader className="pb-3 pt-4 px-5 border-b border-emerald-100 bg-emerald-50/50">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                      <DollarSign className="h-5 w-5 text-emerald-600" />
-                      Rendiciones de Gastos
+                    <CardTitle className="text-lg font-bold text-emerald-900 flex items-center gap-2.5">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-600 text-white">
+                        <DollarSign className="h-4.5 w-4.5" />
+                      </div>
+                      Rendición de Gastos
                     </CardTitle>
-                    <Badge variant="outline" className="text-sm font-bold border-emerald-300 text-emerald-700 bg-emerald-50">
-                      {dashboardStats.expenses.total} total
+                    <Badge className="text-sm font-bold bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-100">
+                      {dashboardStats.expenses.total} rendiciones
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="px-5 pb-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-200 text-center">
-                      <div className="text-2xl font-bold text-slate-700">{dashboardStats.expenses.byStatus.BORRADOR || 0}</div>
-                      <div className="text-xs text-slate-500 mt-1 font-medium">Borrador</div>
+                <CardContent className="px-5 pb-5 pt-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                    <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm text-center">
+                      <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Borrador</div>
+                      <div className="text-3xl font-bold text-slate-700">{dashboardStats.expenses.byStatus.BORRADOR || 0}</div>
                     </div>
-                    <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 text-center">
-                      <div className="text-2xl font-bold text-blue-700">{dashboardStats.expenses.byStatus.ENVIADO || 0}</div>
-                      <div className="text-xs text-blue-600 mt-1 font-medium">Enviado</div>
+                    <div className="bg-white rounded-xl p-4 border border-blue-200 shadow-sm text-center">
+                      <div className="text-xs text-blue-600 uppercase tracking-wider font-semibold mb-1">Enviado</div>
+                      <div className="text-3xl font-bold text-blue-700">{dashboardStats.expenses.byStatus.ENVIADO || 0}</div>
                     </div>
-                    <div className="bg-sky-50 rounded-lg p-3 border border-sky-200 text-center">
-                      <div className="text-2xl font-bold text-sky-700">{dashboardStats.expenses.byStatus.APROBADO_SUPERVISOR || 0}</div>
-                      <div className="text-xs text-sky-600 mt-1 font-medium">Aprob. Supervisor</div>
+                    <div className="bg-white rounded-xl p-4 border border-sky-200 shadow-sm text-center">
+                      <div className="text-xs text-sky-600 uppercase tracking-wider font-semibold mb-1">Aprob. Supervisor</div>
+                      <div className="text-3xl font-bold text-sky-700">{dashboardStats.expenses.byStatus.APROBADO_SUPERVISOR || 0}</div>
                     </div>
-                    <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200 text-center">
-                      <div className="text-2xl font-bold text-emerald-700">{dashboardStats.expenses.byStatus.APROBADO || 0}</div>
-                      <div className="text-xs text-emerald-600 mt-1 font-medium">Aprobado</div>
+                    <div className="bg-white rounded-xl p-4 border border-emerald-200 shadow-sm text-center">
+                      <div className="text-xs text-emerald-600 uppercase tracking-wider font-semibold mb-1">Aprobado</div>
+                      <div className="text-3xl font-bold text-emerald-700">{dashboardStats.expenses.byStatus.APROBADO || 0}</div>
                     </div>
-                    <div className="bg-red-50 rounded-lg p-3 border border-red-200 text-center">
-                      <div className="text-2xl font-bold text-red-700">{dashboardStats.expenses.byStatus.RECHAZADO || 0}</div>
-                      <div className="text-xs text-red-600 mt-1 font-medium">Rechazado</div>
+                    <div className="bg-white rounded-xl p-4 border border-red-200 shadow-sm text-center">
+                      <div className="text-xs text-red-600 uppercase tracking-wider font-semibold mb-1">Rechazado</div>
+                      <div className="text-3xl font-bold text-red-700">{dashboardStats.expenses.byStatus.RECHAZADO || 0}</div>
                     </div>
                   </div>
                   {dashboardStats.expenses.approvedAmount > 0 && (
-                    <div className="mt-3 flex items-center justify-between px-2 py-2 bg-emerald-50 rounded-lg border border-emerald-200">
-                      <span className="text-sm text-emerald-700 font-medium">Monto Aprobado Total</span>
-                      <span className="text-lg font-bold text-emerald-800">{formatCurrency(dashboardStats.expenses.approvedAmount)}</span>
+                    <div className="mt-4 flex items-center justify-between px-4 py-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                      <span className="text-sm text-emerald-700 font-semibold">Monto Aprobado Total</span>
+                      <span className="text-xl font-bold text-emerald-800">{formatCurrency(dashboardStats.expenses.approvedAmount)}</span>
                     </div>
                   )}
                 </CardContent>
               </Card>
             )}
 
-            {/* Solicitudes de Compra - Resumen por Estado */}
+            {/* ═══════════════════════════════════════════════════════════ */}
+            {/* SECCIÓN 3: SOLICITUDES DE COMPRA                          */}
+            {/* ═══════════════════════════════════════════════════════════ */}
             {dashboardStats && (
-              <Card className="border-slate-200">
-                <CardHeader className="pb-3 pt-4 px-5">
+              <Card className="border-indigo-200 bg-gradient-to-r from-indigo-50 to-white overflow-hidden">
+                <CardHeader className="pb-3 pt-4 px-5 border-b border-indigo-100 bg-indigo-50/50">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                      <ShoppingBag className="h-5 w-5 text-blue-600" />
+                    <CardTitle className="text-lg font-bold text-indigo-900 flex items-center gap-2.5">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-600 text-white">
+                        <ShoppingBag className="h-4.5 w-4.5" />
+                      </div>
                       Solicitudes de Compra
                     </CardTitle>
-                    <Badge variant="outline" className="text-sm font-bold border-blue-300 text-blue-700 bg-blue-50">
-                      {dashboardStats.purchases.total} total
+                    <Badge className="text-sm font-bold bg-indigo-100 text-indigo-800 border-indigo-300 hover:bg-indigo-100">
+                      {dashboardStats.purchases.total} solicitudes
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="px-5 pb-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
-                    <div className="bg-amber-50 rounded-lg p-3 border border-amber-200 text-center">
-                      <div className="text-2xl font-bold text-amber-700">{dashboardStats.purchases.byStatus.PENDIENTE || 0}</div>
-                      <div className="text-xs text-amber-600 mt-1 font-medium">Pendiente</div>
+                <CardContent className="px-5 pb-5 pt-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                    <div className="bg-white rounded-xl p-4 border border-amber-200 shadow-sm text-center">
+                      <div className="text-xs text-amber-600 uppercase tracking-wider font-semibold mb-1">Pendiente</div>
+                      <div className="text-3xl font-bold text-amber-700">{dashboardStats.purchases.byStatus.PENDIENTE || 0}</div>
                     </div>
-                    <div className="bg-sky-50 rounded-lg p-3 border border-sky-200 text-center">
-                      <div className="text-2xl font-bold text-sky-700">{dashboardStats.purchases.byStatus.APROBADA_SUPERVISOR || 0}</div>
-                      <div className="text-xs text-sky-600 mt-1 font-medium">Aprob. Supervisor</div>
+                    <div className="bg-white rounded-xl p-4 border border-sky-200 shadow-sm text-center">
+                      <div className="text-xs text-sky-600 uppercase tracking-wider font-semibold mb-1">Aprob. Supervisor</div>
+                      <div className="text-3xl font-bold text-sky-700">{dashboardStats.purchases.byStatus.APROBADA_SUPERVISOR || 0}</div>
                     </div>
-                    <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200 text-center">
-                      <div className="text-2xl font-bold text-emerald-700">{dashboardStats.purchases.byStatus.APROBADA || 0}</div>
-                      <div className="text-xs text-emerald-600 mt-1 font-medium">Aprobada</div>
+                    <div className="bg-white rounded-xl p-4 border border-emerald-200 shadow-sm text-center">
+                      <div className="text-xs text-emerald-600 uppercase tracking-wider font-semibold mb-1">Aprobada</div>
+                      <div className="text-3xl font-bold text-emerald-700">{dashboardStats.purchases.byStatus.APROBADA || 0}</div>
                     </div>
-                    <div className="bg-indigo-50 rounded-lg p-3 border border-indigo-200 text-center">
-                      <div className="text-2xl font-bold text-indigo-700">{dashboardStats.purchases.byStatus.EN_COMPRA || 0}</div>
-                      <div className="text-xs text-indigo-600 mt-1 font-medium">En Compra</div>
+                    <div className="bg-white rounded-xl p-4 border border-indigo-200 shadow-sm text-center">
+                      <div className="text-xs text-indigo-600 uppercase tracking-wider font-semibold mb-1">En Compra</div>
+                      <div className="text-3xl font-bold text-indigo-700">{dashboardStats.purchases.byStatus.EN_COMPRA || 0}</div>
                     </div>
-                    <div className="bg-teal-50 rounded-lg p-3 border border-teal-200 text-center">
-                      <div className="text-2xl font-bold text-teal-700">{dashboardStats.purchases.byStatus.COMPRADA || 0}</div>
-                      <div className="text-xs text-teal-600 mt-1 font-medium">Comprada</div>
+                    <div className="bg-white rounded-xl p-4 border border-teal-200 shadow-sm text-center">
+                      <div className="text-xs text-teal-600 uppercase tracking-wider font-semibold mb-1">Comprada</div>
+                      <div className="text-3xl font-bold text-teal-700">{dashboardStats.purchases.byStatus.COMPRADA || 0}</div>
                     </div>
-                    <div className="bg-red-50 rounded-lg p-3 border border-red-200 text-center">
-                      <div className="text-2xl font-bold text-red-700">{dashboardStats.purchases.byStatus.RECHAZADA || 0}</div>
-                      <div className="text-xs text-red-600 mt-1 font-medium">Rechazada</div>
+                    <div className="bg-white rounded-xl p-4 border border-red-200 shadow-sm text-center">
+                      <div className="text-xs text-red-600 uppercase tracking-wider font-semibold mb-1">Rechazada</div>
+                      <div className="text-3xl font-bold text-red-700">{dashboardStats.purchases.byStatus.RECHAZADA || 0}</div>
                     </div>
-                    <div className="bg-slate-100 rounded-lg p-3 border border-slate-300 text-center">
-                      <div className="text-2xl font-bold text-slate-600">{dashboardStats.purchases.byStatus.CANCELADA || 0}</div>
-                      <div className="text-xs text-slate-500 mt-1 font-medium">Cancelada</div>
+                    <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm text-center">
+                      <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Cancelada</div>
+                      <div className="text-3xl font-bold text-slate-600">{dashboardStats.purchases.byStatus.CANCELADA || 0}</div>
                     </div>
                   </div>
                 </CardContent>
