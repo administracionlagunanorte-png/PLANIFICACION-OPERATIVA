@@ -3425,29 +3425,46 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
             {/* ═══════════════════════════════════════════════════════════ */}
             <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-white overflow-hidden">
               <CardHeader className="pb-3 pt-4 px-5 border-b border-blue-100 bg-blue-50/50">
-                <CardTitle className="text-lg font-bold text-blue-900 flex items-center gap-2.5">
+                <CardTitle className="text-lg font-bold text-blue-900 flex items-center gap-2.5 cursor-pointer hover:text-blue-700" onClick={() => { setFilterStatus('all'); setFilterApproval('all'); setView('table'); }}>
                   <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600 text-white">
                     <LayoutDashboard className="h-4.5 w-4.5" />
                   </div>
                   Planificación Operativa
+                  <ArrowRight className="h-4 w-4 opacity-50" />
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-5 pb-5 pt-4">
                 {/* Indicadores de Tareas */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                  <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm text-center">
+                  <div
+                    className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-slate-400 transition-all duration-200 hover:scale-105"
+                    onClick={() => { setFilterStatus('all'); setFilterApproval('all'); setView('table'); }}
+                    title="Ver todas las tareas"
+                  >
                     <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Total Tareas</div>
                     <div className="text-3xl font-bold text-slate-800">{totalTasks}</div>
                   </div>
-                  <div className="bg-white rounded-xl p-4 border border-amber-200 shadow-sm text-center">
+                  <div
+                    className="bg-white rounded-xl p-4 border border-amber-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-amber-400 transition-all duration-200 hover:scale-105"
+                    onClick={() => { setFilterStatus('Pendiente'); setFilterApproval('all'); setView('table'); }}
+                    title="Ver tareas Pendientes"
+                  >
                     <div className="text-xs text-amber-600 uppercase tracking-wider font-semibold mb-1">Pendientes</div>
                     <div className="text-3xl font-bold text-amber-600">{pendingTasks}</div>
                   </div>
-                  <div className="bg-white rounded-xl p-4 border border-blue-200 shadow-sm text-center">
+                  <div
+                    className="bg-white rounded-xl p-4 border border-blue-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-blue-400 transition-all duration-200 hover:scale-105"
+                    onClick={() => { setFilterStatus('En Proceso'); setFilterApproval('all'); setView('table'); }}
+                    title="Ver tareas En Proceso"
+                  >
                     <div className="text-xs text-blue-600 uppercase tracking-wider font-semibold mb-1">En Proceso</div>
                     <div className="text-3xl font-bold text-blue-600">{inProgressTasks}</div>
                   </div>
-                  <div className="bg-white rounded-xl p-4 border border-emerald-200 shadow-sm text-center">
+                  <div
+                    className="bg-white rounded-xl p-4 border border-emerald-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-emerald-400 transition-all duration-200 hover:scale-105"
+                    onClick={() => { setFilterStatus('Completada'); setFilterApproval('all'); setView('table'); }}
+                    title="Ver tareas Completadas"
+                  >
                     <div className="text-xs text-emerald-600 uppercase tracking-wider font-semibold mb-1">Completadas</div>
                     <div className="text-3xl font-bold text-emerald-600">{completedTasks}</div>
                   </div>
@@ -3455,7 +3472,11 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
 
                 {/* Indicadores de Aprobación */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                  <div className="bg-white rounded-xl p-3 border border-emerald-200 shadow-sm text-center">
+                  <div
+                    className="bg-white rounded-xl p-3 border border-emerald-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-emerald-400 transition-all duration-200 hover:scale-105"
+                    onClick={() => { setFilterStatus('all'); setFilterApproval('Aprobado'); setView('table'); }}
+                    title="Ver tareas Aprobadas (Admin)"
+                  >
                     <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-600 uppercase tracking-wider font-semibold mb-1">
                       <CheckCircle className="h-3.5 w-3.5" /> Aprobadas (Admin)
                     </div>
@@ -3464,7 +3485,11 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
                       {totalTasks > 0 ? Math.round((approvedTasks / totalTasks) * 100) : 0}% del total
                     </div>
                   </div>
-                  <div className="bg-white rounded-xl p-3 border border-blue-200 shadow-sm text-center">
+                  <div
+                    className="bg-white rounded-xl p-3 border border-blue-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-blue-400 transition-all duration-200 hover:scale-105"
+                    onClick={() => { setFilterStatus('all'); setFilterApproval('Aprobado por Supervisor'); setView('table'); }}
+                    title="Ver tareas Aprobadas (Supervisor)"
+                  >
                     <div className="flex items-center justify-center gap-1.5 text-xs text-blue-600 uppercase tracking-wider font-semibold mb-1">
                       <ShieldCheck className="h-3.5 w-3.5" /> Aprobadas (Supervisor)
                     </div>
@@ -3473,7 +3498,11 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
                       {totalTasks > 0 ? Math.round((supervisorApprovedTasks / totalTasks) * 100) : 0}% del total
                     </div>
                   </div>
-                  <div className="bg-white rounded-xl p-3 border border-red-200 shadow-sm text-center">
+                  <div
+                    className="bg-white rounded-xl p-3 border border-red-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-red-400 transition-all duration-200 hover:scale-105"
+                    onClick={() => { setFilterStatus('all'); setFilterApproval('No aprobado'); setView('table'); }}
+                    title="Ver tareas No Aprobadas"
+                  >
                     <div className="flex items-center justify-center gap-1.5 text-xs text-red-600 uppercase tracking-wider font-semibold mb-1">
                       <XCircle className="h-3.5 w-3.5" /> No Aprobadas
                     </div>
@@ -3482,7 +3511,11 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
                       {totalTasks > 0 ? Math.round((notApprovedTasks / totalTasks) * 100) : 0}% del total
                     </div>
                   </div>
-                  <div className="bg-white rounded-xl p-3 border border-amber-200 shadow-sm text-center">
+                  <div
+                    className="bg-white rounded-xl p-3 border border-amber-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-amber-400 transition-all duration-200 hover:scale-105"
+                    onClick={() => { setFilterStatus('all'); setFilterApproval('En espera de decisión'); setView('table'); }}
+                    title="Ver tareas En Espera de Aprobación"
+                  >
                     <div className="flex items-center justify-center gap-1.5 text-xs text-amber-600 uppercase tracking-wider font-semibold mb-1">
                       <Clock className="h-3.5 w-3.5" /> En Espera
                     </div>
