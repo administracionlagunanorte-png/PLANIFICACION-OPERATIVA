@@ -665,7 +665,7 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
           APROBADA: 'aprobada',
           APROBADA_SUPERVISOR: 'aprobada por supervisor',
           RECHAZADA: 'rechazada',
-          EN_COMPRA: 'marcada en compra',
+          EN_COMPRA: 'aprobada y enviada a proceso de compra',
           COMPRADA: 'marcada como comprada',
         }
         toast({ title: 'Estado actualizado', description: `La solicitud fue ${actionLabels[reviewAction]}` })
@@ -942,9 +942,14 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
                 </Button>
               )}
               {isAdmin && (
-                <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => openReviewDialog('APROBADA')}>
-                  <CheckCircle className="h-4 w-4" /> Aprobar (Admin)
-                </Button>
+                <>
+                  <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => openReviewDialog('APROBADA')}>
+                    <CheckCircle className="h-4 w-4" /> Aprobar
+                  </Button>
+                  <Button size="sm" className="gap-1 bg-indigo-600 hover:bg-indigo-700 text-white" onClick={() => openReviewDialog('EN_COMPRA')}>
+                    <ShoppingBag className="h-4 w-4" /> Aprobar y Enviar a Compra
+                  </Button>
+                </>
               )}
               <Button size="sm" variant="destructive" className="gap-1" onClick={() => openReviewDialog('RECHAZADA')}>
                 <XCircle className="h-4 w-4" /> Rechazar
@@ -964,7 +969,10 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
           {req.status === 'APROBADA_SUPERVISOR' && isAdmin && (
             <>
               <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => openReviewDialog('APROBADA')}>
-                <CheckCircle className="h-4 w-4" /> Aprobar (Admin)
+                <CheckCircle className="h-4 w-4" /> Aprobar
+              </Button>
+              <Button size="sm" className="gap-1 bg-indigo-600 hover:bg-indigo-700 text-white" onClick={() => openReviewDialog('EN_COMPRA')}>
+                <ShoppingBag className="h-4 w-4" /> Aprobar y Enviar a Compra
               </Button>
               <Button size="sm" variant="destructive" className="gap-1" onClick={() => openReviewDialog('RECHAZADA')}>
                 <XCircle className="h-4 w-4" /> Rechazar
@@ -973,8 +981,8 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
           )}
           {req.status === 'APROBADA' && (
             <>
-              <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={() => openReviewDialog('EN_COMPRA')}>
-                <ShoppingBag className="h-4 w-4" /> Marcar En Compra
+              <Button size="sm" className="gap-1 bg-indigo-600 hover:bg-indigo-700 text-white" onClick={() => openReviewDialog('EN_COMPRA')}>
+                <ShoppingBag className="h-4 w-4" /> En Proceso de Compra
               </Button>
               <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => openReviewDialog('COMPRADA')}>
                 <CheckCircle className="h-4 w-4" /> Marcar Comprada
@@ -1514,7 +1522,7 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
 
   const renderReviewDialog = () => {
     const actionLabels: Record<string, string> = {
-      APROBADA: 'Aprobar (Admin)', APROBADA_SUPERVISOR: 'Aprobar (Supervisor)', RECHAZADA: 'Rechazar', EN_COMPRA: 'Marcar En Compra', COMPRADA: 'Marcar Comprada',
+      APROBADA: 'Aprobar', APROBADA_SUPERVISOR: 'Aprobar (Supervisor)', RECHAZADA: 'Rechazar', EN_COMPRA: 'Aprobar y Enviar a Compra', COMPRADA: 'Marcar Comprada',
     }
     return (
       <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
@@ -1525,7 +1533,7 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
               {reviewAction === 'RECHAZADA' && 'Indica el motivo del rechazo'}
               {reviewAction === 'APROBADA' && 'Confirmas la aprobacion de esta solicitud?'}
               {reviewAction === 'APROBADA_SUPERVISOR' && 'Confirmas la aprobacion como supervisor?'}
-              {reviewAction === 'EN_COMPRA' && 'Confirmas que esta solicitud esta en proceso de compra?'}
+              {reviewAction === 'EN_COMPRA' && 'Se aprobara la solicitud y se marcara como En Proceso de Compra'}
               {reviewAction === 'COMPRADA' && 'Confirmas que esta solicitud ya fue comprada?'}
             </DialogDescription>
           </DialogHeader>

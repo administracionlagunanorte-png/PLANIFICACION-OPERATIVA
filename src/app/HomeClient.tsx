@@ -197,6 +197,10 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
   const [statuses, setStatuses] = useState<StatusItem[]>([])
   const [responsibles, setResponsibles] = useState<ResponsibleItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [dashboardStats, setDashboardStats] = useState<{
+    expenses: { total: number; byStatus: Record<string, number>; approvedAmount: number }
+    purchases: { total: number; byStatus: Record<string, number> }
+  } | null>(null)
   const [view, setView] = useState<'dashboard' | 'table' | 'cards' | 'gantt' | 'materials' | 'rendicion' | 'solicitudes' | 'users'>('dashboard')
   const [filterSector, setFilterSector] = useState('all')
   const [filterPriority, setFilterPriority] = useState('all')
@@ -374,14 +378,26 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
     }
   }, [])
 
+  const fetchDashboardStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/dashboard-stats')
+      if (res.ok) {
+        const data = await res.json()
+        setDashboardStats(data)
+      }
+    } catch (err) {
+      console.error('Error fetching dashboard stats:', err)
+    }
+  }, [])
+
   useEffect(() => {
     const loadAll = async () => {
       setLoading(true)
-      await Promise.all([fetchTasks(), fetchSectors(), fetchRepairTypes(), fetchPriorities(), fetchEtapas(), fetchStatuses(), fetchResponsibles(), fetchMaterials()])
+      await Promise.all([fetchTasks(), fetchSectors(), fetchRepairTypes(), fetchPriorities(), fetchEtapas(), fetchStatuses(), fetchResponsibles(), fetchMaterials(), fetchDashboardStats()])
       setLoading(false)
     }
     loadAll()
-  }, [fetchTasks, fetchSectors, fetchRepairTypes, fetchPriorities, fetchEtapas, fetchStatuses, fetchResponsibles, fetchMaterials])
+  }, [fetchTasks, fetchSectors, fetchRepairTypes, fetchPriorities, fetchEtapas, fetchStatuses, fetchResponsibles, fetchMaterials, fetchDashboardStats])
 
   // Task CRUD
   const { toast } = useToast()
@@ -3615,6 +3631,102 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Rendiciones de Gastos - Resumen por Estado */}
+            {dashboardStats && (
+              <Card className="border-slate-200">
+                <CardHeader className="pb-3 pt-4 px-5">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                      <DollarSign className="h-5 w-5 text-emerald-600" />
+                      Rendiciones de Gastos
+                    </CardTitle>
+                    <Badge variant="outline" className="text-sm font-bold border-emerald-300 text-emerald-700 bg-emerald-50">
+                      {dashboardStats.expenses.total} total
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-5 pb-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-200 text-center">
+                      <div className="text-2xl font-bold text-slate-700">{dashboardStats.expenses.byStatus.BORRADOR || 0}</div>
+                      <div className="text-xs text-slate-500 mt-1 font-medium">Borrador</div>
+                    </div>
+                    <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 text-center">
+                      <div className="text-2xl font-bold text-blue-700">{dashboardStats.expenses.byStatus.ENVIADO || 0}</div>
+                      <div className="text-xs text-blue-600 mt-1 font-medium">Enviado</div>
+                    </div>
+                    <div className="bg-sky-50 rounded-lg p-3 border border-sky-200 text-center">
+                      <div className="text-2xl font-bold text-sky-700">{dashboardStats.expenses.byStatus.APROBADO_SUPERVISOR || 0}</div>
+                      <div className="text-xs text-sky-600 mt-1 font-medium">Aprob. Supervisor</div>
+                    </div>
+                    <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200 text-center">
+                      <div className="text-2xl font-bold text-emerald-700">{dashboardStats.expenses.byStatus.APROBADO || 0}</div>
+                      <div className="text-xs text-emerald-600 mt-1 font-medium">Aprobado</div>
+                    </div>
+                    <div className="bg-red-50 rounded-lg p-3 border border-red-200 text-center">
+                      <div className="text-2xl font-bold text-red-700">{dashboardStats.expenses.byStatus.RECHAZADO || 0}</div>
+                      <div className="text-xs text-red-600 mt-1 font-medium">Rechazado</div>
+                    </div>
+                  </div>
+                  {dashboardStats.expenses.approvedAmount > 0 && (
+                    <div className="mt-3 flex items-center justify-between px-2 py-2 bg-emerald-50 rounded-lg border border-emerald-200">
+                      <span className="text-sm text-emerald-700 font-medium">Monto Aprobado Total</span>
+                      <span className="text-lg font-bold text-emerald-800">{formatCurrency(dashboardStats.expenses.approvedAmount)}</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Solicitudes de Compra - Resumen por Estado */}
+            {dashboardStats && (
+              <Card className="border-slate-200">
+                <CardHeader className="pb-3 pt-4 px-5">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                      <ShoppingBag className="h-5 w-5 text-blue-600" />
+                      Solicitudes de Compra
+                    </CardTitle>
+                    <Badge variant="outline" className="text-sm font-bold border-blue-300 text-blue-700 bg-blue-50">
+                      {dashboardStats.purchases.total} total
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-5 pb-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                    <div className="bg-amber-50 rounded-lg p-3 border border-amber-200 text-center">
+                      <div className="text-2xl font-bold text-amber-700">{dashboardStats.purchases.byStatus.PENDIENTE || 0}</div>
+                      <div className="text-xs text-amber-600 mt-1 font-medium">Pendiente</div>
+                    </div>
+                    <div className="bg-sky-50 rounded-lg p-3 border border-sky-200 text-center">
+                      <div className="text-2xl font-bold text-sky-700">{dashboardStats.purchases.byStatus.APROBADA_SUPERVISOR || 0}</div>
+                      <div className="text-xs text-sky-600 mt-1 font-medium">Aprob. Supervisor</div>
+                    </div>
+                    <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200 text-center">
+                      <div className="text-2xl font-bold text-emerald-700">{dashboardStats.purchases.byStatus.APROBADA || 0}</div>
+                      <div className="text-xs text-emerald-600 mt-1 font-medium">Aprobada</div>
+                    </div>
+                    <div className="bg-indigo-50 rounded-lg p-3 border border-indigo-200 text-center">
+                      <div className="text-2xl font-bold text-indigo-700">{dashboardStats.purchases.byStatus.EN_COMPRA || 0}</div>
+                      <div className="text-xs text-indigo-600 mt-1 font-medium">En Compra</div>
+                    </div>
+                    <div className="bg-teal-50 rounded-lg p-3 border border-teal-200 text-center">
+                      <div className="text-2xl font-bold text-teal-700">{dashboardStats.purchases.byStatus.COMPRADA || 0}</div>
+                      <div className="text-xs text-teal-600 mt-1 font-medium">Comprada</div>
+                    </div>
+                    <div className="bg-red-50 rounded-lg p-3 border border-red-200 text-center">
+                      <div className="text-2xl font-bold text-red-700">{dashboardStats.purchases.byStatus.RECHAZADA || 0}</div>
+                      <div className="text-xs text-red-600 mt-1 font-medium">Rechazada</div>
+                    </div>
+                    <div className="bg-slate-100 rounded-lg p-3 border border-slate-300 text-center">
+                      <div className="text-2xl font-bold text-slate-600">{dashboardStats.purchases.byStatus.CANCELADA || 0}</div>
+                      <div className="text-xs text-slate-500 mt-1 font-medium">Cancelada</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
 
