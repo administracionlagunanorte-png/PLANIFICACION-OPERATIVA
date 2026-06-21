@@ -74,3 +74,28 @@ Work Log:
 Stage Summary:
 - All fixes deployed to https://planificacion-operativa.vercel.app/
 - Outstanding: BLOB_READ_WRITE_TOKEN needs to be configured on Vercel for file uploads to work in production
+---
+Task ID: 5
+Agent: Main Agent
+Task: Agregar módulo de Rendición de Gastos y Solicitudes de Compra al sistema de planificación
+
+Work Log:
+- Analizó el código fuente del proyecto rendicion-gastos-codigo-completo.zip proporcionado por el usuario
+- Identificó modelos de datos: ExpenseReport, ExpenseItem, ExpenseCategory, PurchaseRequest, PurchaseQuote
+- Adaptó el código original (que usaba autenticación con NextAuth) para funcionar sin auth en el sistema actual
+- Actualizó schema Prisma con los 5 nuevos modelos (PostgreSQL con @db.Text y @@map)
+- Ejecutó prisma db push para crear las tablas en Neon
+- Creó 10 API routes: expense-reports (GET/POST), expense-reports/[id] (GET/PUT/PATCH/DELETE), expense-items (GET/POST), expense-items/[id] (PUT/DELETE), expense-categories (GET/POST), purchase-requests (GET/POST), purchase-requests/[id] (GET/PUT/DELETE), purchase-requests/[id]/quotes (GET/POST), purchase-requests/[id]/quotes/[quoteId] (PUT/DELETE)
+- Creó componente RendicionGastos.tsx (~1,430 líneas) con: listado con filtros, detalle con items, cambio de estado, subida de fotos, exportación PDF/Excel
+- Creó componente SolicitudesCompra.tsx con: listado con filtros, detalle con cotizaciones, selección de ganador, subida de archivos, exportación PDF/Excel
+- Integró ambos componentes en HomeClient.tsx agregando pestañas "Rendición" (icono DollarSign) y "Compras" (icono ShoppingBag)
+- Corrigió schema Prisma que fue cambiado incorrectamente a SQLite por subagente
+- Fix: Creó /api/upload/route.ts con Vercel Blob (el archivo faltaba y las fotos no se guardaban)
+- Verificó todas las APIs en producción: expense-categories, expense-reports, purchase-requests funcionan correctamente
+- Categorías de gastos se auto-seedearon: Alimentación, Transporte, Alojamiento, Materiales, Oficina, Capacitación, Servicios, Otro
+
+Stage Summary:
+- Módulo de Rendición de Gastos completamente funcional: crear rendiciones, agregar items con fotos de boleta/compra, cambiar estados (BORRADOR→ENVIADO→APROBADO/RECHAZADO), exportar PDF/Excel
+- Módulo de Solicitudes de Compra completamente funcional: crear solicitudes, agregar cotizaciones con archivos, seleccionar cotización ganadora, cambiar estados (PENDIENTE→APROBADA→EN_COMPRA→COMPRADA), exportar PDF/Excel
+- Fotos de comprobantes se suben a Vercel Blob
+- Deploy exitoso en https://planificacion-operativa.vercel.app/
