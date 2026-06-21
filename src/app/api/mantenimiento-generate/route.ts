@@ -295,6 +295,141 @@ const LV_TEMPLATES: LVTemplateDef[] = [
       { category: 'B', description: 'Revisión y aprobación del plan para el próximo año' },
     ]
   },
+  // ============================================================
+  // NUEVAS LVs DEL PMI (Capítulos 1-6)
+  // ============================================================
+  {
+    codigo: 'LV-21', nombre: 'Multicancha — Inspección mensual', sector: 'Club House — Multicancha', frecuencia: 'Mensual',
+    scheduleRule: 'monthly', monthWeek: 1,
+    items: [
+      { category: 'A', description: 'Galga de fisuras o regla milimétrica' },
+      { category: 'A', description: 'Cámara fotográfica / teléfono' },
+      { category: 'A', description: 'Llave de torque' },
+      { category: 'A', description: 'Marcadores para extremos de fisuras' },
+      { category: 'A', description: 'Cinta señalización roja (si se detecta zona de riesgo)' },
+      { category: 'B', description: 'Sin fisuras nuevas desde última inspección' },
+      { category: 'B', description: 'Fisuras existentes sin aumento de longitud o ancho' },
+      { category: 'B', description: 'Sin hundimientos o levantamientos visibles' },
+      { category: 'B', description: 'Sin zonas huecas (percusión con martillo)' },
+      { category: 'B', description: 'Superficie sin gravas o materiales sueltos' },
+      { category: 'C', description: 'Líneas de juego visibles y completas' },
+      { category: 'C', description: 'Pintura sin levantamiento ni descascaramiento activo' },
+      { category: 'C', description: 'Textura antideslizante presente' },
+      { category: 'C', description: 'Rejillas de drenaje perimetral libres de obstrucción' },
+      { category: 'C', description: 'Sin acumulación de agua residual post-lluvia' },
+      { category: 'D', description: 'Todas las luminarias activas (inspección nocturna)' },
+      { category: 'D', description: 'Postes de iluminación sin inclinación ni corrosión visible' },
+      { category: 'D', description: 'Tornillos y pernos de cierres metálicos con torque correcto' },
+      { category: 'D', description: 'Malla de cierre sin roturas ni aperturas' },
+      { category: 'D', description: 'Arcos/tableros firmemente anclados' },
+      { category: 'D', description: 'Sin piezas metálicas con bordes cortantes expuestos' },
+      { category: 'D', description: 'Señalética de seguridad presente y legible' },
+    ]
+  },
+  {
+    codigo: 'LV-22', nombre: 'Cancha pasto sintético — Verificación', sector: 'Club House — Cancha Baby Fútbol', frecuencia: 'Semanal',
+    scheduleRule: 'weekly', weekDay: 4, // Jueves
+    items: [
+      { category: 'A', description: 'Cepillo stiff (fibras rígidas) para levante de fibra' },
+      { category: 'A', description: 'Varilla graduada para medición de infill' },
+      { category: 'A', description: 'Rastrillo suave para retiro de residuos' },
+      { category: 'A', description: 'Cámara fotográfica para registro de daños' },
+      { category: 'B', description: 'Sin zonas con fibra completamente aplastada o calva' },
+      { category: 'B', description: 'Costuras perimetrales e internas sin levantamientos' },
+      { category: 'B', description: 'Nivel de infill en zona de penalti >= 3/4 altura fibra' },
+      { category: 'B', description: 'Nivel de infill en zona central >= 3/4 altura fibra' },
+      { category: 'B', description: 'Sin residuos orgánicos o inorgánicos incrustados en la fibra' },
+      { category: 'C', description: 'Sin acumulación de agua (post-lluvia: verificar en 30 min)' },
+      { category: 'C', description: 'Canaletas perimetrales limpias y sin obstrucción' },
+      { category: 'C', description: 'Sin ondulaciones ni desniveles visibles en la superficie' },
+      { category: 'D', description: 'Arcos firmemente anclados (sin movimiento al jalar)' },
+      { category: 'D', description: 'Cierre perimetral sin roturas ni aperturas' },
+      { category: 'D', description: 'Sin elementos metálicos con bordes cortantes expuestos' },
+      { category: 'D', description: 'Señalética de seguridad presente y legible' },
+    ]
+  },
+  {
+    codigo: 'LV-23', nombre: 'Sala de Bombas — Control diario', sector: 'Sala de Máquinas Piscinas', frecuencia: 'Diaria',
+    scheduleRule: 'daily',
+    items: [
+      { category: 'A', description: 'Lectura presión manómetro P1 (anotar valor)' },
+      { category: 'A', description: 'Lectura presión manómetro P2 (anotar valor)' },
+      { category: 'A', description: 'Lectura presión manómetro P3 (anotar valor)' },
+      { category: 'A', description: 'Cloro libre (1-3 ppm) verificado en todas las piscinas' },
+      { category: 'A', description: 'pH (7,2-7,6) verificado en todas las piscinas' },
+      { category: 'B', description: 'Sin fugas visibles en tuberías, bombas ni válvulas' },
+      { category: 'B', description: 'Cesta prefiltro limpiada en todas las bombas' },
+      { category: 'B', description: 'Sin olores anormales (quemado, químico) en la sala' },
+      { category: 'C', description: 'Medición amperaje bombas (mensual)' },
+      { category: 'C', description: 'Temperatura carcasa bombas < 70°C (mensual)' },
+      { category: 'C', description: 'Tablero eléctrico: sin calor, olores ni disyuntores saltados' },
+      { category: 'C', description: 'Prueba botón TEST diferencial — todos operativos' },
+      { category: 'D', description: 'Dosificadores calibrados y entregando dosis correcta' },
+      { category: 'D', description: 'Sala de máquinas limpia y ordenada' },
+    ]
+  },
+  {
+    codigo: 'LV-24', nombre: 'Sauna — Lista de verificación', sector: 'Club House — Área Wellness', frecuencia: 'Semanal',
+    scheduleRule: 'weekly', weekDay: 5, // Viernes
+    items: [
+      { category: 'A', description: 'Temperatura alcanzada en tiempo normal (anotar minutos)' },
+      { category: 'A', description: 'Extractor de aire funcionando (caudal verificado al tacto)' },
+      { category: 'A', description: 'Sin olores anormales (quemado, eléctrico, moho)' },
+      { category: 'B', description: 'Sensor temperatura: equipo se apaga al alcanzar temp. programada' },
+      { category: 'B', description: 'Madera interior: sin astillas, manchas negras ni humedad excesiva' },
+      { category: 'B', description: 'Junta puerta de vidrio: cierra correctamente, sin escapes de calor' },
+      { category: 'B', description: 'Limpieza interior con solución vinagre diluido realizada' },
+      { category: 'C', description: 'Consumo eléctrico medido y comparado con histórico (kWh)' },
+      { category: 'C', description: 'Válvula de seguridad: accionada manualmente y libera presión' },
+      { category: 'C', description: 'Cableado visible sin deterioro, rozaduras ni signos de quemado' },
+      { category: 'C', description: 'Controlador responde correctamente a ajustes de temperatura' },
+      { category: 'D', description: 'Tiempo de calentamiento registrado en bitácora (min)' },
+      { category: 'D', description: 'Descalcificación ejecutada según protocolo (trimestral)' },
+      { category: 'D', description: 'Resistencias inspeccionadas: sin sarro excesivo (trimestral)' },
+    ]
+  },
+  {
+    codigo: 'LV-25', nombre: 'Jacuzzi / Spa — Lista de verificación', sector: 'Club House — Área Wellness', frecuencia: 'Diaria',
+    scheduleRule: 'daily',
+    items: [
+      { category: 'A', description: 'pH medido (rango 7,2-7,6)' },
+      { category: 'A', description: 'Cloro libre medido (rango 3-5 ppm)' },
+      { category: 'A', description: 'Temperatura medida (rango 36-38°C)' },
+      { category: 'A', description: 'Nivel de agua adecuado (no por debajo de las boquillas)' },
+      { category: 'A', description: 'Sin olores anormales (cloro excesivo, quemado, gas)' },
+      { category: 'B', description: 'Filtro de cartucho extraído, lavado y reinstalado (semanal)' },
+      { category: 'B', description: 'Sensor temperatura verificado con termómetro externo' },
+      { category: 'B', description: 'Sistema alcanza 36-38°C en tiempo normal' },
+      { category: 'B', description: 'Boquillas: flujo uniforme al activar el sistema' },
+      { category: 'B', description: 'Caldera gas: llama azul, sin hollín, sin olor a gas' },
+      { category: 'C', description: 'Diferencial RCD: prueba botón TEST — OPERATIVO (mensual)' },
+      { category: 'C', description: 'Consumo eléctrico medido (kWh) y comparado con histórico' },
+      { category: 'C', description: 'Limpieza profunda tuberías con limpiador de circuito' },
+      { category: 'D', description: 'Tapa/cubierta: cierra correctamente, sin roturas' },
+      { category: 'D', description: 'Panel de control: sin humedad interna ni calor anormal' },
+    ]
+  },
+  {
+    codigo: 'LV-26', nombre: 'Quincho / Parrillas — Verificación mensual', sector: 'Club House — Áreas Sociales', frecuencia: 'Mensual',
+    scheduleRule: 'monthly', monthWeek: 1,
+    items: [
+      { category: 'A', description: 'Unión manguera-regulador: sin burbujas de jabón' },
+      { category: 'A', description: 'Unión regulador-tubería: sin burbujas de jabón' },
+      { category: 'A', description: 'Unión tubería-quemador(es): sin burbujas de jabón' },
+      { category: 'A', description: 'Estado manguera flexible: sin grietas, sin aplastamientos' },
+      { category: 'A', description: 'Regulador de gas sin daño visible ni deformaciones' },
+      { category: 'A', description: 'Llave de paso general cierra completamente' },
+      { category: 'B', description: 'Campana: sin acumulación de grasa en superficie interior' },
+      { category: 'B', description: 'Extractor de aire funcionando correctamente (caudal verificado)' },
+      { category: 'B', description: 'Fecha última limpieza profesional conductos registrada' },
+      { category: 'B', description: 'Certificado de limpieza conductos vigente (< 3 meses)' },
+      { category: 'C', description: 'Quemadores: todos encienden con llama azul uniforme' },
+      { category: 'C', description: 'Orificios quemadores libres de obstrucciones' },
+      { category: 'C', description: 'Extintor PQS: manómetro en zona verde (presión OK)' },
+      { category: 'C', description: 'Extintor: precinto de seguridad intacto' },
+      { category: 'C', description: 'Extintor: fecha última recarga dentro de vigencia' },
+    ]
+  },
 ]
 
 // Helper: adjust a date to the nearest weekday (Mon-Fri)
@@ -314,6 +449,17 @@ function adjustToWeekday(date: Date): Date {
 function isWeekday(date: Date): boolean {
   const dow = date.getDay()
   return dow >= 1 && dow <= 5
+}
+
+// Helper: get the first business day (Mon-Fri) of a month
+function getFirstBusinessDayOfMonth(year: number, month: number): Date {
+  let d = 1
+  let date = new Date(year, month, d)
+  while (!isWeekday(date)) {
+    d++
+    date = new Date(year, month, d)
+  }
+  return date
 }
 
 // Helper: get the nth occurrence of a specific weekday in a month
@@ -411,15 +557,15 @@ export async function POST(req: NextRequest) {
           break
         }
         case 'monthly': {
-          const weekNum = template.monthWeek ?? 1
-          const targetDate = getNthWeekdayOfMonth(y, m, 1, weekNum) // Monday of that week
+          // First business day of the month
+          const targetDate = getFirstBusinessDayOfMonth(y, m)
           scheduledDates.push(targetDate)
           break
         }
         case 'quarterly': {
           const qMonths = template.quarterMonths ?? []
-          if (qMonths.includes(m + 1)) { // m is 0-indexed, qMonths is 1-indexed
-            const targetDate = getNthWeekdayOfMonth(y, m, 1, 1) // First Monday
+          if (qMonths.includes(m + 1)) {
+            const targetDate = getFirstBusinessDayOfMonth(y, m)
             scheduledDates.push(targetDate)
           }
           break
@@ -427,7 +573,7 @@ export async function POST(req: NextRequest) {
         case 'semiannual': {
           const sMonths = template.semiMonths ?? []
           if (sMonths.includes(m + 1)) {
-            const targetDate = getNthWeekdayOfMonth(y, m, 1, 1)
+            const targetDate = getFirstBusinessDayOfMonth(y, m)
             scheduledDates.push(targetDate)
           }
           break
@@ -435,7 +581,7 @@ export async function POST(req: NextRequest) {
         case 'annual': {
           const aMonth = template.annualMonth ?? 1
           if (m + 1 === aMonth) {
-            const targetDate = getNthWeekdayOfMonth(y, m, 1, 2) // Second Monday
+            const targetDate = getFirstBusinessDayOfMonth(y, m)
             scheduledDates.push(targetDate)
           }
           break

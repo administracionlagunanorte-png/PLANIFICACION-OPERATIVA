@@ -64,7 +64,19 @@ interface MantenimientoLV {
   _count?: { items: number }
 }
 
-// Frequency colors
+// Frequency colors - CALENDAR uses these group colors
+const freqGroupColors: Record<string, { bg: string; text: string; dot: string; label: string }> = {
+  'Diaria': { bg: 'bg-blue-500', text: 'text-blue-700', dot: 'bg-blue-400', label: 'Diaria' },
+  '3x Semanal': { bg: 'bg-sky-500', text: 'text-sky-700', dot: 'bg-sky-400', label: '3x Semanal' },
+  'Semanal': { bg: 'bg-purple-500', text: 'text-purple-700', dot: 'bg-purple-400', label: 'Semanal' },
+  'Quincenal': { bg: 'bg-cyan-500', text: 'text-cyan-700', dot: 'bg-cyan-400', label: 'Quincenal' },
+  'Mensual': { bg: 'bg-amber-500', text: 'text-amber-700', dot: 'bg-amber-400', label: 'Mensual' },
+  'Trimestral': { bg: 'bg-orange-500', text: 'text-orange-700', dot: 'bg-orange-400', label: 'Trimestral' },
+  'Semestral': { bg: 'bg-rose-500', text: 'text-rose-700', dot: 'bg-rose-400', label: 'Semestral' },
+  'Anual': { bg: 'bg-red-600', text: 'text-red-700', dot: 'bg-red-500', label: 'Anual' },
+}
+
+// Frequency colors for badges/cards
 const freqColors: Record<string, { bg: string; text: string; border: string }> = {
   'Diaria': { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-300' },
   '3x Semanal': { bg: 'bg-sky-100', text: 'text-sky-700', border: 'border-sky-300' },
@@ -73,7 +85,7 @@ const freqColors: Record<string, { bg: string; text: string; border: string }> =
   'Mensual': { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-300' },
   'Trimestral': { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300' },
   'Semestral': { bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-300' },
-  'Anual': { bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-300' },
+  'Anual': { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300' },
 }
 
 const statusConfig: Record<string, { bg: string; text: string; label: string; icon: typeof CheckCircle }> = {
@@ -477,6 +489,17 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
   const completadas = monthLVs.filter(l => l.status === 'COMPLETADA').length
   const avgProgress = monthLVs.length > 0 ? Math.round(monthLVs.reduce((s, l) => s + l.progress, 0) / monthLVs.length) : 0
 
+  // Stats by frequency group
+  const freqGroups = ['Diaria', '3x Semanal', 'Semanal', 'Quincenal', 'Mensual', 'Trimestral', 'Semestral', 'Anual']
+  const freqStats = freqGroups.map(freq => {
+    const groupLVs = monthLVs.filter(l => l.frecuencia === freq)
+    const total = groupLVs.length
+    const done = groupLVs.filter(l => l.status === 'COMPLETADA').length
+    const pending = groupLVs.filter(l => l.status === 'PENDIENTE').length
+    const progress = total > 0 ? Math.round(groupLVs.reduce((s, l) => s + l.progress, 0) / total) : 0
+    return { freq, total, done, pending, progress }
+  }).filter(f => f.total > 0)
+
   const getProgressColor = (progress: number) => {
     if (progress === 100) return 'text-emerald-600'
     if (progress >= 50) return 'text-blue-600'
@@ -520,6 +543,41 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
           <Progress value={avgProgress} className="h-2 mt-1" />
         </div>
       </div>
+
+      {/* Summary by frequency type */}
+      {freqStats.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+          {freqStats.map(fs => {
+            const gc = freqGroupColors[fs.freq] || freqGroupColors['Mensual']
+            return (
+              <div key={fs.freq} className="bg-white rounded-lg p-2.5 border border-slate-200 shadow-sm">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <div className={`w-2.5 h-2.5 rounded-full ${gc.dot}`} />
+                  <span className="text-[10px] font-bold text-slate-600 uppercase">{fs.freq}</span>
+                </div>
+                <div className="flex items-end justify-between">
+                  <div>
+                    <span className="text-lg font-bold text-slate-800">{fs.total}</span>
+                    <span className="text-[10px] text-slate-400 ml-0.5">LVs</span>
+                  </div>
+                  <div className="text-right">
+                    <div className={`text-sm font-bold ${fs.progress === 100 ? 'text-emerald-600' : fs.progress >= 50 ? 'text-blue-600' : 'text-amber-600'}`}>
+                      {fs.progress}%
+                    </div>
+                    <div className="w-12 h-1 rounded-full bg-slate-200 overflow-hidden">
+                      <div className={`h-full rounded-full ${fs.progress === 100 ? 'bg-emerald-500' : fs.progress >= 50 ? 'bg-blue-500' : 'bg-amber-500'}`} style={{ width: `${fs.progress}%` }} />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-1 text-[9px]">
+                  <span className="text-emerald-600">{fs.done} ok</span>
+                  <span className="text-amber-600">{fs.pending} pend</span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Header with navigation */}
       <div className="flex items-center justify-between">
@@ -603,14 +661,17 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
                       )}
                     </div>
                     <div className="space-y-0.5">
-                      {dayLVs.slice(0, 4).map(lv => (
-                        <div key={lv.id}
-                          className={`truncate rounded px-1 py-0.5 text-[10px] font-medium ${lv.status === 'COMPLETADA' ? 'bg-emerald-100 text-emerald-700' : lv.status === 'EN_PROGRESO' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}
-                          title={`${lv.codigo} — ${lv.nombre} (${lv.progress}%)`}
-                        >
-                          {lv.codigo}
-                        </div>
-                      ))}
+                      {dayLVs.slice(0, 4).map(lv => {
+                        const gc = freqGroupColors[lv.frecuencia] || freqGroupColors['Mensual']
+                        return (
+                          <div key={lv.id}
+                            className={`truncate rounded px-1 py-0.5 text-[10px] font-medium ${gc.bg} text-white`}
+                            title={`${lv.codigo} — ${lv.nombre} (${lv.frecuencia}, ${lv.progress}%)`}
+                          >
+                            {lv.codigo}
+                          </div>
+                        )
+                      })}
                       {dayLVs.length > 4 && (
                         <div className="text-[10px] text-teal-600 font-semibold">+{dayLVs.length - 4} más</div>
                       )}
@@ -619,11 +680,17 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
                 )
               })}
             </div>
-            {/* Legend */}
-            <div className="flex flex-wrap gap-4 mt-3 text-xs p-2 bg-slate-50 rounded-lg">
-              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-amber-100 border border-amber-300" /> Pendiente</div>
-              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-blue-100 border border-blue-300" /> En Progreso</div>
-              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-emerald-100 border border-emerald-300" /> Realizado</div>
+            {/* Legend - colors by frequency */}
+            <div className="flex flex-wrap gap-3 mt-3 text-xs p-2 bg-slate-50 rounded-lg">
+              {freqGroups.filter(f => monthLVs.some(l => l.frecuencia === f)).map(f => {
+                const gc = freqGroupColors[f]
+                return (
+                  <div key={f} className="flex items-center gap-1">
+                    <div className={`w-3 h-3 rounded ${gc.dot}`} />
+                    <span className="text-slate-600">{f}</span>
+                  </div>
+                )
+              })}
               <div className="flex items-center gap-1 ml-auto text-teal-600">Haz clic en un día con LVs para verlas</div>
             </div>
           </CardContent>
