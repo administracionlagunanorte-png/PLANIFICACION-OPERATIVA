@@ -78,12 +78,19 @@ import {
   XCircle,
   MessageSquare,
   ShoppingBag,
+  Users,
+  LogOut,
+  Shield,
+  ShieldCheck,
+  User,
 } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import ExcelJS from 'exceljs'
 import SolicitudesCompra from '@/components/rendicion/SolicitudesCompra'
 import { useToast } from '@/hooks/use-toast'
 import RendicionGastos from '@/components/rendicion/RendicionGastos'
+import { useAuth } from '@/lib/auth-context'
+import UsersPanel from '@/components/auth/UsersPanel'
 
 // Types
 interface Task {
@@ -170,7 +177,12 @@ interface Material {
   updatedAt: string
 }
 
-export default function Home() {
+interface HomeClientProps {
+  onAuthExpired?: () => void
+}
+
+export default function Home({ onAuthExpired }: HomeClientProps) {
+  const { session, logout } = useAuth()
   const [tasks, setTasks] = useState<Task[]>([])
   const [sectors, setSectors] = useState<Sector[]>([])
   const [repairTypes, setRepairTypes] = useState<RepairType[]>([])
@@ -179,7 +191,7 @@ export default function Home() {
   const [statuses, setStatuses] = useState<StatusItem[]>([])
   const [responsibles, setResponsibles] = useState<ResponsibleItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [view, setView] = useState<'dashboard' | 'table' | 'cards' | 'gantt' | 'materials' | 'rendicion' | 'solicitudes'>('dashboard')
+  const [view, setView] = useState<'dashboard' | 'table' | 'cards' | 'gantt' | 'materials' | 'rendicion' | 'solicitudes' | 'users'>('dashboard')
   const [filterSector, setFilterSector] = useState('all')
   const [filterPriority, setFilterPriority] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
@@ -3127,6 +3139,40 @@ export default function Home() {
               <Button variant="outline" size="sm" onClick={() => openHistory('all')} className="gap-1">
                 <History className="h-4 w-4" /> Historial
               </Button>
+              {/* User info + Logout */}
+              <div className="h-6 w-px bg-gray-300 mx-1" />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1.5">
+                    {session?.user?.role === 'ADMIN' ? (
+                      <Shield className="h-4 w-4 text-red-500" />
+                    ) : session?.user?.role === 'SUPERVISOR' ? (
+                      <ShieldCheck className="h-4 w-4 text-amber-500" />
+                    ) : (
+                      <User className="h-4 w-4 text-blue-500" />
+                    )}
+                    <span className="max-w-[120px] truncate">{session?.user?.name || 'Usuario'}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <div className="px-2 py-1.5 text-xs text-gray-500">
+                    <div className="font-medium text-gray-900">{session?.user?.email}</div>
+                    <div className="mt-0.5">
+                      {session?.user?.role === 'ADMIN' ? 'Administrador' : session?.user?.role === 'SUPERVISOR' ? 'Supervisor' : 'Usuario'}
+                    </div>
+                  </div>
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      await logout()
+                      onAuthExpired?.()
+                    }}
+                    className="text-red-600 focus:text-red-600"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Cerrar Sesión
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
             {/* Mobile menu */}
             <div className="flex lg:hidden items-center gap-1">
@@ -3151,6 +3197,15 @@ export default function Home() {
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => openHistory('all')}>
                     <History className="h-4 w-4 mr-2" /> Historial
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      await logout()
+                      onAuthExpired?.()
+                    }}
+                    className="text-red-600 focus:text-red-600"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" /> Cerrar Sesión
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -3219,10 +3274,20 @@ export default function Home() {
             >
               <ShoppingBag className="h-4 w-4" /> Compras
             </Button>
+            {(session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERVISOR') && (
+              <Button
+                variant={view === 'users' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setView('users')}
+                className="gap-1"
+              >
+                <Users className="h-4 w-4" /> Usuarios
+              </Button>
+            )}
           </div>
 
           {/* Filters */}
-          {view !== 'rendicion' && view !== 'solicitudes' && (
+          {view !== 'rendicion' && view !== 'solicitudes' && view !== 'users' && (
           <div className="flex items-center gap-2 flex-wrap max-w-full">
             <Select value={filterSector} onValueChange={setFilterSector}>
               <SelectTrigger className="w-[120px] sm:w-[140px] h-8 text-xs">
@@ -4266,6 +4331,10 @@ export default function Home() {
 
         {view === 'solicitudes' && (
           <SolicitudesCompra />
+        )}
+
+        {view === 'users' && (session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERVISOR') && (
+          <UsersPanel />
         )}
       </main>
 

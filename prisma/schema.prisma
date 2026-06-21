@@ -8,6 +8,24 @@ datasource db {
   relationMode = "prisma"
 }
 
+// ============================================================
+// USUARIOS Y AUTENTICACIÓN
+// ============================================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      String   @default("USER")
+  avatar    String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
 model Task {
   id            String   @id @default(cuid())
   description   String
