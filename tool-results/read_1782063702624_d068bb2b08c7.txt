@@ -1,0 +1,1601 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useRef } from 'react'
+     4→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
+     5→import { Button } from '@/components/ui/button'
+     6→import { Input } from '@/components/ui/input'
+     7→import { Label } from '@/components/ui/label'
+     8→import { Textarea } from '@/components/ui/textarea'
+     9→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    10→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    11→import { Badge } from '@/components/ui/badge'
+    12→import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+    13→import { Plus, Pencil, Trash2, Eye, ArrowLeft, Upload, X, CheckCircle, XCircle, Clock, FileText, FileSpreadsheet, Download, Camera, Send, Star, ShoppingBag, ExternalLink, ShieldCheck, Shield, Package, ImageIcon } from 'lucide-react'
+    14→import { useToast } from '@/hooks/use-toast'
+    15→import { jsPDF } from 'jspdf'
+    16→import ExcelJS from 'exceljs'
+    17→
+    18→// ============================================================
+    19→// Types
+    20→// ============================================================
+    21→
+    22→interface PurchaseItem {
+    23→  id: string
+    24→  productDescription: string
+    25→  brand: string | null
+    26→  quantity: number
+    27→  productLink: string | null
+    28→  referencePhotoUrl: string | null
+    29→  directProvider: string | null
+    30→  notes: string | null
+    31→  requestId: string
+    32→  createdAt: string
+    33→  updatedAt: string
+    34→}
+    35→
+    36→interface PurchaseRequest {
+    37→  id: string
+    38→  correlativeNumber: number
+    39→  title: string
+    40→  productDescription: string
+    41→  brand: string | null
+    42→  quantity: number
+    43→  priority: string
+    44→  productLink: string | null
+    45→  referencePhotoUrl: string | null
+    46→  directProvider: string | null
+    47→  notes: string | null
+    48→  status: string
+    49→  responsible: string | null
+    50→  reviewedBy: string | null
+    51→  reviewedAt: string | null
+    52→  reviewNote: string | null
+    53→  createdAt: string
+    54→  updatedAt: string
+    55→  quotes?: PurchaseQuote[]
+    56→  items?: PurchaseItem[]
+    57→  itemCount?: number
+    58→}
+    59→
+    60→interface PurchaseQuote {
+    61→  id: string
+    62→  purchaseRequestId: string
+    63→  providerName: string
+    64→  amount: number
+    65→  currency: string
+    66→  fileName: string | null
+    67→  fileUrl: string | null
+    68→  fileType: string | null
+    69→  notes: string | null
+    70→  isWinner: boolean
+    71→  createdAt: string
+    72→  updatedAt: string
+    73→}
+    74→
+    75→// ============================================================
+    76→// Config & Helpers
+    77→// ============================================================
+    78→
+    79→const formatCLP = (amount: number | null | undefined): string => {
+    80→  if (amount == null || isNaN(amount)) return '$0'
+    81→  return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(amount))
+    82→}
+    83→
+    84→const statusConfig: Record<string, { label: string; color: string; bgColor: string; borderColor: string; icon: React.ReactNode }> = {
+    85→  PENDIENTE: { label: 'Pendiente', color: 'text-amber-700', bgColor: 'bg-amber-50', borderColor: 'border-l-amber-500', icon: <Clock className="h-3.5 w-3.5" /> },
+    86→  APROBADA_SUPERVISOR: { label: 'Aprobada (Supervisor)', color: 'text-blue-700', bgColor: 'bg-blue-50', borderColor: 'border-l-blue-500', icon: <ShieldCheck className="h-3.5 w-3.5" /> },
+    87→  APROBADA: { label: 'Aprobada (Admin)', color: 'text-emerald-700', bgColor: 'bg-emerald-50', borderColor: 'border-l-emerald-500', icon: <CheckCircle className="h-3.5 w-3.5" /> },
+    88→  RECHAZADA: { label: 'Rechazada', color: 'text-red-700', bgColor: 'bg-red-50', borderColor: 'border-l-red-500', icon: <XCircle className="h-3.5 w-3.5" /> },
+    89→  EN_COMPRA: { label: 'En Compra', color: 'text-blue-700', bgColor: 'bg-blue-50', borderColor: 'border-l-blue-500', icon: <ShoppingBag className="h-3.5 w-3.5" /> },
+    90→  COMPRADA: { label: 'Comprada', color: 'text-emerald-700', bgColor: 'bg-emerald-50', borderColor: 'border-l-emerald-500', icon: <CheckCircle className="h-3.5 w-3.5" /> },
+    91→  CANCELADA: { label: 'Cancelada', color: 'text-slate-600', bgColor: 'bg-slate-100', borderColor: 'border-l-slate-400', icon: <XCircle className="h-3.5 w-3.5" /> },
+    92→}
+    93→
+    94→const priorityConfig: Record<string, { label: string; color: string }> = {
+    95→  BAJA: { label: 'Baja', color: 'bg-slate-400' },
+    96→  MEDIA: { label: 'Media', color: 'bg-blue-400' },
+    97→  ALTA: { label: 'Alta', color: 'bg-amber-400' },
+    98→  URGENTE: { label: 'Urgente', color: 'bg-red-500' },
+    99→}
+   100→
+   101→const correlativeStr = (n: number) => `SC-${String(n).padStart(3, '0')}`
+   102→
+   103→const formatDate = (d: string) =>
+   104→  new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })
+   105→
+   106→const formatDateTime = (d: string) =>
+   107→  new Date(d).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+   108→
+   109→// ============================================================
+   110→// File upload helper
+   111→// ============================================================
+   112→
+   113→const handleFileUpload = async (file: File): Promise<string | null> => {
+   114→  const formData = new FormData()
+   115→  formData.append('file', file)
+   116→  try {
+   117→    const res = await fetch('/api/upload', { method: 'POST', body: formData })
+   118→    if (res.ok) {
+   119→      const data = await res.json()
+   120→      return data.url
+   121→    }
+   122→  } catch (err) {
+   123→    console.error('Error uploading file:', err)
+   124→  }
+   125→  return null
+   126→}
+   127→
+   128→// ============================================================
+   129→// Component
+   130→// ============================================================
+   131→
+   132→interface SolicitudesCompraProps {
+   133→  userRole?: string
+   134→}
+   135→
+   136→export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesCompraProps) {
+   137→  const { toast } = useToast()
+   138→  const isAdmin = userRole === 'ADMIN'
+   139→  const isSupervisor = userRole === 'SUPERVISOR'
+   140→  const canApprove = isAdmin || isSupervisor
+   141→  const canEditAll = isAdmin || isSupervisor
+   142→
+   143→  // --- View state ---
+   144→  const [view, setView] = useState<'list' | 'detail'>('list')
+   145→
+   146→  // --- Data ---
+   147→  const [requests, setRequests] = useState<PurchaseRequest[]>([])
+   148→  const [totalPages, setTotalPages] = useState(1)
+   149→  const [loading, setLoading] = useState(false)
+   150→  const [selectedRequest, setSelectedRequest] = useState<PurchaseRequest | null>(null)
+   151→
+   152→  // --- Filters ---
+   153→  const [filterStatus, setFilterStatus] = useState('all')
+   154→  const [filterPriority, setFilterPriority] = useState('all')
+   155→  const [searchTerm, setSearchTerm] = useState('')
+   156→  const [page, setPage] = useState(1)
+   157→
+   158→  // --- Dialogs ---
+   159→  const [formOpen, setFormOpen] = useState(false)
+   160→  const [editingId, setEditingId] = useState<string | null>(null)
+   161→  const [quoteDialogOpen, setQuoteDialogOpen] = useState(false)
+   162→  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+   163→  const [deleteTarget, setDeleteTarget] = useState<{ type: 'request' | 'quote' | 'item'; id: string } | null>(null)
+   164→  const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
+   165→  const [reviewAction, setReviewAction] = useState<'APROBADA' | 'APROBADA_SUPERVISOR' | 'RECHAZADA' | 'EN_COMPRA' | 'COMPRADA' | null>(null)
+   166→  const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
+   167→  const [previewImageUrl, setPreviewImageUrl] = useState('')
+   168→
+   169→  // --- Request form state ---
+   170→  const [formData, setFormData] = useState({
+   171→    title: '',
+   172→    productDescription: '',
+   173→    brand: '',
+   174→    quantity: '1',
+   175→    priority: 'MEDIA',
+   176→    productLink: '',
+   177→    referencePhotoUrl: '',
+   178→    directProvider: '',
+   179→    notes: '',
+   180→    responsible: '',
+   181→  })
+   182→  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+   183→  const photoInputRef = useRef<HTMLInputElement>(null)
+   184→
+   185→  // --- Item form state ---
+   186→  const [itemFormOpen, setItemFormOpen] = useState(false)
+   187→  const [editingItem, setEditingItem] = useState<PurchaseItem | null>(null)
+   188→  const [itemForm, setItemForm] = useState({
+   189→    productDescription: '',
+   190→    brand: '',
+   191→    quantity: '1',
+   192→    productLink: '',
+   193→    referencePhotoUrl: '',
+   194→    directProvider: '',
+   195→    notes: '',
+   196→  })
+   197→  const [uploadingItemPhoto, setUploadingItemPhoto] = useState(false)
+   198→  const [savingItem, setSavingItem] = useState(false)
+   199→  const itemPhotoInputRef = useRef<HTMLInputElement>(null)
+   200→
+   201→  // --- Quote form state ---
+   202→  const [quoteFormData, setQuoteFormData] = useState({
+   203→    providerName: '',
+   204→    amount: '',
+   205→    currency: 'CLP',
+   206→    notes: '',
+   207→    fileUrl: '',
+   208→    fileName: '',
+   209→    fileType: '',
+   210→  })
+   211→  const [uploadingQuoteFile, setUploadingQuoteFile] = useState(false)
+   212→  const quoteFileInputRef = useRef<HTMLInputElement>(null)
+   213→
+   214→  // --- Review form ---
+   215→  const [reviewNote, setReviewNote] = useState('')
+   216→  const [reviewedBy, setReviewedBy] = useState('')
+   217→
+   218→  // ============================================================
+   219→  // Fetch data
+   220→  // ============================================================
+   221→
+   222→  const fetchRequests = async () => {
+   223→    setLoading(true)
+   224→    try {
+   225→      const params = new URLSearchParams()
+   226→      if (filterStatus !== 'all') params.set('status', filterStatus)
+   227→      if (filterPriority !== 'all') params.set('priority', filterPriority)
+   228→      if (searchTerm.trim()) params.set('search', searchTerm.trim())
+   229→      params.set('page', String(page))
+   230→      params.set('limit', '20')
+   231→
+   232→      const res = await fetch(`/api/purchase-requests?${params}`)
+   233→      if (res.ok) {
+   234→        const data = await res.json()
+   235→        setRequests(data.data || [])
+   236→        setTotalPages(data.pagination?.totalPages || 1)
+   237→      }
+   238→    } catch (err) {
+   239→      console.error('Error fetching purchase requests:', err)
+   240→      toast({ title: 'Error', description: 'No se pudieron cargar las solicitudes', variant: 'destructive' })
+   241→    } finally {
+   242→      setLoading(false)
+   243→    }
+   244→  }
+   245→
+   246→  const fetchRequestDetail = async (id: string) => {
+   247→    try {
+   248→      const res = await fetch(`/api/purchase-requests/${id}`)
+   249→      if (res.ok) {
+   250→        const data = await res.json()
+   251→        setSelectedRequest(data)
+   252→      }
+   253→    } catch (err) {
+   254→      console.error('Error fetching request detail:', err)
+   255→    }
+   256→  }
+   257→
+   258→  useEffect(() => {
+   259→    fetchRequests()
+   260→  }, [filterStatus, filterPriority, page])
+   261→
+   262→  useEffect(() => {
+   263→    const timer = setTimeout(() => {
+   264→      if (page === 1) fetchRequests()
+   265→      else setPage(1)
+   266→    }, 400)
+   267→    return () => clearTimeout(timer)
+   268→  }, [searchTerm])
+   269→
+   270→  // ============================================================
+   271→  // Request form handlers
+   272→  // ============================================================
+   273→
+   274→  const resetForm = () => {
+   275→    setFormData({
+   276→      title: '',
+   277→      productDescription: '',
+   278→      brand: '',
+   279→      quantity: '1',
+   280→      priority: 'MEDIA',
+   281→      productLink: '',
+   282→      referencePhotoUrl: '',
+   283→      directProvider: '',
+   284→      notes: '',
+   285→      responsible: '',
+   286→    })
+   287→    setEditingId(null)
+   288→  }
+   289→
+   290→  const openCreateForm = () => {
+   291→    resetForm()
+   292→    setFormOpen(true)
+   293→  }
+   294→
+   295→  const openEditForm = (req: PurchaseRequest) => {
+   296→    setFormData({
+   297→      title: req.title || req.productDescription,
+   298→      productDescription: req.productDescription || req.title,
+   299→      brand: req.brand || '',
+   300→      quantity: String(req.quantity),
+   301→      priority: req.priority,
+   302→      productLink: req.productLink || '',
+   303→      referencePhotoUrl: req.referencePhotoUrl || '',
+   304→      directProvider: req.directProvider || '',
+   305→      notes: req.notes || '',
+   306→      responsible: req.responsible || '',
+   307→    })
+   308→    setEditingId(req.id)
+   309→    setFormOpen(true)
+   310→  }
+   311→
+   312→  const handleFormSubmit = async () => {
+   313→    if (!formData.title.trim() && !formData.productDescription.trim()) {
+   314→      toast({ title: 'Error', description: 'El título o descripción es obligatorio', variant: 'destructive' })
+   315→      return
+   316→    }
+   317→
+   318→    try {
+   319→      const body = {
+   320→        title: formData.title.trim() || formData.productDescription.trim(),
+   321→        productDescription: formData.productDescription.trim() || formData.title.trim(),
+   322→        brand: formData.brand.trim() || null,
+   323→        quantity: parseInt(formData.quantity) || 1,
+   324→        priority: formData.priority,
+   325→        productLink: formData.productLink.trim() || null,
+   326→        referencePhotoUrl: formData.referencePhotoUrl.trim() || null,
+   327→        directProvider: formData.directProvider.trim() || null,
+   328→        notes: formData.notes.trim() || null,
+   329→        responsible: formData.responsible.trim() || null,
+   330→      }
+   331→
+   332→      let res: Response
+   333→      if (editingId) {
+   334→        res = await fetch(`/api/purchase-requests/${editingId}`, {
+   335→          method: 'PUT',
+   336→          headers: { 'Content-Type': 'application/json' },
+   337→          body: JSON.stringify(body),
+   338→        })
+   339→      } else {
+   340→        res = await fetch('/api/purchase-requests', {
+   341→          method: 'POST',
+   342→          headers: { 'Content-Type': 'application/json' },
+   343→          body: JSON.stringify(body),
+   344→        })
+   345→      }
+   346→
+   347→      if (res.ok) {
+   348→        toast({ title: editingId ? 'Solicitud actualizada' : 'Solicitud creada', description: editingId ? 'La solicitud se actualizó correctamente' : 'La solicitud se creó correctamente. Ahora puedes agregar items.' })
+   349→        setFormOpen(false)
+   350→        resetForm()
+   351→        if (editingId && selectedRequest?.id === editingId) {
+   352→          const updated = await fetchRequestDetail(editingId)
+   353→        }
+   354→        fetchRequests()
+   355→      } else {
+   356→        const err = await res.json()
+   357→        toast({ title: 'Error', description: err.error || 'No se pudo guardar la solicitud', variant: 'destructive' })
+   358→      }
+   359→    } catch {
+   360→      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+   361→    }
+   362→  }
+   363→
+   364→  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+   365→    const file = e.target.files?.[0]
+   366→    if (!file) return
+   367→    if (!file.type.startsWith('image/')) {
+   368→      toast({ title: 'Error', description: 'Solo se permiten imágenes', variant: 'destructive' })
+   369→      return
+   370→    }
+   371→    setUploadingPhoto(true)
+   372→    const url = await handleFileUpload(file)
+   373→    if (url) {
+   374→      setFormData(prev => ({ ...prev, referencePhotoUrl: url }))
+   375→    } else {
+   376→      toast({ title: 'Error', description: 'No se pudo subir la imagen', variant: 'destructive' })
+   377→    }
+   378→    setUploadingPhoto(false)
+   379→    if (photoInputRef.current) photoInputRef.current.value = ''
+   380→  }
+   381→
+   382→  const removePhoto = () => {
+   383→    setFormData(prev => ({ ...prev, referencePhotoUrl: '' }))
+   384→  }
+   385→
+   386→  // ============================================================
+   387→  // Item CRUD
+   388→  // ============================================================
+   389→
+   390→  const openCreateItem = () => {
+   391→    setEditingItem(null)
+   392→    setItemForm({
+   393→      productDescription: '',
+   394→      brand: '',
+   395→      quantity: '1',
+   396→      productLink: '',
+   397→      referencePhotoUrl: '',
+   398→      directProvider: '',
+   399→      notes: '',
+   400→    })
+   401→    setItemFormOpen(true)
+   402→  }
+   403→
+   404→  const openEditItem = (item: PurchaseItem) => {
+   405→    setEditingItem(item)
+   406→    setItemForm({
+   407→      productDescription: item.productDescription,
+   408→      brand: item.brand || '',
+   409→      quantity: String(item.quantity),
+   410→      productLink: item.productLink || '',
+   411→      referencePhotoUrl: item.referencePhotoUrl || '',
+   412→      directProvider: item.directProvider || '',
+   413→      notes: item.notes || '',
+   414→    })
+   415→    setItemFormOpen(true)
+   416→  }
+   417→
+   418→  const handleSaveItem = async () => {
+   419→    if (!selectedRequest) return
+   420→    if (!itemForm.productDescription.trim()) {
+   421→      toast({ title: 'Error', description: 'La descripción del producto es requerida', variant: 'destructive' })
+   422→      return
+   423→    }
+   424→
+   425→    setSavingItem(true)
+   426→    try {
+   427→      const body = {
+   428→        productDescription: itemForm.productDescription.trim(),
+   429→        brand: itemForm.brand.trim() || null,
+   430→        quantity: parseInt(itemForm.quantity) || 1,
+   431→        productLink: itemForm.productLink.trim() || null,
+   432→        referencePhotoUrl: itemForm.referencePhotoUrl.trim() || null,
+   433→        directProvider: itemForm.directProvider.trim() || null,
+   434→        notes: itemForm.notes.trim() || null,
+   435→        requestId: selectedRequest.id,
+   436→      }
+   437→
+   438→      let res: Response
+   439→      if (editingItem) {
+   440→        res = await fetch(`/api/purchase-items/${editingItem.id}`, {
+   441→          method: 'PUT',
+   442→          headers: { 'Content-Type': 'application/json' },
+   443→          body: JSON.stringify(body),
+   444→        })
+   445→      } else {
+   446→        res = await fetch('/api/purchase-items', {
+   447→          method: 'POST',
+   448→          headers: { 'Content-Type': 'application/json' },
+   449→          body: JSON.stringify(body),
+   450→        })
+   451→      }
+   452→
+   453→      if (res.ok) {
+   454→        toast({ title: editingItem ? 'Item actualizado' : 'Item agregado', description: editingItem ? 'Los cambios han sido guardados' : 'Se ha agregado un nuevo item a la solicitud' })
+   455→        setItemFormOpen(false)
+   456→        const updated = await fetchRequestDetail(selectedRequest.id)
+   457→        if (updated) setSelectedRequest(updated)
+   458→      } else {
+   459→        const err = await res.json()
+   460→        toast({ title: 'Error', description: err.error || 'No se pudo guardar el item', variant: 'destructive' })
+   461→      }
+   462→    } catch {
+   463→      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+   464→    } finally {
+   465→      setSavingItem(false)
+   466→    }
+   467→  }
+   468→
+   469→  const handleItemPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+   470→    const file = e.target.files?.[0]
+   471→    if (!file) return
+   472→    setUploadingItemPhoto(true)
+   473→    const url = await handleFileUpload(file)
+   474→    if (url) setItemForm(prev => ({ ...prev, referencePhotoUrl: url }))
+   475→    else toast({ title: 'Error', description: 'No se pudo subir la imagen', variant: 'destructive' })
+   476→    setUploadingItemPhoto(false)
+   477→    if (itemPhotoInputRef.current) itemPhotoInputRef.current.value = ''
+   478→  }
+   479→
+   480→  const handleDeleteItem = async (itemId: string) => {
+   481→    if (!selectedRequest) return
+   482→    try {
+   483→      const res = await fetch(`/api/purchase-items/${itemId}`, { method: 'DELETE' })
+   484→      if (res.ok) {
+   485→        toast({ title: 'Item eliminado', description: 'El item ha sido eliminado correctamente' })
+   486→        const updated = await fetchRequestDetail(selectedRequest.id)
+   487→        if (updated) setSelectedRequest(updated)
+   488→      } else {
+   489→        const err = await res.json()
+   490→        toast({ title: 'Error', description: err.error || 'No se pudo eliminar', variant: 'destructive' })
+   491→      }
+   492→    } catch {
+   493→      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+   494→    }
+   495→    setDeleteDialogOpen(false)
+   496→    setDeleteTarget(null)
+   497→  }
+   498→
+   499→  // ============================================================
+   500→  // Quote handlers
+   501→  // ============================================================
+   502→
+   503→  const resetQuoteForm = () => {
+   504→    setQuoteFormData({ providerName: '', amount: '', currency: 'CLP', notes: '', fileUrl: '', fileName: '', fileType: '' })
+   505→  }
+   506→
+   507→  const openQuoteDialog = () => {
+   508→    resetQuoteForm()
+   509→    setQuoteDialogOpen(true)
+   510→  }
+   511→
+   512→  const handleQuoteFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+   513→    const file = e.target.files?.[0]
+   514→    if (!file) return
+   515→    setUploadingQuoteFile(true)
+   516→    const url = await handleFileUpload(file)
+   517→    if (url) {
+   518→      setQuoteFormData(prev => ({ ...prev, fileUrl: url, fileName: file.name, fileType: file.type }))
+   519→    }
+   520→    setUploadingQuoteFile(false)
+   521→    if (quoteFileInputRef.current) quoteFileInputRef.current.value = ''
+   522→  }
+   523→
+   524→  const handleQuoteSubmit = async () => {
+   525→    if (!selectedRequest) return
+   526→    if (!quoteFormData.providerName.trim()) {
+   527→      toast({ title: 'Error', description: 'El nombre del proveedor es obligatorio', variant: 'destructive' })
+   528→      return
+   529→    }
+   530→    if (!quoteFormData.amount || parseFloat(quoteFormData.amount) <= 0) {
+   531→      toast({ title: 'Error', description: 'El monto debe ser mayor a 0', variant: 'destructive' })
+   532→      return
+   533→    }
+   534→
+   535→    try {
+   536→      const body = {
+   537→        providerName: quoteFormData.providerName.trim(),
+   538→        amount: parseFloat(quoteFormData.amount),
+   539→        currency: quoteFormData.currency,
+   540→        notes: quoteFormData.notes.trim() || null,
+   541→        fileUrl: quoteFormData.fileUrl || null,
+   542→        fileName: quoteFormData.fileName || null,
+   543→        fileType: quoteFormData.fileType || null,
+   544→      }
+   545→
+   546→      const res = await fetch(`/api/purchase-requests/${selectedRequest.id}/quotes`, {
+   547→        method: 'POST',
+   548→        headers: { 'Content-Type': 'application/json' },
+   549→        body: JSON.stringify(body),
+   550→      })
+   551→
+   552→      if (res.ok) {
+   553→        toast({ title: 'Cotización agregada', description: 'La cotización se agregó correctamente' })
+   554→        setQuoteDialogOpen(false)
+   555→        resetQuoteForm()
+   556→        fetchRequestDetail(selectedRequest.id)
+   557→        fetchRequests()
+   558→      } else {
+   559→        const err = await res.json()
+   560→        toast({ title: 'Error', description: err.error || 'No se pudo agregar la cotización', variant: 'destructive' })
+   561→      }
+   562→    } catch {
+   563→      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+   564→    }
+   565→  }
+   566→
+   567→  const setWinner = async (quoteId: string) => {
+   568→    if (!selectedRequest) return
+   569→    try {
+   570→      const res = await fetch(`/api/purchase-requests/${selectedRequest.id}/quotes/${quoteId}`, {
+   571→        method: 'PUT',
+   572→        headers: { 'Content-Type': 'application/json' },
+   573→        body: JSON.stringify({ isWinner: true }),
+   574→      })
+   575→      if (res.ok) {
+   576→        toast({ title: 'Cotización ganadora', description: 'Se seleccionó la cotización ganadora' })
+   577→        fetchRequestDetail(selectedRequest.id)
+   578→      }
+   579→    } catch {
+   580→      toast({ title: 'Error', description: 'No se pudo seleccionar la cotización', variant: 'destructive' })
+   581→    }
+   582→  }
+   583→
+   584→  const deleteQuote = async (quoteId: string) => {
+   585→    if (!selectedRequest) return
+   586→    try {
+   587→      const res = await fetch(`/api/purchase-requests/${selectedRequest.id}/quotes/${quoteId}`, { method: 'DELETE' })
+   588→      if (res.ok) {
+   589→        toast({ title: 'Cotización eliminada', description: 'La cotización se eliminó correctamente' })
+   590→        fetchRequestDetail(selectedRequest.id)
+   591→        fetchRequests()
+   592→      }
+   593→    } catch {
+   594→      toast({ title: 'Error', description: 'No se pudo eliminar la cotización', variant: 'destructive' })
+   595→    }
+   596→  }
+   597→
+   598→  // ============================================================
+   599→  // Delete request
+   600→  // ============================================================
+   601→
+   602→  const confirmDelete = async () => {
+   603→    if (!deleteTarget) return
+   604→    try {
+   605→      if (deleteTarget.type === 'request') {
+   606→        const res = await fetch(`/api/purchase-requests/${deleteTarget.id}`, { method: 'DELETE' })
+   607→        if (res.ok) {
+   608→          toast({ title: 'Solicitud eliminada', description: 'La solicitud se eliminó correctamente' })
+   609→          if (selectedRequest?.id === deleteTarget.id) {
+   610→            setView('list')
+   611→            setSelectedRequest(null)
+   612→          }
+   613→          fetchRequests()
+   614→        } else {
+   615→          const err = await res.json()
+   616→          toast({ title: 'Error', description: err.error || 'No se pudo eliminar', variant: 'destructive' })
+   617→        }
+   618→      } else if (deleteTarget.type === 'quote') {
+   619→        await deleteQuote(deleteTarget.id)
+   620→      } else if (deleteTarget.type === 'item') {
+   621→        await handleDeleteItem(deleteTarget.id)
+   622→      }
+   623→    } catch {
+   624→      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+   625→    } finally {
+   626→      setDeleteDialogOpen(false)
+   627→      setDeleteTarget(null)
+   628→    }
+   629→  }
+   630→
+   631→  // ============================================================
+   632→  // Review / Status change handlers
+   633→  // ============================================================
+   634→
+   635→  const openReviewDialog = (action: 'APROBADA' | 'APROBADA_SUPERVISOR' | 'RECHAZADA' | 'EN_COMPRA' | 'COMPRADA') => {
+   636→    setReviewAction(action)
+   637→    setReviewNote('')
+   638→    setReviewedBy('')
+   639→    setReviewDialogOpen(true)
+   640→  }
+   641→
+   642→  const handleReviewSubmit = async () => {
+   643→    if (!selectedRequest || !reviewAction) return
+   644→
+   645→    try {
+   646→      const res = await fetch(`/api/purchase-requests/${selectedRequest.id}`, {
+   647→        method: 'PUT',
+   648→        headers: { 'Content-Type': 'application/json' },
+   649→        body: JSON.stringify({
+   650→          action: 'review',
+   651→          status: reviewAction,
+   652→          reviewNote: reviewNote.trim() || null,
+   653→          reviewedBy: reviewedBy.trim() || null,
+   654→        }),
+   655→      })
+   656→
+   657→      if (res.ok) {
+   658→        const actionLabels: Record<string, string> = {
+   659→          APROBADA: 'aprobada',
+   660→          APROBADA_SUPERVISOR: 'aprobada por supervisor',
+   661→          RECHAZADA: 'rechazada',
+   662→          EN_COMPRA: 'marcada en compra',
+   663→          COMPRADA: 'marcada como comprada',
+   664→        }
+   665→        toast({ title: 'Estado actualizado', description: `La solicitud fue ${actionLabels[reviewAction]}` })
+   666→        setReviewDialogOpen(false)
+   667→        fetchRequestDetail(selectedRequest.id)
+   668→        fetchRequests()
+   669→      } else {
+   670→        const err = await res.json()
+   671→        toast({ title: 'Error', description: err.error || 'No se pudo actualizar', variant: 'destructive' })
+   672→      }
+   673→    } catch {
+   674→      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+   675→    }
+   676→  }
+   677→
+   678→  // ============================================================
+   679→  // Navigation
+   680→  // ============================================================
+   681→
+   682→  const goToDetail = (req: PurchaseRequest) => {
+   683→    setSelectedRequest(req)
+   684→    setView('detail')
+   685→    fetchRequestDetail(req.id)
+   686→  }
+   687→
+   688→  const goToList = () => {
+   689→    setView('list')
+   690→    setSelectedRequest(null)
+   691→  }
+   692→
+   693→  // ============================================================
+   694→  // Computed helpers
+   695→  // ============================================================
+   696→
+   697→  const getBestQuoteAmount = (req: PurchaseRequest): string => {
+   698→    if (!req.quotes || req.quotes.length === 0) return '-'
+   699→    const winner = req.quotes.find(q => q.isWinner)
+   700→    if (winner) return formatCLP(winner.amount)
+   701→    const min = Math.min(...req.quotes.map(q => q.amount))
+   702→    return formatCLP(min)
+   703→  }
+   704→
+   705→  const canEditRequest = selectedRequest?.status === 'PENDIENTE' && canEditAll
+   706→
+   707→  // ============================================================
+   708→  // RENDER: List View
+   709→  // ============================================================
+   710→
+   711→  const renderListView = () => (
+   712→    <div className="space-y-5">
+   713→      {/* Header & Filters */}
+   714→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+   715→        <div>
+   716→          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+   717→            <ShoppingBag className="h-5 w-5 text-blue-600" />
+   718→            Solicitudes de Compra
+   719→          </h2>
+   720→          <p className="text-sm text-slate-500 mt-0.5">Gestiona las solicitudes de compra del proyecto</p>
+   721→        </div>
+   722→        <Button onClick={openCreateForm} className="gap-2 shrink-0 bg-blue-600 hover:bg-blue-700 text-white">
+   723→          <Plus className="h-4 w-4" />
+   724→          Nueva Solicitud
+   725→        </Button>
+   726→      </div>
+   727→
+   728→      {/* Filters */}
+   729→      <div className="flex items-center gap-2 flex-wrap">
+   730→        <Input
+   731→          placeholder="Buscar producto, marca, proveedor..."
+   732→          value={searchTerm}
+   733→          onChange={e => setSearchTerm(e.target.value)}
+   734→          className="max-w-xs h-9 text-sm bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
+   735→        />
+   736→        <Select value={filterStatus} onValueChange={v => { setFilterStatus(v); setPage(1) }}>
+   737→          <SelectTrigger className="w-[180px] h-9 text-sm bg-white border-slate-300 text-slate-800">
+   738→            <SelectValue placeholder="Estado" />
+   739→          </SelectTrigger>
+   740→          <SelectContent className="bg-white">
+   741→            <SelectItem value="all">Todos los estados</SelectItem>
+   742→            {Object.entries(statusConfig).map(([k, v]) => (
+   743→              <SelectItem key={k} value={k}>
+   744→                <span className="flex items-center gap-1.5">{v.icon} {v.label}</span>
+   745→              </SelectItem>
+   746→            ))}
+   747→          </SelectContent>
+   748→        </Select>
+   749→        <Select value={filterPriority} onValueChange={v => { setFilterPriority(v); setPage(1) }}>
+   750→          <SelectTrigger className="w-[130px] h-9 text-sm bg-white border-slate-300 text-slate-800">
+   751→            <SelectValue placeholder="Prioridad" />
+   752→          </SelectTrigger>
+   753→          <SelectContent className="bg-white">
+   754→            <SelectItem value="all">Todas</SelectItem>
+   755→            {Object.entries(priorityConfig).map(([k, v]) => (
+   756→              <SelectItem key={k} value={k}>
+   757→                <span className="flex items-center gap-2">
+   758→                  <span className={`w-2.5 h-2.5 rounded-full ${v.color}`} />
+   759→                  {v.label}
+   760→                </span>
+   761→              </SelectItem>
+   762→            ))}
+   763→          </SelectContent>
+   764→        </Select>
+   765→      </div>
+   766→
+   767→      {/* Cards Grid */}
+   768→      {loading ? (
+   769→        <div className="flex items-center justify-center py-20">
+   770→          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+   771→        </div>
+   772→      ) : requests.length === 0 ? (
+   773→        <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
+   774→          <ShoppingBag className="h-14 w-14 mx-auto mb-3 text-slate-300" />
+   775→          <p className="text-lg font-semibold text-slate-700">No hay solicitudes</p>
+   776→          <p className="text-sm text-slate-500 mt-1">Crea una nueva solicitud de compra para comenzar</p>
+   777→        </div>
+   778→      ) : (
+   779→        <>
+   780→          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+   781→            {requests.map(req => {
+   782→              const st = statusConfig[req.status] || statusConfig.PENDIENTE
+   783→              const pr = priorityConfig[req.priority] || priorityConfig.MEDIA
+   784→              const itemCount = req.itemCount ?? (req.items?.length ?? 0)
+   785→              return (
+   786→                <Card
+   787→                  key={req.id}
+   788→                  className={`cursor-pointer hover:shadow-lg transition-all border-l-4 bg-white ${st.borderColor}`}
+   789→                  onClick={() => goToDetail(req)}
+   790→                >
+   791→                  <CardHeader className="pb-2 pt-4 px-4">
+   792→                    <div className="flex items-center justify-between gap-2">
+   793→                      <span className="text-sm font-bold text-blue-700">{correlativeStr(req.correlativeNumber)}</span>
+   794→                      <Badge className={`${st.bgColor} ${st.color} gap-1 text-[11px] border-0 font-medium`}>
+   795→                        <span className="flex items-center gap-1">{st.icon} {st.label}</span>
+   796→                      </Badge>
+   797→                    </div>
+   798→                    <CardTitle className="text-sm font-semibold text-slate-800 leading-tight mt-1 line-clamp-2">
+   799→                      {req.title || req.productDescription}
+   800→                    </CardTitle>
+   801→                  </CardHeader>
+   802→                  <CardContent className="px-4 pb-4 pt-0">
+   803→                    <div className="flex items-center gap-2 flex-wrap mt-2">
+   804→                      {req.brand && (
+   805→                        <Badge variant="outline" className="text-[11px] font-normal border-slate-200 text-slate-600">{req.brand}</Badge>
+   806→                      )}
+   807→                      <Badge variant="outline" className="text-[11px] font-normal border-blue-200 text-blue-700 bg-blue-50">
+   808→                        <Package className="w-3 h-3 mr-0.5" />
+   809→                        {itemCount} item{itemCount !== 1 ? 's' : ''}
+   810→                      </Badge>
+   811→                      <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full text-white ${pr.color}`}>
+   812→                        {pr.label}
+   813→                      </span>
+   814→                    </div>
+   815→                    <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
+   816→                      <span>{formatDate(req.createdAt)}</span>
+   817→                      <div className="flex items-center gap-3">
+   818→                        {req.quotes && req.quotes.length > 0 && (
+   819→                          <span className="flex items-center gap-1">
+   820→                            <FileText className="h-3 w-3" />
+   821→                            {req.quotes.length} cot.
+   822→                          </span>
+   823→                        )}
+   824→                        <span className="font-semibold text-slate-700">{getBestQuoteAmount(req)}</span>
+   825→                      </div>
+   826→                    </div>
+   827→                  </CardContent>
+   828→                </Card>
+   829→              )
+   830→            })}
+   831→          </div>
+   832→
+   833→          {/* Pagination */}
+   834→          {totalPages > 1 && (
+   835→            <div className="flex items-center justify-center gap-2 pt-2">
+   836→              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="border-slate-300 text-slate-700">Anterior</Button>
+   837→              <span className="text-sm text-slate-600 font-medium">Pag. {page} de {totalPages}</span>
+   838→              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="border-slate-300 text-slate-700">Siguiente</Button>
+   839→            </div>
+   840→          )}
+   841→        </>
+   842→      )}
+   843→    </div>
+   844→  )
+   845→
+   846→  // ============================================================
+   847→  // RENDER: Detail View
+   848→  // ============================================================
+   849→
+   850→  const renderDetailView = () => {
+   851→    if (!selectedRequest) return null
+   852→    const req = selectedRequest
+   853→    const st = statusConfig[req.status] || statusConfig.PENDIENTE
+   854→    const pr = priorityConfig[req.priority] || priorityConfig.MEDIA
+   855→    const items = req.items || []
+   856→    const winnerQuote = req.quotes?.find(q => q.isWinner)
+   857→    const bestPrice = !winnerQuote && req.quotes && req.quotes.length > 0
+   858→      ? Math.min(...req.quotes.map(q => q.amount))
+   859→      : null
+   860→
+   861→    return (
+   862→      <div className="space-y-5">
+   863→        {/* Header */}
+   864→        <div className="flex items-start gap-3">
+   865→          <Button variant="outline" size="sm" onClick={goToList} className="shrink-0 border-slate-300 text-slate-700">
+   866→            <ArrowLeft className="h-4 w-4 mr-1" /> Volver
+   867→          </Button>
+   868→          <div className="flex-1 min-w-0">
+   869→            <div className="flex items-center gap-2 flex-wrap">
+   870→              <h2 className="text-xl font-bold text-blue-700">{correlativeStr(req.correlativeNumber)}</h2>
+   871→              <Badge className={`${st.bgColor} ${st.color} gap-1 border-0 font-medium`}>
+   872→                <span className="flex items-center gap-1">{st.icon} {st.label}</span>
+   873→              </Badge>
+   874→              <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full text-white ${pr.color}`}>
+   875→                {pr.label}
+   876→              </span>
+   877→            </div>
+   878→            <p className="text-slate-700 font-medium mt-1">{req.title || req.productDescription}</p>
+   879→          </div>
+   880→          <div className="flex items-center gap-1 shrink-0">
+   881→            <Button variant="outline" size="sm" onClick={() => exportPDF(req)} title="Exportar PDF" className="border-slate-300 text-slate-700">
+   882→              <FileText className="h-4 w-4" />
+   883→            </Button>
+   884→            <Button variant="outline" size="sm" onClick={() => exportExcel(req)} title="Exportar Excel" className="border-slate-300 text-slate-700">
+   885→              <FileSpreadsheet className="h-4 w-4" />
+   886→            </Button>
+   887→          </div>
+   888→        </div>
+   889→
+   890→        {/* Info Card */}
+   891→        <Card className="bg-white border-slate-200">
+   892→          <CardContent className="p-5">
+   893→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+   894→              {req.responsible && (
+   895→                <div>
+   896→                  <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Responsable</span>
+   897→                  <p className="text-sm font-medium text-slate-800">{req.responsible}</p>
+   898→                </div>
+   899→              )}
+   900→              <div>
+   901→                <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Fecha Creacion</span>
+   902→                <p className="text-sm text-slate-700">{formatDateTime(req.createdAt)}</p>
+   903→              </div>
+   904→              {req.notes && (
+   905→                <div className="sm:col-span-2">
+   906→                  <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Notas</span>
+   907→                  <p className="text-sm text-slate-700 mt-0.5 whitespace-pre-wrap">{req.notes}</p>
+   908→                </div>
+   909→              )}
+   910→              {req.reviewedBy && (
+   911→                <div>
+   912→                  <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Revisado por</span>
+   913→                  <p className="text-sm text-slate-700">{req.reviewedBy}</p>
+   914→                </div>
+   915→              )}
+   916→              {req.reviewNote && (
+   917→                <div className="sm:col-span-2">
+   918→                  <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Nota de Revision</span>
+   919→                  <p className="text-sm text-slate-700 mt-0.5 bg-amber-50 p-2 rounded border border-amber-200 whitespace-pre-wrap">{req.reviewNote}</p>
+   920→                </div>
+   921→              )}
+   922→            </div>
+   923→          </CardContent>
+   924→        </Card>
+   925→
+   926→        {/* Action Buttons */}
+   927→        <div className="flex items-center gap-2 flex-wrap">
+   928→          {req.status === 'PENDIENTE' && canApprove && (
+   929→            <>
+   930→              {isSupervisor && (
+   931→                <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={() => openReviewDialog('APROBADA_SUPERVISOR')}>
+   932→                  <ShieldCheck className="h-4 w-4" /> Aprobar (Supervisor)
+   933→                </Button>
+   934→              )}
+   935→              {isAdmin && (
+   936→                <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => openReviewDialog('APROBADA')}>
+   937→                  <CheckCircle className="h-4 w-4" /> Aprobar (Admin)
+   938→                </Button>
+   939→              )}
+   940→              <Button size="sm" variant="destructive" className="gap-1" onClick={() => openReviewDialog('RECHAZADA')}>
+   941→                <XCircle className="h-4 w-4" /> Rechazar
+   942→              </Button>
+   943→            </>
+   944→          )}
+   945→          {canEditRequest && (
+   946→            <>
+   947→              <Button size="sm" variant="outline" className="gap-1 border-slate-300 text-slate-700" onClick={() => openEditForm(req)}>
+   948→                <Pencil className="h-4 w-4" /> Editar
+   949→              </Button>
+   950→              <Button size="sm" variant="outline" className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" onClick={() => { setDeleteTarget({ type: 'request', id: req.id }); setDeleteDialogOpen(true) }}>
+   951→                <Trash2 className="h-4 w-4" /> Eliminar
+   952→              </Button>
+   953→            </>
+   954→          )}
+   955→          {req.status === 'APROBADA_SUPERVISOR' && isAdmin && (
+   956→            <>
+   957→              <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => openReviewDialog('APROBADA')}>
+   958→                <CheckCircle className="h-4 w-4" /> Aprobar (Admin)
+   959→              </Button>
+   960→              <Button size="sm" variant="destructive" className="gap-1" onClick={() => openReviewDialog('RECHAZADA')}>
+   961→                <XCircle className="h-4 w-4" /> Rechazar
+   962→              </Button>
+   963→            </>
+   964→          )}
+   965→          {req.status === 'APROBADA' && (
+   966→            <>
+   967→              <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={() => openReviewDialog('EN_COMPRA')}>
+   968→                <ShoppingBag className="h-4 w-4" /> Marcar En Compra
+   969→              </Button>
+   970→              <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => openReviewDialog('COMPRADA')}>
+   971→                <CheckCircle className="h-4 w-4" /> Marcar Comprada
+   972→              </Button>
+   973→            </>
+   974→          )}
+   975→          {req.status === 'EN_COMPRA' && (
+   976→            <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => openReviewDialog('COMPRADA')}>
+   977→              <CheckCircle className="h-4 w-4" /> Marcar Comprada
+   978→            </Button>
+   979→          )}
+   980→        </div>
+   981→
+   982→        {/* Items Section */}
+   983→        <Card className="bg-white border-slate-200">
+   984→          <CardHeader className="pb-3 pt-4 px-5">
+   985→            <div className="flex items-center justify-between">
+   986→              <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
+   987→                <Package className="h-4 w-4 text-blue-600" />
+   988→                Items de Compra ({items.length})
+   989→              </CardTitle>
+   990→              {canEditRequest && (
+   991→                <Button size="sm" onClick={openCreateItem} className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
+   992→                  <Plus className="h-4 w-4" /> Agregar Item
+   993→                </Button>
+   994→              )}
+   995→            </div>
+   996→          </CardHeader>
+   997→          <CardContent className="px-5 pb-4">
+   998→            {items.length === 0 ? (
+   999→              <div className="text-center py-8">
+  1000→                <Package className="h-12 w-12 mx-auto mb-2 text-slate-300" />
+  1001→                <p className="text-slate-600 font-medium">No hay items en esta solicitud</p>
+  1002→                <p className="text-sm text-slate-400 mt-1">Agrega los productos o servicios que necesitas comprar</p>
+  1003→                {canEditRequest && (
+  1004→                  <Button size="sm" variant="outline" onClick={openCreateItem} className="mt-3 gap-1.5 border-blue-300 text-blue-700 hover:bg-blue-50">
+  1005→                    <Plus className="h-4 w-4" /> Agregar Primer Item
+  1006→                  </Button>
+  1007→                )}
+  1008→              </div>
+  1009→            ) : (
+  1010→              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+  1011→                {items.map((item, idx) => (
+  1012→                  <div key={item.id} className="border border-slate-200 rounded-lg p-4 hover:bg-slate-50 transition-colors bg-white">
+  1013→                    <div className="flex items-start justify-between gap-3">
+  1014→                      <div className="min-w-0 flex-1">
+  1015→                        <div className="flex items-center gap-2 flex-wrap">
+  1016→                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-[11px] font-bold shrink-0">{idx + 1}</span>
+  1017→                          <span className="font-semibold text-slate-800">{item.productDescription}</span>
+  1018→                          {item.brand && <Badge variant="outline" className="text-[10px] border-slate-200 text-slate-600">{item.brand}</Badge>}
+  1019→                          <Badge variant="outline" className="text-[10px] border-blue-200 text-blue-700 bg-blue-50">Qty: {item.quantity}</Badge>
+  1020→                        </div>
+  1021→                        <div className="flex items-center gap-4 mt-1.5 text-sm text-slate-500 ml-8">
+  1022→                          {item.directProvider && <span>Proveedor: <span className="text-slate-700 font-medium">{item.directProvider}</span></span>}
+  1023→                        </div>
+  1024→                        {item.notes && (
+  1025→                          <p className="text-xs text-slate-500 mt-1 ml-8">{item.notes}</p>
+  1026→                        )}
+  1027→                        {item.productLink && (
+  1028→                          <a href={item.productLink} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-1 ml-8">
+  1029→                            <ExternalLink className="h-3 w-3" /> Ver enlace del producto
+  1030→                          </a>
+  1031→                        )}
+  1032→                        {item.referencePhotoUrl && (
+  1033→                          <div className="mt-2 ml-8">
+  1034→                            <img
+  1035→                              src={item.referencePhotoUrl}
+  1036→                              alt="Referencia"
+  1037→                              className="w-20 h-20 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity shadow-sm"
+  1038→                              onClick={() => { setPreviewImageUrl(item.referencePhotoUrl!); setImagePreviewOpen(true) }}
+  1039→                            />
+  1040→                          </div>
+  1041→                        )}
+  1042→                      </div>
+  1043→                      {canEditRequest && (
+  1044→                        <div className="flex gap-1 shrink-0">
+  1045→                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50" onClick={() => openEditItem(item)}>
+  1046→                            <Pencil className="h-3.5 w-3.5" />
+  1047→                          </Button>
+  1048→                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50" onClick={() => { setDeleteTarget({ type: 'item', id: item.id }); setDeleteDialogOpen(true) }}>
+  1049→                            <Trash2 className="h-3.5 w-3.5" />
+  1050→                          </Button>
+  1051→                        </div>
+  1052→                      )}
+  1053→                    </div>
+  1054→                  </div>
+  1055→                ))}
+  1056→              </div>
+  1057→            )}
+  1058→          </CardContent>
+  1059→        </Card>
+  1060→
+  1061→        {/* Quotes Section */}
+  1062→        <Card className="bg-white border-slate-200">
+  1063→          <CardHeader className="pb-3 pt-4 px-5">
+  1064→            <div className="flex items-center justify-between">
+  1065→              <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
+  1066→                <FileText className="h-4 w-4 text-blue-600" />
+  1067→                Cotizaciones
+  1068→                {req.quotes && req.quotes.length > 0 && (
+  1069→                  <Badge variant="secondary" className="text-xs">{req.quotes.length}</Badge>
+  1070→                )}
+  1071→              </CardTitle>
+  1072→              <Button size="sm" variant="outline" className="gap-1 border-slate-300 text-slate-700" onClick={openQuoteDialog}>
+  1073→                <Plus className="h-3.5 w-3.5" /> Agregar Cotizacion
+  1074→              </Button>
+  1075→            </div>
+  1076→          </CardHeader>
+  1077→          <CardContent className="px-5 pb-4">
+  1078→            {!req.quotes || req.quotes.length === 0 ? (
+  1079→              <div className="text-center py-8 text-slate-500">
+  1080→                <FileText className="h-10 w-10 mx-auto mb-2 text-slate-300" />
+  1081→                <p className="font-medium text-slate-600">No hay cotizaciones registradas</p>
+  1082→                <p className="text-xs mt-1">Agrega cotizaciones de proveedores para esta solicitud</p>
+  1083→              </div>
+  1084→            ) : (
+  1085→              <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+  1086→                {req.quotes.map(q => {
+  1087→                  const isWinner = q.isWinner
+  1088→                  const isBestPrice = bestPrice !== null && q.amount === bestPrice
+  1089→                  return (
+  1090→                    <div key={q.id} className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${isWinner ? 'bg-emerald-50 border-emerald-300' : isBestPrice ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-200'}`}>
+  1091→                      <button onClick={() => !isWinner && setWinner(q.id)} className={`mt-0.5 shrink-0 ${isWinner ? 'text-yellow-500' : 'text-slate-300 hover:text-yellow-400'} transition-colors`} title={isWinner ? 'Cotización ganadora' : 'Seleccionar como ganadora'}>
+  1092→                        <Star className={`h-5 w-5 ${isWinner ? 'fill-current' : ''}`} />
+  1093→                      </button>
+  1094→                      <div className="flex-1 min-w-0">
+  1095→                        <div className="flex items-center gap-2 flex-wrap">
+  1096→                          <span className="font-medium text-sm text-slate-800">{q.providerName}</span>
+  1097→                          {isWinner && <Badge className="bg-emerald-100 text-emerald-700 text-[10px] gap-0.5 border-0"><CheckCircle className="h-3 w-3" /> Ganadora</Badge>}
+  1098→                          {isBestPrice && !isWinner && <Badge className="bg-blue-100 text-blue-700 text-[10px] border-0">Mejor precio</Badge>}
+  1099→                        </div>
+  1100→                        <div className="flex items-center gap-3 mt-1">
+  1101→                          <span className="text-lg font-bold text-slate-900">{formatCLP(q.amount)}</span>
+  1102→                          <span className="text-xs text-slate-400 uppercase">{q.currency}</span>
+  1103→                        </div>
+  1104→                        {q.notes && <p className="text-xs text-slate-500 mt-1">{q.notes}</p>}
+  1105→                        {q.fileName && (
+  1106→                          <a href={q.fileUrl || '#'} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-1">
+  1107→                            <Download className="h-3 w-3" /> {q.fileName}
+  1108→                          </a>
+  1109→                        )}
+  1110→                        <span className="text-[10px] text-slate-400 mt-1 block">{formatDateTime(q.createdAt)}</span>
+  1111→                      </div>
+  1112→                      <Button variant="ghost" size="sm" className="shrink-0 text-slate-400 hover:text-red-500 h-8 w-8 p-0" onClick={() => { setDeleteTarget({ type: 'quote', id: q.id }); setDeleteDialogOpen(true) }}>
+  1113→                        <Trash2 className="h-4 w-4" />
+  1114→                      </Button>
+  1115→                    </div>
+  1116→                  )
+  1117→                })}
+  1118→              </div>
+  1119→            )}
+  1120→          </CardContent>
+  1121→        </Card>
+  1122→      </div>
+  1123→    )
+  1124→  }
+  1125→
+  1126→  // ============================================================
+  1127→  // PDF Export
+  1128→  // ============================================================
+  1129→
+  1130→  const exportPDF = (req: PurchaseRequest) => {
+  1131→    const doc = new jsPDF()
+  1132→    const sc = correlativeStr(req.correlativeNumber)
+  1133→    const st = statusConfig[req.status] || { label: req.status }
+  1134→
+  1135→    doc.setFontSize(18)
+  1136→    doc.setTextColor(30, 64, 175)
+  1137→    doc.text(`Solicitud de Compra ${sc}`, 14, 22)
+  1138→    doc.setFontSize(10)
+  1139→    doc.setTextColor(100)
+  1140→    doc.text(`Fecha: ${formatDate(req.createdAt)}`, 14, 30)
+  1141→    doc.text(`Estado: ${st.label}`, 14, 36)
+  1142→    doc.setDrawColor(200)
+  1143→    doc.line(14, 40, 196, 40)
+  1144→
+  1145→    let y = 48
+  1146→    const addField = (label: string, value: string) => {
+  1147→      doc.setFontSize(10)
+  1148→      doc.setTextColor(100)
+  1149→      doc.text(`${label}:`, 14, y)
+  1150→      doc.setTextColor(30)
+  1151→      doc.text(value || '-', 60, y)
+  1152→      y += 7
+  1153→    }
+  1154→
+  1155→    addField('Titulo', req.title || req.productDescription)
+  1156→    addField('Responsable', req.responsible || '-')
+  1157→    if (req.notes) addField('Notas', req.notes)
+  1158→    if (req.reviewedBy) addField('Revisado por', req.reviewedBy)
+  1159→    if (req.reviewNote) addField('Nota Revision', req.reviewNote)
+  1160→
+  1161→    // Items table
+  1162→    const items = req.items || []
+  1163→    if (items.length > 0) {
+  1164→      y += 5
+  1165→      doc.setFontSize(12)
+  1166→      doc.setTextColor(30, 64, 175)
+  1167→      doc.text('Items de Compra', 14, y)
+  1168→      y += 7
+  1169→      doc.setFontSize(9)
+  1170→      doc.setFillColor(240, 240, 240)
+  1171→      doc.rect(14, y - 4, 182, 8, 'F')
+  1172→      doc.setTextColor(60)
+  1173→      doc.text('N', 16, y)
+  1174→      doc.text('Producto', 24, y)
+  1175→      doc.text('Marca', 90, y)
+  1176→      doc.text('Cant.', 125, y)
+  1177→      doc.text('Proveedor', 145, y)
+  1178→      y += 8
+  1179→
+  1180→      items.forEach((item, idx) => {
+  1181→        if (y > 270) { doc.addPage(); y = 20 }
+  1182→        doc.setTextColor(30)
+  1183→        doc.text(String(idx + 1), 16, y)
+  1184→        const descLines = doc.splitTextToSize(item.productDescription, 62)
+  1185→        doc.text(descLines, 24, y)
+  1186→        doc.text((item.brand || '-').substring(0, 15), 90, y)
+  1187→        doc.text(String(item.quantity), 128, y)
+  1188→        doc.text((item.directProvider || '-').substring(0, 18), 145, y)
+  1189→        y += Math.max(descLines.length * 4, 5) + 3
+  1190→      })
+  1191→    }
+  1192→
+  1193→    // Quotes table
+  1194→    if (req.quotes && req.quotes.length > 0) {
+  1195→      y += 5
+  1196→      doc.setFontSize(12)
+  1197→      doc.setTextColor(30, 64, 175)
+  1198→      doc.text('Cotizaciones', 14, y)
+  1199→      y += 7
+  1200→      doc.setFontSize(9)
+  1201→      doc.setFillColor(240, 240, 240)
+  1202→      doc.rect(14, y - 4, 182, 8, 'F')
+  1203→      doc.setTextColor(60)
+  1204→      doc.text('Proveedor', 16, y)
+  1205→      doc.text('Monto', 90, y)
+  1206→      doc.text('Moneda', 130, y)
+  1207→      doc.text('Ganadora', 155, y)
+  1208→      y += 8
+  1209→
+  1210→      req.quotes.forEach(q => {
+  1211→        if (y > 270) { doc.addPage(); y = 20 }
+  1212→        doc.setTextColor(q.isWinner ? 0 : 30)
+  1213→        doc.text(q.providerName.substring(0, 20), 16, y)
+  1214→        doc.text(formatCLP(q.amount), 90, y)
+  1215→        doc.text(q.currency, 130, y)
+  1216→        doc.text(q.isWinner ? 'Si' : '', 158, y)
+  1217→        y += 7
+  1218→      })
+  1219→    }
+  1220→
+  1221→    doc.save(`solicitud-compra-${sc}.pdf`)
+  1222→  }
+  1223→
+  1224→  // ============================================================
+  1225→  // Excel Export
+  1226→  // ============================================================
+  1227→
+  1228→  const exportExcel = async (req: PurchaseRequest) => {
+  1229→    const workbook = new ExcelJS.Workbook()
+  1230→    const sc = correlativeStr(req.correlativeNumber)
+  1231→    const st = statusConfig[req.status] || { label: req.status }
+  1232→    const items = req.items || []
+  1233→
+  1234→    // Sheet 1: Resumen
+  1235→    const ws1 = workbook.addWorksheet('Resumen')
+  1236→    ws1.columns = [
+  1237→      { header: 'Campo', key: 'campo', width: 25 },
+  1238→      { header: 'Valor', key: 'valor', width: 50 },
+  1239→    ]
+  1240→    ws1.addRows([
+  1241→      { campo: 'Correlativo', valor: sc },
+  1242→      { campo: 'Titulo', valor: req.title || req.productDescription },
+  1243→      { campo: 'Prioridad', valor: priorityConfig[req.priority]?.label || req.priority },
+  1244→      { campo: 'Estado', valor: st.label },
+  1245→      { campo: 'Responsable', valor: req.responsible || '-' },
+  1246→      { campo: 'Notas', valor: req.notes || '-' },
+  1247→      { campo: 'Fecha Creacion', valor: formatDateTime(req.createdAt) },
+  1248→      { campo: 'Revisado por', valor: req.reviewedBy || '-' },
+  1249→      { campo: 'Nota Revision', valor: req.reviewNote || '-' },
+  1250→    ])
+  1251→    ws1.getRow(1).font = { bold: true, color: { argb: 'FF1E40AF' } }
+  1252→
+  1253→    // Sheet 2: Items
+  1254→    if (items.length > 0) {
+  1255→      const ws2 = workbook.addWorksheet('Items')
+  1256→      ws2.columns = [
+  1257→        { header: 'N', key: 'n', width: 5 },
+  1258→        { header: 'Producto', key: 'product', width: 35 },
+  1259→        { header: 'Marca', key: 'brand', width: 15 },
+  1260→        { header: 'Cantidad', key: 'qty', width: 10 },
+  1261→        { header: 'Proveedor', key: 'provider', width: 20 },
+  1262→        { header: 'Link', key: 'link', width: 30 },
+  1263→        { header: 'Notas', key: 'notes', width: 25 },
+  1264→      ]
+  1265→      items.forEach((item, idx) => {
+  1266→        ws2.addRow({ n: idx + 1, product: item.productDescription, brand: item.brand || '-', qty: item.quantity, provider: item.directProvider || '-', link: item.productLink || '-', notes: item.notes || '-' })
+  1267→      })
+  1268→      ws2.getRow(1).font = { bold: true, color: { argb: 'FF1E40AF' } }
+  1269→    }
+  1270→
+  1271→    // Sheet 3: Cotizaciones
+  1272→    if (req.quotes && req.quotes.length > 0) {
+  1273→      const ws3 = workbook.addWorksheet('Cotizaciones')
+  1274→      ws3.columns = [
+  1275→        { header: 'Proveedor', key: 'provider', width: 25 },
+  1276→        { header: 'Monto', key: 'amount', width: 18 },
+  1277→        { header: 'Moneda', key: 'currency', width: 10 },
+  1278→        { header: 'Ganadora', key: 'winner', width: 12 },
+  1279→        { header: 'Notas', key: 'notes', width: 30 },
+  1280→      ]
+  1281→      req.quotes.forEach(q => {
+  1282→        ws3.addRow({ provider: q.providerName, amount: q.amount, currency: q.currency, winner: q.isWinner ? 'Si' : 'No', notes: q.notes || '-' })
+  1283→      })
+  1284→      ws3.getRow(1).font = { bold: true, color: { argb: 'FF1E40AF' } }
+  1285→      ws3.getColumn('amount').numFmt = '#,##0'
+  1286→    }
+  1287→
+  1288→    const buffer = await workbook.xlsx.writeBuffer()
+  1289→    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  1290→    const url = URL.createObjectURL(blob)
+  1291→    const a = document.createElement('a')
+  1292→    a.href = url
+  1293→    a.download = `solicitud-compra-${sc}.xlsx`
+  1294→    a.click()
+  1295→    URL.revokeObjectURL(url)
+  1296→  }
+  1297→
+  1298→  // ============================================================
+  1299→  // RENDER: Create / Edit Request Dialog
+  1300→  // ============================================================
+  1301→
+  1302→  const renderFormDialog = () => (
+  1303→    <Dialog open={formOpen} onOpenChange={v => { setFormOpen(v); if (!v) resetForm() }}>
+  1304→      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto bg-white border-slate-200">
+  1305→        <DialogHeader>
+  1306→          <DialogTitle className="text-slate-800">{editingId ? 'Editar Solicitud' : 'Nueva Solicitud de Compra'}</DialogTitle>
+  1307→          <DialogDescription className="text-slate-500">
+  1308→            {editingId ? 'Modifica los campos de la solicitud' : 'Completa los datos generales. Podras agregar multiples items despues.'}
+  1309→          </DialogDescription>
+  1310→        </DialogHeader>
+  1311→
+  1312→        <div className="space-y-4 py-2">
+  1313→          <div className="space-y-1.5">
+  1314→            <Label htmlFor="title" className="text-sm font-medium text-slate-700">Titulo de la Solicitud <span className="text-red-500">*</span></Label>
+  1315→            <Input id="title" value={formData.title} onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))} placeholder="Ej: Compra materiales junio 2026" className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
+  1316→          </div>
+  1317→
+  1318→          <div className="space-y-1.5">
+  1319→            <Label className="text-sm font-medium text-slate-700">Prioridad</Label>
+  1320→            <Select value={formData.priority} onValueChange={v => setFormData(prev => ({ ...prev, priority: v }))}>
+  1321→              <SelectTrigger className="bg-white border-slate-300 text-slate-800">
+  1322→                <SelectValue />
+  1323→              </SelectTrigger>
+  1324→              <SelectContent className="bg-white">
+  1325→                {Object.entries(priorityConfig).map(([k, v]) => (
+  1326→                  <SelectItem key={k} value={k}>
+  1327→                    <span className="flex items-center gap-2"><span className={`w-2.5 h-2.5 rounded-full ${v.color}`} />{v.label}</span>
+  1328→                  </SelectItem>
+  1329→                ))}
+  1330→              </SelectContent>
+  1331→            </Select>
+  1332→          </div>
+  1333→
+  1334→          <div className="space-y-1.5">
+  1335→            <Label htmlFor="responsible" className="text-sm font-medium text-slate-700">Responsable</Label>
+  1336→            <Input id="responsible" value={formData.responsible} onChange={e => setFormData(prev => ({ ...prev, responsible: e.target.value }))} placeholder="Nombre del responsable..." className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
+  1337→          </div>
+  1338→
+  1339→          <div className="space-y-1.5">
+  1340→            <Label htmlFor="notes" className="text-sm font-medium text-slate-700">Notas</Label>
+  1341→            <Textarea id="notes" value={formData.notes} onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))} placeholder="Observaciones generales..." rows={2} className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
+  1342→          </div>
+  1343→        </div>
+  1344→
+  1345→        <DialogFooter>
+  1346→          <Button variant="outline" onClick={() => { setFormOpen(false); resetForm() }} className="border-slate-300 text-slate-700">Cancelar</Button>
+  1347→          <Button onClick={handleFormSubmit} className="gap-1 bg-blue-600 hover:bg-blue-700 text-white" disabled={!formData.title.trim()}>
+  1348→            <Send className="h-4 w-4" />
+  1349→            {editingId ? 'Guardar Cambios' : 'Crear Solicitud'}
+  1350→          </Button>
+  1351→        </DialogFooter>
+  1352→      </DialogContent>
+  1353→    </Dialog>
+  1354→  )
+  1355→
+  1356→  // ============================================================
+  1357→  // RENDER: Item Form Dialog
+  1358→  // ============================================================
+  1359→
+  1360→  const renderItemFormDialog = () => (
+  1361→    <Dialog open={itemFormOpen} onOpenChange={setItemFormOpen}>
+  1362→      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto bg-white border-slate-200">
+  1363→        <DialogHeader>
+  1364→          <DialogTitle className="text-slate-800">{editingItem ? 'Editar Item de Compra' : 'Agregar Item de Compra'}</DialogTitle>
+  1365→          <DialogDescription className="text-slate-500">
+  1366→            {editingItem ? 'Modifica los datos del item' : 'Agrega un producto o servicio a la solicitud de compra'}
+  1367→          </DialogDescription>
+  1368→        </DialogHeader>
+  1369→
+  1370→        <div className="space-y-4 py-2">
+  1371→          <div className="space-y-1.5">
+  1372→            <Label htmlFor="itemProductDescription" className="text-sm font-medium text-slate-700">Descripcion del Producto <span className="text-red-500">*</span></Label>
+  1373→            <Textarea id="itemProductDescription" value={itemForm.productDescription} onChange={e => setItemForm(prev => ({ ...prev, productDescription: e.target.value }))} placeholder="Describe el producto o servicio..." rows={2} className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
+  1374→          </div>
+  1375→
+  1376→          <div className="grid grid-cols-2 gap-3">
+  1377→            <div className="space-y-1.5">
+  1378→              <Label htmlFor="itemBrand" className="text-sm font-medium text-slate-700">Marca</Label>
+  1379→              <Input id="itemBrand" value={itemForm.brand} onChange={e => setItemForm(prev => ({ ...prev, brand: e.target.value }))} placeholder="Ej: Bosch, 3M..." className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
+  1380→            </div>
+  1381→            <div className="space-y-1.5">
+  1382→              <Label htmlFor="itemQuantity" className="text-sm font-medium text-slate-700">Cantidad</Label>
+  1383→              <Input id="itemQuantity" type="number" min="1" value={itemForm.quantity} onChange={e => setItemForm(prev => ({ ...prev, quantity: e.target.value }))} className="bg-white border-slate-300 text-slate-800" />
+  1384→            </div>
+  1385→          </div>
+  1386→
+  1387→          <div className="space-y-1.5">
+  1388→            <Label htmlFor="itemProductLink" className="text-sm font-medium text-slate-700">Link del Producto</Label>
+  1389→            <Input id="itemProductLink" value={itemForm.productLink} onChange={e => setItemForm(prev => ({ ...prev, productLink: e.target.value }))} placeholder="https://..." className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
+  1390→          </div>
+  1391→
+  1392→          <div className="space-y-1.5">
+  1393→            <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+  1394→              <Camera className="w-4 h-4 text-blue-600" />
+  1395→              Foto de Referencia
+  1396→            </Label>
+  1397→            {itemForm.referencePhotoUrl ? (
+  1398→              <div className="relative inline-block">
+  1399→                <img src={itemForm.referencePhotoUrl} alt="Referencia" className="h-24 w-24 object-cover rounded-lg border border-slate-200 shadow-sm cursor-pointer hover:opacity-80" onClick={() => { setPreviewImageUrl(itemForm.referencePhotoUrl); setImagePreviewOpen(true) }} />
+  1400→                <Button variant="destructive" size="sm" className="absolute top-1 right-1 h-6 w-6 p-0" onClick={() => setItemForm(prev => ({ ...prev, referencePhotoUrl: '' }))}>
+  1401→                  <X className="h-3 w-3" />
+  1402→                </Button>
+  1403→              </div>
+  1404→            ) : (
+  1405→              <label className="flex flex-col items-center justify-center h-24 w-24 border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors">
+  1406→                {uploadingItemPhoto ? (
+  1407→                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+  1408→                ) : (
+  1409→                  <div className="text-center">
+  1410→                    <Camera className="h-6 w-6 mx-auto text-slate-400" />
+  1411→                    <span className="text-[10px] text-slate-500 mt-1 block">Subir foto</span>
+  1412→                  </div>
+  1413→                )}
+  1414→                <input ref={itemPhotoInputRef} type="file" accept="image/*" className="hidden" onChange={handleItemPhotoUpload} />
+  1415→              </label>
+  1416→            )}
+  1417→          </div>
+  1418→
+  1419→          <div className="space-y-1.5">
+  1420→            <Label htmlFor="itemDirectProvider" className="text-sm font-medium text-slate-700">Proveedor Directo</Label>
+  1421→            <Input id="itemDirectProvider" value={itemForm.directProvider} onChange={e => setItemForm(prev => ({ ...prev, directProvider: e.target.value }))} placeholder="Nombre del proveedor sugerido..." className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
+  1422→          </div>
+  1423→
+  1424→          <div className="space-y-1.5">
+  1425→            <Label htmlFor="itemNotes" className="text-sm font-medium text-slate-700">Notas</Label>
+  1426→            <Textarea id="itemNotes" value={itemForm.notes} onChange={e => setItemForm(prev => ({ ...prev, notes: e.target.value }))} placeholder="Observaciones adicionales..." rows={2} className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
+  1427→          </div>
+  1428→        </div>
+  1429→
+  1430→        <DialogFooter>
+  1431→          <Button variant="outline" onClick={() => setItemFormOpen(false)} disabled={savingItem} className="border-slate-300 text-slate-700">Cancelar</Button>
+  1432→          <Button onClick={handleSaveItem} disabled={!itemForm.productDescription.trim() || savingItem} className="bg-blue-600 hover:bg-blue-700 text-white">
+  1433→            {savingItem ? 'Guardando...' : editingItem ? 'Guardar Cambios' : 'Agregar Item'}
+  1434→          </Button>
+  1435→        </DialogFooter>
+  1436→      </DialogContent>
+  1437→    </Dialog>
+  1438→  )
+  1439→
+  1440→  // ============================================================
+  1441→  // RENDER: Quote Dialog
+  1442→  // ============================================================
+  1443→
+  1444→  const renderQuoteDialog = () => (
+  1445→    <Dialog open={quoteDialogOpen} onOpenChange={v => { setQuoteDialogOpen(v); if (!v) resetQuoteForm() }}>
+  1446→      <DialogContent className="max-w-md bg-white border-slate-200">
+  1447→        <DialogHeader>
+  1448→          <DialogTitle className="text-slate-800">Agregar Cotizacion</DialogTitle>
+  1449→          <DialogDescription className="text-slate-500">Ingresa los datos de la cotizacion del proveedor</DialogDescription>
+  1450→        </DialogHeader>
+  1451→
+  1452→        <div className="space-y-4 py-2">
+  1453→          <div className="space-y-1.5">
+  1454→            <Label htmlFor="providerName" className="text-sm font-medium text-slate-700">Proveedor <span className="text-red-500">*</span></Label>
+  1455→            <Input id="providerName" value={quoteFormData.providerName} onChange={e => setQuoteFormData(prev => ({ ...prev, providerName: e.target.value }))} placeholder="Nombre del proveedor..." className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
+  1456→          </div>
+  1457→
+  1458→          <div className="grid grid-cols-3 gap-3">
+  1459→            <div className="col-span-2 space-y-1.5">
+  1460→              <Label htmlFor="quoteAmount" className="text-sm font-medium text-slate-700">Monto <span className="text-red-500">*</span></Label>
+  1461→              <Input id="quoteAmount" type="number" min="0" step="any" value={quoteFormData.amount} onChange={e => setQuoteFormData(prev => ({ ...prev, amount: e.target.value }))} placeholder="0" className="bg-white border-slate-300 text-slate-800" />
+  1462→            </div>
+  1463→            <div className="space-y-1.5">
+  1464→              <Label className="text-sm font-medium text-slate-700">Moneda</Label>
+  1465→              <Select value={quoteFormData.currency} onValueChange={v => setQuoteFormData(prev => ({ ...prev, currency: v }))}>
+  1466→                <SelectTrigger className="bg-white border-slate-300 text-slate-800"><SelectValue /></SelectTrigger>
+  1467→                <SelectContent className="bg-white"><SelectItem value="CLP">CLP</SelectItem><SelectItem value="USD">USD</SelectItem><SelectItem value="EUR">EUR</SelectItem></SelectContent>
+  1468→              </Select>
+  1469→            </div>
+  1470→          </div>
+  1471→
+  1472→          <div className="space-y-1.5">
+  1473→            <Label className="text-sm font-medium text-slate-700">Archivo Adjunto</Label>
+  1474→            {quoteFormData.fileUrl ? (
+  1475→              <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
+  1476→                <FileText className="h-4 w-4 text-slate-500 shrink-0" />
+  1477→                <span className="text-sm text-slate-700 truncate flex-1">{quoteFormData.fileName}</span>
+  1478→                <button onClick={() => setQuoteFormData(prev => ({ ...prev, fileUrl: '', fileName: '', fileType: '' }))} className="text-red-500 hover:text-red-700 shrink-0"><X className="h-4 w-4" /></button>
+  1479→              </div>
+  1480→            ) : (
+  1481→              <div onClick={() => quoteFileInputRef.current?.click()} className="flex items-center justify-center h-16 border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+  1482→                {uploadingQuoteFile ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600" /> : <div className="text-center"><Upload className="h-5 w-5 mx-auto text-slate-400" /><span className="text-[10px] text-slate-500 mt-0.5 block">Subir archivo</span></div>}
+  1483→              </div>
+  1484→            )}
+  1485→            <input ref={quoteFileInputRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" className="hidden" onChange={handleQuoteFileUpload} />
+  1486→          </div>
+  1487→
+  1488→          <div className="space-y-1.5">
+  1489→            <Label htmlFor="quoteNotes" className="text-sm font-medium text-slate-700">Notas</Label>
+  1490→            <Textarea id="quoteNotes" value={quoteFormData.notes} onChange={e => setQuoteFormData(prev => ({ ...prev, notes: e.target.value }))} placeholder="Observaciones..." rows={2} className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
+  1491→          </div>
+  1492→        </div>
+  1493→
+  1494→        <DialogFooter>
+  1495→          <Button variant="outline" onClick={() => { setQuoteDialogOpen(false); resetQuoteForm() }} className="border-slate-300 text-slate-700">Cancelar</Button>
+  1496→          <Button onClick={handleQuoteSubmit} className="gap-1 bg-blue-600 hover:bg-blue-700 text-white"><Plus className="h-4 w-4" />Agregar</Button>
+  1497→        </DialogFooter>
+  1498→      </DialogContent>
+  1499→    </Dialog>
+  1500→  )
+  1501→
+  1502→  // ============================================================
+  1503→  // RENDER: Review Dialog
+  1504→  // ============================================================
+  1505→
+  1506→  const renderReviewDialog = () => {
+  1507→    const actionLabels: Record<string, string> = {
+  1508→      APROBADA: 'Aprobar (Admin)', APROBADA_SUPERVISOR: 'Aprobar (Supervisor)', RECHAZADA: 'Rechazar', EN_COMPRA: 'Marcar En Compra', COMPRADA: 'Marcar Comprada',
+  1509→    }
+  1510→    return (
+  1511→      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+  1512→        <DialogContent className="max-w-sm bg-white border-slate-200">
+  1513→          <DialogHeader>
+  1514→            <DialogTitle className="text-slate-800">{reviewAction ? actionLabels[reviewAction] : 'Accion'}</DialogTitle>
+  1515→            <DialogDescription className="text-slate-500">
+  1516→              {reviewAction === 'RECHAZADA' && 'Indica el motivo del rechazo'}
+  1517→              {reviewAction === 'APROBADA' && 'Confirmas la aprobacion de esta solicitud?'}
+  1518→              {reviewAction === 'APROBADA_SUPERVISOR' && 'Confirmas la aprobacion como supervisor?'}
+  1519→              {reviewAction === 'EN_COMPRA' && 'Confirmas que esta solicitud esta en proceso de compra?'}
+  1520→              {reviewAction === 'COMPRADA' && 'Confirmas que esta solicitud ya fue comprada?'}
+  1521→            </DialogDescription>
+  1522→          </DialogHeader>
+  1523→          <div className="space-y-3 py-2">
+  1524→            <div className="space-y-1.5">
+  1525→              <Label htmlFor="reviewedBy" className="text-sm font-medium text-slate-700">Revisado por</Label>
+  1526→              <Input id="reviewedBy" value={reviewedBy} onChange={e => setReviewedBy(e.target.value)} placeholder="Tu nombre..." className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
+  1527→            </div>
+  1528→            <div className="space-y-1.5">
+  1529→              <Label htmlFor="reviewNote" className="text-sm font-medium text-slate-700">Nota</Label>
+  1530→              <Textarea id="reviewNote" value={reviewNote} onChange={e => setReviewNote(e.target.value)} placeholder={reviewAction === 'RECHAZADA' ? 'Motivo del rechazo...' : 'Observaciones (opcional)...'} rows={2} className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400" />
+  1531→            </div>
+  1532→          </div>
+  1533→          <DialogFooter>
+  1534→            <Button variant="outline" onClick={() => setReviewDialogOpen(false)} className="border-slate-300 text-slate-700">Cancelar</Button>
+  1535→            <Button onClick={handleReviewSubmit} className={reviewAction === 'RECHAZADA' ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}>
+  1536→              {reviewAction ? actionLabels[reviewAction] : 'Confirmar'}
+  1537→            </Button>
+  1538→          </DialogFooter>
+  1539→        </DialogContent>
+  1540→      </Dialog>
+  1541→    )
+  1542→  }
+  1543→
+  1544→  // ============================================================
+  1545→  // RENDER: Delete Confirmation
+  1546→  // ============================================================
+  1547→
+  1548→  const renderDeleteDialog = () => (
+  1549→    <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+  1550→      <AlertDialogContent className="bg-white">
+  1551→        <AlertDialogHeader>
+  1552→          <AlertDialogTitle className="text-slate-800">Estas seguro?</AlertDialogTitle>
+  1553→          <AlertDialogDescription className="text-slate-600">
+  1554→            {deleteTarget?.type === 'request'
+  1555→              ? 'Esta accion eliminara la solicitud de compra y todos sus items y cotizaciones. No se puede deshacer.'
+  1556→              : deleteTarget?.type === 'item'
+  1557→              ? 'Esta accion eliminara este item de compra. No se puede deshacer.'
+  1558→              : 'Esta accion eliminara la cotizacion. No se puede deshacer.'}
+  1559→          </AlertDialogDescription>
+  1560→        </AlertDialogHeader>
+  1561→        <AlertDialogFooter>
+  1562→          <AlertDialogCancel onClick={() => { setDeleteDialogOpen(false); setDeleteTarget(null) }} className="border-slate-300 text-slate-700">Cancelar</AlertDialogCancel>
+  1563→          <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 text-white">Eliminar</AlertDialogAction>
+  1564→        </AlertDialogFooter>
+  1565→      </AlertDialogContent>
+  1566→    </AlertDialog>
+  1567→  )
+  1568→
+  1569→  // ============================================================
+  1570→  // RENDER: Image Preview
+  1571→  // ============================================================
+  1572→
+  1573→  const renderImagePreview = () => (
+  1574→    <Dialog open={imagePreviewOpen} onOpenChange={setImagePreviewOpen}>
+  1575→      <DialogContent className="max-w-lg p-2 bg-black">
+  1576→        <DialogHeader className="sr-only">
+  1577→          <DialogTitle>Vista previa de imagen</DialogTitle>
+  1578→          <DialogDescription>Imagen de referencia ampliada</DialogDescription>
+  1579→        </DialogHeader>
+  1580→        {previewImageUrl && <img src={previewImageUrl} alt="Vista previa" className="w-full h-auto rounded-lg" />}
+  1581→      </DialogContent>
+  1582→    </Dialog>
+  1583→  )
+  1584→
+  1585→  // ============================================================
+  1586→  // MAIN RENDER
+  1587→  // ============================================================
+  1588→
+  1589→  return (
+  1590→    <div className="w-full">
+  1591→      {view === 'list' ? renderListView() : renderDetailView()}
+  1592→      {renderFormDialog()}
+  1593→      {renderItemFormDialog()}
+  1594→      {renderQuoteDialog()}
+  1595→      {renderReviewDialog()}
+  1596→      {renderDeleteDialog()}
+  1597→      {renderImagePreview()}
+  1598→    </div>
+  1599→  )
+  1600→}
+  1601→

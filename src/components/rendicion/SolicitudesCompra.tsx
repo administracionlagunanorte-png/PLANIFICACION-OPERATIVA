@@ -243,16 +243,18 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
     }
   }
 
-  const fetchRequestDetail = async (id: string) => {
+  const fetchRequestDetail = async (id: string): Promise<PurchaseRequest | null> => {
     try {
       const res = await fetch(`/api/purchase-requests/${id}`)
       if (res.ok) {
         const data = await res.json()
         setSelectedRequest(data)
+        return data
       }
     } catch (err) {
       console.error('Error fetching request detail:', err)
     }
+    return null
   }
 
   useEffect(() => {
@@ -345,11 +347,17 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
       }
 
       if (res.ok) {
+        const created = await res.json()
         toast({ title: editingId ? 'Solicitud actualizada' : 'Solicitud creada', description: editingId ? 'La solicitud se actualizó correctamente' : 'La solicitud se creó correctamente. Ahora puedes agregar items.' })
         setFormOpen(false)
         resetForm()
         if (editingId && selectedRequest?.id === editingId) {
-          const updated = await fetchRequestDetail(editingId)
+          await fetchRequestDetail(editingId)
+        } else if (!editingId && created.id) {
+          // Navigate to detail view after creating a new request
+          await fetchRequests()
+          goToDetail(created)
+          return
         }
         fetchRequests()
       } else {
@@ -453,8 +461,7 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
       if (res.ok) {
         toast({ title: editingItem ? 'Item actualizado' : 'Item agregado', description: editingItem ? 'Los cambios han sido guardados' : 'Se ha agregado un nuevo item a la solicitud' })
         setItemFormOpen(false)
-        const updated = await fetchRequestDetail(selectedRequest.id)
-        if (updated) setSelectedRequest(updated)
+        await fetchRequestDetail(selectedRequest.id)
       } else {
         const err = await res.json()
         toast({ title: 'Error', description: err.error || 'No se pudo guardar el item', variant: 'destructive' })
@@ -483,8 +490,7 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
       const res = await fetch(`/api/purchase-items/${itemId}`, { method: 'DELETE' })
       if (res.ok) {
         toast({ title: 'Item eliminado', description: 'El item ha sido eliminado correctamente' })
-        const updated = await fetchRequestDetail(selectedRequest.id)
-        if (updated) setSelectedRequest(updated)
+        await fetchRequestDetail(selectedRequest.id)
       } else {
         const err = await res.json()
         toast({ title: 'Error', description: err.error || 'No se pudo eliminar', variant: 'destructive' })
@@ -702,6 +708,9 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
     return formatCLP(min)
   }
 
+  // Any user can add/edit items on a PENDIENTE request
+  const canEditItems = selectedRequest?.status === 'PENDIENTE'
+  // Only admins/supervisors can edit/delete the request header itself
   const canEditRequest = selectedRequest?.status === 'PENDIENTE' && canEditAll
 
   // ============================================================
@@ -987,7 +996,7 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
                 <Package className="h-4 w-4 text-blue-600" />
                 Items de Compra ({items.length})
               </CardTitle>
-              {canEditRequest && (
+              {canEditItems && (
                 <Button size="sm" onClick={openCreateItem} className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
                   <Plus className="h-4 w-4" /> Agregar Item
                 </Button>
@@ -1000,7 +1009,7 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
                 <Package className="h-12 w-12 mx-auto mb-2 text-slate-300" />
                 <p className="text-slate-600 font-medium">No hay items en esta solicitud</p>
                 <p className="text-sm text-slate-400 mt-1">Agrega los productos o servicios que necesitas comprar</p>
-                {canEditRequest && (
+                {canEditItems && (
                   <Button size="sm" variant="outline" onClick={openCreateItem} className="mt-3 gap-1.5 border-blue-300 text-blue-700 hover:bg-blue-50">
                     <Plus className="h-4 w-4" /> Agregar Primer Item
                   </Button>
@@ -1040,7 +1049,7 @@ export default function SolicitudesCompra({ userRole = 'USER' }: SolicitudesComp
                           </div>
                         )}
                       </div>
-                      {canEditRequest && (
+                      {canEditItems && (
                         <div className="flex gap-1 shrink-0">
                           <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50" onClick={() => openEditItem(item)}>
                             <Pencil className="h-3.5 w-3.5" />
