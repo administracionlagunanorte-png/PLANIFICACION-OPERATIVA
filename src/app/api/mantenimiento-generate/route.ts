@@ -85,7 +85,7 @@ const LV_TEMPLATES: LVTemplateDef[] = [
     ]
   },
   {
-    codigo: 'LV-04', nombre: 'Playas artificiales — Rastrillado y limpieza', sector: 'Playas 1–2–3', frecuencia: 'Diaria',
+    codigo: 'LV-04', nombre: 'Playas artificiales — Rastrillado y limpieza', sector: 'Playas 1–2–3', frecuencia: '3x Semanal',
     scheduleRule: '3x_week', // 3 veces por semana (Lun, Mié, Vie)
     weekDay: 1,
     items: [
@@ -420,15 +420,19 @@ export async function POST(req: NextRequest) {
 
       // For each scheduled date, check if LV already exists, if not create it
       for (const date of scheduledDates) {
-        const dateStr = date.toISOString().split('T')[0] // YYYY-MM-DD
+        // Use local date components to avoid timezone issues
+        const localYear = date.getFullYear()
+        const localMonth = String(date.getMonth() + 1).padStart(2, '0')
+        const localDay = String(date.getDate()).padStart(2, '0')
+        const dateStr = `${localYear}-${localMonth}-${localDay}`
 
         // Check if an LV with this codigo and date already exists
         const existing = await db.mantenimientoLV.findFirst({
           where: {
             codigo: template.codigo,
             scheduledDate: {
-              gte: new Date(dateStr + 'T00:00:00'),
-              lte: new Date(dateStr + 'T23:59:59'),
+              gte: new Date(dateStr + 'T00:00:00.000Z'),
+              lte: new Date(dateStr + 'T23:59:59.999Z'),
             },
           },
         })
@@ -438,14 +442,16 @@ export async function POST(req: NextRequest) {
           continue
         }
 
-        // Create the LV
+        // Create the LV with the date set to noon local to avoid timezone shift
+        const scheduledDate = new Date(dateStr + 'T12:00:00.000Z')
+
         await db.mantenimientoLV.create({
           data: {
             codigo: template.codigo,
             nombre: template.nombre,
             sector: template.sector,
             frecuencia: template.frecuencia,
-            scheduledDate: date,
+            scheduledDate,
             status: 'PENDIENTE',
             progress: 0,
             items: {

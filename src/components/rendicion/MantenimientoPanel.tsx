@@ -65,6 +65,7 @@ interface MantenimientoLV {
 // Frequency colors
 const freqColors: Record<string, { bg: string; text: string; border: string }> = {
   'Diaria': { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-300' },
+  '3x Semanal': { bg: 'bg-sky-100', text: 'text-sky-700', border: 'border-sky-300' },
   'Semanal': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300' },
   'Quincenal': { bg: 'bg-cyan-100', text: 'text-cyan-700', border: 'border-cyan-300' },
   'Mensual': { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-300' },
@@ -581,6 +582,7 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
               <SelectContent>
                 <SelectItem value="all">Todas</SelectItem>
                 <SelectItem value="Diaria">Diaria</SelectItem>
+                <SelectItem value="3x Semanal">3x Semanal</SelectItem>
                 <SelectItem value="Semanal">Semanal</SelectItem>
                 <SelectItem value="Quincenal">Quincenal</SelectItem>
                 <SelectItem value="Mensual">Mensual</SelectItem>
