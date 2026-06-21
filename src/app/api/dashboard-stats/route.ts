@@ -34,6 +34,26 @@ export async function GET() {
       where: { status: { in: ['APROBADO', 'APROBADO_SUPERVISOR'] } },
     })
 
+    // Anticipos by status
+    const anticipoStatuses = ['PENDIENTE', 'PAGADO', 'RECHAZADO']
+    const anticipoCounts: Record<string, number> = {}
+    const anticipoTotal = await db.anticipo.count()
+
+    await Promise.all(
+      anticipoStatuses.map(async (status) => {
+        const count = await db.anticipo.count({ where: { status } })
+        anticipoCounts[status] = count
+      })
+    )
+
+    const anticipoTotalAmount = await db.anticipo.aggregate({
+      _sum: { monto: true },
+    })
+    const anticipoPagadoAmount = await db.anticipo.aggregate({
+      _sum: { monto: true },
+      where: { status: 'PAGADO' },
+    })
+
     return NextResponse.json({
       expenses: {
         total: expenseTotal,
@@ -43,6 +63,12 @@ export async function GET() {
       purchases: {
         total: purchaseTotal,
         byStatus: purchaseCounts,
+      },
+      anticipos: {
+        total: anticipoTotal,
+        byStatus: anticipoCounts,
+        totalAmount: anticipoTotalAmount._sum.monto || 0,
+        pagadoAmount: anticipoPagadoAmount._sum.monto || 0,
       },
     })
   } catch (error) {

@@ -235,3 +235,38 @@ model PurchaseQuote {
 
   @@map("purchase_quotes")
 }
+
+// ============================================================
+// ANTICIPOS
+// ============================================================
+
+model AnticipoPeriod {
+  id          String    @id @default(cuid())
+  name        String                // Ej: "Junio 2026"
+  month       Int                   // 1-12
+  year        Int
+  status      String    @default("ABIERTO")  // ABIERTO, CERRADO
+  totalAmount Float      @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  anticipos   Anticipo[]
+
+  @@map("anticipo_periods")
+}
+
+model Anticipo {
+  id            String        @id @default(cuid())
+  numero        Int                          // N° correlativo dentro del periodo
+  nombre        String                       // Nombre completo
+  rut           String                       // RUT
+  monto         Float                         // Monto del anticipo
+  cuentaBancaria String      @default("")    // Cuenta bancaria
+  periodoId     String
+  periodo       AnticipoPeriod @relation(fields: [periodoId], references: [id], onDelete: Cascade)
+  status        String        @default("PENDIENTE")  // PENDIENTE, PAGADO, RECHAZADO
+  createdBy     String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("anticipos")
+}

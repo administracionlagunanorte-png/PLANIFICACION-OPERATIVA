@@ -84,12 +84,14 @@ import {
   ShieldCheck,
   User,
   ArrowRight,
+  Wallet,
 } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import ExcelJS from 'exceljs'
 import SolicitudesCompra from '@/components/rendicion/SolicitudesCompra'
 import { useToast } from '@/hooks/use-toast'
 import RendicionGastos from '@/components/rendicion/RendicionGastos'
+import AnticiposPanel from '@/components/rendicion/AnticiposPanel'
 import { useAuth } from '@/lib/auth-context'
 import UsersPanel from '@/components/auth/UsersPanel'
 
@@ -201,11 +203,13 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
   const [dashboardStats, setDashboardStats] = useState<{
     expenses: { total: number; byStatus: Record<string, number>; approvedAmount: number }
     purchases: { total: number; byStatus: Record<string, number> }
+    anticipos: { total: number; byStatus: Record<string, number>; totalAmount: number; pagadoAmount: number }
   } | null>(null)
   // Navigation: when user clicks a dashboard card, navigate to the section with a pre-filtered status
   const [expenseStatusFilter, setExpenseStatusFilter] = useState<string>('')
   const [purchaseStatusFilter, setPurchaseStatusFilter] = useState<string>('')
-  const [view, setView] = useState<'dashboard' | 'table' | 'cards' | 'gantt' | 'materials' | 'rendicion' | 'solicitudes' | 'users'>('dashboard')
+  const [anticipoStatusFilter, setAnticipoStatusFilter] = useState<string>('')
+  const [view, setView] = useState<'dashboard' | 'table' | 'cards' | 'gantt' | 'materials' | 'rendicion' | 'solicitudes' | 'anticipos' | 'users'>('dashboard')
   const [filterSector, setFilterSector] = useState('all')
   const [filterPriority, setFilterPriority] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
@@ -3316,6 +3320,14 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
             >
               <ShoppingBag className="h-4 w-4" /> Compras
             </Button>
+            <Button
+              variant={view === 'anticipos' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setView('anticipos')}
+              className="gap-1"
+            >
+              <Wallet className="h-4 w-4" /> Anticipos
+            </Button>
             {(session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERVISOR') && (
               <Button
                 variant={view === 'users' ? 'default' : 'ghost'}
@@ -3329,7 +3341,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
           </div>
 
           {/* Filters */}
-          {view !== 'rendicion' && view !== 'solicitudes' && view !== 'users' && (
+          {view !== 'rendicion' && view !== 'solicitudes' && view !== 'anticipos' && view !== 'users' && (
           <div className="flex items-center gap-2 flex-wrap max-w-full">
             <Select value={filterSector} onValueChange={setFilterSector}>
               <SelectTrigger className="w-[120px] sm:w-[140px] h-8 text-xs">
@@ -3693,6 +3705,68 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
                       <div className="text-3xl font-bold text-slate-600">{dashboardStats.purchases.byStatus.CANCELADA || 0}</div>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════ */}
+            {/* SECCIÓN 4: ANTICIPOS                                      */}
+            {/* ═══════════════════════════════════════════════════════════ */}
+            {dashboardStats && (
+              <Card className="border-orange-200 bg-gradient-to-r from-orange-50 to-white overflow-hidden">
+                <CardHeader className="pb-3 pt-4 px-5 border-b border-orange-100 bg-orange-50/50">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg font-bold text-orange-900 flex items-center gap-2.5 cursor-pointer hover:text-orange-700" onClick={() => { setAnticipoStatusFilter('all'); setView('anticipos'); }}>
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-600 text-white">
+                        <Wallet className="h-4.5 w-4.5" />
+                      </div>
+                      Anticipos
+                      <ArrowRight className="h-4 w-4 opacity-50" />
+                    </CardTitle>
+                    <Badge className="text-sm font-bold bg-orange-100 text-orange-800 border-orange-300 hover:bg-orange-100">
+                      {dashboardStats.anticipos.total} anticipos
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-5 pb-5 pt-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div
+                      className="bg-white rounded-xl p-4 border border-amber-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-amber-400 transition-all duration-200 hover:scale-105"
+                      onClick={() => { setAnticipoStatusFilter('PENDIENTE'); setView('anticipos'); }}
+                      title="Ver anticipos Pendientes"
+                    >
+                      <div className="text-xs text-amber-600 uppercase tracking-wider font-semibold mb-1">Pendientes</div>
+                      <div className="text-3xl font-bold text-amber-700">{dashboardStats.anticipos.byStatus.PENDIENTE || 0}</div>
+                    </div>
+                    <div
+                      className="bg-white rounded-xl p-4 border border-emerald-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-emerald-400 transition-all duration-200 hover:scale-105"
+                      onClick={() => { setAnticipoStatusFilter('PAGADO'); setView('anticipos'); }}
+                      title="Ver anticipos Pagados"
+                    >
+                      <div className="text-xs text-emerald-600 uppercase tracking-wider font-semibold mb-1">Pagados</div>
+                      <div className="text-3xl font-bold text-emerald-700">{dashboardStats.anticipos.byStatus.PAGADO || 0}</div>
+                    </div>
+                    <div
+                      className="bg-white rounded-xl p-4 border border-red-200 shadow-sm text-center cursor-pointer hover:shadow-md hover:border-red-400 transition-all duration-200 hover:scale-105"
+                      onClick={() => { setAnticipoStatusFilter('RECHAZADO'); setView('anticipos'); }}
+                      title="Ver anticipos Rechazados"
+                    >
+                      <div className="text-xs text-red-600 uppercase tracking-wider font-semibold mb-1">Rechazados</div>
+                      <div className="text-3xl font-bold text-red-700">{dashboardStats.anticipos.byStatus.RECHAZADO || 0}</div>
+                    </div>
+                  </div>
+                  {dashboardStats.anticipos.totalAmount > 0 && (
+                    <div className="mt-4 grid grid-cols-2 gap-4">
+                      <div className="flex items-center justify-between px-4 py-3 bg-orange-50 rounded-xl border border-orange-200">
+                        <span className="text-sm text-orange-700 font-semibold">Monto Total Anticipos</span>
+                        <span className="text-lg font-bold text-orange-800">{formatCurrency(dashboardStats.anticipos.totalAmount)}</span>
+                      </div>
+                      <div className="flex items-center justify-between px-4 py-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                        <span className="text-sm text-emerald-700 font-semibold">Monto Pagado</span>
+                        <span className="text-lg font-bold text-emerald-800">{formatCurrency(dashboardStats.anticipos.pagadoAmount)}</span>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -4478,6 +4552,14 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
             userRole={userRole}
             initialStatusFilter={purchaseStatusFilter}
             onStatusFilterConsumed={() => setPurchaseStatusFilter('')}
+          />
+        )}
+
+        {view === 'anticipos' && (
+          <AnticiposPanel
+            userRole={userRole}
+            initialStatusFilter={anticipoStatusFilter}
+            onStatusFilterConsumed={() => setAnticipoStatusFilter('')}
           />
         )}
 
