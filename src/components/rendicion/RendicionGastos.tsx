@@ -563,15 +563,37 @@ export default function RendicionGastos({ userRole = 'USER', initialStatusFilter
       const margin = 15
       let y = 20
 
+      // Load logo
+      const logoUrl = `${window.location.origin}/logo-laguna-norte.jpg`
+      let logoAdded = false
+      try {
+        const logoResp = await fetch(logoUrl)
+        if (logoResp.ok) {
+          const logoBlob = await logoResp.blob()
+          const logoDataUrl = await new Promise<string>((resolve) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result as string)
+            reader.readAsDataURL(logoBlob)
+          })
+          doc.addImage(logoDataUrl, 'JPEG', margin, y - 5, 30, 30)
+          logoAdded = true
+        }
+      } catch (e) { /* logo not available */ }
+
       // Header
-      doc.setFontSize(18)
+      doc.setFontSize(16)
       doc.setTextColor(30, 64, 175)
-      doc.text('Rendicion de Gastos', margin, y)
-      y += 8
-      doc.setFontSize(12)
+      const headerX = logoAdded ? margin + 35 : margin
+      doc.text('Rendicion de Gastos', headerX, y + 2)
+      y += 7
+      doc.setFontSize(10)
       doc.setTextColor(100, 100, 100)
-      doc.text(getCorrelative(selectedReport.correlativeNumber) + ' - ' + selectedReport.title, margin, y)
-      y += 10
+      doc.text('Condominio Laguna Norte', headerX, y + 2)
+      y += 6
+      doc.setFontSize(11)
+      doc.setTextColor(60, 60, 60)
+      doc.text(getCorrelative(selectedReport.correlativeNumber) + ' - ' + selectedReport.title, headerX, y + 2)
+      y += logoAdded ? 14 : 10
 
       // Report info
       doc.setFontSize(10)
@@ -632,8 +654,23 @@ export default function RendicionGastos({ userRole = 'USER', initialStatusFilter
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(0, 0, 0)
       const items = selectedReport.items || []
-      items.forEach((item) => {
-        if (y > 270) {
+
+      // Helper to load image as base64
+      const loadImageAsBase64 = async (url: string): Promise<string | null> => {
+        try {
+          const resp = await fetch(url)
+          if (!resp.ok) return null
+          const blob = await resp.blob()
+          return new Promise<string>((resolve) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result as string)
+            reader.readAsDataURL(blob)
+          })
+        } catch { return null }
+      }
+
+      for (const item of items) {
+        if (y > 250) {
           doc.addPage()
           y = 20
         }
@@ -643,8 +680,45 @@ export default function RendicionGastos({ userRole = 'USER', initialStatusFilter
         doc.text(item.category, colX[2], y)
         doc.text(formatDate(item.expenseDate), colX[3], y)
         doc.text(formatCLP(item.montoRendir), colX[4], y)
-        y += Math.max(descLines.length * 4, 5) + 3
-      })
+        y += Math.max(descLines.length * 4, 5) + 2
+
+        // Add boleta image
+        if (item.imageBoletaUrl) {
+          const imgData = await loadImageAsBase64(item.imageBoletaUrl)
+          if (imgData) {
+            if (y > 240) { doc.addPage(); y = 20 }
+            doc.setFontSize(7)
+            doc.setTextColor(30, 64, 175)
+            doc.text('Boleta:', colX[0], y)
+            y += 2
+            const imgHeight = 35
+            const imgWidth = 35
+            doc.addImage(imgData, 'JPEG', colX[0], y, imgWidth, imgHeight)
+            y += imgHeight + 4
+          }
+        }
+
+        // Add compra images
+        const compraUrls = getCompraUrls(item)
+        for (let ci = 0; ci < Math.min(compraUrls.length, 3); ci++) {
+          const imgData = await loadImageAsBase64(compraUrls[ci])
+          if (imgData) {
+            if (y > 240) { doc.addPage(); y = 20 }
+            doc.setFontSize(7)
+            doc.setTextColor(16, 163, 127)
+            doc.text(`Compra ${ci + 1}:`, colX[0], y)
+            y += 2
+            const imgHeight = 35
+            const imgWidth = 35
+            const imgX = colX[0] + ci * 40
+            doc.addImage(imgData, 'JPEG', imgX, y, imgWidth, imgHeight)
+            if (ci === Math.min(compraUrls.length, 3) - 1) {
+              y += imgHeight + 4
+            }
+          }
+        }
+        y += 3
+      }
 
       // Total
       y += 3
@@ -679,7 +753,39 @@ export default function RendicionGastos({ userRole = 'USER', initialStatusFilter
 
       // Summary sheet
       const summarySheet = workbook.addWorksheet('Resumen')
+
+      // Add logo to summary sheet
+      try {
+        const logoUrl = `${window.location.origin}/logo-laguna-norte.jpg`
+        const logoResp = await fetch(logoUrl)
+        if (logoResp.ok) {
+          const logoBlob = await logoResp.blob()
+          const logoBase64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader()
+            reader.onload = () => {
+              const result = reader.result as string
+              resolve(result.split(',')[1]) // Remove data:image/...;base64, prefix
+            }
+            reader.readAsDataURL(logoBlob)
+          })
+          const logoImageId = workbook.addImage({ base64: logoBase64, extension: 'jpeg' })
+          summarySheet.addImage(logoImageId, {
+            tl: { col: 0, row: 0 },
+            ext: { width: 80, height: 80 },
+          })
+        }
+      } catch (e) { /* logo not available */ }
+
+      // Title row
+      summarySheet.mergeCells('B1:D1')
+      summarySheet.getCell('B1').value = 'Rendición de Gastos — Condominio Laguna Norte'
+      summarySheet.getCell('B1').font = { bold: true, size: 14, color: { argb: 'FF1E40AF' } }
+      summarySheet.mergeCells('B2:D2')
+      summarySheet.getCell('B2').value = getCorrelative(selectedReport.correlativeNumber) + ' - ' + selectedReport.title
+      summarySheet.getCell('B2').font = { size: 11, color: { argb: 'FF666666' } }
+
       summarySheet.columns = [
+        { header: '', key: 'spacer', width: 12 },
         { header: 'Campo', key: 'field', width: 25 },
         { header: 'Valor', key: 'value', width: 50 },
       ]
@@ -697,54 +803,101 @@ export default function RendicionGastos({ userRole = 'USER', initialStatusFilter
         { field: 'Revisado por', value: selectedReport.reviewedBy || '-' },
         { field: 'Nota Revision', value: selectedReport.reviewNote || '-' },
       ]
-      summarySheet.addRows(summaryData)
 
-      // Style header
-      summarySheet.getRow(1).font = { bold: true, color: { argb: 'FF1E40AF' } }
+      // Start data from row 5 to leave room for logo
+      summaryData.forEach((row, idx) => {
+        const rowNum = idx + 5
+        summarySheet.getCell(`B${rowNum}`).value = row.field
+        summarySheet.getCell(`B${rowNum}`).font = { bold: true }
+        summarySheet.getCell(`C${rowNum}`).value = row.value
+      })
+
+      // Style
+      summarySheet.getCell('B4').value = 'Campo'
+      summarySheet.getCell('C4').value = 'Valor'
+      summarySheet.getCell('B4').font = { bold: true, color: { argb: 'FF1E40AF' } }
+      summarySheet.getCell('C4').font = { bold: true, color: { argb: 'FF1E40AF' } }
 
       // Format amount cell
-      const totalRow = summarySheet.getRow(6)
-      totalRow.getCell(2).numFmt = '$#,##0'
+      summarySheet.getCell(`C10`).numFmt = '$#,##0'
 
       // Detail sheet
       const detailSheet = workbook.addWorksheet('Detalle')
+
+      // Add logo to detail sheet too
+      try {
+        const logoUrl = `${window.location.origin}/logo-laguna-norte.jpg`
+        const logoResp = await fetch(logoUrl)
+        if (logoResp.ok) {
+          const logoBlob = await logoResp.blob()
+          const logoBase64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader()
+            reader.onload = () => {
+              const result = reader.result as string
+              resolve(result.split(',')[1])
+            }
+            reader.readAsDataURL(logoBlob)
+          })
+          const logoImageId2 = workbook.addImage({ base64: logoBase64, extension: 'jpeg' })
+          detailSheet.addImage(logoImageId2, {
+            tl: { col: 0, row: 0 },
+            ext: { width: 60, height: 60 },
+          })
+        }
+      } catch (e) { /* logo not available */ }
+
+      // Title on detail sheet
+      detailSheet.mergeCells('B1:F1')
+      detailSheet.getCell('B1').value = 'Detalle de Gastos — Condominio Laguna Norte'
+      detailSheet.getCell('B1').font = { bold: true, size: 12, color: { argb: 'FF1E40AF' } }
+      detailSheet.mergeCells('B2:F2')
+      detailSheet.getCell('B2').value = getCorrelative(selectedReport.correlativeNumber) + ' - ' + selectedReport.title
+      detailSheet.getCell('B2').font = { size: 10, color: { argb: 'FF666666' } }
+
       detailSheet.columns = [
+        { header: '', key: 'spacer', width: 10 },
         { header: 'Descripcion', key: 'description', width: 40 },
         { header: 'N Boleta', key: 'numeroBoleta', width: 15 },
         { header: 'Categoria', key: 'category', width: 15 },
         { header: 'Fecha', key: 'expenseDate', width: 15 },
         { header: 'Monto', key: 'montoRendir', width: 15 },
+        { header: 'Foto Boleta', key: 'fotoBoleta', width: 20 },
         { header: 'Fotos Compra', key: 'fotosCompra', width: 40 },
       ]
 
-      const items = selectedReport.items || []
-      items.forEach((item) => {
-        const compraUrls = getCompraUrls(item)
-        detailSheet.addRow({
-          description: item.description,
-          numeroBoleta: item.numeroBoleta,
-          category: item.category,
-          expenseDate: formatDate(item.expenseDate),
-          montoRendir: item.montoRendir,
-          fotosCompra: compraUrls.length > 0 ? compraUrls.join(' | ') : '-',
-        })
-      })
-
-      // Style header
-      detailSheet.getRow(1).font = { bold: true, color: { argb: 'FF1E40AF' } }
-
-      // Format amounts
-      for (let i = 2; i <= items.length + 1; i++) {
-        detailSheet.getRow(i).getCell(5).numFmt = '$#,##0'
+      // Header row at row 4
+      detailSheet.getCell('B4').value = 'Descripción'
+      detailSheet.getCell('C4').value = 'N° Boleta'
+      detailSheet.getCell('D4').value = 'Categoría'
+      detailSheet.getCell('E4').value = 'Fecha'
+      detailSheet.getCell('F4').value = 'Monto'
+      detailSheet.getCell('G4').value = 'Foto Boleta'
+      detailSheet.getCell('H4').value = 'Fotos Compra'
+      for (let c = 2; c <= 8; c++) {
+        detailSheet.getCell(`${String.fromCharCode(64 + c)}4`).font = { bold: true, color: { argb: 'FF1E40AF' } }
       }
 
+      const items = selectedReport.items || []
+      items.forEach((item, idx) => {
+        const compraUrls = getCompraUrls(item)
+        const rowNum = idx + 5
+        detailSheet.getCell(`B${rowNum}`).value = item.description
+        detailSheet.getCell(`C${rowNum}`).value = item.numeroBoleta
+        detailSheet.getCell(`D${rowNum}`).value = item.category
+        detailSheet.getCell(`E${rowNum}`).value = formatDate(item.expenseDate)
+        detailSheet.getCell(`F${rowNum}`).value = item.montoRendir
+        detailSheet.getCell(`F${rowNum}`).numFmt = '$#,##0'
+        detailSheet.getCell(`G${rowNum}`).value = item.imageBoletaUrl || '-'
+        detailSheet.getCell(`H${rowNum}`).value = compraUrls.length > 0 ? compraUrls.join(' | ') : '-'
+      })
+
       // Total row
-      const totalRowIndex = items.length + 3
-      detailSheet.getCell(`A${totalRowIndex}`).value = 'TOTAL'
-      detailSheet.getCell(`A${totalRowIndex}`).font = { bold: true }
-      detailSheet.getCell(`E${totalRowIndex}`).value = selectedReport.totalAmount
-      detailSheet.getCell(`E${totalRowIndex}`).font = { bold: true }
-      detailSheet.getCell(`E${totalRowIndex}`).numFmt = '$#,##0'
+      const totalRowIndex = items.length + 6
+      detailSheet.getCell(`B${totalRowIndex}`).value = 'TOTAL'
+      detailSheet.getCell(`B${totalRowIndex}`).font = { bold: true }
+      detailSheet.getCell(`F${totalRowIndex}`).value = selectedReport.totalAmount
+      detailSheet.getCell(`F${totalRowIndex}`).font = { bold: true }
+      detailSheet.getCell(`F${totalRowIndex}`).numFmt = '$#,##0'
 
       // Download
       const buffer = await workbook.xlsx.writeBuffer()
@@ -1117,17 +1270,17 @@ export default function RendicionGastos({ userRole = 'USER', initialStatusFilter
                               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
                                 Evidencia ({totalImages} imagen{totalImages !== 1 ? 'es' : ''})
                               </p>
-                              <div className="flex gap-2 flex-wrap">
+                              <div className="flex gap-3 flex-wrap">
                                 {/* Boleta image */}
                                 {item.imageBoletaUrl && (
                                   <div className="relative group">
                                     <img
                                       src={item.imageBoletaUrl}
                                       alt="Boleta"
-                                      className="w-20 h-20 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity shadow-sm"
+                                      className="w-28 h-28 object-cover rounded-lg border-2 border-blue-200 cursor-pointer hover:opacity-80 hover:border-blue-400 transition-all shadow-sm group-hover:shadow-md"
                                       onClick={() => { setPhotoViewerUrl(item.imageBoletaUrl); setPhotoViewerOpen(true) }}
                                     />
-                                    <span className="absolute bottom-0 left-0 right-0 text-[9px] text-white bg-blue-600/80 text-center rounded-b-lg font-medium py-0.5">Boleta</span>
+                                    <span className="absolute bottom-0 left-0 right-0 text-[10px] text-white bg-blue-600/90 text-center rounded-b-lg font-semibold py-0.5">Boleta</span>
                                   </div>
                                 )}
                                 {/* Compra images */}
@@ -1136,10 +1289,10 @@ export default function RendicionGastos({ userRole = 'USER', initialStatusFilter
                                     <img
                                       src={url}
                                       alt={`Compra ${idx + 1}`}
-                                      className="w-20 h-20 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity shadow-sm"
+                                      className="w-28 h-28 object-cover rounded-lg border-2 border-emerald-200 cursor-pointer hover:opacity-80 hover:border-emerald-400 transition-all shadow-sm group-hover:shadow-md"
                                       onClick={() => { setPhotoViewerUrl(url); setPhotoViewerOpen(true) }}
                                     />
-                                    <span className="absolute bottom-0 left-0 right-0 text-[9px] text-white bg-emerald-600/80 text-center rounded-b-lg font-medium py-0.5">Compra {idx + 1}</span>
+                                    <span className="absolute bottom-0 left-0 right-0 text-[10px] text-white bg-emerald-600/90 text-center rounded-b-lg font-semibold py-0.5">Compra {idx + 1}</span>
                                   </div>
                                 ))}
                               </div>

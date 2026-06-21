@@ -459,43 +459,93 @@ export default function AnticiposPanel({ userRole = 'USER', initialStatusFilter,
   const handleExportExcel = async () => {
     if (!selectedPeriod) return
     try {
-      const XLSX = await import('xlsx')
-      const wb = XLSX.utils.book_new()
+      const ExcelJS = await import('exceljs')
+      const workbook = new ExcelJS.Workbook()
+      const ws = workbook.addWorksheet(selectedPeriod.name.substring(0, 31))
 
-      const header = ['N°', 'NOMBRE', 'RUT', 'MONTO ANTICIPO', 'CUENTA BANCARIA', 'ESTADO']
-      const data = filteredAnticipos.map((a, i) => [
-        i + 1,
-        a.nombre,
-        a.rut,
-        a.monto,
-        a.cuentaBancaria,
-        statusConfig[a.status]?.label || a.status,
-      ])
+      // Add logo
+      try {
+        const logoUrl = `${window.location.origin}/logo-laguna-norte.jpg`
+        const logoResp = await fetch(logoUrl)
+        if (logoResp.ok) {
+          const logoBlob = await logoResp.blob()
+          const logoBase64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader()
+            reader.onload = () => {
+              const result = reader.result as string
+              resolve(result.split(',')[1])
+            }
+            reader.readAsDataURL(logoBlob)
+          })
+          const logoImageId = workbook.addImage({ base64: logoBase64, extension: 'jpeg' })
+          ws.addImage(logoImageId, {
+            tl: { col: 0, row: 0 },
+            ext: { width: 70, height: 70 },
+          })
+        }
+      } catch (e) { /* logo not available */ }
 
-      const totalRow = ['', '', 'TOTAL', filteredAnticipos.reduce((s, a) => s + a.monto, 0), '', '']
+      // Title
+      ws.mergeCells('B1:F1')
+      ws.getCell('B1').value = `ANTICIPOS "${selectedPeriod.name.toUpperCase()}" — Condominio Laguna Norte`
+      ws.getCell('B1').font = { bold: true, size: 13, color: { argb: 'FF1E40AF' } }
 
-      const wsData = [
-        [`ANTICIPOS "${selectedPeriod.name.toUpperCase()}"`],
-        ['', '', 'COMENTARIO'],
-        header,
-        ...data,
-        totalRow,
+      // Header row at row 4
+      const headers = ['N°', 'NOMBRE', 'RUT', 'MONTO ANTICIPO', 'CUENTA BANCARIA', 'ESTADO']
+      headers.forEach((h, idx) => {
+        const cell = ws.getCell(idx + 1 + 1, 1 + 1)  // col B, row 4 — adjusted for spacer
+        // Actually let's use simpler approach
+      })
+
+      ws.columns = [
+        { key: 'spacer', width: 10 },
+        { key: 'num', width: 6 },
+        { key: 'nombre', width: 35 },
+        { key: 'rut', width: 15 },
+        { key: 'monto', width: 18 },
+        { key: 'cuenta', width: 45 },
+        { key: 'estado', width: 14 },
       ]
 
-      const ws = XLSX.utils.aoa_to_sheet(wsData)
+      // Header row at row 3
+      const headerLabels = ['N°', 'NOMBRE', 'RUT', 'MONTO ANTICIPO', 'CUENTA BANCARIA', 'ESTADO']
+      headerLabels.forEach((h, idx) => {
+        const cell = ws.getCell(3, idx + 2) // Start from column B, row 3
+        cell.value = h
+        cell.font = { bold: true, color: { argb: 'FF1E40AF' } }
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F4FF' } }
+        cell.border = { bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } } }
+      })
 
-      // Set column widths
-      ws['!cols'] = [
-        { wch: 5 },
-        { wch: 35 },
-        { wch: 15 },
-        { wch: 18 },
-        { wch: 45 },
-        { wch: 12 },
-      ]
+      // Data rows
+      filteredAnticipos.forEach((a, i) => {
+        const rowNum = i + 4
+        ws.getCell(rowNum, 2).value = i + 1
+        ws.getCell(rowNum, 3).value = a.nombre
+        ws.getCell(rowNum, 4).value = a.rut
+        ws.getCell(rowNum, 5).value = a.monto
+        ws.getCell(rowNum, 5).numFmt = '$#,##0'
+        ws.getCell(rowNum, 6).value = a.cuentaBancaria
+        ws.getCell(rowNum, 7).value = statusConfig[a.status]?.label || a.status
+      })
 
-      XLSX.utils.book_append_sheet(wb, ws, selectedPeriod.name.substring(0, 31))
-      XLSX.writeFile(wb, `Anticipos_${selectedPeriod.name.replace(/\s+/g, '_')}.xlsx`)
+      // Total row
+      const totalRowNum = filteredAnticipos.length + 5
+      ws.getCell(totalRowNum, 3).value = 'TOTAL'
+      ws.getCell(totalRowNum, 3).font = { bold: true }
+      ws.getCell(totalRowNum, 5).value = filteredAnticipos.reduce((s, a) => s + a.monto, 0)
+      ws.getCell(totalRowNum, 5).font = { bold: true }
+      ws.getCell(totalRowNum, 5).numFmt = '$#,##0'
+
+      // Download
+      const buffer = await workbook.xlsx.writeBuffer()
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Anticipos_${selectedPeriod.name.replace(/\s+/g, '_')}.xlsx`
+      a.click()
+      URL.revokeObjectURL(url)
 
       toast({ title: 'Exportado', description: 'El archivo Excel fue descargado' })
     } catch (err) {
