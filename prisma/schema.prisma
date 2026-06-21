@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider     = "postgresql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
 }
 
 model Task {
@@ -133,8 +134,8 @@ model ExpenseItem {
   montoRendir    Float
   category       String
   expenseDate    DateTime
-  imageBoletaUrl String        @default("")
-  imageCompraUrl String        @default("")
+  imageBoletaUrl String        @default("") @db.Text
+  imageCompraUrl String        @default("") @db.Text
   reportId       String
   report         ExpenseReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
   createdAt      DateTime      @default(now())
@@ -164,8 +165,8 @@ model PurchaseRequest {
   brand              String?
   quantity           Int               @default(1)
   priority           String            @default("MEDIA")
-  productLink        String?
-  referencePhotoUrl  String?
+  productLink        String?           @db.Text
+  referencePhotoUrl  String?           @db.Text
   directProvider     String?
   notes              String?
   status             String            @default("PENDIENTE")
@@ -188,7 +189,7 @@ model PurchaseQuote {
   amount            Float
   currency          String           @default("CLP")
   fileName          String?
-  fileUrl           String?
+  fileUrl           String?          @db.Text
   fileType          String?
   notes             String?
   isWinner          Boolean          @default(false)
