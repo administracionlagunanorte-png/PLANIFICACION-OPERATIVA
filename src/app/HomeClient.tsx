@@ -3272,7 +3272,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
               variant="ghost"
               size="sm"
               onClick={() => setView('dashboard')}
-              className={`gap-1 rounded-md transition-all duration-200 ${view === 'dashboard' ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm' : 'text-blue-600 hover:bg-blue-50'}`}
+              className={`gap-1 rounded-md transition-all duration-200 ${view === 'dashboard' ? 'bg-blue-200 text-black hover:bg-blue-300 shadow-sm font-semibold' : 'text-blue-700 hover:bg-blue-50'}`}
             >
               <LayoutDashboard className="h-4 w-4" /> Dashboard
             </Button>
@@ -3280,7 +3280,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
               variant="ghost"
               size="sm"
               onClick={() => setView('table')}
-              className={`gap-1 rounded-md transition-all duration-200 ${view === 'table' ? 'bg-violet-600 text-white hover:bg-violet-700 shadow-sm' : 'text-violet-600 hover:bg-violet-50'}`}
+              className={`gap-1 rounded-md transition-all duration-200 ${view === 'table' ? 'bg-violet-200 text-black hover:bg-violet-300 shadow-sm font-semibold' : 'text-violet-700 hover:bg-violet-50'}`}
             >
               <List className="h-4 w-4" /> Tabla
             </Button>
@@ -3288,7 +3288,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
               variant="ghost"
               size="sm"
               onClick={() => setView('cards')}
-              className={`gap-1 rounded-md transition-all duration-200 ${view === 'cards' ? 'bg-teal-600 text-white hover:bg-teal-700 shadow-sm' : 'text-teal-600 hover:bg-teal-50'}`}
+              className={`gap-1 rounded-md transition-all duration-200 ${view === 'cards' ? 'bg-teal-200 text-black hover:bg-teal-300 shadow-sm font-semibold' : 'text-teal-700 hover:bg-teal-50'}`}
             >
               <LayoutGrid className="h-4 w-4" /> Tarjetas
             </Button>
@@ -3296,7 +3296,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
               variant="ghost"
               size="sm"
               onClick={() => setView('gantt')}
-              className={`gap-1 rounded-md transition-all duration-200 ${view === 'gantt' ? 'bg-orange-600 text-white hover:bg-orange-700 shadow-sm' : 'text-orange-600 hover:bg-orange-50'}`}
+              className={`gap-1 rounded-md transition-all duration-200 ${view === 'gantt' ? 'bg-orange-200 text-black hover:bg-orange-300 shadow-sm font-semibold' : 'text-orange-700 hover:bg-orange-50'}`}
             >
               <GanttChart className="h-4 w-4" /> Gantt
             </Button>
@@ -3304,7 +3304,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
               variant="ghost"
               size="sm"
               onClick={() => setView('materials')}
-              className={`gap-1 rounded-md transition-all duration-200 ${view === 'materials' ? 'bg-amber-600 text-white hover:bg-amber-700 shadow-sm' : 'text-amber-600 hover:bg-amber-50'}`}
+              className={`gap-1 rounded-md transition-all duration-200 ${view === 'materials' ? 'bg-amber-200 text-black hover:bg-amber-300 shadow-sm font-semibold' : 'text-amber-700 hover:bg-amber-50'}`}
             >
               <Package className="h-4 w-4" /> Materiales
             </Button>
@@ -3312,7 +3312,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
               variant="ghost"
               size="sm"
               onClick={() => setView('rendicion')}
-              className={`gap-1 rounded-md transition-all duration-200 ${view === 'rendicion' ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm' : 'text-emerald-600 hover:bg-emerald-50'}`}
+              className={`gap-1 rounded-md transition-all duration-200 ${view === 'rendicion' ? 'bg-emerald-200 text-black hover:bg-emerald-300 shadow-sm font-semibold' : 'text-emerald-700 hover:bg-emerald-50'}`}
             >
               <DollarSign className="h-4 w-4" /> Rendición
             </Button>
@@ -3320,23 +3320,23 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
               variant="ghost"
               size="sm"
               onClick={() => setView('solicitudes')}
-              className={`gap-1 rounded-md transition-all duration-200 ${view === 'solicitudes' ? 'bg-pink-600 text-white hover:bg-pink-700 shadow-sm' : 'text-pink-600 hover:bg-pink-50'}`}
+              className={`gap-1 rounded-md transition-all duration-200 ${view === 'solicitudes' ? 'bg-pink-200 text-black hover:bg-pink-300 shadow-sm font-semibold' : 'text-pink-700 hover:bg-pink-50'}`}
             >
               <ShoppingBag className="h-4 w-4" /> Compras
             </Button>
             <Button
-              variant={view === 'anticipos' ? 'default' : 'ghost'}
+              variant="ghost"
               size="sm"
               onClick={() => setView('anticipos')}
-              className="gap-1"
+              className={`gap-1 rounded-md transition-all duration-200 ${view === 'anticipos' ? 'bg-cyan-200 text-black hover:bg-cyan-300 shadow-sm font-semibold' : 'text-cyan-700 hover:bg-cyan-50'}`}
             >
               <Wallet className="h-4 w-4" /> Anticipos
             </Button>
             <Button
-              variant={view === 'mantenimiento' ? 'default' : 'ghost'}
+              variant="ghost"
               size="sm"
               onClick={() => setView('mantenimiento')}
-              className={`gap-1 ${view === 'mantenimiento' ? 'bg-teal-600 hover:bg-teal-700 text-white' : 'text-teal-700 hover:text-teal-900 hover:bg-teal-50'}`}
+              className={`gap-1 rounded-md transition-all duration-200 ${view === 'mantenimiento' ? 'bg-lime-200 text-black hover:bg-lime-300 shadow-sm font-semibold' : 'text-lime-700 hover:bg-lime-50'}`}
             >
               <Wrench className="h-4 w-4" /> Mantenimiento
             </Button>
@@ -3345,7 +3345,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
                 variant="ghost"
                 size="sm"
                 onClick={() => setView('users')}
-                className={`gap-1 rounded-md transition-all duration-200 ${view === 'users' ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm' : 'text-indigo-600 hover:bg-indigo-50'}`}
+                className={`gap-1 rounded-md transition-all duration-200 ${view === 'users' ? 'bg-indigo-200 text-black hover:bg-indigo-300 shadow-sm font-semibold' : 'text-indigo-700 hover:bg-indigo-50'}`}
               >
                 <Users className="h-4 w-4" /> Usuarios
               </Button>
