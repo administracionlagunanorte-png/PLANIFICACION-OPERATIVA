@@ -3269,58 +3269,58 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex bg-white rounded-lg border p-1 gap-1 overflow-x-auto scrollbar-none">
             <Button
-              variant={view === 'dashboard' ? 'default' : 'ghost'}
+              variant="ghost"
               size="sm"
               onClick={() => setView('dashboard')}
-              className="gap-1"
+              className={`gap-1 rounded-md transition-all duration-200 ${view === 'dashboard' ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm' : 'text-blue-600 hover:bg-blue-50'}`}
             >
               <LayoutDashboard className="h-4 w-4" /> Dashboard
             </Button>
             <Button
-              variant={view === 'table' ? 'default' : 'ghost'}
+              variant="ghost"
               size="sm"
               onClick={() => setView('table')}
-              className="gap-1"
+              className={`gap-1 rounded-md transition-all duration-200 ${view === 'table' ? 'bg-violet-600 text-white hover:bg-violet-700 shadow-sm' : 'text-violet-600 hover:bg-violet-50'}`}
             >
               <List className="h-4 w-4" /> Tabla
             </Button>
             <Button
-              variant={view === 'cards' ? 'default' : 'ghost'}
+              variant="ghost"
               size="sm"
               onClick={() => setView('cards')}
-              className="gap-1"
+              className={`gap-1 rounded-md transition-all duration-200 ${view === 'cards' ? 'bg-teal-600 text-white hover:bg-teal-700 shadow-sm' : 'text-teal-600 hover:bg-teal-50'}`}
             >
               <LayoutGrid className="h-4 w-4" /> Tarjetas
             </Button>
             <Button
-              variant={view === 'gantt' ? 'default' : 'ghost'}
+              variant="ghost"
               size="sm"
               onClick={() => setView('gantt')}
-              className="gap-1"
+              className={`gap-1 rounded-md transition-all duration-200 ${view === 'gantt' ? 'bg-orange-600 text-white hover:bg-orange-700 shadow-sm' : 'text-orange-600 hover:bg-orange-50'}`}
             >
               <GanttChart className="h-4 w-4" /> Gantt
             </Button>
             <Button
-              variant={view === 'materials' ? 'default' : 'ghost'}
+              variant="ghost"
               size="sm"
               onClick={() => setView('materials')}
-              className="gap-1"
+              className={`gap-1 rounded-md transition-all duration-200 ${view === 'materials' ? 'bg-amber-600 text-white hover:bg-amber-700 shadow-sm' : 'text-amber-600 hover:bg-amber-50'}`}
             >
               <Package className="h-4 w-4" /> Materiales
             </Button>
             <Button
-              variant={view === 'rendicion' ? 'default' : 'ghost'}
+              variant="ghost"
               size="sm"
               onClick={() => setView('rendicion')}
-              className="gap-1"
+              className={`gap-1 rounded-md transition-all duration-200 ${view === 'rendicion' ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm' : 'text-emerald-600 hover:bg-emerald-50'}`}
             >
               <DollarSign className="h-4 w-4" /> Rendición
             </Button>
             <Button
-              variant={view === 'solicitudes' ? 'default' : 'ghost'}
+              variant="ghost"
               size="sm"
               onClick={() => setView('solicitudes')}
-              className="gap-1"
+              className={`gap-1 rounded-md transition-all duration-200 ${view === 'solicitudes' ? 'bg-pink-600 text-white hover:bg-pink-700 shadow-sm' : 'text-pink-600 hover:bg-pink-50'}`}
             >
               <ShoppingBag className="h-4 w-4" /> Compras
             </Button>
@@ -3342,10 +3342,10 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
             </Button>
             {(session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERVISOR') && (
               <Button
-                variant={view === 'users' ? 'default' : 'ghost'}
+                variant="ghost"
                 size="sm"
                 onClick={() => setView('users')}
-                className="gap-1"
+                className={`gap-1 rounded-md transition-all duration-200 ${view === 'users' ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm' : 'text-indigo-600 hover:bg-indigo-50'}`}
               >
                 <Users className="h-4 w-4" /> Usuarios
               </Button>
