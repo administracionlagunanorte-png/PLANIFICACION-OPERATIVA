@@ -1,0 +1,1389 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useRef, useCallback } from 'react'
+     4→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+     5→import { Button } from '@/components/ui/button'
+     6→import { Input } from '@/components/ui/input'
+     7→import { Label } from '@/components/ui/label'
+     8→import { Textarea } from '@/components/ui/textarea'
+     9→import { Badge } from '@/components/ui/badge'
+    10→import { Progress } from '@/components/ui/progress'
+    11→import {
+    12→  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+    13→} from '@/components/ui/dialog'
+    14→import {
+    15→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    16→} from '@/components/ui/select'
+    17→import {
+    18→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    19→} from '@/components/ui/table'
+    20→import {
+    21→  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    22→  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+    23→} from '@/components/ui/alert-dialog'
+    24→import {
+    25→  Wrench, ChevronLeft, CheckCircle, XCircle, Clock,
+    26→  Printer, Upload, Calendar, ChevronRight,
+    27→  RefreshCw, Map, FileText, Trash2, AlertTriangle,
+    28→  Eye, Save, MessageSquare, Paperclip, Pencil, Plus, X,
+    29→} from 'lucide-react'
+    30→import { useToast } from '@/hooks/use-toast'
+    31→import ModuleAlertBanner, { ModuleAlertItem } from './ModuleAlertBanner'
+    32→import AlertConfigDialog from './AlertConfigDialog'
+    33→
+    34→// ============================================================
+    35→// Types
+    36→// ============================================================
+    37→interface MantenimientoItem {
+    38→  id?: string
+    39→  category: string
+    40→  description: string
+    41→  status: string  // PENDIENTE, OK, NO_OK, N/A
+    42→  value?: string | null
+    43→  observation?: string | null
+    44→  order: number
+    45→}
+    46→
+    47→interface MantenimientoLV {
+    48→  id: string
+    49→  codigo: string
+    50→  nombre: string
+    51→  sector: string
+    52→  frecuencia: string
+    53→  status: string
+    54→  progress: number
+    55→  scheduledDate: string | null
+    56→  completedDate: string | null
+    57→  responsable: string | null
+    58→  turno: string | null
+    59→  observations: string | null
+    60→  motivoPendiente: string | null
+    61→  attachments: string
+    62→  createdBy: string | null
+    63→  createdAt: string
+    64→  updatedAt: string
+    65→  items: MantenimientoItem[]
+    66→  _count?: { items: number }
+    67→}
+    68→
+    69→// Frequency colors - CALENDAR uses these group colors
+    70→const freqGroupColors: Record<string, { bg: string; text: string; dot: string; label: string }> = {
+    71→  'Diaria': { bg: 'bg-blue-500', text: 'text-blue-700', dot: 'bg-blue-400', label: 'Diaria' },
+    72→  '3x Semanal': { bg: 'bg-sky-500', text: 'text-sky-700', dot: 'bg-sky-400', label: '3x Semanal' },
+    73→  'Semanal': { bg: 'bg-purple-500', text: 'text-purple-700', dot: 'bg-purple-400', label: 'Semanal' },
+    74→  'Quincenal': { bg: 'bg-cyan-500', text: 'text-cyan-700', dot: 'bg-cyan-400', label: 'Quincenal' },
+    75→  'Mensual': { bg: 'bg-amber-500', text: 'text-amber-700', dot: 'bg-amber-400', label: 'Mensual' },
+    76→  'Trimestral': { bg: 'bg-orange-500', text: 'text-orange-700', dot: 'bg-orange-400', label: 'Trimestral' },
+    77→  'Semestral': { bg: 'bg-rose-500', text: 'text-rose-700', dot: 'bg-rose-400', label: 'Semestral' },
+    78→  'Anual': { bg: 'bg-red-600', text: 'text-red-700', dot: 'bg-red-500', label: 'Anual' },
+    79→}
+    80→
+    81→// Frequency colors for badges/cards
+    82→const freqColors: Record<string, { bg: string; text: string; border: string }> = {
+    83→  'Diaria': { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-300' },
+    84→  '3x Semanal': { bg: 'bg-sky-100', text: 'text-sky-700', border: 'border-sky-300' },
+    85→  'Semanal': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300' },
+    86→  'Quincenal': { bg: 'bg-cyan-100', text: 'text-cyan-700', border: 'border-cyan-300' },
+    87→  'Mensual': { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-300' },
+    88→  'Trimestral': { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300' },
+    89→  'Semestral': { bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-300' },
+    90→  'Anual': { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300' },
+    91→}
+    92→
+    93→const statusConfig: Record<string, { bg: string; text: string; label: string; icon: typeof CheckCircle }> = {
+    94→  'PENDIENTE': { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Pendiente', icon: Clock },
+    95→  'EN_PROGRESO': { bg: 'bg-blue-100', text: 'text-blue-700', label: 'En Progreso', icon: RefreshCw },
+    96→  'COMPLETADA': { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'Realizado', icon: CheckCircle },
+    97→}
+    98→
+    99→// ============================================================
+   100→// Props
+   101→// ============================================================
+   102→interface MantenimientoPanelProps {
+   103→  userRole?: string
+   104→  initialStatusFilter?: string
+   105→  onStatusFilterConsumed?: () => void
+   106→}
+   107→
+   108→// ============================================================
+   109→// Component
+   110→// ============================================================
+   111→export default function MantenimientoPanel({ userRole = 'USER', initialStatusFilter, onStatusFilterConsumed }: MantenimientoPanelProps) {
+   112→  const { toast } = useToast()
+   113→  const canEdit = userRole === 'ADMIN' || userRole === 'SUPERVISOR'
+   114→
+   115→  // --- View state ---
+   116→  const [currentView, setCurrentView] = useState<'calendar' | 'day' | 'detail' | 'frequency'>('calendar')
+   117→  const [moduleAlerts, setModuleAlerts] = useState<ModuleAlertItem[]>([])
+   118→  const [alertConfigOpen, setAlertConfigOpen] = useState(false)
+   119→  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
+   120→  const [allLVs, setAllLVs] = useState<MantenimientoLV[]>([])
+   121→  const [selectedLV, setSelectedLV] = useState<MantenimientoLV | null>(null)
+   122→  const [selectedDate, setSelectedDate] = useState<string>('')
+   123→  const [selectedFrequency, setSelectedFrequency] = useState<string>('')
+   124→  const [loading, setLoading] = useState(false)
+   125→  const [generating, setGenerating] = useState(false)
+   126→  const [saving, setSaving] = useState(false)
+   127→
+   128→  // --- Calendar state ---
+   129→  const [calYear, setCalYear] = useState(new Date().getFullYear())
+   130→  const [calMonth, setCalMonth] = useState(new Date().getMonth())
+   131→
+   132→  // --- Detail edit state ---
+   133→  const [editStatus, setEditStatus] = useState<string>('')
+   134→  const [editMotivoPendiente, setEditMotivoPendiente] = useState<string>('')
+   135→  const [editObservations, setEditObservations] = useState<string>('')
+   136→  const [editItems, setEditItems] = useState<MantenimientoItem[]>([])
+   137→
+   138→  // --- LV field edit state ---
+   139→  const [editNombre, setEditNombre] = useState<string>('')
+   140→  const [editSector, setEditSector] = useState<string>('')
+   141→  const [editFrecuencia, setEditFrecuencia] = useState<string>('')
+   142→  const [editScheduledDate, setEditScheduledDate] = useState<string>('')
+   143→  const [editResponsable, setEditResponsable] = useState<string>('')
+   144→  const [editTurno, setEditTurno] = useState<string>('')
+   145→  const [isEditingLV, setIsEditingLV] = useState(false)
+   146→
+   147→  // --- Dialogs ---
+   148→  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+   149→  const [deleteId, setDeleteId] = useState<string | null>(null)
+   150→
+   151→  // --- Attach upload ---
+   152→  const fileInputRef = useRef<HTMLInputElement>(null)
+   153→  const [uploading, setUploading] = useState(false)
+   154→
+   155→  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+   156→
+   157→  // ============================================================
+   158→  // React to filter from parent
+   159→  // ============================================================
+   160→  useEffect(() => {
+   161→    if (initialStatusFilter && initialStatusFilter !== 'all') {
+   162→      if (onStatusFilterConsumed) onStatusFilterConsumed()
+   163→    }
+   164→  }, [initialStatusFilter])
+   165→
+   166→  // ============================================================
+   167→  // Data fetching - only LVs from today onwards
+   168→  // ============================================================
+   169→  const fetchLVs = useCallback(async () => {
+   170→    setLoading(true)
+   171→    try {
+   172→      // Get LVs from today onwards for the current calendar month
+   173→      const today = new Date()
+   174→      const fromStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+   175→      // Fetch for 3 months ahead to cover calendar navigation
+   176→      const futureDate = new Date(today)
+   177→      futureDate.setMonth(futureDate.getMonth() + 3)
+   178→      const toStr = `${futureDate.getFullYear()}-${String(futureDate.getMonth() + 1).padStart(2, '0')}-${String(futureDate.getDate()).padStart(2, '0')}`
+   179→
+   180→      const params = new URLSearchParams()
+   181→      params.set('from', fromStr)
+   182→      params.set('to', toStr)
+   183→      const res = await fetch(`/api/mantenimiento-lv?${params.toString()}`)
+   184→      if (res.ok) {
+   185→        const data = await res.json()
+   186→        // Filter: only from today onwards
+   187→        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+   188→        const filtered = data.filter((lv: MantenimientoLV) => {
+   189→          const date = (lv.scheduledDate || '').substring(0, 10)
+   190→          return date >= todayStr
+   191→        })
+   192→        setAllLVs(filtered)
+   193→      }
+   194→    } catch (err) {
+   195→      console.error(err)
+   196→      toast({ title: 'Error', description: 'No se pudieron cargar las listas', variant: 'destructive' })
+   197→    } finally {
+   198→      setLoading(false)
+   199→    }
+   200→  }, [toast])
+   201→
+   202→  const fetchLVDetail = async (id: string) => {
+   203→    try {
+   204→      const res = await fetch(`/api/mantenimiento-lv/${id}`)
+   205→      if (res.ok) {
+   206→        const data = await res.json()
+   207→        setSelectedLV(data)
+   208→        setEditStatus(data.status)
+   209→        setEditMotivoPendiente(data.motivoPendiente || '')
+   210→        setEditObservations(data.observations || '')
+   211→        setEditItems([...data.items])
+   212→        // Initialize LV field edits
+   213→        setEditNombre(data.nombre || '')
+   214→        setEditSector(data.sector || '')
+   215→        setEditFrecuencia(data.frecuencia || '')
+   216→        setEditScheduledDate(data.scheduledDate ? data.scheduledDate.substring(0, 10) : '')
+   217→        setEditResponsable(data.responsable || '')
+   218→        setEditTurno(data.turno || '')
+   219→        setIsEditingLV(false)
+   220→      }
+   221→    } catch (err) {
+   222→      console.error(err)
+   223→    }
+   224→  }
+   225→
+   226→  useEffect(() => { fetchLVs(); fetchModuleAlerts() }, [fetchLVs])
+   227→
+   228→  const fetchModuleAlerts = async () => {
+   229→    try {
+   230→      const res = await fetch('/api/module-alerts?module=mantenimiento')
+   231→      if (res.ok) setModuleAlerts(await res.json())
+   232→    } catch {}
+   233→  }
+   234→
+   235→  const handleDismissAlert = (id: string) => {
+   236→    setDismissedAlerts(prev => new Set([...prev, id]))
+   237→  }
+   238→
+   239→  const visibleAlerts = moduleAlerts.filter(a => !dismissedAlerts.has(a.id))
+   240→
+   241→  // ============================================================
+   242→  // Auto-generate LVs for current and next month
+   243→  // ============================================================
+   244→  const handleGenerate = async () => {
+   245→    setGenerating(true)
+   246→    try {
+   247→      const now = new Date()
+   248→      // Generate for current month
+   249→      await fetch('/api/mantenimiento-generate', {
+   250→        method: 'POST',
+   251→        headers: { 'Content-Type': 'application/json' },
+   252→        body: JSON.stringify({ year: now.getFullYear(), month: now.getMonth() }),
+   253→      })
+   254→      // Generate for next month too
+   255→      const next = new Date(now)
+   256→      next.setMonth(next.getMonth() + 1)
+   257→      await fetch('/api/mantenimiento-generate', {
+   258→        method: 'POST',
+   259→        headers: { 'Content-Type': 'application/json' },
+   260→        body: JSON.stringify({ year: next.getFullYear(), month: next.getMonth() }),
+   261→      })
+   262→      fetchLVs()
+   263→      toast({ title: 'Listas generadas', description: 'Se generaron las listas de verificación pendientes' })
+   264→    } catch {
+   265→      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+   266→    } finally {
+   267→      setGenerating(false)
+   268→    }
+   269→  }
+   270→
+   271→  // Auto-generate on first load
+   272→  useEffect(() => {
+   273→    handleGenerate()
+   274→    // eslint-disable-next-line react-hooks/exhaustive-deps
+   275→  }, [])
+   276→
+   277→  // ============================================================
+   278→  // Calendar helpers
+   279→  // ============================================================
+   280→  const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate()
+   281→  const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay()
+   282→
+   283→  const getLVsForDate = (day: number) => {
+   284→    const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+   285→    return allLVs.filter(lv => lv.scheduledDate && lv.scheduledDate.startsWith(dateStr))
+   286→  }
+   287→
+   288→  // LVs for the selected day (in day view)
+   289→  const dayLVs = selectedDate ? allLVs.filter(lv => lv.scheduledDate && lv.scheduledDate.startsWith(selectedDate)) : []
+   290→
+   291→  // ============================================================
+   292→  // Open day / Open LV
+   293→  // ============================================================
+   294→  const openDay = (dateStr: string) => {
+   295→    setSelectedDate(dateStr)
+   296→    setCurrentView('day')
+   297→  }
+   298→
+   299→  const openFrequency = (freq: string) => {
+   300→    setSelectedFrequency(freq)
+   301→    setCurrentView('frequency')
+   302→  }
+   303→
+   304→  const openLV = (id: string, fromCalendar: boolean = false) => {
+   305→    if (fromCalendar) {
+   306→      // Find the LV to get its date, so "back" returns to the right day
+   307→      const lv = allLVs.find(l => l.id === id)
+   308→      if (lv?.scheduledDate) {
+   309→        setSelectedDate(lv.scheduledDate.substring(0, 10))
+   310→      }
+   311→    }
+   312→    // When coming from frequency view, keep selectedDate empty so goBack returns to frequency
+   313→    if (currentView === 'frequency') {
+   314→      setSelectedDate('')
+   315→    }
+   316→    fetchLVDetail(id)
+   317→    setCurrentView('detail')
+   318→  }
+   319→
+   320→  const goBack = () => {
+   321→    if (currentView === 'detail') {
+   322→      if (selectedFrequency && !selectedDate) {
+   323→        setCurrentView('frequency')
+   324→      } else if (selectedDate) {
+   325→        setCurrentView('day')
+   326→      } else {
+   327→        setCurrentView('calendar')
+   328→      }
+   329→      setSelectedLV(null)
+   330→    } else if (currentView === 'day') {
+   331→      setCurrentView('calendar')
+   332→      setSelectedDate('')
+   333→    } else if (currentView === 'frequency') {
+   334→      setCurrentView('calendar')
+   335→      setSelectedFrequency('')
+   336→    }
+   337→  }
+   338→
+   339→  // ============================================================
+   340→  // Save changes
+   341→  // ============================================================
+   342→  const handleSave = async () => {
+   343→    if (!selectedLV) return
+   344→    setSaving(true)
+   345→    try {
+   346→      const res = await fetch(`/api/mantenimiento-lv/${selectedLV.id}`, {
+   347→        method: 'PUT',
+   348→        headers: { 'Content-Type': 'application/json' },
+   349→        body: JSON.stringify({
+   350→          items: editItems,
+   351→          observations: editObservations,
+   352→          motivoPendiente: editStatus === 'PENDIENTE' ? editMotivoPendiente : '',
+   353→          status: editStatus,
+   354→          nombre: editNombre,
+   355→          sector: editSector,
+   356→          frecuencia: editFrecuencia,
+   357→          scheduledDate: editScheduledDate || undefined,
+   358→          responsable: editResponsable || null,
+   359→          turno: editTurno || null,
+   360→        }),
+   361→      })
+   362→      if (res.ok) {
+   363→        const data = await res.json()
+   364→        setSelectedLV({ ...selectedLV, ...data })
+   365→        fetchLVs()
+   366→        setIsEditingLV(false)
+   367→        toast({ title: 'Guardado', description: 'Cambios guardados exitosamente' })
+   368→      } else {
+   369→        toast({ title: 'Error', description: 'No se pudo guardar', variant: 'destructive' })
+   370→      }
+   371→    } catch {
+   372→      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+   373→    } finally {
+   374→      setSaving(false)
+   375→    }
+   376→  }
+   377→
+   378→  // Quick status change (from day view)
+   379→  const handleQuickStatus = async (lvId: string, newStatus: string) => {
+   380→    try {
+   381→      const res = await fetch(`/api/mantenimiento-lv/${lvId}`, {
+   382→        method: 'PUT',
+   383→        headers: { 'Content-Type': 'application/json' },
+   384→        body: JSON.stringify({ status: newStatus }),
+   385→      })
+   386→      if (res.ok) {
+   387→        fetchLVs()
+   388→        toast({ title: 'Estado actualizado' })
+   389→      }
+   390→    } catch {
+   391→      toast({ title: 'Error', description: 'No se pudo actualizar', variant: 'destructive' })
+   392→    }
+   393→  }
+   394→
+   395→  // ============================================================
+   396→  // Item status change
+   397→  // ============================================================
+   398→  const handleItemStatusChange = (itemId: string, newStatus: string) => {
+   399→    const updated = editItems.map(item =>
+   400→      item.id === itemId ? { ...item, status: newStatus } : item
+   401→    )
+   402→    setEditItems(updated)
+   403→  }
+   404→
+   405→  const handleItemFieldChange = (itemId: string, field: 'value' | 'observation' | 'description' | 'category', val: string) => {
+   406→    const updated = editItems.map(item =>
+   407→      item.id === itemId ? { ...item, [field]: val } : item
+   408→    )
+   409→    setEditItems(updated)
+   410→  }
+   411→
+   412→  const handleAddItem = (category: string) => {
+   413→    const catItems = editItems.filter(i => i.category === category)
+   414→    const newItem: MantenimientoItem = {
+   415→      id: `new-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+   416→      category,
+   417→      description: '',
+   418→      status: 'PENDIENTE',
+   419→      value: null,
+   420→      observation: null,
+   421→      order: catItems.length,
+   422→    }
+   423→    setEditItems([...editItems, newItem])
+   424→  }
+   425→
+   426→  const handleRemoveItem = (itemId: string) => {
+   427→    setEditItems(editItems.filter(item => item.id !== itemId))
+   428→  }
+   429→
+   430→  // ============================================================
+   431→  // Delete
+   432→  // ============================================================
+   433→  const handleDelete = async () => {
+   434→    if (!deleteId) return
+   435→    try {
+   436→      await fetch(`/api/mantenimiento-lv/${deleteId}`, { method: 'DELETE' })
+   437→      toast({ title: 'Eliminado', description: 'Lista eliminada exitosamente' })
+   438→      fetchLVs()
+   439→      goBack()
+   440→    } catch {
+   441→      toast({ title: 'Error', description: 'No se pudo eliminar', variant: 'destructive' })
+   442→    } finally {
+   443→      setDeleteDialogOpen(false); setDeleteId(null)
+   444→    }
+   445→  }
+   446→
+   447→  // ============================================================
+   448→  // Print
+   449→  // ============================================================
+   450→  const handlePrint = (lv: MantenimientoLV) => {
+   451→    const w = window.open('', '_blank')
+   452→    if (!w) return
+   453→    const categories = [...new Set(lv.items.map(i => i.category))]
+   454→    const categoryLabels: Record<string, string> = { A: 'A. EPP / Materiales', B: 'B. Verificación de Tareas', C: 'C. Inspección / Registros', D: 'D. Dosificaciones / Limpieza' }
+   455→    const logoUrl = `${window.location.origin}/logo-laguna-norte.jpg`
+   456→
+   457→    w.document.write(`<!DOCTYPE html><html><head><title>${lv.codigo} — ${lv.nombre}</title>
+   458→    <style>
+   459→      @page{size:A4;margin:8mm}
+   460→      *{box-sizing:border-box}
+   461→      body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;font-size:8.5px;color:#1e293b;line-height:1.25}
+   462→      .header{display:flex;align-items:center;justify-content:space-between;border-bottom:2.5px solid #0d9488;padding-bottom:5px;margin-bottom:4px}
+   463→      .header-left{display:flex;align-items:center;gap:8px}
+   464→      .header-left img{height:42px;width:auto;object-fit:contain}
+   465→      .header-info h1{font-size:13px;margin:0 0 1px;color:#0f172a;font-weight:800;line-height:1.2}
+   466→      .header-info .sub{font-size:8px;color:#64748b;margin:0}
+   467→      .header-info .org{font-size:9px;color:#0d9488;font-weight:700;margin:0 0 1px}
+   468→      .header-right{text-align:right;font-size:8px}
+   469→      .status-badge{display:inline-block;padding:1px 7px;border-radius:3px;font-weight:700;font-size:8px;letter-spacing:.3px}
+   470→      .pendiente{background:#fef3c7;color:#92400e}.completada{background:#d1fae5;color:#065f46}.progreso{background:#dbeafe;color:#1e40af}
+   471→      .progress-bar{height:10px;background:#e2e8f0;border-radius:3px;overflow:hidden;margin:2px 0;width:100px;display:inline-block;vertical-align:middle}
+   472→      .progress-fill{height:100%;background:#0d9488;border-radius:3px}
+   473→      .meta{display:flex;gap:12px;font-size:8px;margin-bottom:5px;flex-wrap:wrap;padding:3px 0;border-bottom:1px dashed #cbd5e1}
+   474→      .meta b{color:#475569}
+   475→      .cat-title{font-size:9.5px;font-weight:700;margin:5px 0 2px;padding:2px 5px;background:#f1f5f9;border-left:3px solid #0d9488;color:#334155}
+   476→      table{width:100%;border-collapse:collapse;margin-bottom:3px}
+   477→      th{background:#f8fafc;padding:2px 4px;text-align:left;border:1px solid #cbd5e1;font-size:7.5px;font-weight:700;color:#475569;white-space:nowrap}
+   478→      td{padding:1.5px 4px;border:1px solid #e2e8f0;font-size:7.5px;vertical-align:middle}
+   479→      tr:nth-child(even){background:#fafbfc}
+   480→      .ok{color:#16a34a;font-weight:700}.no{color:#dc2626;font-weight:700}
+   481→      .obs-section{margin-top:4px;padding:3px 5px;background:#fefce8;border:1px solid #fde68a;border-radius:3px;font-size:8px}
+   482→      .motivo-section{margin-top:3px;padding:3px 5px;background:#fef2f2;border:1px solid #fecaca;border-radius:3px;font-size:8px;color:#991b1b}
+   483→      .signatures{display:flex;justify-content:space-between;margin-top:8px;font-size:7.5px;padding-top:4px}
+   484→      .sig-line{border-top:1px solid #000;width:44%;padding-top:2px;margin-top:18px;text-align:center}
+   485→      @media print{body{margin:0;padding:0}.no-print{display:none}}
+   486→    </style></head><body>
+   487→    <div class="header">
+   488→      <div class="header-left">
+   489→        <img src="${logoUrl}" alt="Logo" />
+   490→        <div class="header-info">
+   491→          <div class="org">Asesorías Integrales CyJ</div>
+   492→          <h1>${lv.codigo} — ${lv.nombre}</h1>
+   493→          <div class="sub">Condominio Laguna Norte — Lampa, Santiago</div>
+   494→        </div>
+   495→      </div>
+   496→      <div class="header-right">
+   497→        <div class="status-badge ${lv.status === 'COMPLETADA' ? 'completada' : lv.status === 'EN_PROGRESO' ? 'progreso' : 'pendiente'}">${lv.status === 'COMPLETADA' ? 'REALIZADO' : lv.status === 'EN_PROGRESO' ? 'EN PROGRESO' : 'PENDIENTE'}</div>
+   498→        <div style="margin-top:2px">Avance: <b>${lv.progress}%</b></div>
+   499→        <div class="progress-bar"><div class="progress-fill" style="width:${lv.progress}%"></div></div>
+   500→      </div>
+   501→    </div>
+   502→    <div class="meta">
+   503→      <div><b>Sector:</b> ${lv.sector}</div>
+   504→      <div><b>Frecuencia:</b> ${lv.frecuencia}</div>
+   505→      <div><b>Responsable:</b> ${lv.responsable || '-'}</div>
+   506→      <div><b>Fecha:</b> ${lv.scheduledDate ? new Date(lv.scheduledDate).toLocaleDateString('es-CL') : '-'}</div>
+   507→      <div><b>Turno:</b> ${lv.turno || '-'}</div>
+   508→    </div>
+   509→    ${categories.map(cat => {
+   510→      const catItems = lv.items.filter(i => i.category === cat)
+   511→      return `<div class="cat-title">${categoryLabels[cat] || cat}</div>
+   512→      <table>
+   513→        <colgroup><col style="width:4%"><col style="width:42%"><col style="width:9%"><col style="width:14%"><col style="width:31%"></colgroup>
+   514→        <tr><th>N°</th><th>Descripción</th><th>Estado</th><th>Valor</th><th>Observación</th></tr>
+   515→        ${catItems.map((item, idx) => `<tr><td style="text-align:center">${idx + 1}</td><td>${item.description}</td><td class="${item.status === 'OK' ? 'ok' : item.status === 'NO_OK' ? 'no' : ''}" style="text-align:center">${item.status === 'OK' ? '&#10003; OK' : item.status === 'NO_OK' ? '&#10007; NO OK' : item.status === 'N/A' ? 'N/A' : '&#9634; Pend.'}</td><td>${item.value || ''}</td><td>${item.observation || ''}</td></tr>`).join('')}
+   516→      </table>`
+   517→    }).join('')}
+   518→    ${lv.observations ? `<div class="obs-section"><b>Observaciones:</b> ${lv.observations}</div>` : ''}
+   519→    ${lv.motivoPendiente ? `<div class="motivo-section"><b>Motivo Pendiente:</b> ${lv.motivoPendiente}</div>` : ''}
+   520→    <div class="signatures">
+   521→      <div class="sig-line">Responsable — Nombre, Firma, RUT, Fecha</div>
+   522→      <div class="sig-line">Supervisor — Nombre, Firma, RUT, Fecha</div>
+   523→    </div>
+   524→    </body></html>`)
+   525→    w.document.close()
+   526→    setTimeout(() => w.print(), 600)
+   527→  }
+   528→
+   529→  // ============================================================
+   530→  // Upload attachment
+   531→  // ============================================================
+   532→  const handleUploadAttachment = async (e: React.ChangeEvent<HTMLInputElement>) => {
+   533→    const file = e.target.files?.[0]
+   534→    if (!file || !selectedLV) return
+   535→    setUploading(true)
+   536→    try {
+   537→      const formData = new FormData()
+   538→      formData.append('file', file)
+   539→      const res = await fetch('/api/upload', { method: 'POST', body: formData })
+   540→      if (res.ok) {
+   541→        const { url } = await res.json()
+   542→        const currentAttachments = JSON.parse(selectedLV.attachments || '[]')
+   543→        const newAttachments = [...currentAttachments, url]
+   544→        await fetch(`/api/mantenimiento-lv/${selectedLV.id}`, {
+   545→          method: 'PUT',
+   546→          headers: { 'Content-Type': 'application/json' },
+   547→          body: JSON.stringify({ attachments: JSON.stringify(newAttachments) }),
+   548→        })
+   549→        fetchLVDetail(selectedLV.id)
+   550→        fetchLVs()
+   551→        toast({ title: 'Archivo adjuntado', description: file.name })
+   552→      }
+   553→    } catch {
+   554→      toast({ title: 'Error', description: 'No se pudo subir el archivo', variant: 'destructive' })
+   555→    } finally {
+   556→      setUploading(false)
+   557→      if (fileInputRef.current) fileInputRef.current.value = ''
+   558→    }
+   559→  }
+   560→
+   561→  // ============================================================
+   562→  // Format helpers
+   563→  // ============================================================
+   564→  const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '-'
+   565→  const formatDateShort = (d: string | null) => d ? new Date(d).toLocaleDateString('es-CL') : '-'
+   566→
+   567→  // Stats for current calendar month
+   568→  const monthLVs = allLVs.filter(lv => {
+   569→    if (!lv.scheduledDate) return false
+   570→    const d = new Date(lv.scheduledDate)
+   571→    return d.getFullYear() === calYear && d.getMonth() === calMonth
+   572→  })
+   573→  const pendientes = monthLVs.filter(l => l.status === 'PENDIENTE').length
+   574→  const enProgreso = monthLVs.filter(l => l.status === 'EN_PROGRESO').length
+   575→  const completadas = monthLVs.filter(l => l.status === 'COMPLETADA').length
+   576→  const avgProgress = monthLVs.length > 0 ? Math.round(monthLVs.reduce((s, l) => s + l.progress, 0) / monthLVs.length) : 0
+   577→
+   578→  // Stats by frequency group
+   579→  const freqGroups = ['Diaria', '3x Semanal', 'Semanal', 'Quincenal', 'Mensual', 'Trimestral', 'Semestral', 'Anual']
+   580→  const freqStats = freqGroups.map(freq => {
+   581→    const groupLVs = monthLVs.filter(l => l.frecuencia === freq)
+   582→    const total = groupLVs.length
+   583→    const done = groupLVs.filter(l => l.status === 'COMPLETADA').length
+   584→    const pending = groupLVs.filter(l => l.status === 'PENDIENTE').length
+   585→    const progress = total > 0 ? Math.round(groupLVs.reduce((s, l) => s + l.progress, 0) / total) : 0
+   586→    return { freq, total, done, pending, progress }
+   587→  }).filter(f => f.total > 0)
+   588→
+   589→  const getProgressColor = (progress: number) => {
+   590→    if (progress === 100) return 'text-emerald-600'
+   591→    if (progress >= 50) return 'text-blue-600'
+   592→    if (progress > 0) return 'text-amber-600'
+   593→    return 'text-slate-400'
+   594→  }
+   595→
+   596→  const getProgressBg = (progress: number) => {
+   597→    if (progress === 100) return 'bg-emerald-500'
+   598→    if (progress >= 50) return 'bg-blue-500'
+   599→    if (progress > 0) return 'bg-amber-500'
+   600→    return 'bg-slate-300'
+   601→  }
+   602→
+   603→  // ============================================================
+   604→  // RENDER
+   605→  // ============================================================
+   606→  return (
+   607→    <div className="space-y-4">
+   608→      {/* Alert Banner (unified system) */}
+   609→      <ModuleAlertBanner
+   610→        alerts={visibleAlerts}
+   611→        userRole={userRole}
+   612→        onConfigure={() => setAlertConfigOpen(true)}
+   613→        onDismiss={handleDismissAlert}
+   614→      />
+   615→      {/* Stats bar */}
+   616→      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+   617→        <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm text-center">
+   618→          <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Total</div>
+   619→          <div className="text-2xl font-bold text-slate-800">{monthLVs.length}</div>
+   620→        </div>
+   621→        <div className="bg-white rounded-xl p-3 border border-amber-200 shadow-sm text-center">
+   622→          <div className="text-xs text-amber-600 uppercase tracking-wider font-semibold">Pendientes</div>
+   623→          <div className="text-2xl font-bold text-amber-700">{pendientes}</div>
+   624→        </div>
+   625→        <div className="bg-white rounded-xl p-3 border border-blue-200 shadow-sm text-center">
+   626→          <div className="text-xs text-blue-600 uppercase tracking-wider font-semibold">En Progreso</div>
+   627→          <div className="text-2xl font-bold text-blue-700">{enProgreso}</div>
+   628→        </div>
+   629→        <div className="bg-white rounded-xl p-3 border border-emerald-200 shadow-sm text-center">
+   630→          <div className="text-xs text-emerald-600 uppercase tracking-wider font-semibold">Realizadas</div>
+   631→          <div className="text-2xl font-bold text-emerald-700">{completadas}</div>
+   632→        </div>
+   633→        <div className="bg-white rounded-xl p-3 border border-teal-200 shadow-sm text-center">
+   634→          <div className="text-xs text-teal-600 uppercase tracking-wider font-semibold">Avance</div>
+   635→          <div className="text-2xl font-bold text-teal-700">{avgProgress}%</div>
+   636→          <Progress value={avgProgress} className="h-2 mt-1" />
+   637→        </div>
+   638→      </div>
+   639→
+   640→      {/* Summary by frequency type */}
+   641→      {freqStats.length > 0 && (
+   642→        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+   643→          {freqStats.map(fs => {
+   644→            const gc = freqGroupColors[fs.freq] || freqGroupColors['Mensual']
+   645→            return (
+   646→              <div key={fs.freq} className="bg-white rounded-lg p-2.5 border border-slate-200 shadow-sm cursor-pointer hover:shadow-md hover:border-slate-300 transition-all group"
+   647→                onClick={() => openFrequency(fs.freq)}>
+   648→                <div className="flex items-center gap-1.5 mb-1.5">
+   649→                  <div className={`w-2.5 h-2.5 rounded-full ${gc.dot}`} />
+   650→                  <span className="text-[10px] font-bold text-slate-600 uppercase">{fs.freq}</span>
+   651→                </div>
+   652→                <div className="flex items-end justify-between">
+   653→                  <div>
+   654→                    <span className="text-lg font-bold text-slate-800 group-hover:text-teal-700 transition-colors">{fs.total}</span>
+   655→                    <span className="text-[10px] text-slate-400 ml-0.5">LVs</span>
+   656→                  </div>
+   657→                  <div className="text-right">
+   658→                    <div className={`text-sm font-bold ${fs.progress === 100 ? 'text-emerald-600' : fs.progress >= 50 ? 'text-blue-600' : 'text-amber-600'}`}>
+   659→                      {fs.progress}%
+   660→                    </div>
+   661→                    <div className="w-12 h-1 rounded-full bg-slate-200 overflow-hidden">
+   662→                      <div className={`h-full rounded-full ${fs.progress === 100 ? 'bg-emerald-500' : fs.progress >= 50 ? 'bg-blue-500' : 'bg-amber-500'}`} style={{ width: `${fs.progress}%` }} />
+   663→                    </div>
+   664→                  </div>
+   665→                </div>
+   666→                <div className="flex gap-2 mt-1 text-[9px]">
+   667→                  <span className="text-emerald-600">{fs.done} ok</span>
+   668→                  <span className="text-amber-600">{fs.pending} pend</span>
+   669→                </div>
+   670→              </div>
+   671→            )
+   672→          })}
+   673→        </div>
+   674→      )}
+   675→
+   676→      {/* Header with navigation */}
+   677→      <div className="flex items-center justify-between">
+   678→        <div className="flex items-center gap-3">
+   679→          {currentView !== 'calendar' && (
+   680→            <Button variant="ghost" size="sm" onClick={goBack} className="gap-1">
+   681→              <ChevronLeft className="h-4 w-4" /> Volver
+   682→            </Button>
+   683→          )}
+   684→          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+   685→            <Wrench className="h-5 w-5 text-teal-600" />
+   686→            Mantenimiento
+   687→          </h2>
+   688→          {currentView === 'day' && selectedDate && (
+   689→            <Badge className="bg-teal-100 text-teal-700 text-sm">
+   690→              {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}
+   691→            </Badge>
+   692→          )}
+   693→          {currentView === 'frequency' && selectedFrequency && (() => {
+   694→            const gc = freqGroupColors[selectedFrequency]
+   695→            return (
+   696→              <Badge className={`${gc?.bg || 'bg-slate-500'} text-white text-sm`}>
+   697→                {selectedFrequency}
+   698→              </Badge>
+   699→            )
+   700→          })()}
+   701→        </div>
+   702→        <div className="flex items-center gap-2">
+   703→          {currentView === 'calendar' && (
+   704→            <Button
+   705→              variant="outline"
+   706→              size="sm"
+   707→              className="gap-1 border-teal-300 text-teal-700 hover:bg-teal-50"
+   708→              onClick={handleGenerate}
+   709→              disabled={generating}
+   710→            >
+   711→              <RefreshCw className={`h-4 w-4 ${generating ? 'animate-spin' : ''}`} />
+   712→              {generating ? 'Generando...' : 'Generar'}
+   713→            </Button>
+   714→          )}
+   715→        </div>
+   716→      </div>
+   717→
+   718→      {/* ============================================================ */}
+   719→      {/* CALENDAR VIEW                                                 */}
+   720→      {/* ============================================================ */}
+   721→      {currentView === 'calendar' && (
+   722→        <Card className="border-teal-200">
+   723→          <CardHeader className="pb-2 bg-gradient-to-r from-teal-50 to-white border-b border-teal-100">
+   724→            <div className="flex items-center justify-between">
+   725→              <Button variant="ghost" size="sm" onClick={() => { if (calMonth === 0) { setCalMonth(11); setCalYear(calYear - 1) } else setCalMonth(calMonth - 1) }} className="text-teal-700 hover:text-teal-900">
+   726→                <ChevronLeft className="h-5 w-5" />
+   727→              </Button>
+   728→              <CardTitle className="text-lg font-bold text-teal-900">{monthNames[calMonth]} {calYear}</CardTitle>
+   729→              <Button variant="ghost" size="sm" onClick={() => { if (calMonth === 11) { setCalMonth(0); setCalYear(calYear + 1) } else setCalMonth(calMonth + 1) }} className="text-teal-700 hover:text-teal-900">
+   730→                <ChevronRight className="h-5 w-5" />
+   731→              </Button>
+   732→            </div>
+   733→          </CardHeader>
+   734→          <CardContent className="p-3">
+   735→            <div className="grid grid-cols-7 gap-1">
+   736→              {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (
+   737→                <div key={d} className="text-center text-xs font-bold text-teal-700 py-2 bg-teal-50 rounded-t">{d}</div>
+   738→              ))}
+   739→              {Array.from({ length: getFirstDayOfMonth(calYear, calMonth) }, (_, i) => (
+   740→                <div key={`empty-${i}`} className="min-h-[90px] bg-slate-50 rounded" />
+   741→              ))}
+   742→              {Array.from({ length: getDaysInMonth(calYear, calMonth) }, (_, i) => {
+   743→                const day = i + 1
+   744→                const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+   745→                const dayLVs = getLVsForDate(day)
+   746→                const isToday = calYear === new Date().getFullYear() && calMonth === new Date().getMonth() && day === new Date().getDate()
+   747→                const isPast = new Date(dateStr + 'T12:00:00') < new Date(new Date().toDateString())
+   748→                const allComplete = dayLVs.length > 0 && dayLVs.every(lv => lv.status === 'COMPLETADA')
+   749→                const hasPending = dayLVs.some(lv => lv.status === 'PENDIENTE')
+   750→                const dayProgress = dayLVs.length > 0 ? Math.round(dayLVs.reduce((s, l) => s + l.progress, 0) / dayLVs.length) : 0
+   751→
+   752→                return (
+   753→                  <div key={day}
+   754→                    className={`min-h-[90px] border rounded-lg p-1.5 text-xs overflow-hidden cursor-pointer transition-all hover:shadow-md ${isToday ? 'border-teal-400 bg-teal-50/30 ring-2 ring-teal-300' : allComplete ? 'border-emerald-300 bg-emerald-50/20' : hasPending && isPast ? 'border-amber-300 bg-amber-50/20' : 'border-slate-200 hover:border-teal-300'}`}
+   755→                    onClick={() => { if (dayLVs.length > 0) openDay(dateStr) }}
+   756→                  >
+   757→                    <div className="flex items-center justify-between mb-1">
+   758→                      <span className={`font-bold text-sm ${isToday ? 'text-teal-700 bg-teal-200 rounded-full w-7 h-7 flex items-center justify-center' : 'text-slate-700'}`}>{day}</span>
+   759→                      {dayLVs.length > 0 && (
+   760→                        <span className={`text-[10px] font-bold ${allComplete ? 'text-emerald-600' : hasPending && isPast ? 'text-amber-600' : 'text-slate-500'}`}>
+   761→                          {dayProgress}%
+   762→                        </span>
+   763→                      )}
+   764→                    </div>
+   765→                    <div className="space-y-0.5">
+   766→                      {dayLVs.slice(0, 4).map(lv => {
+   767→                        const gc = freqGroupColors[lv.frecuencia] || freqGroupColors['Mensual']
+   768→                        const isDone = lv.status === 'COMPLETADA'
+   769→                        const isPending = lv.status === 'PENDIENTE'
+   770→                        return (
+   771→                          <div key={lv.id}
+   772→                            className={`truncate rounded px-1 py-0.5 text-[10px] font-medium ${gc.bg} text-white cursor-pointer hover:brightness-110 hover:shadow-sm transition-all flex items-center gap-0.5 ${isDone ? 'opacity-70 line-through decoration-1' : ''} ${isPending ? 'ring-1 ring-white/50' : ''}`}
+   773→                            title={`${lv.codigo} — ${lv.nombre} (${lv.frecuencia}, ${lv.progress}%) - Clic para revisar`}
+   774→                            onClick={(e) => { e.stopPropagation(); openLV(lv.id, true) }}
+   775→                          >
+   776→                            {isDone && <CheckCircle className="h-2.5 w-2.5 shrink-0" />}
+   777→                            {isPending && <Clock className="h-2.5 w-2.5 shrink-0" />}
+   778→                            {lv.codigo}
+   779→                          </div>
+   780→                        )
+   781→                      })}
+   782→                      {dayLVs.length > 4 && (
+   783→                        <div className="text-[10px] text-teal-600 font-semibold cursor-pointer hover:text-teal-800" onClick={(e) => { e.stopPropagation(); openDay(dateStr) }}>+{dayLVs.length - 4} más</div>
+   784→                      )}
+   785→                    </div>
+   786→                  </div>
+   787→                )
+   788→              })}
+   789→            </div>
+   790→            {/* Legend - colors by frequency */}
+   791→            <div className="flex flex-wrap gap-3 mt-3 text-xs p-2 bg-slate-50 rounded-lg">
+   792→              {freqGroups.filter(f => monthLVs.some(l => l.frecuencia === f)).map(f => {
+   793→                const gc = freqGroupColors[f]
+   794→                return (
+   795→                  <div key={f} className="flex items-center gap-1">
+   796→                    <div className={`w-3 h-3 rounded ${gc.dot}`} />
+   797→                    <span className="text-slate-600">{f}</span>
+   798→                  </div>
+   799→                )
+   800→              })}
+   801→              <div className="flex items-center gap-1 ml-auto text-teal-600">Clic en una LV para revisión directa · Clic en día para ver todas</div>
+   802→            </div>
+   803→          </CardContent>
+   804→        </Card>
+   805→      )}
+   806→
+   807→      {/* ============================================================ */}
+   808→      {/* DAY VIEW — Shows all LVs for the selected date              */}
+   809→      {/* ============================================================ */}
+   810→      {currentView === 'day' && selectedDate && (
+   811→        <div className="space-y-3">
+   812→          {dayLVs.length === 0 ? (
+   813→            <div className="text-center py-12 text-slate-400">
+   814→              <Calendar className="h-12 w-12 mx-auto mb-3 opacity-40" />
+   815→              <p className="text-lg font-medium">No hay listas para este día</p>
+   816→            </div>
+   817→          ) : (
+   818→            dayLVs
+   819→              .sort((a, b) => a.codigo.localeCompare(b.codigo))
+   820→              .map(lv => {
+   821→                const sc = statusConfig[lv.status] || statusConfig['PENDIENTE']
+   822→                const fc = freqColors[lv.frecuencia] || freqColors['Mensual']
+   823→                const StatusIcon = sc.icon
+   824→                return (
+   825→                  <Card key={lv.id} className={`border-l-4 hover:shadow-lg transition-all cursor-pointer group ${lv.status === 'COMPLETADA' ? 'border-l-emerald-500 bg-emerald-50/30' : lv.status === 'EN_PROGRESO' ? 'border-l-blue-500 bg-blue-50/20' : 'border-l-amber-500 bg-amber-50/20'}`}
+   826→                    onClick={() => openLV(lv.id)}>
+   827→                    <CardContent className="px-4 py-3">
+   828→                      <div className="flex items-center justify-between gap-3">
+   829→                        <div className="flex items-center gap-3 min-w-0">
+   830→                          <div className={`shrink-0 flex items-center justify-center w-10 h-10 rounded-lg ${fc.bg} ${fc.text}`}>
+   831→                            <span className="text-[10px] font-black leading-none">{lv.codigo.replace('LV-', '')}</span>
+   832→                          </div>
+   833→                          <div className="min-w-0">
+   834→                            <div className="font-semibold text-sm text-slate-800 truncate group-hover:text-teal-700 transition-colors">{lv.nombre}</div>
+   835→                            <div className="flex items-center gap-2 mt-0.5">
+   836→                              <span className="text-xs text-slate-500">{lv.sector}</span>
+   837→                              <Badge className={`${fc.bg} ${fc.text} ${fc.border} text-[10px] px-1.5 py-0 border`}>{lv.frecuencia}</Badge>
+   838→                            </div>
+   839→                          </div>
+   840→                        </div>
+   841→                        <div className="flex items-center gap-2 shrink-0">
+   842→                          {/* Quick action buttons */}
+   843→                          {canEdit && (
+   844→                            <div className="flex gap-1">
+   845→                              <Button
+   846→                                variant={lv.status === 'COMPLETADA' ? 'default' : 'outline'}
+   847→                                size="sm"
+   848→                                className={`h-7 text-xs gap-1 ${lv.status === 'COMPLETADA' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'border-emerald-300 text-emerald-700'}`}
+   849→                                onClick={(e) => { e.stopPropagation(); handleQuickStatus(lv.id, 'COMPLETADA') }}
+   850→                              >
+   851→                                <CheckCircle className="h-3 w-3" /> OK
+   852→                              </Button>
+   853→                            </div>
+   854→                          )}
+   855→                          {/* Progress */}
+   856→                          <div className="w-20">
+   857→                            <div className={`text-xs text-right font-bold ${getProgressColor(lv.progress)}`}>{lv.progress}%</div>
+   858→                            <div className="h-1.5 rounded-full bg-slate-200 mt-0.5 overflow-hidden">
+   859→                              <div className={`h-full rounded-full transition-all ${getProgressBg(lv.progress)}`} style={{ width: `${lv.progress}%` }} />
+   860→                            </div>
+   861→                          </div>
+   862→                          <div className="flex items-center gap-1 text-teal-600 group-hover:text-teal-800 transition-colors">
+   863→                            <Eye className="h-4 w-4" />
+   864→                            <span className="text-[10px] font-semibold hidden sm:inline">Revisar</span>
+   865→                          </div>
+   866→                        </div>
+   867→                      </div>
+   868→                      {/* Show motivo if pending */}
+   869→                      {lv.status === 'PENDIENTE' && lv.motivoPendiente && (
+   870→                        <div className="mt-2 flex items-start gap-2 bg-amber-50 rounded-lg px-3 py-2 border border-amber-200">
+   871→                          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+   872→                          <p className="text-xs text-amber-700"><span className="font-semibold">Motivo pendiente:</span> {lv.motivoPendiente}</p>
+   873→                        </div>
+   874→                      )}
+   875→                    </CardContent>
+   876→                  </Card>
+   877→                )
+   878→              })
+   879→          )}
+   880→        </div>
+   881→      )}
+   882→
+   883→      {/* ============================================================ */}
+   884→      {/* FREQUENCY VIEW — Shows all LVs for a selected frequency      */}
+   885→      {/* ============================================================ */}
+   886→      {currentView === 'frequency' && selectedFrequency && (
+   887→        <div className="space-y-3">
+   888→          {(() => {
+   889→            const freqLVs = allLVs
+   890→              .filter(lv => lv.frecuencia === selectedFrequency)
+   891→              .sort((a, b) => {
+   892→                // Sort by status: pendientes first, then en progreso, then completadas
+   893→                const statusOrder: Record<string, number> = { 'PENDIENTE': 0, 'EN_PROGRESO': 1, 'COMPLETADA': 2 }
+   894→                const statusDiff = (statusOrder[a.status] || 0) - (statusOrder[b.status] || 0)
+   895→                if (statusDiff !== 0) return statusDiff
+   896→                // Then by date
+   897→                return (a.scheduledDate || '').localeCompare(b.scheduledDate || '')
+   898→              })
+   899→            const gc = freqGroupColors[selectedFrequency] || freqGroupColors['Mensual']
+   900→            const fc = freqColors[selectedFrequency] || freqColors['Mensual']
+   901→            const totalLVs = freqLVs.length
+   902→            const doneLVs = freqLVs.filter(l => l.status === 'COMPLETADA').length
+   903→            const pendingLVs = freqLVs.filter(l => l.status === 'PENDIENTE').length
+   904→            const progressLVs = freqLVs.filter(l => l.status === 'EN_PROGRESO').length
+   905→            const avgProg = totalLVs > 0 ? Math.round(freqLVs.reduce((s, l) => s + l.progress, 0) / totalLVs) : 0
+   906→
+   907→            return (
+   908→              <>
+   909→                {/* Frequency summary header */}
+   910→                <Card className={`border-l-4 ${fc.border} overflow-hidden`}>
+   911→                  <CardContent className="px-4 py-3">
+   912→                    <div className="flex items-center justify-between">
+   913→                      <div className="flex items-center gap-3">
+   914→                        <div className={`flex items-center justify-center w-12 h-12 rounded-xl ${gc.bg} text-white`}>
+   915→                          <Wrench className="h-6 w-6" />
+   916→                        </div>
+   917→                        <div>
+   918→                          <h3 className="text-lg font-bold text-slate-800">Listas de Verificación — {selectedFrequency}</h3>
+   919→                          <p className="text-sm text-slate-500">{totalLVs} LVs en este período</p>
+   920→                        </div>
+   921→                      </div>
+   922→                      <div className="flex items-center gap-4">
+   923→                        <div className="text-center">
+   924→                          <div className="text-2xl font-bold text-amber-600">{pendingLVs}</div>
+   925→                          <div className="text-[10px] text-slate-500 uppercase font-semibold">Pendientes</div>
+   926→                        </div>
+   927→                        <div className="text-center">
+   928→                          <div className="text-2xl font-bold text-blue-600">{progressLVs}</div>
+   929→                          <div className="text-[10px] text-slate-500 uppercase font-semibold">En Progreso</div>
+   930→                        </div>
+   931→                        <div className="text-center">
+   932→                          <div className="text-2xl font-bold text-emerald-600">{doneLVs}</div>
+   933→                          <div className="text-[10px] text-slate-500 uppercase font-semibold">Realizadas</div>
+   934→                        </div>
+   935→                        <div className="text-center">
+   936→                          <div className="text-2xl font-bold text-teal-700">{avgProg}%</div>
+   937→                          <div className="text-[10px] text-slate-500 uppercase font-semibold">Avance</div>
+   938→                          <div className="w-16 h-1.5 rounded-full bg-slate-200 mt-1 overflow-hidden">
+   939→                            <div className={`h-full rounded-full ${avgProg === 100 ? 'bg-emerald-500' : avgProg >= 50 ? 'bg-blue-500' : 'bg-amber-500'}`} style={{ width: `${avgProg}%` }} />
+   940→                          </div>
+   941→                        </div>
+   942→                      </div>
+   943→                    </div>
+   944→                  </CardContent>
+   945→                </Card>
+   946→
+   947→                {freqLVs.length === 0 ? (
+   948→                  <div className="text-center py-12 text-slate-400">
+   949→                    <Calendar className="h-12 w-12 mx-auto mb-3 opacity-40" />
+   950→                    <p className="text-lg font-medium">No hay listas para esta frecuencia</p>
+   951→                  </div>
+   952→                ) : (
+   953→                  freqLVs.map(lv => {
+   954→                    const lvFc = freqColors[lv.frecuencia] || freqColors['Mensual']
+   955→                    return (
+   956→                      <Card key={lv.id} className={`border-l-4 hover:shadow-lg transition-all cursor-pointer group ${lv.status === 'COMPLETADA' ? 'border-l-emerald-500 bg-emerald-50/30' : lv.status === 'EN_PROGRESO' ? 'border-l-blue-500 bg-blue-50/20' : 'border-l-amber-500 bg-amber-50/20'}`}
+   957→                        onClick={() => openLV(lv.id)}>
+   958→                        <CardContent className="px-4 py-3">
+   959→                          <div className="flex items-center justify-between gap-3">
+   960→                            <div className="flex items-center gap-3 min-w-0">
+   961→                              <div className={`shrink-0 flex items-center justify-center w-10 h-10 rounded-lg ${lvFc.bg} ${lvFc.text}`}>
+   962→                                <span className="text-[10px] font-black leading-none">{lv.codigo.replace('LV-', '')}</span>
+   963→                              </div>
+   964→                              <div className="min-w-0">
+   965→                                <div className="font-semibold text-sm text-slate-800 truncate group-hover:text-teal-700 transition-colors">{lv.nombre}</div>
+   966→                                <div className="flex items-center gap-2 mt-0.5">
+   967→                                  <span className="text-xs text-slate-500">{lv.sector}</span>
+   968→                                  <span className="text-xs text-slate-400">·</span>
+   969→                                  <span className="text-xs text-slate-500">{lv.scheduledDate ? new Date(lv.scheduledDate + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short' }) : '-'}</span>
+   970→                                  {lv.responsable && (
+   971→                                    <>
+   972→                                      <span className="text-xs text-slate-400">·</span>
+   973→                                      <span className="text-xs text-slate-500">{lv.responsable}</span>
+   974→                                    </>
+   975→                                  )}
+   976→                                </div>
+   977→                              </div>
+   978→                            </div>
+   979→                            <div className="flex items-center gap-2 shrink-0">
+   980→                              {/* Quick complete button */}
+   981→                              {canEdit && lv.status !== 'COMPLETADA' && (
+   982→                                <Button
+   983→                                  variant="outline"
+   984→                                  size="sm"
+   985→                                  className="h-7 text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+   986→                                  onClick={(e) => { e.stopPropagation(); handleQuickStatus(lv.id, 'COMPLETADA') }}
+   987→                                >
+   988→                                  <CheckCircle className="h-3 w-3" /> OK
+   989→                                </Button>
+   990→                              )}
+   991→                              {/* Status badge */}
+   992→                              <Badge className={`${statusConfig[lv.status]?.bg || 'bg-slate-100'} ${statusConfig[lv.status]?.text || 'text-slate-600'} text-[10px] gap-1`}>
+   993→                                {(() => { const Icon = statusConfig[lv.status]?.icon || Clock; return <Icon className="h-3 w-3" /> })()}
+   994→                                {statusConfig[lv.status]?.label}
+   995→                              </Badge>
+   996→                              {/* Progress */}
+   997→                              <div className="w-20">
+   998→                                <div className={`text-xs text-right font-bold ${getProgressColor(lv.progress)}`}>{lv.progress}%</div>
+   999→                                <div className="h-1.5 rounded-full bg-slate-200 mt-0.5 overflow-hidden">
+  1000→                                  <div className={`h-full rounded-full transition-all ${getProgressBg(lv.progress)}`} style={{ width: `${lv.progress}%` }} />
+  1001→                                </div>
+  1002→                              </div>
+  1003→                              <div className="flex items-center gap-1 text-teal-600 group-hover:text-teal-800 transition-colors">
+  1004→                                <Eye className="h-4 w-4" />
+  1005→                                <span className="text-[10px] font-semibold hidden sm:inline">Revisar</span>
+  1006→                              </div>
+  1007→                            </div>
+  1008→                          </div>
+  1009→                          {/* Show motivo if pending */}
+  1010→                          {lv.status === 'PENDIENTE' && lv.motivoPendiente && (
+  1011→                            <div className="mt-2 flex items-start gap-2 bg-amber-50 rounded-lg px-3 py-2 border border-amber-200">
+  1012→                              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+  1013→                              <p className="text-xs text-amber-700"><span className="font-semibold">Motivo pendiente:</span> {lv.motivoPendiente}</p>
+  1014→                            </div>
+  1015→                          )}
+  1016→                        </CardContent>
+  1017→                      </Card>
+  1018→                    )
+  1019→                  })
+  1020→                )}
+  1021→              </>
+  1022→            )
+  1023→          })()}
+  1024→        </div>
+  1025→      )}
+  1026→
+  1027→      {/* ============================================================ */}
+  1028→      {/* DETAIL VIEW — Single LV with full checklist                  */}
+  1029→      {/* ============================================================ */}
+  1030→      {currentView === 'detail' && selectedLV && (
+  1031→        <div className="space-y-4">
+  1032→          {/* Header */}
+  1033→          <Card className="border-teal-200 overflow-hidden">
+  1034→            <CardHeader className="bg-gradient-to-r from-teal-50 to-white border-b border-teal-100 pb-3">
+  1035→              <div className="flex items-start justify-between gap-3">
+  1036→                <div className="flex-1 min-w-0">
+  1037→                  {isEditingLV && canEdit ? (
+  1038→                    <div className="space-y-3">
+  1039→                      <div className="flex items-center gap-2">
+  1040→                        <Badge className={`${freqColors[editFrecuencia]?.bg || 'bg-slate-100'} ${freqColors[editFrecuencia]?.text || 'text-slate-700'} text-xs font-bold`}>
+  1041→                          {selectedLV.codigo}
+  1042→                        </Badge>
+  1043→                        <Badge variant="outline" className="text-xs text-teal-700 border-teal-300 bg-teal-50">
+  1044→                          <Pencil className="h-3 w-3 mr-1" /> Editando
+  1045→                        </Badge>
+  1046→                      </div>
+  1047→                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1048→                        <div>
+  1049→                          <Label className="text-xs font-semibold text-slate-600">Nombre</Label>
+  1050→                          <Input className="h-8 text-sm mt-1" value={editNombre} onChange={(e) => setEditNombre(e.target.value)} placeholder="Nombre de la LV" />
+  1051→                        </div>
+  1052→                        <div>
+  1053→                          <Label className="text-xs font-semibold text-slate-600">Sector</Label>
+  1054→                          <Input className="h-8 text-sm mt-1" value={editSector} onChange={(e) => setEditSector(e.target.value)} placeholder="Sector" />
+  1055→                        </div>
+  1056→                        <div>
+  1057→                          <Label className="text-xs font-semibold text-slate-600">Frecuencia</Label>
+  1058→                          <Select value={editFrecuencia} onValueChange={setEditFrecuencia}>
+  1059→                            <SelectTrigger className="h-8 text-sm mt-1">
+  1060→                              <SelectValue />
+  1061→                            </SelectTrigger>
+  1062→                            <SelectContent>
+  1063→                              <SelectItem value="Diaria">Diaria</SelectItem>
+  1064→                              <SelectItem value="3x Semanal">3x Semanal</SelectItem>
+  1065→                              <SelectItem value="Semanal">Semanal</SelectItem>
+  1066→                              <SelectItem value="Quincenal">Quincenal</SelectItem>
+  1067→                              <SelectItem value="Mensual">Mensual</SelectItem>
+  1068→                              <SelectItem value="Trimestral">Trimestral</SelectItem>
+  1069→                              <SelectItem value="Semestral">Semestral</SelectItem>
+  1070→                              <SelectItem value="Anual">Anual</SelectItem>
+  1071→                            </SelectContent>
+  1072→                          </Select>
+  1073→                        </div>
+  1074→                        <div>
+  1075→                          <Label className="text-xs font-semibold text-slate-600">Fecha Programada</Label>
+  1076→                          <Input type="date" className="h-8 text-sm mt-1" value={editScheduledDate} onChange={(e) => setEditScheduledDate(e.target.value)} />
+  1077→                        </div>
+  1078→                        <div>
+  1079→                          <Label className="text-xs font-semibold text-slate-600">Responsable</Label>
+  1080→                          <Input className="h-8 text-sm mt-1" value={editResponsable} onChange={(e) => setEditResponsable(e.target.value)} placeholder="Nombre del responsable" />
+  1081→                        </div>
+  1082→                        <div>
+  1083→                          <Label className="text-xs font-semibold text-slate-600">Turno</Label>
+  1084→                          <Select value={editTurno} onValueChange={setEditTurno}>
+  1085→                            <SelectTrigger className="h-8 text-sm mt-1">
+  1086→                              <SelectValue placeholder="Seleccionar turno" />
+  1087→                            </SelectTrigger>
+  1088→                            <SelectContent>
+  1089→                              <SelectItem value="Mañana">Mañana</SelectItem>
+  1090→                              <SelectItem value="Tarde">Tarde</SelectItem>
+  1091→                              <SelectItem value="Noche">Noche</SelectItem>
+  1092→                              <SelectItem value="">Sin turno</SelectItem>
+  1093→                            </SelectContent>
+  1094→                          </Select>
+  1095→                        </div>
+  1096→                      </div>
+  1097→                    </div>
+  1098→                  ) : (
+  1099→                    <>
+  1100→                      <div className="flex items-center gap-2 mb-1">
+  1101→                        <Badge className={`${freqColors[selectedLV.frecuencia]?.bg || 'bg-slate-100'} ${freqColors[selectedLV.frecuencia]?.text || 'text-slate-700'} text-xs font-bold`}>
+  1102→                          {selectedLV.codigo}
+  1103→                        </Badge>
+  1104→                        <Badge className={`${freqColors[selectedLV.frecuencia]?.bg || 'bg-slate-100'} ${freqColors[selectedLV.frecuencia]?.text || 'text-slate-700'} text-xs`}>
+  1105→                          {selectedLV.frecuencia}
+  1106→                        </Badge>
+  1107→                      </div>
+  1108→                      <h3 className="text-lg font-bold text-slate-800">{selectedLV.nombre}</h3>
+  1109→                      <p className="text-sm text-slate-500 mt-0.5">
+  1110→                        {selectedLV.sector} · {formatDateShort(selectedLV.scheduledDate)} · {selectedLV.responsable || 'Sin responsable'}
+  1111→                        {selectedLV.turno && <span> · {selectedLV.turno}</span>}
+  1112→                      </p>
+  1113→                    </>
+  1114→                  )}
+  1115→                </div>
+  1116→                {/* Progress circle + edit toggle */}
+  1117→                <div className="flex flex-col items-center gap-2 shrink-0">
+  1118→                  <div className="relative w-16 h-16">
+  1119→                    <svg className="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
+  1120→                      <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e2e8f0" strokeWidth="3" />
+  1121→                      <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke={selectedLV.progress === 100 ? '#10b981' : selectedLV.progress >= 50 ? '#3b82f6' : '#f59e0b'} strokeWidth="3" strokeDasharray={`${selectedLV.progress}, 100`} strokeLinecap="round" />
+  1122→                    </svg>
+  1123→                    <span className={`absolute inset-0 flex items-center justify-center text-sm font-bold ${getProgressColor(selectedLV.progress)}`}>{selectedLV.progress}%</span>
+  1124→                  </div>
+  1125→                  {canEdit && !isEditingLV && (
+  1126→                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1 border-teal-300 text-teal-700" onClick={() => setIsEditingLV(true)}>
+  1127→                      <Pencil className="h-3 w-3" /> Modificar
+  1128→                    </Button>
+  1129→                  )}
+  1130→                  {isEditingLV && canEdit && (
+  1131→                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1 border-slate-300 text-slate-600" onClick={() => {
+  1132→                      setIsEditingLV(false)
+  1133→                      setEditNombre(selectedLV.nombre || '')
+  1134→                      setEditSector(selectedLV.sector || '')
+  1135→                      setEditFrecuencia(selectedLV.frecuencia || '')
+  1136→                      setEditScheduledDate(selectedLV.scheduledDate ? selectedLV.scheduledDate.substring(0, 10) : '')
+  1137→                      setEditResponsable(selectedLV.responsable || '')
+  1138→                      setEditTurno(selectedLV.turno || '')
+  1139→                    }}>
+  1140→                      Cancelar
+  1141→                    </Button>
+  1142→                  )}
+  1143→                </div>
+  1144→              </div>
+  1145→            </CardHeader>
+  1146→            <CardContent className="p-4">
+  1147→              {/* Action buttons */}
+  1148→              <div className="flex items-center gap-2 flex-wrap">
+  1149→                <Button variant="outline" size="sm" className="gap-1" onClick={() => handlePrint(selectedLV)}>
+  1150→                  <Printer className="h-4 w-4" /> Imprimir
+  1151→                </Button>
+  1152→                <Button variant="outline" size="sm" className="gap-1" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+  1153→                  <Upload className="h-4 w-4" /> {uploading ? 'Subiendo...' : 'Adjuntar Respaldo'}
+  1154→                </Button>
+  1155→                <input ref={fileInputRef} type="file" className="hidden" onChange={handleUploadAttachment} accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xlsx" />
+  1156→                {canEdit && (
+  1157→                  <Button size="sm" className="gap-1 bg-teal-600 hover:bg-teal-700 text-white ml-auto" onClick={handleSave} disabled={saving}>
+  1158→                    <Save className="h-4 w-4" /> {saving ? 'Guardando...' : 'Guardar Cambios'}
+  1159→                  </Button>
+  1160→                )}
+  1161→                {canEdit && (
+  1162→                  <Button variant="ghost" size="sm" className="text-red-500" onClick={() => { setDeleteId(selectedLV.id); setDeleteDialogOpen(true) }}>
+  1163→                    <Trash2 className="h-4 w-4" />
+  1164→                  </Button>
+  1165→                )}
+  1166→              </div>
+  1167→
+  1168→              {/* Status selector */}
+  1169→              <div className="mt-4 p-3 bg-slate-50 rounded-lg border">
+  1170→                <div className="flex items-center gap-4">
+  1171→                  <Label className="text-sm font-semibold text-slate-700 shrink-0">Estado:</Label>
+  1172→                  {canEdit ? (
+  1173→                    <div className="flex gap-2">
+  1174→                      <Button
+  1175→                        variant={editStatus === 'COMPLETADA' ? 'default' : 'outline'}
+  1176→                        size="sm"
+  1177→                        className={`gap-1 ${editStatus === 'COMPLETADA' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'border-emerald-300 text-emerald-700'}`}
+  1178→                        onClick={() => setEditStatus('COMPLETADA')}
+  1179→                      >
+  1180→                        <CheckCircle className="h-4 w-4" /> Realizado
+  1181→                      </Button>
+  1182→                      <Button
+  1183→                        variant={editStatus === 'EN_PROGRESO' ? 'default' : 'outline'}
+  1184→                        size="sm"
+  1185→                        className={`gap-1 ${editStatus === 'EN_PROGRESO' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'border-blue-300 text-blue-700'}`}
+  1186→                        onClick={() => setEditStatus('EN_PROGRESO')}
+  1187→                      >
+  1188→                        <RefreshCw className="h-4 w-4" /> En Progreso
+  1189→                      </Button>
+  1190→                      <Button
+  1191→                        variant={editStatus === 'PENDIENTE' ? 'default' : 'outline'}
+  1192→                        size="sm"
+  1193→                        className={`gap-1 ${editStatus === 'PENDIENTE' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'border-amber-300 text-amber-700'}`}
+  1194→                        onClick={() => setEditStatus('PENDIENTE')}
+  1195→                      >
+  1196→                        <Clock className="h-4 w-4" /> Pendiente
+  1197→                      </Button>
+  1198→                    </div>
+  1199→                  ) : (
+  1200→                    <Badge className={`${statusConfig[selectedLV.status]?.bg} ${statusConfig[selectedLV.status]?.text} gap-1`}>
+  1201→                      {(() => { const Icon = statusConfig[selectedLV.status]?.icon || Clock; return <Icon className="h-3 w-3" /> })()}
+  1202→                      {statusConfig[selectedLV.status]?.label}
+  1203→                    </Badge>
+  1204→                  )}
+  1205→                </div>
+  1206→
+  1207→                {/* Motivo pendiente - only shows when status is PENDIENTE */}
+  1208→                {editStatus === 'PENDIENTE' && (
+  1209→                  <div className="mt-3">
+  1210→                    <Label className="text-sm font-semibold text-amber-700 flex items-center gap-1.5">
+  1211→                      <AlertTriangle className="h-4 w-4" /> Motivo por el que no se realizó
+  1212→                    </Label>
+  1213→                    <Textarea
+  1214→                      value={editMotivoPendiente}
+  1215→                      onChange={(e) => setEditMotivoPendiente(e.target.value)}
+  1216→                      placeholder="Indique el motivo por el cual esta lista queda pendiente..."
+  1217→                      rows={2}
+  1218→                      className="mt-1 border-amber-300 focus:border-amber-500"
+  1219→                    />
+  1220→                  </div>
+  1221→                )}
+  1222→              </div>
+  1223→
+  1224→              {/* Attachments */}
+  1225→              {JSON.parse(selectedLV.attachments || '[]').length > 0 && (
+  1226→                <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+  1227→                  <div className="text-xs text-blue-600 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
+  1228→                    <Paperclip className="h-3.5 w-3.5" /> Documentos Adjuntos (Respaldos)
+  1229→                  </div>
+  1230→                  <div className="flex gap-2 flex-wrap">
+  1231→                    {JSON.parse(selectedLV.attachments).map((url: string, idx: number) => (
+  1232→                      <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 bg-white px-2.5 py-1.5 rounded-lg border border-blue-200 hover:border-blue-400 transition-all">
+  1233→                        <FileText className="h-3.5 w-3.5" />
+  1234→                        Documento {idx + 1}
+  1235→                      </a>
+  1236→                    ))}
+  1237→                  </div>
+  1238→                </div>
+  1239→              )}
+  1240→            </CardContent>
+  1241→          </Card>
+  1242→
+  1243→          {/* Checklist preview */}
+  1244→          {(() => {
+  1245→            const categories = [...new Set(editItems.map(i => i.category))]
+  1246→            const categoryLabels: Record<string, string> = { A: 'A. EPP / Materiales', B: 'B. Verificación de Tareas', C: 'C. Inspección / Registros', D: 'D. Dosificaciones / Limpieza' }
+  1247→            return categories.map(cat => {
+  1248→              const catItems = editItems.filter(i => i.category === cat)
+  1249→              const catOk = catItems.filter(i => i.status === 'OK' || i.status === 'N/A').length
+  1250→              const catProgress = catItems.length > 0 ? Math.round((catOk / catItems.length) * 100) : 0
+  1251→              return (
+  1252→                <Card key={cat} className="border border-slate-200">
+  1253→                  <CardHeader className="py-2 px-4 bg-slate-50">
+  1254→                    <div className="flex items-center justify-between">
+  1255→                      <CardTitle className="text-sm font-bold text-slate-700">{categoryLabels[cat] || `Sección ${cat}`}</CardTitle>
+  1256→                      <div className="flex items-center gap-2">
+  1257→                        <span className="text-xs text-slate-500">{catOk}/{catItems.length}</span>
+  1258→                        <div className="w-16 h-1.5 rounded-full bg-slate-200 overflow-hidden">
+  1259→                          <div className={`h-full rounded-full ${getProgressBg(catProgress)}`} style={{ width: `${catProgress}%` }} />
+  1260→                        </div>
+  1261→                        {canEdit && (
+  1262→                          <Button variant="ghost" size="sm" className="h-6 text-xs gap-0.5 text-teal-600 hover:text-teal-800 hover:bg-teal-50" onClick={() => handleAddItem(cat)}>
+  1263→                            <Plus className="h-3 w-3" /> Item
+  1264→                          </Button>
+  1265→                        )}
+  1266→                      </div>
+  1267→                    </div>
+  1268→                  </CardHeader>
+  1269→                  <CardContent className="p-0">
+  1270→                    <Table>
+  1271→                      <TableHeader>
+  1272→                        <TableRow>
+  1273→                          <TableHead className="w-[30px] text-center px-2 py-1 text-xs">N°</TableHead>
+  1274→                          <TableHead className="px-2 py-1 text-xs">Descripción</TableHead>
+  1275→                          <TableHead className="w-[90px] text-center px-2 py-1 text-xs">Estado</TableHead>
+  1276→                          <TableHead className="w-[100px] px-2 py-1 text-xs">Valor</TableHead>
+  1277→                          <TableHead className="w-[120px] px-2 py-1 text-xs">Observación</TableHead>
+  1278→                          {canEdit && <TableHead className="w-[36px] px-1 py-1 text-xs"></TableHead>}
+  1279→                        </TableRow>
+  1280→                      </TableHeader>
+  1281→                      <TableBody>
+  1282→                        {catItems.map((item, idx) => (
+  1283→                          <TableRow key={item.id || idx} className={item.status === 'OK' ? 'bg-emerald-50/50' : item.status === 'NO_OK' ? 'bg-red-50/50' : ''}>
+  1284→                            <TableCell className="text-center text-xs text-slate-400 px-2 py-1">{idx + 1}</TableCell>
+  1285→                            <TableCell className="px-2 py-1">
+  1286→                              {canEdit ? (
+  1287→                                <Input className="h-7 text-xs" value={item.description} onChange={(e) => handleItemFieldChange(item.id!, 'description', e.target.value)} placeholder="Descripción del item" />
+  1288→                              ) : <span className="text-xs text-slate-700">{item.description}</span>}
+  1289→                            </TableCell>
+  1290→                            <TableCell className="text-center px-2 py-1">
+  1291→                              {canEdit ? (
+  1292→                                <Select value={item.status} onValueChange={(v) => handleItemStatusChange(item.id!, v)}>
+  1293→                                  <SelectTrigger className="h-7 text-xs w-[80px]">
+  1294→                                    <SelectValue />
+  1295→                                  </SelectTrigger>
+  1296→                                  <SelectContent>
+  1297→                                    <SelectItem value="PENDIENTE">☐ Pendiente</SelectItem>
+  1298→                                    <SelectItem value="OK">✓ OK</SelectItem>
+  1299→                                    <SelectItem value="NO_OK">✗ NO OK</SelectItem>
+  1300→                                    <SelectItem value="N/A">N/A</SelectItem>
+  1301→                                  </SelectContent>
+  1302→                                </Select>
+  1303→                              ) : (
+  1304→                                <Badge className={`text-xs ${item.status === 'OK' ? 'bg-emerald-100 text-emerald-700' : item.status === 'NO_OK' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
+  1305→                                  {item.status === 'OK' ? '✓ OK' : item.status === 'NO_OK' ? '✗ NO' : item.status === 'N/A' ? 'N/A' : '☐'}
+  1306→                                </Badge>
+  1307→                              )}
+  1308→                            </TableCell>
+  1309→                            <TableCell className="px-2 py-1">
+  1310→                              {canEdit ? (
+  1311→                                <Input className="h-7 text-xs" value={item.value || ''} onChange={(e) => handleItemFieldChange(item.id!, 'value', e.target.value)} placeholder="Valor" />
+  1312→                              ) : <span className="text-xs">{item.value || '-'}</span>}
+  1313→                            </TableCell>
+  1314→                            <TableCell className="px-2 py-1">
+  1315→                              {canEdit ? (
+  1316→                                <Input className="h-7 text-xs" value={item.observation || ''} onChange={(e) => handleItemFieldChange(item.id!, 'observation', e.target.value)} placeholder="Obs." />
+  1317→                              ) : <span className="text-xs">{item.observation || '-'}</span>}
+  1318→                            </TableCell>
+  1319→                            {canEdit && (
+  1320→                              <TableCell className="px-1 py-1">
+  1321→                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleRemoveItem(item.id!)}>
+  1322→                                  <X className="h-3 w-3" />
+  1323→                                </Button>
+  1324→                              </TableCell>
+  1325→                            )}
+  1326→                          </TableRow>
+  1327→                        ))}
+  1328→                      </TableBody>
+  1329→                    </Table>
+  1330→                  </CardContent>
+  1331→                </Card>
+  1332→              )
+  1333→            })
+  1334→          })()}
+  1335→
+  1336→          {/* Observations */}
+  1337→          <Card className="border border-slate-200">
+  1338→            <CardHeader className="py-2 px-4 bg-slate-50">
+  1339→              <CardTitle className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+  1340→                <MessageSquare className="h-4 w-4" /> Comentarios / Observaciones
+  1341→              </CardTitle>
+  1342→            </CardHeader>
+  1343→            <CardContent className="p-4">
+  1344→              {canEdit ? (
+  1345→                <Textarea value={editObservations} onChange={(e) => setEditObservations(e.target.value)} placeholder="Ingrese comentarios u observaciones..." rows={3} />
+  1346→              ) : (
+  1347→                <p className="text-sm text-slate-600">{selectedLV.observations || 'Sin observaciones'}</p>
+  1348→              )}
+  1349→            </CardContent>
+  1350→          </Card>
+  1351→
+  1352→          {/* Save button at bottom */}
+  1353→          {canEdit && (
+  1354→            <div className="flex justify-end gap-2 pt-2">
+  1355→              <Button variant="outline" onClick={goBack}>Cancelar</Button>
+  1356→              <Button className="gap-1.5 bg-teal-600 hover:bg-teal-700 text-white" onClick={handleSave} disabled={saving}>
+  1357→                <Save className="h-4 w-4" /> {saving ? 'Guardando...' : 'Guardar Todos los Cambios'}
+  1358→              </Button>
+  1359→            </div>
+  1360→          )}
+  1361→        </div>
+  1362→      )}
+  1363→
+  1364→      {/* Delete dialog */}
+  1365→      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+  1366→        <AlertDialogContent>
+  1367→          <AlertDialogHeader>
+  1368→            <AlertDialogTitle>¿Eliminar esta lista?</AlertDialogTitle>
+  1369→            <AlertDialogDescription>Se eliminará la lista de verificación y todos sus items. Esta acción no se puede deshacer.</AlertDialogDescription>
+  1370→          </AlertDialogHeader>
+  1371→          <AlertDialogFooter>
+  1372→            <AlertDialogCancel onClick={() => setDeleteId(null)}>Cancelar</AlertDialogCancel>
+  1373→            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white">Eliminar</AlertDialogAction>
+  1374→          </AlertDialogFooter>
+  1375→        </AlertDialogContent>
+  1376→      </AlertDialog>
+  1377→
+  1378→      {/* Alert Config Dialog (unified system) */}
+  1379→      <AlertConfigDialog
+  1380→        open={alertConfigOpen}
+  1381→        onOpenChange={setAlertConfigOpen}
+  1382→        moduleName="mantenimiento"
+  1383→        moduleLabel="Mantenimiento"
+  1384→        userRole={userRole}
+  1385→      />
+  1386→    </div>
+  1387→  )
+  1388→}
+  1389→

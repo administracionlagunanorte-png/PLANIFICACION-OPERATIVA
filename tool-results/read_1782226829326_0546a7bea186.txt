@@ -1,0 +1,1746 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect } from 'react'
+     4→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
+     5→import { Button } from '@/components/ui/button'
+     6→import { Input } from '@/components/ui/input'
+     7→import { Label } from '@/components/ui/label'
+     8→import { Textarea } from '@/components/ui/textarea'
+     9→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    10→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    11→import { Badge } from '@/components/ui/badge'
+    12→import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+    13→import { Plus, Pencil, Trash2, Eye, ArrowLeft, Upload, X, CheckCircle, XCircle, Clock, FileText, FileSpreadsheet, Download, Camera, Send, RotateCcw, ShieldCheck, Shield, ImageIcon } from 'lucide-react'
+    14→import { useToast } from '@/hooks/use-toast'
+    15→import ModuleAlertBanner, { ModuleAlertItem } from './ModuleAlertBanner'
+    16→import AlertConfigDialog from './AlertConfigDialog'
+    17→import { jsPDF } from 'jspdf'
+    18→import ExcelJS from 'exceljs'
+    19→
+    20→// ============================================================
+    21→// Types
+    22→// ============================================================
+    23→
+    24→interface ExpenseReport {
+    25→  id: string
+    26→  correlativeNumber: number
+    27→  title: string
+    28→  description: string | null
+    29→  status: string
+    30→  totalAmount: number
+    31→  responsible: string | null
+    32→  reviewNote: string | null
+    33→  reviewedBy: string | null
+    34→  reviewedAt: string | null
+    35→  submittedAt: string | null
+    36→  createdAt: string
+    37→  updatedAt: string
+    38→  items?: ExpenseItem[]
+    39→  itemCount?: number
+    40→  _count?: { items: number }
+    41→}
+    42→
+    43→interface ExpenseItem {
+    44→  id: string
+    45→  description: string
+    46→  numeroBoleta: string
+    47→  montoRendir: number
+    48→  category: string
+    49→  expenseDate: string
+    50→  imageBoletaUrl: string
+    51→  imageCompraUrls: string[] | string  // Support both array and legacy string
+    52→  reportId: string
+    53→  createdAt: string
+    54→  updatedAt: string
+    55→}
+    56→
+    57→interface ExpenseCategory {
+    58→  id: string
+    59→  name: string
+    60→  icon: string
+    61→}
+    62→
+    63→// ============================================================
+    64→// Helpers
+    65→// ============================================================
+    66→
+    67→const formatCLP = (amount: number | null | undefined): string => {
+    68→  if (amount == null || isNaN(amount)) return '$0'
+    69→  return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(amount))
+    70→}
+    71→
+    72→const statusConfig: Record<string, { label: string; color: string; bgColor: string; borderColor: string; icon: React.ReactNode }> = {
+    73→  BORRADOR: { label: 'Borrador', color: 'text-slate-700', bgColor: 'bg-slate-100', borderColor: 'border-l-slate-400', icon: <Clock className="w-3.5 h-3.5" /> },
+    74→  ENVIADO: { label: 'Enviado', color: 'text-amber-700', bgColor: 'bg-amber-50', borderColor: 'border-l-amber-500', icon: <Send className="w-3.5 h-3.5" /> },
+    75→  APROBADO_SUPERVISOR: { label: 'Aprobado Supervisor', color: 'text-blue-700', bgColor: 'bg-blue-50', borderColor: 'border-l-blue-500', icon: <ShieldCheck className="w-3.5 h-3.5" /> },
+    76→  APROBADO: { label: 'Aprobado Admin', color: 'text-emerald-700', bgColor: 'bg-emerald-50', borderColor: 'border-l-emerald-500', icon: <CheckCircle className="w-3.5 h-3.5" /> },
+    77→  RECHAZADO: { label: 'Rechazado', color: 'text-red-700', bgColor: 'bg-red-50', borderColor: 'border-l-red-500', icon: <XCircle className="w-3.5 h-3.5" /> },
+    78→  'MODIFICACIÓN SOLICITADA': { label: 'Modif. Solicitada', color: 'text-orange-700', bgColor: 'bg-orange-50', borderColor: 'border-l-orange-500', icon: <RotateCcw className="w-3.5 h-3.5" /> },
+    79→}
+    80→
+    81→function formatDate(dateStr: string | null | undefined): string {
+    82→  if (!dateStr) return '-'
+    83→  return new Date(dateStr).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    84→}
+    85→
+    86→function formatDateTime(dateStr: string | null | undefined): string {
+    87→  if (!dateStr) return '-'
+    88→  return new Date(dateStr).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    89→}
+    90→
+    91→function getCorrelative(num: number): string {
+    92→  return `R-${String(num).padStart(3, '0')}`
+    93→}
+    94→
+    95→// Normalize imageCompraUrls to always be an array
+    96→function getCompraUrls(item: ExpenseItem): string[] {
+    97→  if (Array.isArray(item.imageCompraUrls)) return item.imageCompraUrls
+    98→  if (typeof item.imageCompraUrls === 'string') {
+    99→    if (!item.imageCompraUrls || item.imageCompraUrls === '[]' || item.imageCompraUrls === '') return []
+   100→    try {
+   101→      const parsed = JSON.parse(item.imageCompraUrls)
+   102→      return Array.isArray(parsed) ? parsed : [item.imageCompraUrls]
+   103→    } catch {
+   104→      return [item.imageCompraUrls]
+   105→    }
+   106→  }
+   107→  return []
+   108→}
+   109→
+   110→// ============================================================
+   111→// Component
+   112→// ============================================================
+   113→
+   114→interface RendicionGastosProps {
+   115→  userRole?: string
+   116→  initialStatusFilter?: string
+   117→  onStatusFilterConsumed?: () => void
+   118→}
+   119→
+   120→export default function RendicionGastos({ userRole = 'USER', initialStatusFilter, onStatusFilterConsumed }: RendicionGastosProps) {
+   121→  const { toast } = useToast()
+   122→  const isAdmin = userRole === 'ADMIN'
+   123→  const isSupervisor = userRole === 'SUPERVISOR'
+   124→  const canApprove = isAdmin || isSupervisor
+   125→  const canEditAll = isAdmin || isSupervisor
+   126→
+   127→  // View state
+   128→  const [currentView, setCurrentView] = useState<'list' | 'detail' | 'form'>('list')
+   129→  const [reports, setReports] = useState<ExpenseReport[]>([])
+   130→  const [selectedReport, setSelectedReport] = useState<ExpenseReport | null>(null)
+   131→  const [categories, setCategories] = useState<ExpenseCategory[]>([])
+   132→  const [loading, setLoading] = useState(true)
+   133→  const [saving, setSaving] = useState(false)
+   134→  const [moduleAlerts, setModuleAlerts] = useState<ModuleAlertItem[]>([])
+   135→  const [alertConfigOpen, setAlertConfigOpen] = useState(false)
+   136→  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
+   137→
+   138→  // List filters
+   139→  const [filterStatus, setFilterStatus] = useState<string>(initialStatusFilter || 'all')
+   140→  const [searchQuery, setSearchQuery] = useState('')
+   141→  const [currentPage, setCurrentPage] = useState(1)
+   142→  const [totalPages, setTotalPages] = useState(1)
+   143→  const [totalCount, setTotalCount] = useState(0)
+   144→
+   145→  // Report form
+   146→  const [reportFormOpen, setReportFormOpen] = useState(false)
+   147→  const [editingReport, setEditingReport] = useState<ExpenseReport | null>(null)
+   148→  const [reportForm, setReportForm] = useState({ title: '', description: '', responsible: '' })
+   149→
+   150→  // Item form
+   151→  const [itemFormOpen, setItemFormOpen] = useState(false)
+   152→  const [editingItem, setEditingItem] = useState<ExpenseItem | null>(null)
+   153→  const [itemForm, setItemForm] = useState({
+   154→    description: '',
+   155→    numeroBoleta: '',
+   156→    montoRendir: '',
+   157→    category: '',
+   158→    expenseDate: '',
+   159→    imageBoletaUrl: '',
+   160→    imageCompraUrls: [] as string[],  // Array of compra image URLs
+   161→  })
+   162→  const [uploadingBoleta, setUploadingBoleta] = useState(false)
+   163→  const [uploadingCompra, setUploadingCompra] = useState(false)
+   164→
+   165→  // Review dialog
+   166→  const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
+   167→  const [reviewAction, setReviewAction] = useState<string>('')
+   168→  const [reviewNote, setReviewNote] = useState('')
+   169→  const [reviewedBy, setReviewedBy] = useState('')
+   170→
+   171→  // Delete confirmations
+   172→  const [deleteReportDialogOpen, setDeleteReportDialogOpen] = useState(false)
+   173→  const [deleteItemDialogOpen, setDeleteItemDialogOpen] = useState(false)
+   174→  const [deleteItemId, setDeleteItemId] = useState<string | null>(null)
+   175→
+   176→  // Photo viewer
+   177→  const [photoViewerOpen, setPhotoViewerOpen] = useState(false)
+   178→  const [photoViewerUrl, setPhotoViewerUrl] = useState('')
+   179→
+   180→  // ============================================================
+   181→  // React to initialStatusFilter from parent (dashboard click)
+   182→  // ============================================================
+   183→  useEffect(() => {
+   184→    if (initialStatusFilter && initialStatusFilter !== 'all') {
+   185→      setFilterStatus(initialStatusFilter)
+   186→      setCurrentPage(1)
+   187→      setCurrentView('list')
+   188→      if (onStatusFilterConsumed) onStatusFilterConsumed()
+   189→    }
+   190→  }, [initialStatusFilter])
+   191→
+   192→  // ============================================================
+   193→  // Data fetching
+   194→  // ============================================================
+   195→
+   196→  const fetchReports = async () => {
+   197→    setLoading(true)
+   198→    try {
+   199→      const params = new URLSearchParams()
+   200→      params.set('page', String(currentPage))
+   201→      params.set('limit', '20')
+   202→      if (filterStatus !== 'all') params.set('status', filterStatus)
+   203→      if (searchQuery.trim()) params.set('search', searchQuery.trim())
+   204→
+   205→      const res = await fetch(`/api/expense-reports?${params.toString()}`)
+   206→      if (res.ok) {
+   207→        const json = await res.json()
+   208→        setReports(json.data || [])
+   209→        setTotalPages(json.pagination?.totalPages || 1)
+   210→        setTotalCount(json.pagination?.total || 0)
+   211→      }
+   212→    } catch (err) {
+   213→      console.error('Error fetching reports:', err)
+   214→      toast({ title: 'Error', description: 'No se pudieron cargar los reportes', variant: 'destructive' })
+   215→    } finally {
+   216→      setLoading(false)
+   217→    }
+   218→  }
+   219→
+   220→  const fetchReportDetail = async (id: string) => {
+   221→    try {
+   222→      const res = await fetch(`/api/expense-reports/${id}`)
+   223→      if (res.ok) {
+   224→        const json = await res.json()
+   225→        setSelectedReport(json.data)
+   226→        return json.data
+   227→      }
+   228→    } catch (err) {
+   229→      console.error('Error fetching report detail:', err)
+   230→      toast({ title: 'Error', description: 'No se pudo cargar el detalle del reporte', variant: 'destructive' })
+   231→    }
+   232→    return null
+   233→  }
+   234→
+   235→  const fetchCategories = async () => {
+   236→    try {
+   237→      const res = await fetch('/api/expense-categories')
+   238→      if (res.ok) {
+   239→        const json = await res.json()
+   240→        setCategories(json.data || [])
+   241→      }
+   242→    } catch (err) {
+   243→      console.error('Error fetching categories:', err)
+   244→    }
+   245→  }
+   246→
+   247→  useEffect(() => {
+   248→    fetchCategories()
+   249→    fetch('/api/module-alerts?module=rendicion').then(r => r.ok ? r.json() : []).then(setModuleAlerts).catch(() => {})
+   250→  }, [])
+   251→
+   252→  useEffect(() => {
+   253→    fetchReports()
+   254→  }, [filterStatus, currentPage])
+   255→
+   256→  useEffect(() => {
+   257→    const timer = setTimeout(() => {
+   258→      if (currentView === 'list') fetchReports()
+   259→    }, 400)
+   260→    return () => clearTimeout(timer)
+   261→  }, [searchQuery])
+   262→
+   263→  // ============================================================
+   264→  // Photo upload
+   265→  // ============================================================
+   266→
+   267→  const handlePhotoUpload = async (file: File): Promise<string | null> => {
+   268→    const formData = new FormData()
+   269→    formData.append('file', file)
+   270→    try {
+   271→      const res = await fetch('/api/upload', { method: 'POST', body: formData })
+   272→      if (res.ok) {
+   273→        const data = await res.json()
+   274→        return data.url
+   275→      }
+   276→    } catch (err) {
+   277→      console.error('Error uploading photo:', err)
+   278→      toast({ title: 'Error', description: 'No se pudo subir la imagen', variant: 'destructive' })
+   279→    }
+   280→    return null
+   281→  }
+   282→
+   283→  // Upload multiple compra images
+   284→  const handleMultipleCompraUpload = async (files: FileList) => {
+   285→    setUploadingCompra(true)
+   286→    const newUrls: string[] = []
+   287→    for (let i = 0; i < files.length; i++) {
+   288→      const url = await handlePhotoUpload(files[i])
+   289→      if (url) newUrls.push(url)
+   290→    }
+   291→    if (newUrls.length > 0) {
+   292→      setItemForm((p) => ({ ...p, imageCompraUrls: [...p.imageCompraUrls, ...newUrls] }))
+   293→    }
+   294→    setUploadingCompra(false)
+   295→  }
+   296→
+   297→  // ============================================================
+   298→  // Report CRUD
+   299→  // ============================================================
+   300→
+   301→  const handleCreateReport = () => {
+   302→    setEditingReport(null)
+   303→    setReportForm({ title: '', description: '', responsible: '' })
+   304→    setReportFormOpen(true)
+   305→  }
+   306→
+   307→  const handleEditReport = (report: ExpenseReport) => {
+   308→    setEditingReport(report)
+   309→    setReportForm({
+   310→      title: report.title,
+   311→      description: report.description || '',
+   312→      responsible: report.responsible || '',
+   313→    })
+   314→    setReportFormOpen(true)
+   315→  }
+   316→
+   317→  const handleSaveReport = async () => {
+   318→    if (!reportForm.title.trim()) {
+   319→      toast({ title: 'Error', description: 'El título es requerido', variant: 'destructive' })
+   320→      return
+   321→    }
+   322→    setSaving(true)
+   323→    try {
+   324→      const body = {
+   325→        title: reportForm.title.trim(),
+   326→        description: reportForm.description.trim() || null,
+   327→        responsible: reportForm.responsible.trim() || null,
+   328→      }
+   329→
+   330→      let res: Response
+   331→      if (editingReport) {
+   332→        res = await fetch(`/api/expense-reports/${editingReport.id}`, {
+   333→          method: 'PUT',
+   334→          headers: { 'Content-Type': 'application/json' },
+   335→          body: JSON.stringify(body),
+   336→        })
+   337→      } else {
+   338→        res = await fetch('/api/expense-reports', {
+   339→          method: 'POST',
+   340→          headers: { 'Content-Type': 'application/json' },
+   341→          body: JSON.stringify(body),
+   342→        })
+   343→      }
+   344→
+   345→      if (res.ok) {
+   346→        const json = await res.json()
+   347→        toast({ title: editingReport ? 'Reporte actualizado' : 'Reporte creado', description: editingReport ? 'Los cambios han sido guardados' : 'Se ha creado un nuevo reporte de gastos' })
+   348→        setReportFormOpen(false)
+   349→        if (currentView === 'detail' && editingReport) {
+   350→          setSelectedReport(json.data)
+   351→        }
+   352→        fetchReports()
+   353→      } else {
+   354→        const json = await res.json()
+   355→        toast({ title: 'Error', description: json.error || 'No se pudo guardar', variant: 'destructive' })
+   356→      }
+   357→    } catch (err) {
+   358→      console.error('Error saving report:', err)
+   359→      toast({ title: 'Error', description: 'No se pudo guardar el reporte', variant: 'destructive' })
+   360→    } finally {
+   361→      setSaving(false)
+   362→    }
+   363→  }
+   364→
+   365→  const handleDeleteReport = async () => {
+   366→    if (!selectedReport) return
+   367→    try {
+   368→      const res = await fetch(`/api/expense-reports/${selectedReport.id}`, { method: 'DELETE' })
+   369→      if (res.ok) {
+   370→        toast({ title: 'Reporte eliminado', description: 'El reporte ha sido eliminado correctamente' })
+   371→        setCurrentView('list')
+   372→        setSelectedReport(null)
+   373→        fetchReports()
+   374→      } else {
+   375→        const json = await res.json()
+   376→        toast({ title: 'Error', description: json.error || 'No se pudo eliminar', variant: 'destructive' })
+   377→      }
+   378→    } catch (err) {
+   379→      console.error('Error deleting report:', err)
+   380→      toast({ title: 'Error', description: 'No se pudo eliminar el reporte', variant: 'destructive' })
+   381→    }
+   382→    setDeleteReportDialogOpen(false)
+   383→  }
+   384→
+   385→  // ============================================================
+   386→  // Status transitions
+   387→  // ============================================================
+   388→
+   389→  const handleStatusChange = async (status: string, note?: string, reviewer?: string) => {
+   390→    if (!selectedReport) return
+   391→    try {
+   392→      const body: Record<string, unknown> = { status }
+   393→      if (note) body.reviewNote = note
+   394→      if (reviewer) body.reviewedBy = reviewer
+   395→
+   396→      const res = await fetch(`/api/expense-reports/${selectedReport.id}`, {
+   397→        method: 'PATCH',
+   398→        headers: { 'Content-Type': 'application/json' },
+   399→        body: JSON.stringify(body),
+   400→      })
+   401→
+   402→      if (res.ok) {
+   403→        const json = await res.json()
+   404→        setSelectedReport(json.data)
+   405→        toast({ title: 'Estado actualizado', description: `El reporte ahora está en estado: ${statusConfig[status]?.label || status}` })
+   406→        fetchReports()
+   407→      } else {
+   408→        const json = await res.json()
+   409→        toast({ title: 'Error', description: json.error || 'No se pudo cambiar el estado', variant: 'destructive' })
+   410→      }
+   411→    } catch (err) {
+   412→      console.error('Error changing status:', err)
+   413→      toast({ title: 'Error', description: 'No se pudo cambiar el estado', variant: 'destructive' })
+   414→    }
+   415→    setReviewDialogOpen(false)
+   416→    setReviewNote('')
+   417→    setReviewedBy('')
+   418→    setReviewAction('')
+   419→  }
+   420→
+   421→  const openReviewDialog = (action: string) => {
+   422→    setReviewAction(action)
+   423→    setReviewNote('')
+   424→    setReviewedBy('')
+   425→    setReviewDialogOpen(true)
+   426→  }
+   427→
+   428→  const handleConfirmReview = () => {
+   429→    if (reviewAction === 'MODIFICACIÓN SOLICITADA') {
+   430→      handleStatusChange('MODIFICACIÓN SOLICITADA', reviewNote, reviewedBy)
+   431→    } else if (reviewAction === 'RECHAZADO') {
+   432→      handleStatusChange('RECHAZADO', reviewNote, reviewedBy)
+   433→    } else if (reviewAction === 'APROBADO') {
+   434→      handleStatusChange('APROBADO', reviewNote, reviewedBy)
+   435→    }
+   436→  }
+   437→
+   438→  // ============================================================
+   439→  // Item CRUD
+   440→  // ============================================================
+   441→
+   442→  const openCreateItem = () => {
+   443→    setEditingItem(null)
+   444→    setItemForm({
+   445→      description: '',
+   446→      numeroBoleta: '',
+   447→      montoRendir: '',
+   448→      category: categories.length > 0 ? categories[0].name : '',
+   449→      expenseDate: new Date().toISOString().split('T')[0],
+   450→      imageBoletaUrl: '',
+   451→      imageCompraUrls: [],
+   452→    })
+   453→    setItemFormOpen(true)
+   454→  }
+   455→
+   456→  const openEditItem = (item: ExpenseItem) => {
+   457→    const compraUrls = getCompraUrls(item)
+   458→    setEditingItem(item)
+   459→    setItemForm({
+   460→      description: item.description,
+   461→      numeroBoleta: item.numeroBoleta,
+   462→      montoRendir: String(item.montoRendir),
+   463→      category: item.category,
+   464→      expenseDate: item.expenseDate ? new Date(item.expenseDate).toISOString().split('T')[0] : '',
+   465→      imageBoletaUrl: item.imageBoletaUrl,
+   466→      imageCompraUrls: compraUrls,
+   467→    })
+   468→    setItemFormOpen(true)
+   469→  }
+   470→
+   471→  const handleSaveItem = async () => {
+   472→    if (!selectedReport) return
+   473→    if (!itemForm.description.trim()) {
+   474→      toast({ title: 'Error', description: 'La descripción es requerida', variant: 'destructive' })
+   475→      return
+   476→    }
+   477→    if (!itemForm.numeroBoleta.trim()) {
+   478→      toast({ title: 'Error', description: 'El número de boleta es requerido', variant: 'destructive' })
+   479→      return
+   480→    }
+   481→    if (!itemForm.montoRendir || Number(itemForm.montoRendir) <= 0) {
+   482→      toast({ title: 'Error', description: 'El monto a rendir debe ser mayor a 0', variant: 'destructive' })
+   483→      return
+   484→    }
+   485→    if (!itemForm.category) {
+   486→      toast({ title: 'Error', description: 'La categoría es requerida', variant: 'destructive' })
+   487→      return
+   488→    }
+   489→    if (!itemForm.expenseDate) {
+   490→      toast({ title: 'Error', description: 'La fecha de gasto es requerida', variant: 'destructive' })
+   491→      return
+   492→    }
+   493→
+   494→    setSaving(true)
+   495→    try {
+   496→      const body = {
+   497→        description: itemForm.description.trim(),
+   498→        numeroBoleta: itemForm.numeroBoleta.trim(),
+   499→        montoRendir: Number(itemForm.montoRendir),
+   500→        category: itemForm.category,
+   501→        expenseDate: itemForm.expenseDate,
+   502→        imageBoletaUrl: itemForm.imageBoletaUrl,
+   503→        imageCompraUrls: itemForm.imageCompraUrls,
+   504→        reportId: selectedReport.id,
+   505→      }
+   506→
+   507→      let res: Response
+   508→      if (editingItem) {
+   509→        res = await fetch(`/api/expense-items/${editingItem.id}`, {
+   510→          method: 'PUT',
+   511→          headers: { 'Content-Type': 'application/json' },
+   512→          body: JSON.stringify(body),
+   513→        })
+   514→      } else {
+   515→        res = await fetch('/api/expense-items', {
+   516→          method: 'POST',
+   517→          headers: { 'Content-Type': 'application/json' },
+   518→          body: JSON.stringify(body),
+   519→        })
+   520→      }
+   521→
+   522→      if (res.ok) {
+   523→        toast({ title: editingItem ? 'Item actualizado' : 'Item agregado', description: editingItem ? 'Los cambios han sido guardados' : 'Se ha agregado un nuevo item al reporte' })
+   524→        setItemFormOpen(false)
+   525→        // Refresh report detail
+   526→        const updated = await fetchReportDetail(selectedReport.id)
+   527→        if (updated) setSelectedReport(updated)
+   528→      } else {
+   529→        const json = await res.json()
+   530→        toast({ title: 'Error', description: json.error || 'No se pudo guardar', variant: 'destructive' })
+   531→      }
+   532→    } catch (err) {
+   533→      console.error('Error saving item:', err)
+   534→      toast({ title: 'Error', description: 'No se pudo guardar el item', variant: 'destructive' })
+   535→    } finally {
+   536→      setSaving(false)
+   537→    }
+   538→  }
+   539→
+   540→  const handleDeleteItem = async () => {
+   541→    if (!deleteItemId || !selectedReport) return
+   542→    try {
+   543→      const res = await fetch(`/api/expense-items/${deleteItemId}`, { method: 'DELETE' })
+   544→      if (res.ok) {
+   545→        toast({ title: 'Item eliminado', description: 'El item ha sido eliminado correctamente' })
+   546→        const updated = await fetchReportDetail(selectedReport.id)
+   547→        if (updated) setSelectedReport(updated)
+   548→      } else {
+   549→        const json = await res.json()
+   550→        toast({ title: 'Error', description: json.error || 'No se pudo eliminar', variant: 'destructive' })
+   551→      }
+   552→    } catch (err) {
+   553→      console.error('Error deleting item:', err)
+   554→      toast({ title: 'Error', description: 'No se pudo eliminar el item', variant: 'destructive' })
+   555→    }
+   556→    setDeleteItemDialogOpen(false)
+   557→    setDeleteItemId(null)
+   558→  }
+   559→
+   560→  // ============================================================
+   561→  // PDF Export
+   562→  // ============================================================
+   563→
+   564→  const exportPDF = async () => {
+   565→    if (!selectedReport) return
+   566→    try {
+   567→      const doc = new jsPDF('p', 'mm', 'a4')
+   568→      const pageWidth = doc.internal.pageSize.getWidth()
+   569→      const margin = 15
+   570→      let y = 20
+   571→
+   572→      // Load logo
+   573→      const logoUrl = `${window.location.origin}/logo-laguna-norte.jpg`
+   574→      let logoAdded = false
+   575→      try {
+   576→        const logoResp = await fetch(logoUrl)
+   577→        if (logoResp.ok) {
+   578→          const logoBlob = await logoResp.blob()
+   579→          const logoDataUrl = await new Promise<string>((resolve) => {
+   580→            const reader = new FileReader()
+   581→            reader.onload = () => resolve(reader.result as string)
+   582→            reader.readAsDataURL(logoBlob)
+   583→          })
+   584→          doc.addImage(logoDataUrl, 'JPEG', margin, y - 5, 30, 30)
+   585→          logoAdded = true
+   586→        }
+   587→      } catch (e) { /* logo not available */ }
+   588→
+   589→      // Header
+   590→      doc.setFontSize(16)
+   591→      doc.setTextColor(30, 64, 175)
+   592→      const headerX = logoAdded ? margin + 35 : margin
+   593→      doc.text('Rendicion de Gastos', headerX, y + 2)
+   594→      y += 7
+   595→      doc.setFontSize(10)
+   596→      doc.setTextColor(100, 100, 100)
+   597→      doc.text('Condominio Laguna Norte', headerX, y + 2)
+   598→      y += 6
+   599→      doc.setFontSize(11)
+   600→      doc.setTextColor(60, 60, 60)
+   601→      doc.text(getCorrelative(selectedReport.correlativeNumber) + ' - ' + selectedReport.title, headerX, y + 2)
+   602→      y += logoAdded ? 14 : 10
+   603→
+   604→      // Report info
+   605→      doc.setFontSize(10)
+   606→      doc.setTextColor(0, 0, 0)
+   607→      const infoLines = [
+   608→        ['Responsable:', selectedReport.responsible || '-'],
+   609→        ['Estado:', statusConfig[selectedReport.status]?.label || selectedReport.status],
+   610→        ['Monto Total:', formatCLP(selectedReport.totalAmount)],
+   611→        ['Descripcion:', selectedReport.description || '-'],
+   612→        ['Fecha Creacion:', formatDate(selectedReport.createdAt)],
+   613→        ['Fecha Envio:', formatDate(selectedReport.submittedAt)],
+   614→        ['Fecha Revision:', formatDate(selectedReport.reviewedAt)],
+   615→        ['Revisado por:', selectedReport.reviewedBy || '-'],
+   616→      ]
+   617→
+   618→      infoLines.forEach(([label, value]) => {
+   619→        doc.setFont('helvetica', 'bold')
+   620→        doc.text(label, margin, y)
+   621→        doc.setFont('helvetica', 'normal')
+   622→        doc.text(String(value), margin + 35, y)
+   623→        y += 6
+   624→      })
+   625→
+   626→      if (selectedReport.reviewNote) {
+   627→        y += 2
+   628→        doc.setFont('helvetica', 'bold')
+   629→        doc.text('Nota de Revision:', margin, y)
+   630→        y += 5
+   631→        doc.setFont('helvetica', 'normal')
+   632→        const noteLines = doc.splitTextToSize(selectedReport.reviewNote, pageWidth - margin * 2)
+   633→        doc.text(noteLines, margin, y)
+   634→        y += noteLines.length * 5
+   635→      }
+   636→
+   637→      y += 5
+   638→      doc.setDrawColor(200, 200, 200)
+   639→      doc.line(margin, y, pageWidth - margin, y)
+   640→      y += 8
+   641→
+   642→      // Items table header
+   643→      doc.setFontSize(11)
+   644→      doc.setFont('helvetica', 'bold')
+   645→      doc.setTextColor(30, 64, 175)
+   646→      doc.text('Detalle de Gastos', margin, y)
+   647→      y += 7
+   648→
+   649→      doc.setFontSize(8)
+   650→      doc.setTextColor(80, 80, 80)
+   651→      doc.setFont('helvetica', 'bold')
+   652→      const colX = [margin, margin + 55, margin + 85, margin + 115, margin + 140]
+   653→      const headers = ['Descripcion', 'N Boleta', 'Categoria', 'Fecha', 'Monto']
+   654→      headers.forEach((h, i) => doc.text(h, colX[i], y))
+   655→      y += 2
+   656→      doc.line(margin, y, pageWidth - margin, y)
+   657→      y += 5
+   658→
+   659→      // Items
+   660→      doc.setFont('helvetica', 'normal')
+   661→      doc.setTextColor(0, 0, 0)
+   662→      const items = selectedReport.items || []
+   663→
+   664→      // Helper to load image as base64
+   665→      const loadImageAsBase64 = async (url: string): Promise<string | null> => {
+   666→        try {
+   667→          const resp = await fetch(url)
+   668→          if (!resp.ok) return null
+   669→          const blob = await resp.blob()
+   670→          return new Promise<string>((resolve) => {
+   671→            const reader = new FileReader()
+   672→            reader.onload = () => resolve(reader.result as string)
+   673→            reader.readAsDataURL(blob)
+   674→          })
+   675→        } catch { return null }
+   676→      }
+   677→
+   678→      for (const item of items) {
+   679→        if (y > 250) {
+   680→          doc.addPage()
+   681→          y = 20
+   682→        }
+   683→        const descLines = doc.splitTextToSize(item.description, 52)
+   684→        doc.text(descLines, colX[0], y)
+   685→        doc.text(item.numeroBoleta, colX[1], y)
+   686→        doc.text(item.category, colX[2], y)
+   687→        doc.text(formatDate(item.expenseDate), colX[3], y)
+   688→        doc.text(formatCLP(item.montoRendir), colX[4], y)
+   689→        y += Math.max(descLines.length * 4, 5) + 2
+   690→
+   691→        // Add boleta image
+   692→        if (item.imageBoletaUrl) {
+   693→          const imgData = await loadImageAsBase64(item.imageBoletaUrl)
+   694→          if (imgData) {
+   695→            if (y > 240) { doc.addPage(); y = 20 }
+   696→            doc.setFontSize(7)
+   697→            doc.setTextColor(30, 64, 175)
+   698→            doc.text('Boleta:', colX[0], y)
+   699→            y += 2
+   700→            const imgHeight = 35
+   701→            const imgWidth = 35
+   702→            doc.addImage(imgData, 'JPEG', colX[0], y, imgWidth, imgHeight)
+   703→            y += imgHeight + 4
+   704→          }
+   705→        }
+   706→
+   707→        // Add compra images
+   708→        const compraUrls = getCompraUrls(item)
+   709→        for (let ci = 0; ci < Math.min(compraUrls.length, 3); ci++) {
+   710→          const imgData = await loadImageAsBase64(compraUrls[ci])
+   711→          if (imgData) {
+   712→            if (y > 240) { doc.addPage(); y = 20 }
+   713→            doc.setFontSize(7)
+   714→            doc.setTextColor(16, 163, 127)
+   715→            doc.text(`Compra ${ci + 1}:`, colX[0], y)
+   716→            y += 2
+   717→            const imgHeight = 35
+   718→            const imgWidth = 35
+   719→            const imgX = colX[0] + ci * 40
+   720→            doc.addImage(imgData, 'JPEG', imgX, y, imgWidth, imgHeight)
+   721→            if (ci === Math.min(compraUrls.length, 3) - 1) {
+   722→              y += imgHeight + 4
+   723→            }
+   724→          }
+   725→        }
+   726→        y += 3
+   727→      }
+   728→
+   729→      // Total
+   730→      y += 3
+   731→      doc.line(margin, y, pageWidth - margin, y)
+   732→      y += 7
+   733→      doc.setFont('helvetica', 'bold')
+   734→      doc.setFontSize(10)
+   735→      doc.text('TOTAL:', margin + 115, y)
+   736→      doc.text(formatCLP(selectedReport.totalAmount), margin + 140, y)
+   737→
+   738→      // Footer
+   739→      doc.setFontSize(8)
+   740→      doc.setTextColor(150, 150, 150)
+   741→      doc.text(`Generado el ${new Date().toLocaleString('es-CL')}`, margin, 290)
+   742→
+   743→      doc.save(`rendicion-${getCorrelative(selectedReport.correlativeNumber)}.pdf`)
+   744→      toast({ title: 'PDF exportado', description: 'El archivo PDF se ha descargado correctamente' })
+   745→    } catch (err) {
+   746→      console.error('Error exporting PDF:', err)
+   747→      toast({ title: 'Error', description: 'No se pudo exportar el PDF', variant: 'destructive' })
+   748→    }
+   749→  }
+   750→
+   751→  // ============================================================
+   752→  // Excel Export
+   753→  // ============================================================
+   754→
+   755→  const exportExcel = async () => {
+   756→    if (!selectedReport) return
+   757→    try {
+   758→      const workbook = new ExcelJS.Workbook()
+   759→
+   760→      // Summary sheet
+   761→      const summarySheet = workbook.addWorksheet('Resumen')
+   762→
+   763→      // Add logo to summary sheet
+   764→      try {
+   765→        const logoUrl = `${window.location.origin}/logo-laguna-norte.jpg`
+   766→        const logoResp = await fetch(logoUrl)
+   767→        if (logoResp.ok) {
+   768→          const logoBlob = await logoResp.blob()
+   769→          const logoBase64 = await new Promise<string>((resolve) => {
+   770→            const reader = new FileReader()
+   771→            reader.onload = () => {
+   772→              const result = reader.result as string
+   773→              resolve(result.split(',')[1]) // Remove data:image/...;base64, prefix
+   774→            }
+   775→            reader.readAsDataURL(logoBlob)
+   776→          })
+   777→          const logoImageId = workbook.addImage({ base64: logoBase64, extension: 'jpeg' })
+   778→          summarySheet.addImage(logoImageId, {
+   779→            tl: { col: 0, row: 0 },
+   780→            ext: { width: 80, height: 80 },
+   781→          })
+   782→        }
+   783→      } catch (e) { /* logo not available */ }
+   784→
+   785→      // Title row
+   786→      summarySheet.mergeCells('B1:D1')
+   787→      summarySheet.getCell('B1').value = 'Rendición de Gastos — Condominio Laguna Norte'
+   788→      summarySheet.getCell('B1').font = { bold: true, size: 14, color: { argb: 'FF1E40AF' } }
+   789→      summarySheet.mergeCells('B2:D2')
+   790→      summarySheet.getCell('B2').value = getCorrelative(selectedReport.correlativeNumber) + ' - ' + selectedReport.title
+   791→      summarySheet.getCell('B2').font = { size: 11, color: { argb: 'FF666666' } }
+   792→
+   793→      summarySheet.columns = [
+   794→        { header: '', key: 'spacer', width: 12 },
+   795→        { header: 'Campo', key: 'field', width: 25 },
+   796→        { header: 'Valor', key: 'value', width: 50 },
+   797→      ]
+   798→
+   799→      const summaryData = [
+   800→        { field: 'Correlativo', value: getCorrelative(selectedReport.correlativeNumber) },
+   801→        { field: 'Titulo', value: selectedReport.title },
+   802→        { field: 'Descripcion', value: selectedReport.description || '-' },
+   803→        { field: 'Responsable', value: selectedReport.responsible || '-' },
+   804→        { field: 'Estado', value: statusConfig[selectedReport.status]?.label || selectedReport.status },
+   805→        { field: 'Monto Total', value: selectedReport.totalAmount },
+   806→        { field: 'Fecha Creacion', value: formatDate(selectedReport.createdAt) },
+   807→        { field: 'Fecha Envio', value: formatDate(selectedReport.submittedAt) },
+   808→        { field: 'Fecha Revision', value: formatDate(selectedReport.reviewedAt) },
+   809→        { field: 'Revisado por', value: selectedReport.reviewedBy || '-' },
+   810→        { field: 'Nota Revision', value: selectedReport.reviewNote || '-' },
+   811→      ]
+   812→
+   813→      // Start data from row 5 to leave room for logo
+   814→      summaryData.forEach((row, idx) => {
+   815→        const rowNum = idx + 5
+   816→        summarySheet.getCell(`B${rowNum}`).value = row.field
+   817→        summarySheet.getCell(`B${rowNum}`).font = { bold: true }
+   818→        summarySheet.getCell(`C${rowNum}`).value = row.value
+   819→      })
+   820→
+   821→      // Style
+   822→      summarySheet.getCell('B4').value = 'Campo'
+   823→      summarySheet.getCell('C4').value = 'Valor'
+   824→      summarySheet.getCell('B4').font = { bold: true, color: { argb: 'FF1E40AF' } }
+   825→      summarySheet.getCell('C4').font = { bold: true, color: { argb: 'FF1E40AF' } }
+   826→
+   827→      // Format amount cell
+   828→      summarySheet.getCell(`C10`).numFmt = '$#,##0'
+   829→
+   830→      // Detail sheet
+   831→      const detailSheet = workbook.addWorksheet('Detalle')
+   832→
+   833→      // Add logo to detail sheet too
+   834→      try {
+   835→        const logoUrl = `${window.location.origin}/logo-laguna-norte.jpg`
+   836→        const logoResp = await fetch(logoUrl)
+   837→        if (logoResp.ok) {
+   838→          const logoBlob = await logoResp.blob()
+   839→          const logoBase64 = await new Promise<string>((resolve) => {
+   840→            const reader = new FileReader()
+   841→            reader.onload = () => {
+   842→              const result = reader.result as string
+   843→              resolve(result.split(',')[1])
+   844→            }
+   845→            reader.readAsDataURL(logoBlob)
+   846→          })
+   847→          const logoImageId2 = workbook.addImage({ base64: logoBase64, extension: 'jpeg' })
+   848→          detailSheet.addImage(logoImageId2, {
+   849→            tl: { col: 0, row: 0 },
+   850→            ext: { width: 60, height: 60 },
+   851→          })
+   852→        }
+   853→      } catch (e) { /* logo not available */ }
+   854→
+   855→      // Title on detail sheet
+   856→      detailSheet.mergeCells('B1:F1')
+   857→      detailSheet.getCell('B1').value = 'Detalle de Gastos — Condominio Laguna Norte'
+   858→      detailSheet.getCell('B1').font = { bold: true, size: 12, color: { argb: 'FF1E40AF' } }
+   859→      detailSheet.mergeCells('B2:F2')
+   860→      detailSheet.getCell('B2').value = getCorrelative(selectedReport.correlativeNumber) + ' - ' + selectedReport.title
+   861→      detailSheet.getCell('B2').font = { size: 10, color: { argb: 'FF666666' } }
+   862→
+   863→      detailSheet.columns = [
+   864→        { header: '', key: 'spacer', width: 10 },
+   865→        { header: 'Descripcion', key: 'description', width: 40 },
+   866→        { header: 'N Boleta', key: 'numeroBoleta', width: 15 },
+   867→        { header: 'Categoria', key: 'category', width: 15 },
+   868→        { header: 'Fecha', key: 'expenseDate', width: 15 },
+   869→        { header: 'Monto', key: 'montoRendir', width: 15 },
+   870→        { header: 'Foto Boleta', key: 'fotoBoleta', width: 20 },
+   871→        { header: 'Fotos Compra', key: 'fotosCompra', width: 40 },
+   872→      ]
+   873→
+   874→      // Header row at row 4
+   875→      detailSheet.getCell('B4').value = 'Descripción'
+   876→      detailSheet.getCell('C4').value = 'N° Boleta'
+   877→      detailSheet.getCell('D4').value = 'Categoría'
+   878→      detailSheet.getCell('E4').value = 'Fecha'
+   879→      detailSheet.getCell('F4').value = 'Monto'
+   880→      detailSheet.getCell('G4').value = 'Foto Boleta'
+   881→      detailSheet.getCell('H4').value = 'Fotos Compra'
+   882→      for (let c = 2; c <= 8; c++) {
+   883→        detailSheet.getCell(`${String.fromCharCode(64 + c)}4`).font = { bold: true, color: { argb: 'FF1E40AF' } }
+   884→      }
+   885→
+   886→      const items = selectedReport.items || []
+   887→      items.forEach((item, idx) => {
+   888→        const compraUrls = getCompraUrls(item)
+   889→        const rowNum = idx + 5
+   890→        detailSheet.getCell(`B${rowNum}`).value = item.description
+   891→        detailSheet.getCell(`C${rowNum}`).value = item.numeroBoleta
+   892→        detailSheet.getCell(`D${rowNum}`).value = item.category
+   893→        detailSheet.getCell(`E${rowNum}`).value = formatDate(item.expenseDate)
+   894→        detailSheet.getCell(`F${rowNum}`).value = item.montoRendir
+   895→        detailSheet.getCell(`F${rowNum}`).numFmt = '$#,##0'
+   896→        detailSheet.getCell(`G${rowNum}`).value = item.imageBoletaUrl || '-'
+   897→        detailSheet.getCell(`H${rowNum}`).value = compraUrls.length > 0 ? compraUrls.join(' | ') : '-'
+   898→      })
+   899→
+   900→      // Total row
+   901→      const totalRowIndex = items.length + 6
+   902→      detailSheet.getCell(`B${totalRowIndex}`).value = 'TOTAL'
+   903→      detailSheet.getCell(`B${totalRowIndex}`).font = { bold: true }
+   904→      detailSheet.getCell(`F${totalRowIndex}`).value = selectedReport.totalAmount
+   905→      detailSheet.getCell(`F${totalRowIndex}`).font = { bold: true }
+   906→      detailSheet.getCell(`F${totalRowIndex}`).numFmt = '$#,##0'
+   907→
+   908→      // Download
+   909→      const buffer = await workbook.xlsx.writeBuffer()
+   910→      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+   911→      const url = URL.createObjectURL(blob)
+   912→      const a = document.createElement('a')
+   913→      a.href = url
+   914→      a.download = `rendicion-${getCorrelative(selectedReport.correlativeNumber)}.xlsx`
+   915→      a.click()
+   916→      URL.revokeObjectURL(url)
+   917→
+   918→      toast({ title: 'Excel exportado', description: 'El archivo Excel se ha descargado correctamente' })
+   919→    } catch (err) {
+   920→      console.error('Error exporting Excel:', err)
+   921→      toast({ title: 'Error', description: 'No se pudo exportar el Excel', variant: 'destructive' })
+   922→    }
+   923→  }
+   924→
+   925→  // ============================================================
+   926→  // View handlers
+   927→  // ============================================================
+   928→
+   929→  const openDetail = async (report: ExpenseReport) => {
+   930→    setCurrentView('detail')
+   931→    const detail = await fetchReportDetail(report.id)
+   932→    if (detail) {
+   933→      setSelectedReport(detail)
+   934→    } else {
+   935→      setSelectedReport(report)
+   936→    }
+   937→  }
+   938→
+   939→  const goBackToList = () => {
+   940→    setCurrentView('list')
+   941→    setSelectedReport(null)
+   942→    fetchReports()
+   943→  }
+   944→
+   945→  const canEdit = canEditAll && (selectedReport?.status === 'BORRADOR' || selectedReport?.status === 'MODIFICACIÓN SOLICITADA')
+   946→  const canDelete = canEditAll && selectedReport?.status === 'BORRADOR'
+   947→  const canSubmit = selectedReport?.status === 'BORRADOR' || selectedReport?.status === 'MODIFICACIÓN SOLICITADA'
+   948→  // Supervisor puede aprobar desde ENVIADO → APROBADO_SUPERVISOR
+   949→  // Admin puede aprobar desde ENVIADO → APROBADO directamente, o desde APROBADO_SUPERVISOR → APROBADO
+   950→  const canSupervisorApprove = isSupervisor && selectedReport?.status === 'ENVIADO'
+   951→  const canAdminApprove = isAdmin && (selectedReport?.status === 'ENVIADO' || selectedReport?.status === 'APROBADO_SUPERVISOR')
+   952→  const canReview = canSupervisorApprove || canAdminApprove
+   953→
+   954→  // ============================================================
+   955→  // Render: List View
+   956→  // ============================================================
+   957→
+   958→  const renderListView = () => (
+   959→    <div className="space-y-5">
+   960→      {/* Header bar */}
+   961→      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+   962→        <div>
+   963→          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+   964→            <FileText className="w-5 h-5 text-blue-600" />
+   965→            Rendiciones de Gastos
+   966→          </h2>
+   967→          <p className="text-sm text-slate-500 mt-0.5">{totalCount} reporte{totalCount !== 1 ? 's' : ''} encontrado{totalCount !== 1 ? 's' : ''}</p>
+   968→        </div>
+   969→        <Button onClick={handleCreateReport} className="gap-1.5 shrink-0 bg-blue-600 hover:bg-blue-700 text-white">
+   970→          <Plus className="h-4 w-4" /> Nueva Rendicion
+   971→        </Button>
+   972→      </div>
+   973→
+   974→      {/* Filters */}
+   975→      <div className="flex flex-col sm:flex-row gap-3">
+   976→        <div className="flex-1">
+   977→          <Input
+   978→            placeholder="Buscar por titulo, descripcion o responsable..."
+   979→            value={searchQuery}
+   980→            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
+   981→            className="w-full bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
+   982→          />
+   983→        </div>
+   984→        <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setCurrentPage(1) }}>
+   985→          <SelectTrigger className="w-full sm:w-[220px] bg-white border-slate-300 text-slate-800">
+   986→            <SelectValue placeholder="Filtrar estado" />
+   987→          </SelectTrigger>
+   988→          <SelectContent className="bg-white border-slate-300">
+   989→            <SelectItem value="all">Todos los estados</SelectItem>
+   990→            {Object.entries(statusConfig).map(([key, cfg]) => (
+   991→              <SelectItem key={key} value={key}>
+   992→                <span className="flex items-center gap-2">
+   993→                  {cfg.icon}
+   994→                  {cfg.label}
+   995→                </span>
+   996→              </SelectItem>
+   997→            ))}
+   998→          </SelectContent>
+   999→        </Select>
+  1000→      </div>
+  1001→
+  1002→      {/* Report cards */}
+  1003→      {loading ? (
+  1004→        <div className="flex justify-center py-16">
+  1005→          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+  1006→        </div>
+  1007→      ) : reports.length === 0 ? (
+  1008→        <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
+  1009→          <FileText className="h-14 w-14 mx-auto mb-3 text-slate-300" />
+  1010→          <h3 className="text-lg font-semibold text-slate-700">No hay rendiciones de gastos</h3>
+  1011→          <p className="text-sm text-slate-500 mt-1">Crea una nueva rendicion para comenzar</p>
+  1012→          <Button onClick={handleCreateReport} className="mt-4 gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
+  1013→            <Plus className="h-4 w-4" /> Nueva Rendicion
+  1014→          </Button>
+  1015→        </div>
+  1016→      ) : (
+  1017→        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+  1018→          {reports.map((report) => {
+  1019→            const sc = statusConfig[report.status] || statusConfig.BORRADOR
+  1020→            const itemCount = report.itemCount ?? report._count?.items ?? 0
+  1021→            return (
+  1022→              <Card
+  1023→                key={report.id}
+  1024→                className={`cursor-pointer hover:shadow-lg transition-all border-l-4 ${sc.borderColor} bg-white`}
+  1025→                onClick={() => openDetail(report)}
+  1026→              >
+  1027→                <CardHeader className="pb-2">
+  1028→                  <div className="flex items-start justify-between gap-2">
+  1029→                    <div className="min-w-0 flex-1">
+  1030→                      <div className="flex items-center gap-2 mb-1">
+  1031→                        <span className="text-sm font-bold text-blue-700">{getCorrelative(report.correlativeNumber)}</span>
+  1032→                        <Badge className={`${sc.bgColor} ${sc.color} text-[11px] px-2 py-0.5 font-medium border-0`}>
+  1033→                          <span className="flex items-center gap-1">
+  1034→                            {sc.icon}
+  1035→                            {sc.label}
+  1036→                          </span>
+  1037→                        </Badge>
+  1038→                      </div>
+  1039→                      <CardTitle className="text-base leading-tight text-slate-800 truncate">{report.title}</CardTitle>
+  1040→                    </div>
+  1041→                    <Eye className="h-4 w-4 text-slate-400 shrink-0" />
+  1042→                  </div>
+  1043→                </CardHeader>
+  1044→                <CardContent className="pt-0 pb-4">
+  1045→                  <div className="space-y-1.5 text-sm text-slate-600">
+  1046→                    {report.responsible && (
+  1047→                      <div className="flex items-center gap-1.5">
+  1048→                        <span className="text-slate-400 font-medium">Responsable:</span>
+  1049→                        <span className="truncate text-slate-700">{report.responsible}</span>
+  1050→                      </div>
+  1051→                    )}
+  1052→                    <div className="flex items-center justify-between">
+  1053→                      <span className="text-slate-500">{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
+  1054→                      <span className="font-bold text-slate-800 text-base">{formatCLP(report.totalAmount)}</span>
+  1055→                    </div>
+  1056→                    <div className="text-xs text-slate-400">
+  1057→                      {formatDate(report.createdAt)}
+  1058→                    </div>
+  1059→                  </div>
+  1060→                </CardContent>
+  1061→              </Card>
+  1062→            )
+  1063→          })}
+  1064→        </div>
+  1065→      )}
+  1066→
+  1067→      {/* Pagination */}
+  1068→      {totalPages > 1 && (
+  1069→        <div className="flex items-center justify-center gap-2 pt-4">
+  1070→          <Button
+  1071→            variant="outline"
+  1072→            size="sm"
+  1073→            disabled={currentPage <= 1}
+  1074→            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+  1075→            className="border-slate-300 text-slate-700"
+  1076→          >
+  1077→            Anterior
+  1078→          </Button>
+  1079→          <span className="text-sm text-slate-600 font-medium">
+  1080→            Pag. {currentPage} de {totalPages}
+  1081→          </span>
+  1082→          <Button
+  1083→            variant="outline"
+  1084→            size="sm"
+  1085→            disabled={currentPage >= totalPages}
+  1086→            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+  1087→            className="border-slate-300 text-slate-700"
+  1088→          >
+  1089→            Siguiente
+  1090→          </Button>
+  1091→        </div>
+  1092→      )}
+  1093→    </div>
+  1094→  )
+  1095→
+  1096→  // ============================================================
+  1097→  // Render: Detail View
+  1098→  // ============================================================
+  1099→
+  1100→  const renderDetailView = () => {
+  1101→    if (!selectedReport) return null
+  1102→    const sc = statusConfig[selectedReport.status] || statusConfig.BORRADOR
+  1103→    const items = selectedReport.items || []
+  1104→
+  1105→    return (
+  1106→      <div className="space-y-5">
+  1107→        {/* Back + Header */}
+  1108→        <div className="flex items-start gap-3">
+  1109→          <Button variant="outline" size="sm" onClick={goBackToList} className="gap-1 shrink-0 mt-1 border-slate-300 text-slate-700">
+  1110→            <ArrowLeft className="h-4 w-4" /> Volver
+  1111→          </Button>
+  1112→          <div className="min-w-0 flex-1">
+  1113→            <div className="flex items-center gap-2 flex-wrap">
+  1114→              <span className="text-lg font-bold text-blue-700">{getCorrelative(selectedReport.correlativeNumber)}</span>
+  1115→              <Badge className={`${sc.bgColor} ${sc.color} px-2.5 py-0.5 font-medium border-0`}>
+  1116→                <span className="flex items-center gap-1.5">
+  1117→                  {sc.icon}
+  1118→                  {sc.label}
+  1119→                </span>
+  1120→              </Badge>
+  1121→            </div>
+  1122→            <h2 className="text-xl font-bold text-slate-800 mt-1">{selectedReport.title}</h2>
+  1123→          </div>
+  1124→        </div>
+  1125→
+  1126→        {/* Report info card */}
+  1127→        <Card className="bg-white border-slate-200">
+  1128→          <CardContent className="p-4 sm:p-6">
+  1129→            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+  1130→              <div>
+  1131→                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Responsable</p>
+  1132→                <p className="font-medium text-slate-800 mt-0.5">{selectedReport.responsible || '-'}</p>
+  1133→              </div>
+  1134→              <div>
+  1135→                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Monto Total</p>
+  1136→                <p className="font-bold text-lg text-slate-800 mt-0.5">{formatCLP(selectedReport.totalAmount)}</p>
+  1137→              </div>
+  1138→              <div>
+  1139→                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Fecha Creacion</p>
+  1140→                <p className="font-medium text-slate-800 mt-0.5">{formatDateTime(selectedReport.createdAt)}</p>
+  1141→              </div>
+  1142→              <div>
+  1143→                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Fecha Envio</p>
+  1144→                <p className="font-medium text-slate-800 mt-0.5">{formatDateTime(selectedReport.submittedAt)}</p>
+  1145→              </div>
+  1146→              <div>
+  1147→                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Fecha Revision</p>
+  1148→                <p className="font-medium text-slate-800 mt-0.5">{formatDateTime(selectedReport.reviewedAt)}</p>
+  1149→              </div>
+  1150→              <div>
+  1151→                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Revisado por</p>
+  1152→                <p className="font-medium text-slate-800 mt-0.5">{selectedReport.reviewedBy || '-'}</p>
+  1153→              </div>
+  1154→            </div>
+  1155→            {selectedReport.description && (
+  1156→              <div className="mt-4 pt-4 border-t border-slate-200">
+  1157→                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Descripcion</p>
+  1158→                <p className="text-slate-700 mt-0.5">{selectedReport.description}</p>
+  1159→              </div>
+  1160→            )}
+  1161→            {selectedReport.reviewNote && (
+  1162→              <div className="mt-4 pt-4 border-t border-slate-200">
+  1163→                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Nota de Revision</p>
+  1164→                <div className="mt-1 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 text-sm">
+  1165→                  {selectedReport.reviewNote}
+  1166→                </div>
+  1167→              </div>
+  1168→            )}
+  1169→          </CardContent>
+  1170→        </Card>
+  1171→
+  1172→        {/* Action buttons */}
+  1173→        <div className="flex flex-wrap gap-2">
+  1174→          {canSubmit && (
+  1175→            <Button
+  1176→              onClick={() => handleStatusChange('ENVIADO')}
+  1177→              className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-white"
+  1178→            >
+  1179→              <Send className="h-4 w-4" /> Enviar para Revision
+  1180→            </Button>
+  1181→          )}
+  1182→          {canEdit && (
+  1183→            <Button variant="outline" onClick={() => handleEditReport(selectedReport)} className="gap-1.5 border-slate-300 text-slate-700">
+  1184→              <Pencil className="h-4 w-4" /> Editar
+  1185→            </Button>
+  1186→          )}
+  1187→          {canDelete && (
+  1188→            <Button variant="outline" onClick={() => setDeleteReportDialogOpen(true)} className="gap-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">
+  1189→              <Trash2 className="h-4 w-4" /> Eliminar
+  1190→            </Button>
+  1191→          )}
+  1192→          {canReview && (
+  1193→            <>
+  1194→              {canSupervisorApprove && (
+  1195→                <Button onClick={() => handleStatusChange('APROBADO_SUPERVISOR')} className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
+  1196→                  <ShieldCheck className="h-4 w-4" /> Aprobar (Supervisor)
+  1197→                </Button>
+  1198→              )}
+  1199→              {canAdminApprove && (
+  1200→                <Button onClick={() => handleStatusChange('APROBADO')} className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white">
+  1201→                  <CheckCircle className="h-4 w-4" /> Aprobar (Admin)
+  1202→                </Button>
+  1203→              )}
+  1204→              <Button onClick={() => openReviewDialog('RECHAZADO')} className="gap-1.5 bg-red-500 hover:bg-red-600 text-white">
+  1205→                <XCircle className="h-4 w-4" /> Rechazar
+  1206→              </Button>
+  1207→              <Button onClick={() => openReviewDialog('MODIFICACIÓN SOLICITADA')} variant="outline" className="gap-1.5 border-amber-400 text-amber-700 hover:bg-amber-50">
+  1208→                <RotateCcw className="h-4 w-4" /> Solicitar Modificacion
+  1209→              </Button>
+  1210→            </>
+  1211→          )}
+  1212→          <div className="flex gap-2 sm:ml-auto">
+  1213→            <Button variant="outline" size="sm" onClick={exportPDF} className="gap-1.5 border-slate-300 text-slate-700">
+  1214→              <FileText className="h-4 w-4" /> PDF
+  1215→            </Button>
+  1216→            <Button variant="outline" size="sm" onClick={exportExcel} className="gap-1.5 border-slate-300 text-slate-700">
+  1217→              <FileSpreadsheet className="h-4 w-4" /> Excel
+  1218→            </Button>
+  1219→          </div>
+  1220→        </div>
+  1221→
+  1222→        {/* Items section */}
+  1223→        <Card className="bg-white border-slate-200">
+  1224→          <CardHeader className="pb-3">
+  1225→            <div className="flex items-center justify-between">
+  1226→              <CardTitle className="text-base text-slate-800 flex items-center gap-2">
+  1227→                <ImageIcon className="w-4 h-4 text-blue-600" />
+  1228→                Items de Gasto ({items.length})
+  1229→              </CardTitle>
+  1230→              {canEdit && (
+  1231→                <Button size="sm" onClick={openCreateItem} className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
+  1232→                  <Plus className="h-4 w-4" /> Agregar Item
+  1233→                </Button>
+  1234→              )}
+  1235→            </div>
+  1236→          </CardHeader>
+  1237→          <CardContent>
+  1238→            {items.length === 0 ? (
+  1239→              <div className="text-center py-8">
+  1240→                <FileText className="h-12 w-12 mx-auto mb-2 text-slate-300" />
+  1241→                <p className="text-slate-600 font-medium">No hay items en esta rendicion</p>
+  1242→                <p className="text-sm text-slate-400 mt-1">Agrega items con los gastos realizados</p>
+  1243→                {canEdit && (
+  1244→                  <Button size="sm" variant="outline" onClick={openCreateItem} className="mt-3 gap-1.5 border-blue-300 text-blue-700 hover:bg-blue-50">
+  1245→                    <Plus className="h-4 w-4" /> Agregar Primer Item
+  1246→                  </Button>
+  1247→                )}
+  1248→              </div>
+  1249→            ) : (
+  1250→              <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+  1251→                {items.map((item) => {
+  1252→                  const compraUrls = getCompraUrls(item)
+  1253→                  const totalImages = (item.imageBoletaUrl ? 1 : 0) + compraUrls.length
+  1254→                  return (
+  1255→                    <div key={item.id} className="border border-slate-200 rounded-lg p-4 hover:bg-slate-50 transition-colors bg-white">
+  1256→                      <div className="flex items-start justify-between gap-3">
+  1257→                        <div className="min-w-0 flex-1">
+  1258→                          <div className="flex items-center gap-2 flex-wrap">
+  1259→                            <span className="font-semibold text-slate-800">{item.description}</span>
+  1260→                            <Badge variant="outline" className="text-[10px] border-blue-200 text-blue-700 bg-blue-50">{item.category}</Badge>
+  1261→                          </div>
+  1262→                          <div className="flex items-center gap-4 mt-1.5 text-sm text-slate-500">
+  1263→                            <span className="flex items-center gap-1">
+  1264→                              <FileText className="w-3.5 h-3.5" />
+  1265→                              Boleta: <span className="font-medium text-slate-700">{item.numeroBoleta}</span>
+  1266→                            </span>
+  1267→                            <span>Fecha: {formatDate(item.expenseDate)}</span>
+  1268→                          </div>
+  1269→                          <div className="mt-2">
+  1270→                            <span className="font-bold text-lg text-slate-800">{formatCLP(item.montoRendir)}</span>
+  1271→                          </div>
+  1272→
+  1273→                          {/* Photos section - Boleta + multiple compra images */}
+  1274→                          {totalImages > 0 && (
+  1275→                            <div className="mt-3 pt-3 border-t border-slate-100">
+  1276→                              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+  1277→                                Evidencia ({totalImages} imagen{totalImages !== 1 ? 'es' : ''})
+  1278→                              </p>
+  1279→                              <div className="flex gap-3 flex-wrap">
+  1280→                                {/* Boleta image */}
+  1281→                                {item.imageBoletaUrl && (
+  1282→                                  <div className="relative group">
+  1283→                                    <img
+  1284→                                      src={item.imageBoletaUrl}
+  1285→                                      alt="Boleta"
+  1286→                                      className="w-28 h-28 object-cover rounded-lg border-2 border-blue-200 cursor-pointer hover:opacity-80 hover:border-blue-400 transition-all shadow-sm group-hover:shadow-md"
+  1287→                                      onClick={() => { setPhotoViewerUrl(item.imageBoletaUrl); setPhotoViewerOpen(true) }}
+  1288→                                    />
+  1289→                                    <span className="absolute bottom-0 left-0 right-0 text-[10px] text-white bg-blue-600/90 text-center rounded-b-lg font-semibold py-0.5">Boleta</span>
+  1290→                                  </div>
+  1291→                                )}
+  1292→                                {/* Compra images */}
+  1293→                                {compraUrls.map((url, idx) => (
+  1294→                                  <div key={idx} className="relative group">
+  1295→                                    <img
+  1296→                                      src={url}
+  1297→                                      alt={`Compra ${idx + 1}`}
+  1298→                                      className="w-28 h-28 object-cover rounded-lg border-2 border-emerald-200 cursor-pointer hover:opacity-80 hover:border-emerald-400 transition-all shadow-sm group-hover:shadow-md"
+  1299→                                      onClick={() => { setPhotoViewerUrl(url); setPhotoViewerOpen(true) }}
+  1300→                                    />
+  1301→                                    <span className="absolute bottom-0 left-0 right-0 text-[10px] text-white bg-emerald-600/90 text-center rounded-b-lg font-semibold py-0.5">Compra {idx + 1}</span>
+  1302→                                  </div>
+  1303→                                ))}
+  1304→                              </div>
+  1305→                            </div>
+  1306→                          )}
+  1307→                        </div>
+  1308→                        {canEdit && (
+  1309→                          <div className="flex gap-1 shrink-0">
+  1310→                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50" onClick={() => openEditItem(item)}>
+  1311→                              <Pencil className="h-3.5 w-3.5" />
+  1312→                            </Button>
+  1313→                            <Button
+  1314→                              variant="ghost"
+  1315→                              size="sm"
+  1316→                              className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
+  1317→                              onClick={() => { setDeleteItemId(item.id); setDeleteItemDialogOpen(true) }}
+  1318→                            >
+  1319→                              <Trash2 className="h-3.5 w-3.5" />
+  1320→                            </Button>
+  1321→                          </div>
+  1322→                        )}
+  1323→                      </div>
+  1324→                    </div>
+  1325→                  )
+  1326→                })}
+  1327→              </div>
+  1328→            )}
+  1329→
+  1330→            {/* Items total */}
+  1331→            {items.length > 0 && (
+  1332→              <div className="flex justify-end items-center gap-2 pt-4 mt-4 border-t border-slate-200">
+  1333→                <span className="text-sm text-slate-500 font-medium">Total Items:</span>
+  1334→                <span className="text-xl font-bold text-slate-800">{formatCLP(selectedReport.totalAmount)}</span>
+  1335→              </div>
+  1336→            )}
+  1337→          </CardContent>
+  1338→        </Card>
+  1339→      </div>
+  1340→    )
+  1341→  }
+  1342→
+  1343→  // ============================================================
+  1344→  // Render
+  1345→  // ============================================================
+  1346→
+  1347→  return (
+  1348→    <div className="min-h-screen">
+  1349→      {/* Alert Banner (unified system) */}
+  1350→      {currentView === 'list' && (
+  1351→        <ModuleAlertBanner
+  1352→          alerts={moduleAlerts.filter(a => !dismissedAlerts.has(a.id))}
+  1353→          userRole={userRole}
+  1354→          onConfigure={() => setAlertConfigOpen(true)}
+  1355→          onDismiss={(id) => setDismissedAlerts(prev => new Set([...prev, id]))}
+  1356→        />
+  1357→      )}
+  1358→      {currentView === 'list' && renderListView()}
+  1359→      {currentView === 'detail' && renderDetailView()}
+  1360→
+  1361→      {/* ============================================ */}
+  1362→      {/* Report Form Dialog */}
+  1363→      {/* ============================================ */}
+  1364→      <Dialog open={reportFormOpen} onOpenChange={setReportFormOpen}>
+  1365→        <DialogContent className="sm:max-w-lg w-[calc(100vw-1rem)] sm:w-auto bg-white border-slate-200">
+  1366→          <DialogHeader>
+  1367→            <DialogTitle className="text-slate-800">{editingReport ? 'Editar Rendicion' : 'Nueva Rendicion de Gastos'}</DialogTitle>
+  1368→            <DialogDescription className="sr-only">
+  1369→              {editingReport ? 'Formulario para editar rendicion de gastos' : 'Formulario para crear nueva rendicion de gastos'}
+  1370→            </DialogDescription>
+  1371→          </DialogHeader>
+  1372→          <div className="space-y-4">
+  1373→            <div className="grid gap-2">
+  1374→              <Label htmlFor="report-title" className="text-slate-700 font-medium">Titulo *</Label>
+  1375→              <Input
+  1376→                id="report-title"
+  1377→                placeholder="Ej: Gastos mantenimiento junio 2026"
+  1378→                value={reportForm.title}
+  1379→                onChange={(e) => setReportForm((p) => ({ ...p, title: e.target.value }))}
+  1380→                className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
+  1381→              />
+  1382→            </div>
+  1383→            <div className="grid gap-2">
+  1384→              <Label htmlFor="report-responsible" className="text-slate-700 font-medium">Responsable</Label>
+  1385→              <Input
+  1386→                id="report-responsible"
+  1387→                placeholder="Nombre del responsable"
+  1388→                value={reportForm.responsible}
+  1389→                onChange={(e) => setReportForm((p) => ({ ...p, responsible: e.target.value }))}
+  1390→                className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
+  1391→              />
+  1392→            </div>
+  1393→            <div className="grid gap-2">
+  1394→              <Label htmlFor="report-description" className="text-slate-700 font-medium">Descripcion</Label>
+  1395→              <Textarea
+  1396→                id="report-description"
+  1397→                placeholder="Descripcion de la rendicion..."
+  1398→                value={reportForm.description}
+  1399→                onChange={(e) => setReportForm((p) => ({ ...p, description: e.target.value }))}
+  1400→                rows={3}
+  1401→                className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
+  1402→              />
+  1403→            </div>
+  1404→          </div>
+  1405→          <DialogFooter>
+  1406→            <Button variant="outline" onClick={() => setReportFormOpen(false)} disabled={saving} className="border-slate-300 text-slate-700">Cancelar</Button>
+  1407→            <Button onClick={handleSaveReport} disabled={!reportForm.title.trim() || saving} className="bg-blue-600 hover:bg-blue-700 text-white">
+  1408→              {saving ? 'Guardando...' : editingReport ? 'Guardar Cambios' : 'Crear Rendicion'}
+  1409→            </Button>
+  1410→          </DialogFooter>
+  1411→        </DialogContent>
+  1412→      </Dialog>
+  1413→
+  1414→      {/* ============================================ */}
+  1415→      {/* Item Form Dialog */}
+  1416→      {/* ============================================ */}
+  1417→      <Dialog open={itemFormOpen} onOpenChange={setItemFormOpen}>
+  1418→        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto w-[calc(100vw-1rem)] sm:w-auto bg-white border-slate-200">
+  1419→          <DialogHeader>
+  1420→            <DialogTitle className="text-slate-800">{editingItem ? 'Editar Item de Gasto' : 'Agregar Item de Gasto'}</DialogTitle>
+  1421→            <DialogDescription className="sr-only">
+  1422→              {editingItem ? 'Formulario para editar item de gasto' : 'Formulario para agregar nuevo item de gasto'}
+  1423→            </DialogDescription>
+  1424→          </DialogHeader>
+  1425→          <div className="space-y-4">
+  1426→            <div className="grid gap-2">
+  1427→              <Label htmlFor="item-description" className="text-slate-700 font-medium">Descripcion *</Label>
+  1428→              <Input
+  1429→                id="item-description"
+  1430→                placeholder="Descripcion del gasto"
+  1431→                value={itemForm.description}
+  1432→                onChange={(e) => setItemForm((p) => ({ ...p, description: e.target.value }))}
+  1433→                className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
+  1434→              />
+  1435→            </div>
+  1436→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+  1437→              <div className="grid gap-2">
+  1438→                <Label htmlFor="item-boleta" className="text-slate-700 font-medium">N Boleta *</Label>
+  1439→                <Input
+  1440→                  id="item-boleta"
+  1441→                  placeholder="Ej: 12345"
+  1442→                  value={itemForm.numeroBoleta}
+  1443→                  onChange={(e) => setItemForm((p) => ({ ...p, numeroBoleta: e.target.value }))}
+  1444→                  className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
+  1445→                />
+  1446→              </div>
+  1447→              <div className="grid gap-2">
+  1448→                <Label htmlFor="item-amount" className="text-slate-700 font-medium">Monto a Rendir *</Label>
+  1449→                <Input
+  1450→                  id="item-amount"
+  1451→                  type="number"
+  1452→                  placeholder="$"
+  1453→                  min="0"
+  1454→                  value={itemForm.montoRendir}
+  1455→                  onChange={(e) => setItemForm((p) => ({ ...p, montoRendir: e.target.value }))}
+  1456→                  className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
+  1457→                />
+  1458→              </div>
+  1459→            </div>
+  1460→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+  1461→              <div className="grid gap-2">
+  1462→                <Label htmlFor="item-category" className="text-slate-700 font-medium">Categoria *</Label>
+  1463→                <Select value={itemForm.category} onValueChange={(v) => setItemForm((p) => ({ ...p, category: v }))}>
+  1464→                  <SelectTrigger id="item-category" className="bg-white border-slate-300 text-slate-800">
+  1465→                    <SelectValue placeholder="Seleccionar" />
+  1466→                  </SelectTrigger>
+  1467→                  <SelectContent className="bg-white border-slate-300">
+  1468→                    {categories.map((cat) => (
+  1469→                      <SelectItem key={cat.id} value={cat.name}>
+  1470→                        {cat.icon} {cat.name}
+  1471→                      </SelectItem>
+  1472→                    ))}
+  1473→                  </SelectContent>
+  1474→                </Select>
+  1475→              </div>
+  1476→              <div className="grid gap-2">
+  1477→                <Label htmlFor="item-date" className="text-slate-700 font-medium">Fecha de Gasto *</Label>
+  1478→                <Input
+  1479→                  id="item-date"
+  1480→                  type="date"
+  1481→                  value={itemForm.expenseDate}
+  1482→                  onChange={(e) => setItemForm((p) => ({ ...p, expenseDate: e.target.value }))}
+  1483→                  className="bg-white border-slate-300 text-slate-800"
+  1484→                />
+  1485→              </div>
+  1486→            </div>
+  1487→
+  1488→            {/* Photo uploads */}
+  1489→            <div className="space-y-4 pt-2">
+  1490→              {/* Boleta photo */}
+  1491→              <div className="grid gap-2">
+  1492→                <Label className="text-slate-700 font-medium flex items-center gap-1.5">
+  1493→                  <Camera className="w-4 h-4 text-blue-600" />
+  1494→                  Foto Boleta
+  1495→                </Label>
+  1496→                {itemForm.imageBoletaUrl ? (
+  1497→                  <div className="relative inline-block">
+  1498→                    <img
+  1499→                      src={itemForm.imageBoletaUrl}
+  1500→                      alt="Boleta"
+  1501→                      className="w-full max-w-xs h-32 object-cover rounded-lg border border-slate-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+  1502→                      onClick={() => { setPhotoViewerUrl(itemForm.imageBoletaUrl); setPhotoViewerOpen(true) }}
+  1503→                    />
+  1504→                    <Button
+  1505→                      variant="destructive"
+  1506→                      size="sm"
+  1507→                      className="absolute top-1 right-1 h-6 w-6 p-0"
+  1508→                      onClick={() => setItemForm((p) => ({ ...p, imageBoletaUrl: '' }))}
+  1509→                    >
+  1510→                      <X className="h-3 w-3" />
+  1511→                    </Button>
+  1512→                  </div>
+  1513→                ) : (
+  1514→                  <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors">
+  1515→                    {uploadingBoleta ? (
+  1516→                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+  1517→                    ) : (
+  1518→                      <>
+  1519→                        <Camera className="h-6 w-6 text-slate-400 mb-1" />
+  1520→                        <span className="text-xs text-slate-500 font-medium">Subir boleta</span>
+  1521→                      </>
+  1522→                    )}
+  1523→                    <input
+  1524→                      type="file"
+  1525→                      accept="image/*"
+  1526→                      className="hidden"
+  1527→                      onChange={async (e) => {
+  1528→                        const file = e.target.files?.[0]
+  1529→                        if (!file) return
+  1530→                        setUploadingBoleta(true)
+  1531→                        const url = await handlePhotoUpload(file)
+  1532→                        if (url) setItemForm((p) => ({ ...p, imageBoletaUrl: url }))
+  1533→                        setUploadingBoleta(false)
+  1534→                      }}
+  1535→                    />
+  1536→                  </label>
+  1537→                )}
+  1538→              </div>
+  1539→
+  1540→              {/* Compra photos - MULTIPLE */}
+  1541→              <div className="grid gap-2">
+  1542→                <Label className="text-slate-700 font-medium flex items-center gap-1.5">
+  1543→                  <ImageIcon className="w-4 h-4 text-emerald-600" />
+  1544→                  Fotos de Compra ({itemForm.imageCompraUrls.length})
+  1545→                </Label>
+  1546→
+  1547→                {/* Existing compra images */}
+  1548→                {itemForm.imageCompraUrls.length > 0 && (
+  1549→                  <div className="flex gap-2 flex-wrap">
+  1550→                    {itemForm.imageCompraUrls.map((url, idx) => (
+  1551→                      <div key={idx} className="relative group">
+  1552→                        <img
+  1553→                          src={url}
+  1554→                          alt={`Compra ${idx + 1}`}
+  1555→                          className="w-24 h-24 object-cover rounded-lg border border-slate-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+  1556→                          onClick={() => { setPhotoViewerUrl(url); setPhotoViewerOpen(true) }}
+  1557→                        />
+  1558→                        <span className="absolute bottom-0 left-0 right-0 text-[9px] text-white bg-emerald-600/80 text-center rounded-b-lg font-medium py-0.5">Compra {idx + 1}</span>
+  1559→                        <Button
+  1560→                          variant="destructive"
+  1561→                          size="sm"
+  1562→                          className="absolute -top-1 -right-1 h-5 w-5 p-0 rounded-full shadow-sm"
+  1563→                          onClick={() => setItemForm((p) => ({
+  1564→                            ...p,
+  1565→                            imageCompraUrls: p.imageCompraUrls.filter((_, i) => i !== idx)
+  1566→                          }))}
+  1567→                        >
+  1568→                          <X className="h-3 w-3" />
+  1569→                        </Button>
+  1570→                      </div>
+  1571→                    ))}
+  1572→                  </div>
+  1573→                )}
+  1574→
+  1575→                {/* Upload button for more compra images */}
+  1576→                <label className={`flex flex-col items-center justify-center h-28 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+  1577→                  uploadingCompra
+  1578→                    ? 'border-slate-200 bg-slate-50 cursor-not-allowed'
+  1579→                    : 'border-emerald-300 hover:border-emerald-400 hover:bg-emerald-50/50'
+  1580→                }`}>
+  1581→                  {uploadingCompra ? (
+  1582→                    <div className="flex flex-col items-center gap-1">
+  1583→                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600"></div>
+  1584→                      <span className="text-xs text-slate-500">Subiendo...</span>
+  1585→                    </div>
+  1586→                  ) : (
+  1587→                    <>
+  1588→                      <Upload className="h-6 w-6 text-emerald-500 mb-1" />
+  1589→                      <span className="text-xs text-slate-600 font-medium">Agregar fotos de compra</span>
+  1590→                      <span className="text-[10px] text-slate-400 mt-0.5">Puedes seleccionar varias imagenes</span>
+  1591→                    </>
+  1592→                  )}
+  1593→                  <input
+  1594→                    type="file"
+  1595→                    accept="image/*"
+  1596→                    multiple
+  1597→                    className="hidden"
+  1598→                    onChange={async (e) => {
+  1599→                      const files = e.target.files
+  1600→                      if (!files || files.length === 0) return
+  1601→                      await handleMultipleCompraUpload(files)
+  1602→                    }}
+  1603→                  />
+  1604→                </label>
+  1605→              </div>
+  1606→            </div>
+  1607→          </div>
+  1608→          <DialogFooter className="gap-2">
+  1609→            <Button variant="outline" onClick={() => setItemFormOpen(false)} disabled={saving} className="border-slate-300 text-slate-700">Cancelar</Button>
+  1610→            <Button
+  1611→              onClick={handleSaveItem}
+  1612→              disabled={!itemForm.description.trim() || !itemForm.numeroBoleta.trim() || !itemForm.montoRendir || !itemForm.category || !itemForm.expenseDate || saving}
+  1613→              className="bg-blue-600 hover:bg-blue-700 text-white"
+  1614→            >
+  1615→              {saving ? 'Guardando...' : editingItem ? 'Guardar Cambios' : 'Agregar Item'}
+  1616→            </Button>
+  1617→          </DialogFooter>
+  1618→        </DialogContent>
+  1619→      </Dialog>
+  1620→
+  1621→      {/* ============================================ */}
+  1622→      {/* Review Dialog */}
+  1623→      {/* ============================================ */}
+  1624→      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+  1625→        <DialogContent className="sm:max-w-md w-[calc(100vw-1rem)] sm:w-auto bg-white border-slate-200">
+  1626→          <DialogHeader>
+  1627→            <DialogTitle className="text-slate-800">
+  1628→              {reviewAction === 'RECHAZADO' ? 'Rechazar Reporte' : 'Solicitar Modificacion'}
+  1629→            </DialogTitle>
+  1630→            <DialogDescription className="text-slate-500">
+  1631→              {reviewAction === 'RECHAZADO'
+  1632→                ? 'Indique el motivo del rechazo del reporte de gastos.'
+  1633→                : 'Indique las modificaciones necesarias para el reporte de gastos.'}
+  1634→            </DialogDescription>
+  1635→          </DialogHeader>
+  1636→          <div className="space-y-4">
+  1637→            <div className="grid gap-2">
+  1638→              <Label htmlFor="review-note" className="text-slate-700 font-medium">{reviewAction === 'RECHAZADO' ? 'Motivo del rechazo' : 'Modificaciones solicitadas'}</Label>
+  1639→              <Textarea
+  1640→                id="review-note"
+  1641→                placeholder={reviewAction === 'RECHAZADO' ? 'Indique el motivo del rechazo...' : 'Describa las modificaciones necesarias...'}
+  1642→                value={reviewNote}
+  1643→                onChange={(e) => setReviewNote(e.target.value)}
+  1644→                rows={3}
+  1645→                className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
+  1646→              />
+  1647→            </div>
+  1648→            <div className="grid gap-2">
+  1649→              <Label htmlFor="reviewed-by" className="text-slate-700 font-medium">Revisado por</Label>
+  1650→              <Input
+  1651→                id="reviewed-by"
+  1652→                placeholder="Nombre del revisor"
+  1653→                value={reviewedBy}
+  1654→                onChange={(e) => setReviewedBy(e.target.value)}
+  1655→                className="bg-white border-slate-300 text-slate-800 placeholder:text-slate-400"
+  1656→              />
+  1657→            </div>
+  1658→          </div>
+  1659→          <DialogFooter>
+  1660→            <Button variant="outline" onClick={() => setReviewDialogOpen(false)} className="border-slate-300 text-slate-700">Cancelar</Button>
+  1661→            <Button
+  1662→              onClick={handleConfirmReview}
+  1663→              className={reviewAction === 'RECHAZADO' ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-amber-500 hover:bg-amber-600 text-white'}
+  1664→            >
+  1665→              {reviewAction === 'RECHAZADO' ? 'Confirmar Rechazo' : 'Solicitar Modificacion'}
+  1666→            </Button>
+  1667→          </DialogFooter>
+  1668→        </DialogContent>
+  1669→      </Dialog>
+  1670→
+  1671→      {/* ============================================ */}
+  1672→      {/* Delete Report Dialog */}
+  1673→      {/* ============================================ */}
+  1674→      <AlertDialog open={deleteReportDialogOpen} onOpenChange={setDeleteReportDialogOpen}>
+  1675→        <AlertDialogContent className="bg-white">
+  1676→          <AlertDialogHeader>
+  1677→            <AlertDialogTitle className="text-slate-800">Eliminar Rendicion</AlertDialogTitle>
+  1678→            <AlertDialogDescription className="text-slate-600">
+  1679→              Esta seguro que desea eliminar la rendicion &quot;{selectedReport?.title}&quot;? Esta accion no se puede deshacer y se eliminaran todos los items asociados.
+  1680→            </AlertDialogDescription>
+  1681→          </AlertDialogHeader>
+  1682→          <AlertDialogFooter>
+  1683→            <AlertDialogCancel className="border-slate-300 text-slate-700">Cancelar</AlertDialogCancel>
+  1684→            <AlertDialogAction onClick={handleDeleteReport} className="bg-red-500 hover:bg-red-600 text-white">
+  1685→              Eliminar
+  1686→            </AlertDialogAction>
+  1687→          </AlertDialogFooter>
+  1688→        </AlertDialogContent>
+  1689→      </AlertDialog>
+  1690→
+  1691→      {/* ============================================ */}
+  1692→      {/* Delete Item Dialog */}
+  1693→      {/* ============================================ */}
+  1694→      <AlertDialog open={deleteItemDialogOpen} onOpenChange={setDeleteItemDialogOpen}>
+  1695→        <AlertDialogContent className="bg-white">
+  1696→          <AlertDialogHeader>
+  1697→            <AlertDialogTitle className="text-slate-800">Eliminar Item</AlertDialogTitle>
+  1698→            <AlertDialogDescription className="text-slate-600">
+  1699→              Esta seguro que desea eliminar este item de gasto? Esta accion no se puede deshacer.
+  1700→            </AlertDialogDescription>
+  1701→          </AlertDialogHeader>
+  1702→          <AlertDialogFooter>
+  1703→            <AlertDialogCancel className="border-slate-300 text-slate-700">Cancelar</AlertDialogCancel>
+  1704→            <AlertDialogAction onClick={handleDeleteItem} className="bg-red-500 hover:bg-red-600 text-white">
+  1705→              Eliminar
+  1706→            </AlertDialogAction>
+  1707→          </AlertDialogFooter>
+  1708→        </AlertDialogContent>
+  1709→      </AlertDialog>
+  1710→
+  1711→      {/* ============================================ */}
+  1712→      {/* Photo Viewer Dialog */}
+  1713→      {/* ============================================ */}
+  1714→      <Dialog open={photoViewerOpen} onOpenChange={setPhotoViewerOpen}>
+  1715→        <DialogContent className="max-w-3xl p-0 overflow-hidden bg-black">
+  1716→          <DialogDescription className="sr-only">Visor de imagen</DialogDescription>
+  1717→          <div className="relative">
+  1718→            {photoViewerUrl && (
+  1719→              <img
+  1720→                src={photoViewerUrl}
+  1721→                alt="Foto ampliada"
+  1722→                className="w-full max-h-[80vh] object-contain"
+  1723→              />
+  1724→            )}
+  1725→            <button
+  1726→              className="absolute top-2 right-2 w-8 h-8 bg-black/50 text-white rounded-full flex items-center justify-center hover:bg-black/70"
+  1727→              onClick={() => setPhotoViewerOpen(false)}
+  1728→            >
+  1729→              <X className="h-4 w-4" />
+  1730→            </button>
+  1731→          </div>
+  1732→        </DialogContent>
+  1733→      </Dialog>
+  1734→
+  1735→      {/* Alert Config Dialog (unified system) */}
+  1736→      <AlertConfigDialog
+  1737→        open={alertConfigOpen}
+  1738→        onOpenChange={setAlertConfigOpen}
+  1739→        moduleName="rendicion"
+  1740→        moduleLabel="Rendición de Gastos"
+  1741→        userRole={userRole}
+  1742→      />
+  1743→    </div>
+  1744→  )
+  1745→}
+  1746→

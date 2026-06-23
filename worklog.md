@@ -99,3 +99,32 @@ Stage Summary:
 - Módulo de Solicitudes de Compra completamente funcional: crear solicitudes, agregar cotizaciones con archivos, seleccionar cotización ganadora, cambiar estados (PENDIENTE→APROBADA→EN_COMPRA→COMPRADA), exportar PDF/Excel
 - Fotos de comprobantes se suben a Vercel Blob
 - Deploy exitoso en https://planificacion-operativa.vercel.app/
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Integrar configuraciones de alertas en todos los módulos (incluyendo Tareas/Dashboard que faltaba)
+
+Work Log:
+- Diagnosticó que 5 módulos secundarios ya tenían integración con ModuleAlertBanner + AlertConfigDialog (RendicionGastos, SolicitudesCompra, AnticiposPanel, MantenimientoPanel, AsistenciasPanel)
+- Identificó que el módulo principal de Tareas (HomeClient.tsx) y el Dashboard NO tenían alertas
+- Agregó 'tareas' como módulo válido en /api/module-alerts/route.ts (validModules)
+- Agregó 3 alertas por defecto para módulo 'tareas' en /api/seed-alerts/route.ts
+- Hizo el seed idempotente: ahora solo crea alertas que no existan (usa module+title como key)
+- Importó ModuleAlertBanner y AlertConfigDialog en HomeClient.tsx
+- Agregó state: tareasAlerts, alertConfigOpen, dismissedAlerts
+- Agregó fetch de alertas en useEffect de carga inicial
+- Agregó ModuleAlertBanner visible en vistas: dashboard, table, cards, gantt, materials
+- Agregó AlertConfigDialog con moduleName="tareas" al final del componente
+- Build exitoso sin errores
+
+Stage Summary:
+- Ahora TODOS los módulos (6 en total) tienen configuración de alertas integrada:
+  - tareas (Planificación Operativa) - NUEVO
+  - mantenimiento
+  - rendicion
+  - compras
+  - anticipos
+  - asistencias
+- El seed de alertas es idempotente: puede ejecutarse múltiples veces sin duplicar
+- Para activar las nuevas alertas de tareas: ejecutar GET /api/seed-alerts en producción

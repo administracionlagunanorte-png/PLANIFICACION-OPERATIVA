@@ -98,6 +98,8 @@ import MantenimientoPanel from '@/components/rendicion/MantenimientoPanel'
 import AsistenciasPanel from '@/components/rendicion/AsistenciasPanel'
 import { useAuth } from '@/lib/auth-context'
 import UsersPanel from '@/components/auth/UsersPanel'
+import ModuleAlertBanner, { ModuleAlertItem } from '@/components/rendicion/ModuleAlertBanner'
+import AlertConfigDialog from '@/components/rendicion/AlertConfigDialog'
 
 // Types
 interface Task {
@@ -253,6 +255,11 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
   const [deleteMaterialDialogOpen, setDeleteMaterialDialogOpen] = useState(false)
   const [deleteMaterialId, setDeleteMaterialId] = useState<string | null>(null)
   const [deleteMaterialName, setDeleteMaterialName] = useState('')
+
+  // Alert config (unified system) for Tareas module
+  const [tareasAlerts, setTareasAlerts] = useState<ModuleAlertItem[]>([])
+  const [alertConfigOpen, setAlertConfigOpen] = useState(false)
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
 
   // Helper to clean up aria-hidden after dialog close
   const cleanupAriaHidden = useCallback(() => {
@@ -411,6 +418,8 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
       setLoading(false)
     }
     loadAll()
+    // Load module alerts for Tareas
+    fetch('/api/module-alerts?module=tareas').then(r => r.ok ? r.json() : []).then(setTareasAlerts).catch(() => {})
   }, [fetchTasks, fetchSectors, fetchRepairTypes, fetchPriorities, fetchEtapas, fetchStatuses, fetchResponsibles, fetchMaterials, fetchDashboardStats])
 
   // Task CRUD
@@ -3450,6 +3459,18 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
 
       {/* Main Content */}
       <main className="max-w-[1600px] mx-auto px-3 sm:px-4 pb-8">
+        {/* Alert Banner for Tareas/Dashboard (unified system) */}
+        {(view === 'dashboard' || view === 'table' || view === 'cards' || view === 'gantt' || view === 'materials') && (
+          <div className="mb-4">
+            <ModuleAlertBanner
+              alerts={tareasAlerts.filter(a => !dismissedAlerts.has(a.id))}
+              userRole={userRole}
+              onConfigure={() => setAlertConfigOpen(true)}
+              onDismiss={(id) => setDismissedAlerts(prev => new Set([...prev, id]))}
+            />
+          </div>
+        )}
+
         {/* Dashboard View */}
         {view === 'dashboard' && (
           <div className="space-y-6">
@@ -5931,6 +5952,15 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* Alert Config Dialog for Tareas module (unified system) */}
+      <AlertConfigDialog
+        open={alertConfigOpen}
+        onOpenChange={setAlertConfigOpen}
+        moduleName="tareas"
+        moduleLabel="Planificación Operativa (Tareas)"
+        userRole={userRole}
+      />
     </div>
   )
 }

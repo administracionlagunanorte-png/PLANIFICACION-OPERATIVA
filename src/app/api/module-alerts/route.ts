@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'module, title y message son requeridos' }, { status: 400 })
     }
 
-    const validModules = ['mantenimiento', 'rendicion', 'compras', 'anticipos', 'asistencias']
+    const validModules = ['mantenimiento', 'rendicion', 'compras', 'anticipos', 'asistencias', 'tareas']
     if (!validModules.includes(module)) {
       return NextResponse.json({ error: `Módulo inválido. Válidos: ${validModules.join(', ')}` }, { status: 400 })
     }
