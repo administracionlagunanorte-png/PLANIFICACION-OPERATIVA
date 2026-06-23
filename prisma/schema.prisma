@@ -373,18 +373,46 @@ model AsistenciaAlertConfig {
 // ============================================================
 
 model ModuleAlert {
-  id          String   @id @default(cuid())
-  module      String                 // "mantenimiento", "rendicion", "compras", "anticipos", "asistencias"
-  alertType   String                 // Tipo de alerta: "vencimiento", "informe", "recordatorio", "urgente"
-  title       String                 // Título breve de la alerta
-  message     String                 // Mensaje detallado
-  dayOfMonth  Int       @default(1)  // Día del mes para activarse (1-31)
-  active      Boolean   @default(true)
-  auto        Boolean   @default(true)  // true = automática según fecha, false = manual (la activa el admin)
-  targetRole  String    @default("ALL") // "ALL", "ADMIN", "SUPERVISOR", "USER"
-  priority    String    @default("warning") // "info", "warning", "urgent", "critical"
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id           String   @id @default(cuid())
+  module       String                 // "mantenimiento", "rendicion", "compras", "anticipos", "asistencias", "tareas"
+  alertType    String                 // Tipo de alerta: "vencimiento", "informe", "recordatorio", "urgente"
+  title        String                 // Título breve de la alerta
+  message      String                 // Mensaje detallado
+  dayOfMonth   Int       @default(1)  // Día del mes para activarse (1-31)
+  active       Boolean   @default(true)
+  auto         Boolean   @default(true)  // true = automática según fecha, false = manual (la activa el admin)
+  targetRole   String    @default("ALL") // "ALL", "ADMIN", "SUPERVISOR", "USER"
+  priority     String    @default("warning") // "info", "warning", "urgent", "critical"
+  status       String    @default("activa") // "activa", "completada"
+  monthYear    String?                // "2026-06" — mes al que pertenece esta alerta (auto se resetea al cambiar mes)
+  completedBy  String?                // Quién marcó como completada
+  completedAt  DateTime?             // Cuándo se completó
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@map("module_alerts")
+}
+
+// ============================================================
+// ENVÍO A REVISIÓN (Supervisor → Admin)
+// ============================================================
+
+model ReviewSubmission {
+  id            String    @id @default(cuid())
+  module        String                  // "anticipos", "asistencias", "mantenimiento"
+  itemId        String                  // ID del item enviado (AnticipoPeriod.id, o LV id, etc.)
+  itemTitle     String                  // Título descriptivo del item
+  submittedBy   String                  // Nombre del supervisor que envía
+  submittedRole String    @default("SUPERVISOR")
+  attachmentUrl String    @db.Text     // URL del adjunto (OBLIGATORIO)
+  attachmentName String?                // Nombre del archivo adjunto
+  notes         String?   @db.Text     // Notas del supervisor
+  status        String    @default("pendiente") // "pendiente", "aprobada", "rechazada"
+  reviewedBy    String?                 // Nombre del admin que revisó
+  reviewedAt    DateTime?              // Fecha de revisión
+  reviewNotes   String?   @db.Text     // Notas del admin al revisar
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("review_submissions")
 }

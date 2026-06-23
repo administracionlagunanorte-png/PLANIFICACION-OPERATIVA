@@ -57,10 +57,12 @@ import {
   FileText,
   ChevronLeft,
   X,
+  Upload,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import ModuleAlertBanner, { ModuleAlertItem } from './ModuleAlertBanner'
 import AlertConfigDialog from './AlertConfigDialog'
+import SendToReviewDialog from './SendToReviewDialog'
 
 // ============================================================
 // Types
@@ -126,6 +128,7 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
   const [moduleAlerts, setModuleAlerts] = useState<ModuleAlertItem[]>([])
   const [alertConfigOpen, setAlertConfigOpen] = useState(false)
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
 
   // --- Dialog state ---
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -440,6 +443,11 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
               <Bell className="h-3.5 w-3.5" /> Config. Alertas
             </Button>
           )}
+          {(isSupervisor || isAdmin) && (
+            <Button variant="outline" size="sm" className="gap-1 border-blue-300 text-blue-700 hover:bg-blue-50" onClick={() => setReviewDialogOpen(true)}>
+              <Upload className="h-3.5 w-3.5" /> Enviar a Revisión
+            </Button>
+          )}
           <Button variant="outline" size="sm" className="gap-1" onClick={generateReport}>
             <FileText className="h-3.5 w-3.5" /> Informe
           </Button>
@@ -719,6 +727,15 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
         moduleName="asistencias"
         moduleLabel="Asistencias"
         userRole={userRole}
+      />
+      <SendToReviewDialog
+        open={reviewDialogOpen}
+        onOpenChange={setReviewDialogOpen}
+        module="asistencias"
+        moduleLabel="Asistencias"
+        itemId="asistencias-informe"
+        itemTitle="Informe de Asistencias"
+        submittedBy={userName || userRole}
       />
     </div>
   )

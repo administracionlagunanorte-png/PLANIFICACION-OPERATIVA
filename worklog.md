@@ -177,3 +177,36 @@ Stage Summary:
 - Ahora TODAS las alertas activas son visibles siempre, diferenciando las activas hoy de las programadas
 - El usuario puede ver exactamente qué alertas tiene configuradas y cuándo se activarán
 - Las alertas manuales muestran badge "Manual — Activa", las automáticas "Activa hoy" o "Día X"
+
+---
+Task ID: 9
+Agent: Main Agent
+Task: Crear módulo ALERTAS completo + flujo de revisión con adjunto obligatorio
+
+Work Log:
+- Actualizó schema Prisma: agregó status, monthYear, completedBy, completedAt a ModuleAlert
+- Creó modelo ReviewSubmission para flujo Supervisor → Admin con adjunto obligatorio
+- Actualizó API module-alerts: soporta status (activa/completada), auto-reset al cambiar mes
+- Actualizó API module-alerts/[id]: maneja completar/reactivar alertas
+- Creó API review-submissions (GET, POST) y review-submissions/[id] (PUT, DELETE)
+- Creó componente AlertasPanel.tsx: módulo central con 4 secciones:
+  - Activas Hoy (alertas que se activaron según día del mes)
+  - Programadas (auto alerts con día futuro este mes)
+  - Completadas (marcadas como cumplidas por Admin)
+  - En Revisión (envíos de Supervisor pendientes de aprobación)
+- AlertasPanel incluye: stats, filtro por módulo, tabs, CRUD de alertas, review workflow
+- Creó componente SendToReviewDialog.tsx: diálogo reutilizable con adjunto OBLIGATORIO
+- Integró AlertasPanel en HomeClient.tsx: nuevo botón "Alertas" en sidebar (ámbar, campana)
+- Agregó botón "Enviar a Revisión" en AnticiposPanel, AsistenciasPanel, MantenimientoPanel
+- Adjunto obligatorio: SendToReviewDialog no permite enviar sin archivo adjunto
+- Admin puede Aprobar/Rechazar envíos con notas de revisión
+- Alertas automáticas se resetean a 'activa' cuando cambia el mes (comparan monthYear)
+- Alertas manuales persisten hasta que el Admin las marque como "Cumplida"
+- Build exitoso
+
+Stage Summary:
+- Nuevo módulo ALERTAS visible en sidebar para todos los roles
+- TODAS las alertas son visibles (activas, programadas, completadas)
+- Flujo de revisión: Supervisor envía con adjunto obligatorio → Admin aprueba/rechaza
+- Auto-alertas se reinician al cambiar de mes; manuales persisten hasta completar
+- 3 módulos con envío a revisión: Anticipos, Asistencias, Mantenimiento

@@ -101,6 +101,7 @@ import { useAuth } from '@/lib/auth-context'
 import UsersPanel from '@/components/auth/UsersPanel'
 import ModuleAlertBanner, { ModuleAlertItem } from '@/components/rendicion/ModuleAlertBanner'
 import AlertConfigDialog from '@/components/rendicion/AlertConfigDialog'
+import AlertasPanel from '@/components/rendicion/AlertasPanel'
 
 // Types
 interface Task {
@@ -218,7 +219,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
   const [purchaseStatusFilter, setPurchaseStatusFilter] = useState<string>('')
   const [anticipoStatusFilter, setAnticipoStatusFilter] = useState<string>('')
   const [mantenimientoStatusFilter, setMantenimientoStatusFilter] = useState<string>('')
-  const [view, setView] = useState<'dashboard' | 'table' | 'cards' | 'gantt' | 'materials' | 'rendicion' | 'solicitudes' | 'anticipos' | 'mantenimiento' | 'asistencias' | 'users'>('mantenimiento')
+  const [view, setView] = useState<'dashboard' | 'table' | 'cards' | 'gantt' | 'materials' | 'rendicion' | 'solicitudes' | 'anticipos' | 'mantenimiento' | 'asistencias' | 'alertas' | 'users'>('mantenimiento')
   const [filterSector, setFilterSector] = useState('all')
   const [filterPriority, setFilterPriority] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
@@ -3360,6 +3361,14 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
             >
               <CalendarDays className="h-4 w-4" /> Asistencias
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setView('alertas')}
+              className={`gap-1 rounded-md transition-all duration-200 ${view === 'alertas' ? 'bg-amber-200 text-black hover:bg-amber-300 shadow-sm font-semibold' : 'text-amber-700 hover:bg-amber-50'}`}
+            >
+              <Bell className="h-4 w-4" /> Alertas
+            </Button>
             {(session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERVISOR') && (
               <Button
                 variant="ghost"
@@ -3373,7 +3382,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
           </div>
 
           {/* Filters */}
-          {view !== 'rendicion' && view !== 'solicitudes' && view !== 'anticipos' && view !== 'mantenimiento' && view !== 'asistencias' && view !== 'users' && (
+          {view !== 'rendicion' && view !== 'solicitudes' && view !== 'anticipos' && view !== 'mantenimiento' && view !== 'asistencias' && view !== 'users' && view !== 'alertas' && (
           <div className="flex items-center gap-2 flex-wrap max-w-full">
             <Select value={filterSector} onValueChange={setFilterSector}>
               <SelectTrigger className="w-[120px] sm:w-[140px] h-8 text-xs">
@@ -4708,6 +4717,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
         {view === 'anticipos' && (
           <AnticiposPanel
             userRole={userRole}
+            userName={session?.user?.name || ''}
             initialStatusFilter={anticipoStatusFilter}
             onStatusFilterConsumed={() => setAnticipoStatusFilter('')}
           />
@@ -4730,6 +4740,13 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
 
         {view === 'users' && (session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERVISOR') && (
           <UsersPanel />
+        )}
+
+        {view === 'alertas' && (
+          <AlertasPanel
+            userRole={userRole}
+            userName={session?.user?.name || ''}
+          />
         )}
       </main>
 

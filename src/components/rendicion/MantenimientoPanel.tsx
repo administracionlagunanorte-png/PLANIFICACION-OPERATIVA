@@ -30,6 +30,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import ModuleAlertBanner, { ModuleAlertItem } from './ModuleAlertBanner'
 import AlertConfigDialog from './AlertConfigDialog'
+import SendToReviewDialog from './SendToReviewDialog'
 
 // ============================================================
 // Types
@@ -117,6 +118,7 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
   const [moduleAlerts, setModuleAlerts] = useState<ModuleAlertItem[]>([])
   const [alertConfigOpen, setAlertConfigOpen] = useState(false)
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
   const [allLVs, setAllLVs] = useState<MantenimientoLV[]>([])
   const [selectedLV, setSelectedLV] = useState<MantenimientoLV | null>(null)
   const [selectedDate, setSelectedDate] = useState<string>('')
@@ -718,6 +720,11 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
             >
               <Bell className="h-4 w-4" />
               Alertas
+            </Button>
+          )}
+          {(userRole === 'SUPERVISOR' || userRole === 'ADMIN') && (
+            <Button variant="outline" size="sm" className="gap-1 border-blue-300 text-blue-700 hover:bg-blue-50" onClick={() => setReviewDialogOpen(true)}>
+              <Upload className="h-4 w-4" /> Enviar a Revisión
             </Button>
           )}
           {currentView === 'calendar' && (
@@ -1402,6 +1409,15 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
         moduleName="mantenimiento"
         moduleLabel="Mantenimiento"
         userRole={userRole}
+      />
+      <SendToReviewDialog
+        open={reviewDialogOpen}
+        onOpenChange={setReviewDialogOpen}
+        module="mantenimiento"
+        moduleLabel="Mantenimiento"
+        itemId="mantenimiento-lv"
+        itemTitle="LV de Mantenimiento"
+        submittedBy={userRole}
       />
     </div>
   )

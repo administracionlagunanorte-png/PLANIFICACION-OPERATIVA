@@ -50,17 +50,18 @@ import {
   XCircle,
   Clock,
   Download,
-  Upload,
   Bell,
   BellRing,
   Settings,
   AlertTriangle,
   Users,
   Save,
+  Upload,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import ModuleAlertBanner, { ModuleAlertItem } from './ModuleAlertBanner'
 import AlertConfigDialog from './AlertConfigDialog'
+import SendToReviewDialog from './SendToReviewDialog'
 
 // ============================================================
 // Types
@@ -115,6 +116,7 @@ const statusConfig: Record<string, { label: string; color: string; bgColor: stri
 // ============================================================
 interface AnticiposPanelProps {
   userRole?: string
+  userName?: string
   initialStatusFilter?: string
   onStatusFilterConsumed?: () => void
 }
@@ -122,7 +124,7 @@ interface AnticiposPanelProps {
 // ============================================================
 // Component
 // ============================================================
-export default function AnticiposPanel({ userRole = 'USER', initialStatusFilter, onStatusFilterConsumed }: AnticiposPanelProps) {
+export default function AnticiposPanel({ userRole = 'USER', userName = '', initialStatusFilter, onStatusFilterConsumed }: AnticiposPanelProps) {
   const { toast } = useToast()
   const isAdmin = userRole === 'ADMIN'
   const isSupervisor = userRole === 'SUPERVISOR'
@@ -166,6 +168,8 @@ export default function AnticiposPanel({ userRole = 'USER', initialStatusFilter,
   // --- Worker management dialog ---
   const [workerDialogOpen, setWorkerDialogOpen] = useState(false)
   const [workerForm, setWorkerForm] = useState({ nombre: '', rut: '', cuentaBancaria: '' })
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
+  const [reviewItem, setReviewItem] = useState<{ id: string; title: string } | null>(null)
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null)
   const [allWorkers, setAllWorkers] = useState<Worker[]>([])
 
@@ -702,6 +706,11 @@ export default function AnticiposPanel({ userRole = 'USER', initialStatusFilter,
                   </Button>
                 </>
               )}
+              {(isSupervisor || isAdmin) && (
+                <Button variant="outline" size="sm" className="gap-1 border-blue-300 text-blue-700 hover:bg-blue-50" onClick={() => setReviewDialogOpen(true)}>
+                  <Upload className="h-4 w-4" /> Enviar a Revisión
+                </Button>
+              )}
             </div>
           </div>
 
@@ -1236,6 +1245,17 @@ export default function AnticiposPanel({ userRole = 'USER', initialStatusFilter,
         moduleName="anticipos"
         moduleLabel="Anticipos"
         userRole={userRole}
+      />
+
+      {/* Send to Review Dialog */}
+      <SendToReviewDialog
+        open={reviewDialogOpen}
+        onOpenChange={setReviewDialogOpen}
+        module="anticipos"
+        moduleLabel="Anticipos"
+        itemId={reviewItem?.id || 'anticipos-period'}
+        itemTitle={reviewItem?.title || 'Informe de Anticipos'}
+        submittedBy={userName || userRole}
       />
 
       {/* Worker Management Dialog */}

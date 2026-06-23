@@ -6,7 +6,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const { id } = await params
     const body = await req.json()
-    const { module, alertType, title, message, dayOfMonth, active, auto, targetRole, priority } = body
+    const { module, alertType, title, message, dayOfMonth, active, auto, targetRole, priority, status, completedBy } = body
 
     const data: any = {}
     if (module) data.module = module
@@ -18,6 +18,20 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (auto !== undefined) data.auto = auto
     if (targetRole) data.targetRole = targetRole
     if (priority) data.priority = priority
+
+    // Handle status changes
+    if (status === 'completada') {
+      data.status = 'completada'
+      data.completedBy = completedBy || 'Admin'
+      data.completedAt = new Date()
+    } else if (status === 'activa') {
+      data.status = 'activa'
+      data.completedBy = null
+      data.completedAt = null
+    }
+
+    // Update monthYear if provided
+    if (body.monthYear !== undefined) data.monthYear = body.monthYear
 
     const alert = await db.moduleAlert.update({
       where: { id },

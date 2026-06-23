@@ -1,19 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
-// GET /api/module-alerts — List alerts, optionally filtered by module
+// GET /api/module-alerts — List alerts, optionally filtered by module or status
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const module = searchParams.get('module')
+    const status = searchParams.get('status')
+    const all = searchParams.get('all') === 'true' // fetch all modules
 
     const where: any = {}
     if (module) where.module = module
+    if (status) where.status = status
 
     const alerts = await db.moduleAlert.findMany({
       where,
       orderBy: [{ module: 'asc' }, { dayOfMonth: 'asc' }],
     })
+
+    // Auto-reset: for auto alerts with status 'completada', check if month changed
+    const now = new Date()
+    const currentMonthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+
+    const needsReset = alerts.filter(a =>
+      a.auto && a.status === 'completada' && a.monthYear && a.monthYear !== currentMonthYear
+    )
+
+    if (needsReset.length > 0) {
+      await Promise.all(needsReset.map(a =>
+        db.moduleAlert.update({
+          where: { id: a.id },
+          data: { status: 'activa', monthYear: currentMonthYear, completedBy: null, completedAt: null },
+        })
+      ))
+      // Re-fetch after reset
+      const refreshed = await db.moduleAlert.findMany({ where, orderBy: [{ module: 'asc' }, { dayOfMonth: 'asc' }] })
+      return NextResponse.json(refreshed)
+    }
 
     return NextResponse.json(alerts)
   } catch (error) {
@@ -26,7 +49,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { module, alertType, title, message, dayOfMonth, active, auto, targetRole, priority } = body
+    const { module, alertType, title, message, dayOfMonth, active, auto, targetRole, priority, monthYear } = body
 
     if (!module || !title || !message) {
       return NextResponse.json({ error: 'module, title y message son requeridos' }, { status: 400 })
@@ -37,10 +60,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Módulo inválido. Válidos: ${validModules.join(', ')}` }, { status: 400 })
     }
 
-    const validRoles = ['ALL', 'ADMIN', 'SUPERVISOR', 'USER']
-    if (targetRole && !validRoles.includes(targetRole)) {
-      return NextResponse.json({ error: `Rol inválido. Válidos: ${validRoles.join(', ')}` }, { status: 400 })
-    }
+    const now = new Date()
+    const currentMonthYear = monthYear || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
     const alert = await db.moduleAlert.create({
       data: {
@@ -53,6 +74,8 @@ export async function POST(req: NextRequest) {
         auto: auto !== undefined ? auto : true,
         targetRole: targetRole || 'ALL',
         priority: priority || 'warning',
+        status: 'activa',
+        monthYear: currentMonthYear,
       },
     })
 
