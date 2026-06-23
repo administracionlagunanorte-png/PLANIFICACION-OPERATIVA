@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Plus, Pencil, Trash2, Eye, ArrowLeft, Upload, X, CheckCircle, XCircle, Clock, FileText, FileSpreadsheet, Download, Camera, Send, Star, ShoppingBag, ExternalLink, ShieldCheck, Shield, Package, ImageIcon } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import ModuleAlertBanner, { ModuleAlertItem } from './ModuleAlertBanner'
+import AlertConfigDialog from './AlertConfigDialog'
 import { jsPDF } from 'jspdf'
 import ExcelJS from 'exceljs'
 
@@ -150,6 +152,9 @@ export default function SolicitudesCompra({ userRole = 'USER', initialStatusFilt
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<PurchaseRequest | null>(null)
+  const [moduleAlerts, setModuleAlerts] = useState<ModuleAlertItem[]>([])
+  const [alertConfigOpen, setAlertConfigOpen] = useState(false)
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
 
   // --- Filters ---
   const [filterStatus, setFilterStatus] = useState(initialStatusFilter || 'all')
@@ -273,6 +278,7 @@ export default function SolicitudesCompra({ userRole = 'USER', initialStatusFilt
 
   useEffect(() => {
     fetchRequests()
+    fetch('/api/module-alerts?module=compras').then(r => r.ok ? r.json() : []).then(setModuleAlerts).catch(() => {})
   }, [filterStatus, filterPriority, page])
 
   useEffect(() => {
@@ -1619,6 +1625,15 @@ export default function SolicitudesCompra({ userRole = 'USER', initialStatusFilt
 
   return (
     <div className="w-full">
+      {/* Alert Banner (unified system) */}
+      {view === 'list' && (
+        <ModuleAlertBanner
+          alerts={moduleAlerts.filter(a => !dismissedAlerts.has(a.id))}
+          userRole={userRole}
+          onConfigure={() => setAlertConfigOpen(true)}
+          onDismiss={(id) => setDismissedAlerts(prev => new Set([...prev, id]))}
+        />
+      )}
       {view === 'list' ? renderListView() : renderDetailView()}
       {renderFormDialog()}
       {renderItemFormDialog()}
@@ -1626,6 +1641,15 @@ export default function SolicitudesCompra({ userRole = 'USER', initialStatusFilt
       {renderReviewDialog()}
       {renderDeleteDialog()}
       {renderImagePreview()}
+
+      {/* Alert Config Dialog (unified system) */}
+      <AlertConfigDialog
+        open={alertConfigOpen}
+        onOpenChange={setAlertConfigOpen}
+        moduleName="compras"
+        moduleLabel="Compras"
+        userRole={userRole}
+      />
     </div>
   )
 }

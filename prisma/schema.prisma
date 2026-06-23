@@ -367,3 +367,24 @@ model AsistenciaAlertConfig {
 
   @@map("asistencia_alert_config")
 }
+
+// ============================================================
+// SISTEMA DE ALERTAS UNIFICADO
+// ============================================================
+
+model ModuleAlert {
+  id          String   @id @default(cuid())
+  module      String                 // "mantenimiento", "rendicion", "compras", "anticipos", "asistencias"
+  alertType   String                 // Tipo de alerta: "vencimiento", "informe", "recordatorio", "urgente"
+  title       String                 // Título breve de la alerta
+  message     String                 // Mensaje detallado
+  dayOfMonth  Int       @default(1)  // Día del mes para activarse (1-31)
+  active      Boolean   @default(true)
+  auto        Boolean   @default(true)  // true = automática según fecha, false = manual (la activa el admin)
+  targetRole  String    @default("ALL") // "ALL", "ADMIN", "SUPERVISOR", "USER"
+  priority    String    @default("warning") // "info", "warning", "urgent", "critical"
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("module_alerts")
+}

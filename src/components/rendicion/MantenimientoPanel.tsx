@@ -28,6 +28,8 @@ import {
   Eye, Save, MessageSquare, Paperclip, Pencil, Plus, X,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import ModuleAlertBanner, { ModuleAlertItem } from './ModuleAlertBanner'
+import AlertConfigDialog from './AlertConfigDialog'
 
 // ============================================================
 // Types
@@ -112,6 +114,9 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
 
   // --- View state ---
   const [currentView, setCurrentView] = useState<'calendar' | 'day' | 'detail' | 'frequency'>('calendar')
+  const [moduleAlerts, setModuleAlerts] = useState<ModuleAlertItem[]>([])
+  const [alertConfigOpen, setAlertConfigOpen] = useState(false)
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
   const [allLVs, setAllLVs] = useState<MantenimientoLV[]>([])
   const [selectedLV, setSelectedLV] = useState<MantenimientoLV | null>(null)
   const [selectedDate, setSelectedDate] = useState<string>('')
@@ -218,7 +223,20 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
     }
   }
 
-  useEffect(() => { fetchLVs() }, [fetchLVs])
+  useEffect(() => { fetchLVs(); fetchModuleAlerts() }, [fetchLVs])
+
+  const fetchModuleAlerts = async () => {
+    try {
+      const res = await fetch('/api/module-alerts?module=mantenimiento')
+      if (res.ok) setModuleAlerts(await res.json())
+    } catch {}
+  }
+
+  const handleDismissAlert = (id: string) => {
+    setDismissedAlerts(prev => new Set([...prev, id]))
+  }
+
+  const visibleAlerts = moduleAlerts.filter(a => !dismissedAlerts.has(a.id))
 
   // ============================================================
   // Auto-generate LVs for current and next month
@@ -587,6 +605,13 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
   // ============================================================
   return (
     <div className="space-y-4">
+      {/* Alert Banner (unified system) */}
+      <ModuleAlertBanner
+        alerts={visibleAlerts}
+        userRole={userRole}
+        onConfigure={() => setAlertConfigOpen(true)}
+        onDismiss={handleDismissAlert}
+      />
       {/* Stats bar */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm text-center">
@@ -1349,6 +1374,15 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Alert Config Dialog (unified system) */}
+      <AlertConfigDialog
+        open={alertConfigOpen}
+        onOpenChange={setAlertConfigOpen}
+        moduleName="mantenimiento"
+        moduleLabel="Mantenimiento"
+        userRole={userRole}
+      />
     </div>
   )
 }

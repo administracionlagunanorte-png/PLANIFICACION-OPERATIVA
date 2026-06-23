@@ -59,6 +59,8 @@ import {
   Save,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import ModuleAlertBanner, { ModuleAlertItem } from './ModuleAlertBanner'
+import AlertConfigDialog from './AlertConfigDialog'
 
 // ============================================================
 // Types
@@ -97,12 +99,7 @@ interface Worker {
   active: boolean
 }
 
-interface AlertConfig {
-  id: string
-  dayOfMonth: number
-  active: boolean
-  message: string
-}
+// AlertConfig is now handled by ModuleAlertItem from the unified system
 
 // ============================================================
 // Status config
@@ -161,10 +158,10 @@ export default function AnticiposPanel({ userRole = 'USER', initialStatusFilter,
   // --- Workers ---
   const [workers, setWorkers] = useState<Worker[]>([])
 
-  // --- Alert config ---
-  const [alertConfig, setAlertConfig] = useState<AlertConfig | null>(null)
+  // --- Alert config (unified system) ---
+  const [moduleAlerts, setModuleAlerts] = useState<ModuleAlertItem[]>([])
   const [alertConfigOpen, setAlertConfigOpen] = useState(false)
-  const [alertForm, setAlertForm] = useState({ dayOfMonth: 13, active: true, message: '' })
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
 
   // --- Worker management dialog ---
   const [workerDialogOpen, setWorkerDialogOpen] = useState(false)
@@ -220,7 +217,7 @@ export default function AnticiposPanel({ userRole = 'USER', initialStatusFilter,
   useEffect(() => {
     fetchPeriods()
     fetchWorkers()
-    fetchAlertConfig()
+    fetchModuleAlerts()
   }, [])
 
   // ============================================================
@@ -618,56 +615,25 @@ export default function AnticiposPanel({ userRole = 'USER', initialStatusFilter,
   }
 
   // ============================================================
-  // Alert Config
+  // Alert Config (unified system)
   // ============================================================
-  const fetchAlertConfig = async () => {
+  const fetchModuleAlerts = async () => {
     try {
-      const res = await fetch('/api/anticipo-alert')
+      const res = await fetch('/api/module-alerts?module=anticipos')
       if (res.ok) {
         const data = await res.json()
-        setAlertConfig(data)
-        setAlertForm({ dayOfMonth: data.dayOfMonth, active: data.active, message: data.message })
+        setModuleAlerts(data)
       }
     } catch (err) {
-      console.error('Error fetching alert config:', err)
+      console.error('Error fetching module alerts:', err)
     }
   }
 
-  const handleSaveAlertConfig = async () => {
-    try {
-      const res = await fetch('/api/anticipo-alert', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(alertForm),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setAlertConfig(data)
-        setAlertConfigOpen(false)
-        toast({ title: 'Configuración guardada', description: `Alerta configurada para el día ${data.dayOfMonth} de cada mes` })
-      }
-    } catch {
-      toast({ title: 'Error', description: 'No se pudo guardar la configuración', variant: 'destructive' })
-    }
+  const handleDismissAlert = (id: string) => {
+    setDismissedAlerts(prev => new Set([...prev, id]))
   }
 
-  // Check if alert should show
-  const shouldShowAlert = () => {
-    if (!alertConfig || !alertConfig.active) return false
-    const today = new Date()
-    const currentDay = today.getDate()
-    return currentDay >= alertConfig.dayOfMonth
-  }
-
-  const getAlertSeverity = () => {
-    if (!alertConfig) return 'warning'
-    const today = new Date()
-    const currentDay = today.getDate()
-    const daysPast = currentDay - alertConfig.dayOfMonth
-    if (daysPast >= 5) return 'critical'
-    if (daysPast >= 1) return 'urgent'
-    return 'warning'
-  }
+  const visibleAlerts = moduleAlerts.filter(a => !dismissedAlerts.has(a.id))
 
   // ============================================================
   // Format helpers
@@ -700,61 +666,13 @@ export default function AnticiposPanel({ userRole = 'USER', initialStatusFilter,
   // ============================================================
   return (
     <div className="space-y-4">
-      {/* Alert banner — shows when day >= configured day */}
-      {shouldShowAlert() && (
-        <div className={`rounded-xl border-2 p-4 flex items-center gap-4 ${
-          getAlertSeverity() === 'critical'
-            ? 'bg-red-50 border-red-300'
-            : getAlertSeverity() === 'urgent'
-            ? 'bg-orange-50 border-orange-300'
-            : 'bg-amber-50 border-amber-300'
-        }`}>
-          <div className={`shrink-0 p-2 rounded-full ${
-            getAlertSeverity() === 'critical'
-              ? 'bg-red-100'
-              : getAlertSeverity() === 'urgent'
-              ? 'bg-orange-100'
-              : 'bg-amber-100'
-          }`}>
-            {getAlertSeverity() === 'critical'
-              ? <AlertTriangle className="h-6 w-6 text-red-600" />
-              : getAlertSeverity() === 'urgent'
-              ? <BellRing className="h-6 w-6 text-orange-600" />
-              : <Bell className="h-6 w-6 text-amber-600" />
-            }
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className={`font-bold text-sm ${
-              getAlertSeverity() === 'critical' ? 'text-red-800' : getAlertSeverity() === 'urgent' ? 'text-orange-800' : 'text-amber-800'
-            }`}>
-              {getAlertSeverity() === 'critical'
-                ? 'ALERTA CRÍTICA'
-                : getAlertSeverity() === 'urgent'
-                ? 'ALERTA URGENTE'
-                : 'RECORDATORIO'
-              }
-            </h3>
-            <p className={`text-sm ${
-              getAlertSeverity() === 'critical' ? 'text-red-700' : getAlertSeverity() === 'urgent' ? 'text-orange-700' : 'text-amber-700'
-            }`}>
-              {alertConfig?.message || 'Plazo vencido: Anticipos pendientes deben ser pagados'}
-            </p>
-            <p className="text-xs mt-1 text-slate-500">
-              Vencimiento: día {alertConfig?.dayOfMonth} de cada mes
-            </p>
-          </div>
-          {isAdmin && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="shrink-0 gap-1"
-              onClick={() => setAlertConfigOpen(true)}
-            >
-              <Settings className="h-3.5 w-3.5" /> Configurar
-            </Button>
-          )}
-        </div>
-      )}
+      {/* Alert Banner (unified system) */}
+      <ModuleAlertBanner
+        alerts={visibleAlerts}
+        userRole={userRole}
+        onConfigure={() => setAlertConfigOpen(true)}
+        onDismiss={handleDismissAlert}
+      />
       {/* ============================================================ */}
       {/* PERIODS LIST VIEW                                            */}
       {/* ============================================================ */}
@@ -1311,72 +1229,14 @@ export default function AnticiposPanel({ userRole = 'USER', initialStatusFilter,
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Alert Configuration Dialog */}
-      <Dialog open={alertConfigOpen} onOpenChange={setAlertConfigOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <BellRing className="h-5 w-5 text-orange-600" />
-              Configuración de Alerta de Vencimiento
-            </DialogTitle>
-            <DialogDescription>
-              Configura el día del mes en que se activa la alerta de vencimiento para anticipos pendientes
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border">
-              <div>
-                <Label className="text-sm font-semibold">Alerta Activa</Label>
-                <p className="text-xs text-slate-500">Activar o desactivar la alerta de vencimiento</p>
-              </div>
-              <Button
-                variant={alertForm.active ? 'default' : 'outline'}
-                size="sm"
-                className={alertForm.active ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''}
-                onClick={() => setAlertForm({ ...alertForm, active: !alertForm.active })}
-              >
-                {alertForm.active ? 'Activada' : 'Desactivada'}
-              </Button>
-            </div>
-            <div>
-              <Label>Día del Mes para Vencimiento</Label>
-              <div className="flex items-center gap-3 mt-1">
-                <Input
-                  type="number"
-                  min={1}
-                  max={31}
-                  value={alertForm.dayOfMonth}
-                  onChange={(e) => setAlertForm({ ...alertForm, dayOfMonth: Number(e.target.value) || 1 })}
-                  className="w-20 text-center text-lg font-bold"
-                />
-                <span className="text-sm text-slate-500">de cada mes</span>
-              </div>
-              <p className="text-xs text-slate-400 mt-1">La alerta se mostrará desde este día en adelante cada mes</p>
-            </div>
-            <div>
-              <Label>Mensaje de la Alerta</Label>
-              <Textarea
-                value={alertForm.message}
-                onChange={(e) => setAlertForm({ ...alertForm, message: e.target.value })}
-                placeholder="Mensaje que se mostrará en la alerta..."
-                rows={2}
-              />
-            </div>
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-xs text-amber-700">
-                <b>Severidad automática:</b> El día {alertForm.dayOfMonth} se muestra como RECORDATORIO (amarillo), 
-                al día siguiente como URGENTE (naranja), y después de 5 días como CRÍTICA (rojo).
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAlertConfigOpen(false)}>Cancelar</Button>
-            <Button className="bg-orange-600 hover:bg-orange-700 text-white gap-1" onClick={handleSaveAlertConfig}>
-              <Save className="h-4 w-4" /> Guardar Configuración
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Alert Configuration Dialog (unified system) */}
+      <AlertConfigDialog
+        open={alertConfigOpen}
+        onOpenChange={setAlertConfigOpen}
+        moduleName="anticipos"
+        moduleLabel="Anticipos"
+        userRole={userRole}
+      />
 
       {/* Worker Management Dialog */}
       <Dialog open={workerDialogOpen} onOpenChange={setWorkerDialogOpen}>

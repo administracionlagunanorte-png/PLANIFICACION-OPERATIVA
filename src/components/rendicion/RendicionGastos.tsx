@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Plus, Pencil, Trash2, Eye, ArrowLeft, Upload, X, CheckCircle, XCircle, Clock, FileText, FileSpreadsheet, Download, Camera, Send, RotateCcw, ShieldCheck, Shield, ImageIcon } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import ModuleAlertBanner, { ModuleAlertItem } from './ModuleAlertBanner'
+import AlertConfigDialog from './AlertConfigDialog'
 import { jsPDF } from 'jspdf'
 import ExcelJS from 'exceljs'
 
@@ -129,6 +131,9 @@ export default function RendicionGastos({ userRole = 'USER', initialStatusFilter
   const [categories, setCategories] = useState<ExpenseCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [moduleAlerts, setModuleAlerts] = useState<ModuleAlertItem[]>([])
+  const [alertConfigOpen, setAlertConfigOpen] = useState(false)
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
 
   // List filters
   const [filterStatus, setFilterStatus] = useState<string>(initialStatusFilter || 'all')
@@ -241,6 +246,7 @@ export default function RendicionGastos({ userRole = 'USER', initialStatusFilter
 
   useEffect(() => {
     fetchCategories()
+    fetch('/api/module-alerts?module=rendicion').then(r => r.ok ? r.json() : []).then(setModuleAlerts).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -1340,6 +1346,15 @@ export default function RendicionGastos({ userRole = 'USER', initialStatusFilter
 
   return (
     <div className="min-h-screen">
+      {/* Alert Banner (unified system) */}
+      {currentView === 'list' && (
+        <ModuleAlertBanner
+          alerts={moduleAlerts.filter(a => !dismissedAlerts.has(a.id))}
+          userRole={userRole}
+          onConfigure={() => setAlertConfigOpen(true)}
+          onDismiss={(id) => setDismissedAlerts(prev => new Set([...prev, id]))}
+        />
+      )}
       {currentView === 'list' && renderListView()}
       {currentView === 'detail' && renderDetailView()}
 
@@ -1716,6 +1731,15 @@ export default function RendicionGastos({ userRole = 'USER', initialStatusFilter
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Alert Config Dialog (unified system) */}
+      <AlertConfigDialog
+        open={alertConfigOpen}
+        onOpenChange={setAlertConfigOpen}
+        moduleName="rendicion"
+        moduleLabel="Rendición de Gastos"
+        userRole={userRole}
+      />
     </div>
   )
 }

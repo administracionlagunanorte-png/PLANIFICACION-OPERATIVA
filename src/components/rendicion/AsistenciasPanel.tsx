@@ -59,6 +59,8 @@ import {
   X,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import ModuleAlertBanner, { ModuleAlertItem } from './ModuleAlertBanner'
+import AlertConfigDialog from './AlertConfigDialog'
 
 // ============================================================
 // Types
@@ -84,12 +86,7 @@ interface AsistenciaRecord {
   updatedAt: string
 }
 
-interface AlertConfig {
-  id: string
-  dayOfMonth: number
-  active: boolean
-  message: string
-}
+// AlertConfig type is now ModuleAlertItem from the unified system
 
 // ============================================================
 // Status config
@@ -125,10 +122,10 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   })
 
-  // --- Alert state ---
-  const [alertConfig, setAlertConfig] = useState<AlertConfig | null>(null)
+  // --- Alert state (unified system) ---
+  const [moduleAlerts, setModuleAlerts] = useState<ModuleAlertItem[]>([])
   const [alertConfigOpen, setAlertConfigOpen] = useState(false)
-  const [alertForm, setAlertForm] = useState({ dayOfMonth: 29, active: true, message: '' })
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
 
   // --- Dialog state ---
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -179,22 +176,21 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
     }
   }
 
-  const fetchAlertConfig = async () => {
+  const fetchModuleAlerts = async () => {
     try {
-      const res = await fetch('/api/asistencia-alert')
+      const res = await fetch('/api/module-alerts?module=asistencias')
       if (res.ok) {
         const data = await res.json()
-        setAlertConfig(data)
-        setAlertForm({ dayOfMonth: data.dayOfMonth, active: data.active, message: data.message })
+        setModuleAlerts(data)
       }
     } catch (err) {
-      console.error('Error fetching alert config:', err)
+      console.error('Error fetching module alerts:', err)
     }
   }
 
   useEffect(() => {
     fetchWorkers()
-    fetchAlertConfig()
+    fetchModuleAlerts()
   }, [])
 
   useEffect(() => {
@@ -204,40 +200,11 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
   // ============================================================
   // Alert logic
   // ============================================================
-  const shouldShowAlert = () => {
-    if (!alertConfig || !alertConfig.active) return false
-    const today = new Date()
-    const currentDay = today.getDate()
-    return currentDay >= alertConfig.dayOfMonth
+  const handleDismissAlert = (id: string) => {
+    setDismissedAlerts(prev => new Set([...prev, id]))
   }
 
-  const getAlertSeverity = () => {
-    if (!alertConfig) return 'warning'
-    const today = new Date()
-    const currentDay = today.getDate()
-    const daysPast = currentDay - alertConfig.dayOfMonth
-    if (daysPast >= 5) return 'critical'
-    if (daysPast >= 1) return 'urgent'
-    return 'warning'
-  }
-
-  const handleSaveAlertConfig = async () => {
-    try {
-      const res = await fetch('/api/asistencia-alert', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(alertForm),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setAlertConfig(data)
-        setAlertConfigOpen(false)
-        toast({ title: 'Configuración guardada', description: `Alerta configurada para el día ${data.dayOfMonth} de cada mes` })
-      }
-    } catch {
-      toast({ title: 'Error', description: 'No se pudo guardar la configuración', variant: 'destructive' })
-    }
-  }
+  const visibleAlerts = moduleAlerts.filter(a => !dismissedAlerts.has(a.id))
 
   // ============================================================
   // CRUD
@@ -449,37 +416,13 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
   // ============================================================
   return (
     <div className="space-y-4">
-      {/* Alert Banner */}
-      {shouldShowAlert() && (
-        <div className={`rounded-lg p-4 flex items-start gap-3 border ${
-          getAlertSeverity() === 'critical' ? 'bg-red-50 border-red-200' :
-          getAlertSeverity() === 'urgent' ? 'bg-orange-50 border-orange-200' :
-          'bg-amber-50 border-amber-200'
-        }`}>
-          {getAlertSeverity() === 'critical' ? (
-            <BellRing className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
-          ) : (
-            <Bell className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
-          )}
-          <div className="flex-1">
-            <p className={`font-medium text-sm ${
-              getAlertSeverity() === 'critical' ? 'text-red-800' : 'text-amber-800'
-            }`}>
-              {alertConfig?.message || 'Informe mensual de asistencias: Revisar y enviar listado de atrasos e inasistencias'}
-            </p>
-            <p className={`text-xs mt-1 ${
-              getAlertSeverity() === 'critical' ? 'text-red-600' : 'text-amber-600'
-            }`}>
-              Envío de informe: día {alertConfig?.dayOfMonth} de cada mes
-            </p>
-          </div>
-          {isAdmin && (
-            <Button variant="outline" size="sm" className="gap-1 shrink-0" onClick={() => setAlertConfigOpen(true)}>
-              <Settings className="h-3.5 w-3.5" /> Configurar
-            </Button>
-          )}
-        </div>
-      )}
+      {/* Alert Banner (unified system) */}
+      <ModuleAlertBanner
+        alerts={visibleAlerts}
+        userRole={userRole}
+        onConfigure={() => setAlertConfigOpen(true)}
+        onDismiss={handleDismissAlert}
+      />
 
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -492,9 +435,9 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
         </div>
         <div className="flex items-center gap-2">
           {/* Alert config button (always visible for admin) */}
-          {isAdmin && !shouldShowAlert() && (
+          {isAdmin && (
             <Button variant="outline" size="sm" className="gap-1" onClick={() => setAlertConfigOpen(true)}>
-              <Bell className="h-3.5 w-3.5" /> Config. Alerta
+              <Bell className="h-3.5 w-3.5" /> Config. Alertas
             </Button>
           )}
           <Button variant="outline" size="sm" className="gap-1" onClick={generateReport}>
@@ -769,59 +712,14 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Alert Config Dialog (Solo Admin) */}
-      <Dialog open={alertConfigOpen} onOpenChange={setAlertConfigOpen}>
-        <DialogContent className="sm:max-w-[420px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Bell className="h-4 w-4 text-amber-500" />
-              Configurar Alerta de Asistencias
-            </DialogTitle>
-            <DialogDescription>
-              Solo el Administrador puede modificar la fecha de envío del informe mensual
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Día del mes para envío de informe</Label>
-              <Input
-                type="number"
-                min={1}
-                max={31}
-                value={alertForm.dayOfMonth}
-                onChange={(e) => setAlertForm(f => ({ ...f, dayOfMonth: parseInt(e.target.value) || 29 }))}
-              />
-              <p className="text-xs text-slate-500 mt-1">
-                El informe se enviará el día {alertForm.dayOfMonth} de cada mes
-              </p>
-            </div>
-            <div>
-              <Label>Mensaje de la alerta</Label>
-              <Textarea
-                value={alertForm.message}
-                onChange={(e) => setAlertForm(f => ({ ...f, message: e.target.value }))}
-                rows={2}
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="alertActive"
-                checked={alertForm.active}
-                onChange={(e) => setAlertForm(f => ({ ...f, active: e.target.checked }))}
-                className="rounded"
-              />
-              <Label htmlFor="alertActive" className="text-sm">Alerta activa</Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAlertConfigOpen(false)}>Cancelar</Button>
-            <Button className="bg-amber-600 hover:bg-amber-700 text-white gap-1" onClick={handleSaveAlertConfig}>
-              <Save className="h-4 w-4" /> Guardar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Alert Config Dialog (unified system) */}
+      <AlertConfigDialog
+        open={alertConfigOpen}
+        onOpenChange={setAlertConfigOpen}
+        moduleName="asistencias"
+        moduleLabel="Asistencias"
+        userRole={userRole}
+      />
     </div>
   )
 }
