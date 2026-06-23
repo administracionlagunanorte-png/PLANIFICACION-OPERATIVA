@@ -156,3 +156,24 @@ Stage Summary:
 - Alertas: banner visible en TODOS los módulos SIN importar la vista interna
 - Botón "Alertas" accesible siempre para Admin en cada módulo
 - 6 módulos con alertas completas: tareas, mantenimiento, rendicion, compras, anticipos, asistencias
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Hacer visibles TODAS las alertas configuradas (activas + programadas)
+
+Work Log:
+- Diagnosticó que ModuleAlertBanner ocultaba alertas automáticas cuyo dayOfMonth aún no llegó
+- El usuario creó 2 alertas pero no las veía porque el filtro `currentDay < alert.dayOfMonth` las eliminaba
+- Reescribió ModuleAlertBanner para mostrar TODAS las alertas activas en 2 secciones:
+  1. "Alertas Activas" — color completo, con badge "Activa hoy" o "Manual — Activa"
+  2. "Programadas" — estilo gris con borde punteado, con badge "Día X" indicando cuándo se activan
+- Agregó badges de tipo de alerta (Vencimiento, Informe, Recordatorio, Urgente) en cada tarjeta
+- Agregó íconos Clock y CheckCircle2 para distinguir visualmente programadas vs activas
+- Ya NO se filtran alertas por dayOfMonth — solo por rol y estado active
+- Build exitoso
+
+Stage Summary:
+- Ahora TODAS las alertas activas son visibles siempre, diferenciando las activas hoy de las programadas
+- El usuario puede ver exactamente qué alertas tiene configuradas y cuándo se activarán
+- Las alertas manuales muestran badge "Manual — Activa", las automáticas "Activa hoy" o "Día X"
