@@ -86,6 +86,7 @@ import {
   ArrowRight,
   Wallet,
   Wrench,
+  CalendarDays,
 } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import ExcelJS from 'exceljs'
@@ -94,6 +95,7 @@ import { useToast } from '@/hooks/use-toast'
 import RendicionGastos from '@/components/rendicion/RendicionGastos'
 import AnticiposPanel from '@/components/rendicion/AnticiposPanel'
 import MantenimientoPanel from '@/components/rendicion/MantenimientoPanel'
+import AsistenciasPanel from '@/components/rendicion/AsistenciasPanel'
 import { useAuth } from '@/lib/auth-context'
 import UsersPanel from '@/components/auth/UsersPanel'
 
@@ -213,7 +215,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
   const [purchaseStatusFilter, setPurchaseStatusFilter] = useState<string>('')
   const [anticipoStatusFilter, setAnticipoStatusFilter] = useState<string>('')
   const [mantenimientoStatusFilter, setMantenimientoStatusFilter] = useState<string>('')
-  const [view, setView] = useState<'dashboard' | 'table' | 'cards' | 'gantt' | 'materials' | 'rendicion' | 'solicitudes' | 'anticipos' | 'mantenimiento' | 'users'>('mantenimiento')
+  const [view, setView] = useState<'dashboard' | 'table' | 'cards' | 'gantt' | 'materials' | 'rendicion' | 'solicitudes' | 'anticipos' | 'mantenimiento' | 'asistencias' | 'users'>('mantenimiento')
   const [filterSector, setFilterSector] = useState('all')
   const [filterPriority, setFilterPriority] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
@@ -3340,6 +3342,14 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
             >
               <Wrench className="h-4 w-4" /> Mantenimiento
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setView('asistencias')}
+              className={`gap-1 rounded-md transition-all duration-200 ${view === 'asistencias' ? 'bg-rose-200 text-black hover:bg-rose-300 shadow-sm font-semibold' : 'text-rose-700 hover:bg-rose-50'}`}
+            >
+              <CalendarDays className="h-4 w-4" /> Asistencias
+            </Button>
             {(session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERVISOR') && (
               <Button
                 variant="ghost"
@@ -3353,7 +3363,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
           </div>
 
           {/* Filters */}
-          {view !== 'rendicion' && view !== 'solicitudes' && view !== 'anticipos' && view !== 'mantenimiento' && view !== 'users' && (
+          {view !== 'rendicion' && view !== 'solicitudes' && view !== 'anticipos' && view !== 'mantenimiento' && view !== 'asistencias' && view !== 'users' && (
           <div className="flex items-center gap-2 flex-wrap max-w-full">
             <Select value={filterSector} onValueChange={setFilterSector}>
               <SelectTrigger className="w-[120px] sm:w-[140px] h-8 text-xs">
@@ -4678,6 +4688,13 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
             userRole={userRole}
             initialStatusFilter={mantenimientoStatusFilter}
             onStatusFilterConsumed={() => setMantenimientoStatusFilter('')}
+          />
+        )}
+
+        {view === 'asistencias' && (
+          <AsistenciasPanel
+            userRole={userRole}
+            userName={session?.user?.name || ''}
           />
         )}
 

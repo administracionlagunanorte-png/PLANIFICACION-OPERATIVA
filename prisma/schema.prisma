@@ -279,6 +279,7 @@ model Worker {
   active          Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  asistencias     AsistenciaRecord[]
 
   @@map("workers")
 }
@@ -335,4 +336,34 @@ model MantenimientoItem {
   updatedAt   DateTime @updatedAt
 
   @@map("mantenimiento_items")
+}
+
+// ============================================================
+// ASISTENCIAS
+// ============================================================
+
+model AsistenciaRecord {
+  id            String   @id @default(cuid())
+  workerId      String                      // FK a Worker
+  worker        Worker    @relation(fields: [workerId], references: [id])
+  date          DateTime                    // Fecha de la ausencia/atraso
+  type          String                      // "AUSENCIA" o "ATRASO"
+  minutesLate   Int       @default(0)       // Minutos de atraso (solo si type=ATRASO)
+  reason        String?                     // Motivo u observación
+  reportedBy    String?                     // Quien reportó (supervisor)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("asistencia_records")
+}
+
+model AsistenciaAlertConfig {
+  id          String   @id @default(cuid())
+  dayOfMonth  Int      @default(29)   // Día del mes para la alerta/informe (1-31)
+  active      Boolean  @default(true) // Si la alerta está activa
+  message     String   @default("Informe mensual de asistencias: Revisar y enviar listado de atrasos e inasistencias")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("asistencia_alert_config")
 }
