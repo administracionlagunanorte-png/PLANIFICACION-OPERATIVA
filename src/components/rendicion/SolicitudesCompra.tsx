@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
-import { Plus, Pencil, Trash2, Eye, ArrowLeft, Upload, X, CheckCircle, XCircle, Clock, FileText, FileSpreadsheet, Download, Camera, Send, Star, ShoppingBag, ExternalLink, ShieldCheck, Shield, Package, ImageIcon } from 'lucide-react'
+import { Plus, Pencil, Trash2, Eye, ArrowLeft, Upload, X, CheckCircle, XCircle, Clock, FileText, FileSpreadsheet, Download, Camera, Send, Star, ShoppingBag, ExternalLink, ShieldCheck, Shield, Package, ImageIcon, Bell } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import ModuleAlertBanner, { ModuleAlertItem } from './ModuleAlertBanner'
 import AlertConfigDialog from './AlertConfigDialog'
@@ -752,6 +752,17 @@ export default function SolicitudesCompra({ userRole = 'USER', initialStatusFilt
           <Plus className="h-4 w-4" />
           Nueva Solicitud
         </Button>
+        {userRole === 'ADMIN' && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1 border-amber-300 text-amber-700 hover:bg-amber-50 shrink-0"
+            onClick={() => setAlertConfigOpen(true)}
+          >
+            <Bell className="h-4 w-4" />
+            Alertas
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -1625,15 +1636,13 @@ export default function SolicitudesCompra({ userRole = 'USER', initialStatusFilt
 
   return (
     <div className="w-full">
-      {/* Alert Banner (unified system) */}
-      {view === 'list' && (
-        <ModuleAlertBanner
-          alerts={moduleAlerts.filter(a => !dismissedAlerts.has(a.id))}
-          userRole={userRole}
-          onConfigure={() => setAlertConfigOpen(true)}
-          onDismiss={(id) => setDismissedAlerts(prev => new Set([...prev, id]))}
-        />
-      )}
+      {/* Alert Banner (unified system) — always visible */}
+      <ModuleAlertBanner
+        alerts={moduleAlerts.filter(a => !dismissedAlerts.has(a.id))}
+        userRole={userRole}
+        onConfigure={() => setAlertConfigOpen(true)}
+        onDismiss={(id) => setDismissedAlerts(prev => new Set([...prev, id]))}
+      />
       {view === 'list' ? renderListView() : renderDetailView()}
       {renderFormDialog()}
       {renderItemFormDialog()}

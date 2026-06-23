@@ -25,7 +25,7 @@ import {
   Wrench, ChevronLeft, CheckCircle, XCircle, Clock,
   Printer, Upload, Calendar, ChevronRight,
   RefreshCw, Map, FileText, Trash2, AlertTriangle,
-  Eye, Save, MessageSquare, Paperclip, Pencil, Plus, X,
+  Eye, Save, MessageSquare, Paperclip, Pencil, Plus, X, Bell,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import ModuleAlertBanner, { ModuleAlertItem } from './ModuleAlertBanner'
@@ -241,36 +241,45 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
   // ============================================================
   // Auto-generate LVs for current and next month
   // ============================================================
-  const handleGenerate = async () => {
+  const handleGenerate = async (silent = false) => {
     setGenerating(true)
     try {
       const now = new Date()
       // Generate for current month
-      await fetch('/api/mantenimiento-generate', {
+      const res1 = await fetch('/api/mantenimiento-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ year: now.getFullYear(), month: now.getMonth() }),
       })
+      const data1 = res1.ok ? await res1.json() : { created: 0, skipped: 0 }
       // Generate for next month too
       const next = new Date(now)
       next.setMonth(next.getMonth() + 1)
-      await fetch('/api/mantenimiento-generate', {
+      const res2 = await fetch('/api/mantenimiento-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ year: next.getFullYear(), month: next.getMonth() }),
       })
+      const data2 = res2.ok ? await res2.json() : { created: 0, skipped: 0 }
+
+      const totalCreated = (data1.created || 0) + (data2.created || 0)
       fetchLVs()
-      toast({ title: 'Listas generadas', description: 'Se generaron las listas de verificación pendientes' })
+      // Only show toast if new LVs were created or if manual (not silent)
+      if (!silent && totalCreated > 0) {
+        toast({ title: 'Listas generadas', description: `Se crearon ${totalCreated} listas de verificación nuevas` })
+      } else if (!silent && totalCreated === 0) {
+        toast({ title: 'Sin listas nuevas', description: 'Todas las listas de verificación ya estaban generadas' })
+      }
     } catch {
-      toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
+      if (!silent) toast({ title: 'Error', description: 'Error de conexión', variant: 'destructive' })
     } finally {
       setGenerating(false)
     }
   }
 
-  // Auto-generate on first load
+  // Auto-generate on first load (silent — only shows toast if new LVs are created)
   useEffect(() => {
-    handleGenerate()
+    handleGenerate(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -700,6 +709,17 @@ export default function MantenimientoPanel({ userRole = 'USER', initialStatusFil
           })()}
         </div>
         <div className="flex items-center gap-2">
+          {userRole === 'ADMIN' && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1 border-amber-300 text-amber-700 hover:bg-amber-50"
+              onClick={() => setAlertConfigOpen(true)}
+            >
+              <Bell className="h-4 w-4" />
+              Alertas
+            </Button>
+          )}
           {currentView === 'calendar' && (
             <Button
               variant="outline"

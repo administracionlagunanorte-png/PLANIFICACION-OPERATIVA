@@ -87,6 +87,7 @@ import {
   Wallet,
   Wrench,
   CalendarDays,
+  Bell,
 } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import ExcelJS from 'exceljs'
@@ -3920,10 +3921,18 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">Tabla de Tareas</CardTitle>
-                <Button variant="outline" size="sm" onClick={downloadTablePDF} disabled={downloadingTable} className="gap-1">
-                  <FileText className="h-4 w-4" />
-                  {downloadingTable ? 'Generando PDF...' : 'Exportar PDF'}
-                </Button>
+                <div className="flex items-center gap-2">
+                  {userRole === 'ADMIN' && (
+                    <Button variant="outline" size="sm" className="gap-1 border-amber-300 text-amber-700 hover:bg-amber-50" onClick={() => setAlertConfigOpen(true)}>
+                      <Bell className="h-4 w-4" />
+                      Alertas
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={downloadTablePDF} disabled={downloadingTable} className="gap-1">
+                    <FileText className="h-4 w-4" />
+                    {downloadingTable ? 'Generando PDF...' : 'Exportar PDF'}
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">

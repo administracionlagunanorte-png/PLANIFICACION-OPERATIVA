@@ -1,0 +1,654 @@
+     1→import { NextRequest, NextResponse } from 'next/server'
+     2→import { db } from '@/lib/db'
+     3→
+     4→// LV Template definitions with frequencies and scheduling rules
+     5→interface LVTemplateDef {
+     6→  codigo: string
+     7→  nombre: string
+     8→  sector: string
+     9→  frecuencia: string
+    10→  items: { category: string; description: string }[]
+    11→  // Scheduling rules
+    12→  scheduleRule: 'daily' | '3x_week' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'semiannual' | 'annual'
+    13→  // For monthly: which week (1=first, 2=second, 3=third, 4=last)
+    14→  monthWeek?: number
+    15→  // For annual: which month (1-12)
+    16→  annualMonth?: number
+    17→  // For quarterly: which months (1-12)
+    18→  quarterMonths?: number[]
+    19→  // For semiannual: which months
+    20→  semiMonths?: number[]
+    21→  // Preferred day of week for weekly (0=Sun, 1=Mon, etc.)
+    22→  weekDay?: number
+    23→  // Preferred day of month for monthly
+    24→  monthDay?: number
+    25→}
+    26→
+    27→const LV_TEMPLATES: LVTemplateDef[] = [
+    28→  {
+    29→    codigo: 'LV-01', nombre: 'Dotación diaria de personal y EPP', sector: 'General — Todos los sectores', frecuencia: 'Diaria',
+    30→    scheduleRule: 'daily',
+    31→    items: [
+    32→      { category: 'A', description: 'Verificación de dotación de personal presente' },
+    33→      { category: 'B', description: 'Verificación de EPP por puesto (guantes, antiparras, protector auditivo, mascarilla, chaleco, botas, protector solar)' },
+    34→      { category: 'C', description: 'Personal con baja / ausencia' },
+    35→      { category: 'C', description: 'EPP deteriorado o faltante' },
+    36→      { category: 'C', description: 'Equipos o maquinaria con falla' },
+    37→      { category: 'C', description: 'Incidencias reportadas de jornada anterior' },
+    38→      { category: 'C', description: 'Zonas con acceso restringido hoy' },
+    39→      { category: 'C', description: 'Trabajos de terceros en condominio hoy' },
+    40→    ]
+    41→  },
+    42→  {
+    43→    codigo: 'LV-02', nombre: 'Laguna artificial — Control diario de agua', sector: 'Laguna', frecuencia: 'Diaria',
+    44→    scheduleRule: 'daily',
+    45→    items: [
+    46→      { category: 'A', description: 'EPP y materiales requeridos disponibles y en buen estado' },
+    47→      { category: 'B', description: 'Medición pH (rango 7,2–8,0)' },
+    48→      { category: 'B', description: 'Medición Turbidez NTU (< 10 NTU)' },
+    49→      { category: 'B', description: 'Medición Temperatura (15–28°C)' },
+    50→      { category: 'B', description: 'Medición Oxígeno disuelto (≥ 5 mg/L)' },
+    51→      { category: 'B', description: 'Aspecto visual del agua' },
+    52→      { category: 'C', description: 'Color del agua normal' },
+    53→      { category: 'C', description: 'Ausencia de espuma o películas en superficie' },
+    54→      { category: 'C', description: 'Ausencia de olores inusuales' },
+    55→      { category: 'C', description: 'Bordes y muretes sin grietas ni desprendimientos' },
+    56→      { category: 'C', description: 'Cierros perimetrales en buen estado' },
+    57→      { category: 'C', description: 'Embarcadero y muelle sin daños visibles' },
+    58→      { category: 'C', description: 'Rack de botes en buen estado' },
+    59→      { category: 'C', description: 'Playas sin residuos peligrosos' },
+    60→      { category: 'C', description: 'Señalética de seguridad completa y legible' },
+    61→      { category: 'C', description: 'Sin presencia de fauna muerta' },
+    62→      { category: 'C', description: 'Sistema de aireación/circulación funcionando' },
+    63→      { category: 'D', description: 'Dosificación de floculante registrada' },
+    64→      { category: 'D', description: 'Dosificación de algicida registrada (si aplica)' },
+    65→    ]
+    66→  },
+    67→  {
+    68→    codigo: 'LV-03', nombre: 'Piscinas 1–3 — Control diario de agua y limpieza', sector: 'Piscinas 1–2–3', frecuencia: 'Diaria',
+    69→    scheduleRule: 'daily',
+    70→    items: [
+    71→      { category: 'A', description: 'EPP y equipos requeridos disponibles' },
+    72→      { category: 'B', description: 'Medición pH mañana (rango 7,2–7,6)' },
+    73→      { category: 'B', description: 'Medición Cloro libre mañana (1,0–3,0 ppm)' },
+    74→      { category: 'B', description: 'Medición Temperatura mañana (24–28°C)' },
+    75→      { category: 'C', description: 'Medición pH tarde' },
+    76→      { category: 'C', description: 'Medición Cloro libre tarde' },
+    77→      { category: 'C', description: 'Medición Temperatura tarde' },
+    78→      { category: 'D', description: 'Robot aspirador operando (ciclo nocturno ejecutado)' },
+    79→      { category: 'D', description: 'Cepillado manual paredes y bordes' },
+    80→      { category: 'D', description: 'Vaciado y limpieza cesta prefiltro bomba' },
+    81→      { category: 'D', description: 'Retiro debris flotante (skimmer manual)' },
+    82→      { category: 'D', description: 'Limpieza cesto skimmer de pared' },
+    83→      { category: 'D', description: 'Limpieza borde perimetral y escalas' },
+    84→      { category: 'D', description: 'Piscina habilitada para uso residentes' },
+    85→    ]
+    86→  },
+    87→  {
+    88→    codigo: 'LV-04', nombre: 'Playas artificiales — Rastrillado y limpieza', sector: 'Playas 1–2–3', frecuencia: '3x Semanal',
+    89→    scheduleRule: '3x_week', // 3 veces por semana (Lun, Mié, Vie)
+    90→    weekDay: 1,
+    91→    items: [
+    92→      { category: 'A', description: 'Herramientas y materiales disponibles' },
+    93→      { category: 'B', description: 'Rastrillado profundo de toda la superficie de arena' },
+    94→      { category: 'B', description: 'Retiro manual de residuos sólidos' },
+    95→      { category: 'B', description: 'Inspección: ausencia de vidrios, metales u objetos cortantes' },
+    96→      { category: 'B', description: 'Nivelación de arena en bordes' },
+    97→      { category: 'B', description: 'Verificación nivel de arena (mínimo 30cm zona caída)' },
+    98→      { category: 'B', description: 'Limpieza de accesos y bordes perimetrales' },
+    99→      { category: 'B', description: 'Verificación señalética de playa' },
+   100→      { category: 'B', description: 'Inspección estado de reposeras y mobiliario cercano' },
+   101→      { category: 'B', description: 'Sin presencia de fauna nociva' },
+   102→    ]
+   103→  },
+   104→  {
+   105→    codigo: 'LV-05', nombre: 'Aseo y limpieza — Áreas comunes diaria', sector: 'Club House / Ciclovía / Estacionamientos', frecuencia: 'Diaria',
+   106→    scheduleRule: 'daily',
+   107→    items: [
+   108→      { category: 'A', description: 'Insumos y herramientas de aseo disponibles' },
+   109→      { category: 'B', description: 'Barrido y fregado de pisos interiores Club House' },
+   110→      { category: 'B', description: 'Limpieza y desinfección de mesones y superficies' },
+   111→      { category: 'B', description: 'Limpieza y desinfección completa de baños' },
+   112→      { category: 'B', description: 'Reposición de papel higiénico y jabón en baños' },
+   113→      { category: 'B', description: 'Vaciado y limpieza de papeleras interiores' },
+   114→      { category: 'B', description: 'Limpieza de vidrios y espejos Club House' },
+   115→      { category: 'B', description: 'Aseo de quinchos (post-uso): parrillas, mesas, pisos' },
+   116→      { category: 'B', description: 'Limpieza de cocina y área de servicios Club House' },
+   117→      { category: 'B', description: 'Desinfección de pomos de puertas e interruptores' },
+   118→      { category: 'C', description: 'Barrido ciclovía completa con soplador' },
+   119→      { category: 'C', description: 'Barrido sendero peatonal completo' },
+   120→      { category: 'C', description: 'Retiro de residuos en papeleras del circuito perimetral' },
+   121→      { category: 'C', description: 'Limpieza de acceso principal y portería exterior' },
+   122→      { category: 'C', description: 'Barrido estacionamientos' },
+   123→      { category: 'C', description: 'Limpieza zona de acopio de basura' },
+   124→      { category: 'C', description: 'Retiro de hojas y restos en zonas de juegos infantiles' },
+   125→    ]
+   126→  },
+   127→  {
+   128→    codigo: 'LV-06', nombre: 'Juegos infantiles — Inspección visual diaria', sector: 'Juegos Infantiles (5 sectores)', frecuencia: 'Diaria',
+   129→    scheduleRule: 'daily',
+   130→    items: [
+   131→      { category: 'A', description: 'Materiales requeridos para la inspección disponibles' },
+   132→      { category: 'B', description: 'Ausencia de residuos peligrosos (vidrios, agujas, excrementos)' },
+   133→      { category: 'B', description: 'Ausencia de objetos cortantes o filosos' },
+   134→      { category: 'B', description: 'Zona de caída sin objetos duros enterrados' },
+   135→      { category: 'B', description: 'Piezas metálicas sin bordes cortantes ni astillas' },
+   136→      { category: 'B', description: 'Toboganes sin grietas, bordes rotos o astillas' },
+   137→      { category: 'B', description: 'Balancines: resortes presentes, sin fracturas visibles' },
+   138→      { category: 'B', description: 'Escaleras de acceso: peldaños firmes y antideslizantes' },
+   139→      { category: 'B', description: 'Barandas y pasamanos firmes' },
+   140→      { category: 'B', description: 'Señalética de seguridad del sector presente y legible' },
+   141→      { category: 'B', description: 'Sin presencia de animales o nidos en estructura' },
+   142→      { category: 'B', description: 'SECTOR HABILITADO para uso de niños' },
+   143→      { category: 'C', description: 'Registro de sectores con cierre preventivo' },
+   144→    ]
+   145→  },
+   146→  {
+   147→    codigo: 'LV-07', nombre: 'Laguna — Control técnico semanal', sector: 'Laguna', frecuencia: 'Semanal',
+   148→    scheduleRule: 'weekly', weekDay: 1, // Lunes
+   149→    items: [
+   150→      { category: 'A', description: 'EPP y herramientas semana disponibles' },
+   151→      { category: 'B', description: 'Medición pH, turbidez y temperatura (3 puntos)' },
+   152→      { category: 'B', description: 'Retiro de algas flotantes con red en toda la orilla' },
+   153→      { category: 'B', description: 'Retiro de macroalgas del fondo (cerca de bordes)' },
+   154→      { category: 'B', description: 'Dosificación de floculante (según turbidez)' },
+   155→      { category: 'B', description: 'Inspección visual completa del perímetro (fotografiar anomalías)' },
+   156→      { category: 'B', description: 'Verificación funcionamiento bomba de circulación' },
+   157→      { category: 'B', description: 'Limpieza de reja de filtro de entrada' },
+   158→      { category: 'B', description: 'Rastrillado profundo playas 1–2–3' },
+   159→      { category: 'B', description: 'Registro de todos los parámetros en planilla semanal' },
+   160→      { category: 'C', description: 'Registro de parámetros semana (tendencia) completo' },
+   161→    ]
+   162→  },
+   163→  {
+   164→    codigo: 'LV-08', nombre: 'Piscinas — Mantenimiento semanal', sector: 'Piscinas 1–2–3', frecuencia: 'Semanal',
+   165→    scheduleRule: 'weekly', weekDay: 1, // Lunes
+   166→    items: [
+   167→      { category: 'A', description: 'Herramientas y materiales semana disponibles' },
+   168→      { category: 'B', description: 'Retrolavado de filtros — Girar válvula a BACKWASH' },
+   169→      { category: 'B', description: 'Retrolavado — Encender bomba y esperar agua clara' },
+   170→      { category: 'B', description: 'Retrolavado — Enjuague 30 segundos' },
+   171→      { category: 'B', description: 'Retrolavado — Volver a posición FILTRO y verificar presión' },
+   172→      { category: 'B', description: 'Registrar presión de trabajo post-retrolavado' },
+   173→      { category: 'C', description: 'Cepillado a fondo de paredes, escalas y fondo' },
+   174→      { category: 'C', description: 'Limpieza completa de skimmers de pared' },
+   175→      { category: 'C', description: 'Verificación y limpieza de canaletas de rebalse' },
+   176→      { category: 'C', description: 'Revisión de bombas (ruido, vibración, temperatura)' },
+   177→      { category: 'C', description: 'Verificación de cloro residual y ajuste de dosificación' },
+   178→    ]
+   179→  },
+   180→  {
+   181→    codigo: 'LV-09', nombre: 'Áreas verdes — Tareas semanales', sector: 'Jardines / Prados', frecuencia: 'Semanal',
+   182→    scheduleRule: 'weekly', weekDay: 2, // Martes
+   183→    items: [
+   184→      { category: 'A', description: 'Maquinaria y herramientas — verificación pre-jornada' },
+   185→      { category: 'B', description: 'Corte de césped por sector' },
+   186→      { category: 'B', description: 'Bordeado de canteros y senderos' },
+   187→      { category: 'B', description: 'Soplado de restos de corte en ciclovía y senderos' },
+   188→      { category: 'B', description: 'Retiro de maleza en canteros y macizos' },
+   189→      { category: 'B', description: 'Riego complementario (si no llueve en 48 hrs)' },
+   190→      { category: 'C', description: 'Verificación sistema de riego (supervisión diaria incluida)' },
+   191→      { category: 'C', description: 'Revisión de aspersores (sin obstrucciones, cobertura ok)' },
+   192→      { category: 'C', description: 'Verificación programación controlador de riego' },
+   193→    ]
+   194→  },
+   195→  {
+   196→    codigo: 'LV-10', nombre: 'Ciclovía y sendero — Mantenimiento', sector: 'Ciclovía / Sendero Peatonal', frecuencia: 'Semanal',
+   197→    scheduleRule: 'weekly', weekDay: 3, // Miércoles
+   198→    items: [
+   199→      { category: 'A', description: 'Herramientas y materiales disponibles' },
+   200→      { category: 'B', description: 'Barrido y soplado completo de ciclovía' },
+   201→      { category: 'B', description: 'Barrido de sendero peatonal' },
+   202→      { category: 'B', description: 'Retiro de maleza en bordes de ciclovía' },
+   203→      { category: 'B', description: 'Inspección visual de pavimento (grietas, hundimientos)' },
+   204→      { category: 'B', description: 'Verificación de señalética horizontal y vertical' },
+   205→    ]
+   206→  },
+   207→  {
+   208→    codigo: 'LV-11', nombre: 'Inspección quincenal infraestructura', sector: 'Ciclovía / Muelles / Iluminación', frecuencia: 'Quincenal',
+   209→    scheduleRule: 'biweekly',
+   210→    items: [
+   211→      { category: 'A', description: 'Equipos y herramientas disponibles' },
+   212→      { category: 'B', description: 'Muelles, embarcadero y rack de botes en buen estado' },
+   213→      { category: 'B', description: 'Iluminación exterior — circuito nocturno completo' },
+   214→      { category: 'B', description: 'Cierros, portones y accesos en buen estado' },
+   215→    ]
+   216→  },
+   217→  {
+   218→    codigo: 'LV-12', nombre: 'Piscinas — Control quincenal completo', sector: 'Piscinas 1–2–3', frecuencia: 'Quincenal',
+   219→    scheduleRule: 'biweekly',
+   220→    items: [
+   221→      { category: 'A', description: 'Materiales y equipos disponibles' },
+   222→      { category: 'B', description: 'Análisis completo de parámetros' },
+   223→      { category: 'B', description: 'Revisión dosificadores automáticos' },
+   224→    ]
+   225→  },
+   226→  {
+   227→    codigo: 'LV-13', nombre: 'Áreas verdes — Mantenimiento mensual', sector: 'Jardines / Prados', frecuencia: 'Mensual',
+   228→    scheduleRule: 'monthly', monthWeek: 1, // Primera semana del mes
+   229→    items: [
+   230→      { category: 'A', description: 'Materiales e insumos del mes disponibles' },
+   231→      { category: 'B', description: 'Estado de prados por sector — evaluación mensual' },
+   232→      { category: 'B', description: 'Revisión árboles y arbustos' },
+   233→    ]
+   234→  },
+   235→  {
+   236→    codigo: 'LV-14', nombre: 'Laguna — Revisión mensual sala de máquinas', sector: 'Laguna / Sala de máquinas', frecuencia: 'Mensual',
+   237→    scheduleRule: 'monthly', monthWeek: 4, // Última semana del mes
+   238→    items: [
+   239→      { category: 'A', description: 'Equipos y herramientas para revisión disponibles' },
+   240→      { category: 'B', description: 'Verificación equipos sala de máquinas' },
+   241→    ]
+   242→  },
+   243→  {
+   244→    codigo: 'LV-15', nombre: 'Club House — Mantención mensual integral', sector: 'Club House / Canchas / Quinchos', frecuencia: 'Mensual',
+   245→    scheduleRule: 'monthly', monthWeek: 2, // Segunda semana del mes
+   246→    items: [
+   247→      { category: 'A', description: 'Materiales para mantención mensual disponibles' },
+   248→      { category: 'B', description: 'Verificación instalaciones eléctricas Club House' },
+   249→      { category: 'B', description: 'Verificación instalaciones sanitarias y civil' },
+   250→    ]
+   251→  },
+   252→  {
+   253→    codigo: 'LV-16', nombre: 'Juegos infantiles — Inspección técnica mensual', sector: 'Juegos Infantiles', frecuencia: 'Mensual',
+   254→    scheduleRule: 'monthly', monthWeek: 2, // Segunda semana
+   255→    items: [
+   256→      { category: 'A', description: 'Herramientas de inspección técnica disponibles' },
+   257→      { category: 'B', description: 'Inspección técnica estructural — por sector' },
+   258→      { category: 'B', description: 'Lubricación de articulaciones' },
+   259→    ]
+   260→  },
+   261→  {
+   262→    codigo: 'LV-17', nombre: 'Estacionamientos — Mantención mensual', sector: 'Estacionamientos / Acceso', frecuencia: 'Mensual',
+   263→    scheduleRule: 'monthly', monthWeek: 1, // Primera semana
+   264→    items: [
+   265→      { category: 'A', description: 'Herramientas y materiales disponibles' },
+   266→      { category: 'B', description: 'Verificación de tareas mensuales' },
+   267→      { category: 'B', description: 'Mapa de daños detectados en pavimento' },
+   268→    ]
+   269→  },
+   270→  {
+   271→    codigo: 'LV-18', nombre: 'Mantención mayor trimestral', sector: 'Todos los sectores críticos', frecuencia: 'Trimestral',
+   272→    scheduleRule: 'quarterly', quarterMonths: [1, 4, 7, 10], // Ene, Abr, Jul, Oct
+   273→    items: [
+   274→      { category: 'A', description: 'Personal y empresas convocadas' },
+   275→      { category: 'B', description: 'Laguna — actividades trimestrales' },
+   276→      { category: 'B', description: 'Piscinas — actividades trimestrales' },
+   277→      { category: 'B', description: 'Juegos infantiles — actividades trimestrales' },
+   278→    ]
+   279→  },
+   280→  {
+   281→    codigo: 'LV-19', nombre: 'Revisión semestral completa', sector: 'Condominio completo', frecuencia: 'Semestral',
+   282→    scheduleRule: 'semiannual', semiMonths: [6, 12], // Jun, Dic
+   283→    items: [
+   284→      { category: 'A', description: 'Certificaciones y servicios externos — verificación semestral' },
+   285→      { category: 'B', description: 'Estado de conservación por sector (escala 1-4)' },
+   286→      { category: 'B', description: 'Presupuesto semestral — ejecución vs. planificado' },
+   287→    ]
+   288→  },
+   289→  {
+   290→    codigo: 'LV-20', nombre: 'Revisión anual — Certificaciones y estado', sector: 'Condominio completo', frecuencia: 'Anual',
+   291→    scheduleRule: 'annual', annualMonth: 1, // Enero
+   292→    items: [
+   293→      { category: 'A', description: 'Certificaciones obligatorias — vigencia al 31 de diciembre' },
+   294→      { category: 'B', description: 'KPIs anuales — resultados finales' },
+   295→      { category: 'B', description: 'Revisión y aprobación del plan para el próximo año' },
+   296→    ]
+   297→  },
+   298→  // ============================================================
+   299→  // NUEVAS LVs DEL PMI (Capítulos 1-6)
+   300→  // ============================================================
+   301→  {
+   302→    codigo: 'LV-21', nombre: 'Multicancha — Inspección mensual', sector: 'Club House — Multicancha', frecuencia: 'Mensual',
+   303→    scheduleRule: 'monthly', monthWeek: 1,
+   304→    items: [
+   305→      { category: 'A', description: 'Galga de fisuras o regla milimétrica' },
+   306→      { category: 'A', description: 'Cámara fotográfica / teléfono' },
+   307→      { category: 'A', description: 'Llave de torque' },
+   308→      { category: 'A', description: 'Marcadores para extremos de fisuras' },
+   309→      { category: 'A', description: 'Cinta señalización roja (si se detecta zona de riesgo)' },
+   310→      { category: 'B', description: 'Sin fisuras nuevas desde última inspección' },
+   311→      { category: 'B', description: 'Fisuras existentes sin aumento de longitud o ancho' },
+   312→      { category: 'B', description: 'Sin hundimientos o levantamientos visibles' },
+   313→      { category: 'B', description: 'Sin zonas huecas (percusión con martillo)' },
+   314→      { category: 'B', description: 'Superficie sin gravas o materiales sueltos' },
+   315→      { category: 'C', description: 'Líneas de juego visibles y completas' },
+   316→      { category: 'C', description: 'Pintura sin levantamiento ni descascaramiento activo' },
+   317→      { category: 'C', description: 'Textura antideslizante presente' },
+   318→      { category: 'C', description: 'Rejillas de drenaje perimetral libres de obstrucción' },
+   319→      { category: 'C', description: 'Sin acumulación de agua residual post-lluvia' },
+   320→      { category: 'D', description: 'Todas las luminarias activas (inspección nocturna)' },
+   321→      { category: 'D', description: 'Postes de iluminación sin inclinación ni corrosión visible' },
+   322→      { category: 'D', description: 'Tornillos y pernos de cierres metálicos con torque correcto' },
+   323→      { category: 'D', description: 'Malla de cierre sin roturas ni aperturas' },
+   324→      { category: 'D', description: 'Arcos/tableros firmemente anclados' },
+   325→      { category: 'D', description: 'Sin piezas metálicas con bordes cortantes expuestos' },
+   326→      { category: 'D', description: 'Señalética de seguridad presente y legible' },
+   327→    ]
+   328→  },
+   329→  {
+   330→    codigo: 'LV-22', nombre: 'Cancha pasto sintético — Verificación', sector: 'Club House — Cancha Baby Fútbol', frecuencia: 'Semanal',
+   331→    scheduleRule: 'weekly', weekDay: 4, // Jueves
+   332→    items: [
+   333→      { category: 'A', description: 'Cepillo stiff (fibras rígidas) para levante de fibra' },
+   334→      { category: 'A', description: 'Varilla graduada para medición de infill' },
+   335→      { category: 'A', description: 'Rastrillo suave para retiro de residuos' },
+   336→      { category: 'A', description: 'Cámara fotográfica para registro de daños' },
+   337→      { category: 'B', description: 'Sin zonas con fibra completamente aplastada o calva' },
+   338→      { category: 'B', description: 'Costuras perimetrales e internas sin levantamientos' },
+   339→      { category: 'B', description: 'Nivel de infill en zona de penalti >= 3/4 altura fibra' },
+   340→      { category: 'B', description: 'Nivel de infill en zona central >= 3/4 altura fibra' },
+   341→      { category: 'B', description: 'Sin residuos orgánicos o inorgánicos incrustados en la fibra' },
+   342→      { category: 'C', description: 'Sin acumulación de agua (post-lluvia: verificar en 30 min)' },
+   343→      { category: 'C', description: 'Canaletas perimetrales limpias y sin obstrucción' },
+   344→      { category: 'C', description: 'Sin ondulaciones ni desniveles visibles en la superficie' },
+   345→      { category: 'D', description: 'Arcos firmemente anclados (sin movimiento al jalar)' },
+   346→      { category: 'D', description: 'Cierre perimetral sin roturas ni aperturas' },
+   347→      { category: 'D', description: 'Sin elementos metálicos con bordes cortantes expuestos' },
+   348→      { category: 'D', description: 'Señalética de seguridad presente y legible' },
+   349→    ]
+   350→  },
+   351→  {
+   352→    codigo: 'LV-23', nombre: 'Sala de Bombas — Control diario', sector: 'Sala de Máquinas Piscinas', frecuencia: 'Diaria',
+   353→    scheduleRule: 'daily',
+   354→    items: [
+   355→      { category: 'A', description: 'Lectura presión manómetro P1 (anotar valor)' },
+   356→      { category: 'A', description: 'Lectura presión manómetro P2 (anotar valor)' },
+   357→      { category: 'A', description: 'Lectura presión manómetro P3 (anotar valor)' },
+   358→      { category: 'A', description: 'Cloro libre (1-3 ppm) verificado en todas las piscinas' },
+   359→      { category: 'A', description: 'pH (7,2-7,6) verificado en todas las piscinas' },
+   360→      { category: 'B', description: 'Sin fugas visibles en tuberías, bombas ni válvulas' },
+   361→      { category: 'B', description: 'Cesta prefiltro limpiada en todas las bombas' },
+   362→      { category: 'B', description: 'Sin olores anormales (quemado, químico) en la sala' },
+   363→      { category: 'C', description: 'Medición amperaje bombas (mensual)' },
+   364→      { category: 'C', description: 'Temperatura carcasa bombas < 70°C (mensual)' },
+   365→      { category: 'C', description: 'Tablero eléctrico: sin calor, olores ni disyuntores saltados' },
+   366→      { category: 'C', description: 'Prueba botón TEST diferencial — todos operativos' },
+   367→      { category: 'D', description: 'Dosificadores calibrados y entregando dosis correcta' },
+   368→      { category: 'D', description: 'Sala de máquinas limpia y ordenada' },
+   369→    ]
+   370→  },
+   371→  {
+   372→    codigo: 'LV-24', nombre: 'Sauna — Lista de verificación', sector: 'Club House — Área Wellness', frecuencia: 'Semanal',
+   373→    scheduleRule: 'weekly', weekDay: 5, // Viernes
+   374→    items: [
+   375→      { category: 'A', description: 'Temperatura alcanzada en tiempo normal (anotar minutos)' },
+   376→      { category: 'A', description: 'Extractor de aire funcionando (caudal verificado al tacto)' },
+   377→      { category: 'A', description: 'Sin olores anormales (quemado, eléctrico, moho)' },
+   378→      { category: 'B', description: 'Sensor temperatura: equipo se apaga al alcanzar temp. programada' },
+   379→      { category: 'B', description: 'Madera interior: sin astillas, manchas negras ni humedad excesiva' },
+   380→      { category: 'B', description: 'Junta puerta de vidrio: cierra correctamente, sin escapes de calor' },
+   381→      { category: 'B', description: 'Limpieza interior con solución vinagre diluido realizada' },
+   382→      { category: 'C', description: 'Consumo eléctrico medido y comparado con histórico (kWh)' },
+   383→      { category: 'C', description: 'Válvula de seguridad: accionada manualmente y libera presión' },
+   384→      { category: 'C', description: 'Cableado visible sin deterioro, rozaduras ni signos de quemado' },
+   385→      { category: 'C', description: 'Controlador responde correctamente a ajustes de temperatura' },
+   386→      { category: 'D', description: 'Tiempo de calentamiento registrado en bitácora (min)' },
+   387→      { category: 'D', description: 'Descalcificación ejecutada según protocolo (trimestral)' },
+   388→      { category: 'D', description: 'Resistencias inspeccionadas: sin sarro excesivo (trimestral)' },
+   389→    ]
+   390→  },
+   391→  {
+   392→    codigo: 'LV-25', nombre: 'Jacuzzi / Spa — Lista de verificación', sector: 'Club House — Área Wellness', frecuencia: 'Diaria',
+   393→    scheduleRule: 'daily',
+   394→    items: [
+   395→      { category: 'A', description: 'pH medido (rango 7,2-7,6)' },
+   396→      { category: 'A', description: 'Cloro libre medido (rango 3-5 ppm)' },
+   397→      { category: 'A', description: 'Temperatura medida (rango 36-38°C)' },
+   398→      { category: 'A', description: 'Nivel de agua adecuado (no por debajo de las boquillas)' },
+   399→      { category: 'A', description: 'Sin olores anormales (cloro excesivo, quemado, gas)' },
+   400→      { category: 'B', description: 'Filtro de cartucho extraído, lavado y reinstalado (semanal)' },
+   401→      { category: 'B', description: 'Sensor temperatura verificado con termómetro externo' },
+   402→      { category: 'B', description: 'Sistema alcanza 36-38°C en tiempo normal' },
+   403→      { category: 'B', description: 'Boquillas: flujo uniforme al activar el sistema' },
+   404→      { category: 'B', description: 'Caldera gas: llama azul, sin hollín, sin olor a gas' },
+   405→      { category: 'C', description: 'Diferencial RCD: prueba botón TEST — OPERATIVO (mensual)' },
+   406→      { category: 'C', description: 'Consumo eléctrico medido (kWh) y comparado con histórico' },
+   407→      { category: 'C', description: 'Limpieza profunda tuberías con limpiador de circuito' },
+   408→      { category: 'D', description: 'Tapa/cubierta: cierra correctamente, sin roturas' },
+   409→      { category: 'D', description: 'Panel de control: sin humedad interna ni calor anormal' },
+   410→    ]
+   411→  },
+   412→  {
+   413→    codigo: 'LV-26', nombre: 'Quincho / Parrillas — Verificación mensual', sector: 'Club House — Áreas Sociales', frecuencia: 'Mensual',
+   414→    scheduleRule: 'monthly', monthWeek: 1,
+   415→    items: [
+   416→      { category: 'A', description: 'Unión manguera-regulador: sin burbujas de jabón' },
+   417→      { category: 'A', description: 'Unión regulador-tubería: sin burbujas de jabón' },
+   418→      { category: 'A', description: 'Unión tubería-quemador(es): sin burbujas de jabón' },
+   419→      { category: 'A', description: 'Estado manguera flexible: sin grietas, sin aplastamientos' },
+   420→      { category: 'A', description: 'Regulador de gas sin daño visible ni deformaciones' },
+   421→      { category: 'A', description: 'Llave de paso general cierra completamente' },
+   422→      { category: 'B', description: 'Campana: sin acumulación de grasa en superficie interior' },
+   423→      { category: 'B', description: 'Extractor de aire funcionando correctamente (caudal verificado)' },
+   424→      { category: 'B', description: 'Fecha última limpieza profesional conductos registrada' },
+   425→      { category: 'B', description: 'Certificado de limpieza conductos vigente (< 3 meses)' },
+   426→      { category: 'C', description: 'Quemadores: todos encienden con llama azul uniforme' },
+   427→      { category: 'C', description: 'Orificios quemadores libres de obstrucciones' },
+   428→      { category: 'C', description: 'Extintor PQS: manómetro en zona verde (presión OK)' },
+   429→      { category: 'C', description: 'Extintor: precinto de seguridad intacto' },
+   430→      { category: 'C', description: 'Extintor: fecha última recarga dentro de vigencia' },
+   431→    ]
+   432→  },
+   433→]
+   434→
+   435→// Helper: adjust a date to the nearest weekday (Mon-Fri)
+   436→// If Saturday -> move to Monday, if Sunday -> move to Monday
+   437→function adjustToWeekday(date: Date): Date {
+   438→  const d = new Date(date)
+   439→  const dow = d.getDay()
+   440→  if (dow === 0) { // Sunday -> Monday
+   441→    d.setDate(d.getDate() + 1)
+   442→  } else if (dow === 6) { // Saturday -> Monday
+   443→    d.setDate(d.getDate() + 2)
+   444→  }
+   445→  return d
+   446→}
+   447→
+   448→// Helper: check if a date is a weekday (Mon-Fri)
+   449→function isWeekday(date: Date): boolean {
+   450→  const dow = date.getDay()
+   451→  return dow >= 1 && dow <= 5
+   452→}
+   453→
+   454→// Helper: get the first business day (Mon-Fri) of a month
+   455→function getFirstBusinessDayOfMonth(year: number, month: number): Date {
+   456→  let d = 1
+   457→  let date = new Date(year, month, d)
+   458→  while (!isWeekday(date)) {
+   459→    d++
+   460→    date = new Date(year, month, d)
+   461→  }
+   462→  return date
+   463→}
+   464→
+   465→// Helper: get the nth occurrence of a specific weekday in a month
+   466→function getNthWeekdayOfMonth(year: number, month: number, weekday: number, n: number): Date {
+   467→  const firstDay = new Date(year, month, 1)
+   468→  let firstWeekday = firstDay.getDay()
+   469→  let diff = weekday - firstWeekday
+   470→  if (diff < 0) diff += 7
+   471→  const firstOccurrence = 1 + diff
+   472→  if (n === 4) {
+   473→    // Last occurrence - find last
+   474→    const lastDay = new Date(year, month + 1, 0).getDate()
+   475→    let lastOccurrence = firstOccurrence
+   476→    while (lastOccurrence + 7 <= lastDay) {
+   477→      lastOccurrence += 7
+   478→    }
+   479→    return new Date(year, month, lastOccurrence)
+   480→  }
+   481→  return new Date(year, month, firstOccurrence + (n - 1) * 7)
+   482→}
+   483→
+   484→// Helper: get all Mondays (or any weekday) in a month
+   485→function getWeekdaysInMonth(year: number, month: number, weekday: number): Date[] {
+   486→  const dates: Date[] = []
+   487→  const firstDay = new Date(year, month, 1)
+   488→  let firstWeekday = firstDay.getDay()
+   489→  let diff = weekday - firstWeekday
+   490→  if (diff < 0) diff += 7
+   491→  const firstOccurrence = 1 + diff
+   492→  const lastDay = new Date(year, month + 1, 0).getDate()
+   493→  for (let d = firstOccurrence; d <= lastDay; d += 7) {
+   494→    dates.push(new Date(year, month, d))
+   495→  }
+   496→  return dates
+   497→}
+   498→
+   499→// POST /api/mantenimiento-generate — Auto-generate LVs for a month
+   500→export async function POST(req: NextRequest) {
+   501→  try {
+   502→    const body = await req.json()
+   503→    const { year, month } = body // month is 0-indexed (0=January)
+   504→
+   505→    if (year === undefined || month === undefined) {
+   506→      return NextResponse.json({ error: 'year y month son obligatorios' }, { status: 400 })
+   507→    }
+   508→
+   509→    const y = Number(year)
+   510→    const m = Number(month)
+   511→    const daysInMonth = new Date(y, m + 1, 0).getDate()
+   512→    const monthStart = new Date(y, m, 1)
+   513→    const monthEnd = new Date(y, m, daysInMonth, 23, 59, 59)
+   514→
+   515→    let created = 0
+   516→    let skipped = 0
+   517→
+   518→    for (const template of LV_TEMPLATES) {
+   519→      // Determine all scheduled dates for this template in this month
+   520→      const scheduledDates: Date[] = []
+   521→
+   522→      switch (template.scheduleRule) {
+   523→        case 'daily': {
+   524→          // Every weekday (Mon-Fri) of the month — NO weekends
+   525→          for (let d = 1; d <= daysInMonth; d++) {
+   526→            const date = new Date(y, m, d)
+   527→            if (isWeekday(date)) {
+   528→              scheduledDates.push(date)
+   529→            }
+   530→          }
+   531→          break
+   532→        }
+   533→        case '3x_week': {
+   534→          // Monday, Wednesday, Friday
+   535→          for (let d = 1; d <= daysInMonth; d++) {
+   536→            const date = new Date(y, m, d)
+   537→            const dow = date.getDay()
+   538→            if (dow === 1 || dow === 3 || dow === 5) {
+   539→              scheduledDates.push(date)
+   540→            }
+   541→          }
+   542→          break
+   543→        }
+   544→        case 'weekly': {
+   545→          const wd = template.weekDay ?? 1 // Default Monday
+   546→          scheduledDates.push(...getWeekdaysInMonth(y, m, wd))
+   547→          break
+   548→        }
+   549→        case 'biweekly': {
+   550→          // Days 1 and 15 of the month, adjusted to nearest weekday if weekend
+   551→          const d1 = adjustToWeekday(new Date(y, m, 1))
+   552→          scheduledDates.push(d1)
+   553→          if (daysInMonth >= 15) {
+   554→            const d15 = adjustToWeekday(new Date(y, m, 15))
+   555→            scheduledDates.push(d15)
+   556→          }
+   557→          break
+   558→        }
+   559→        case 'monthly': {
+   560→          // First business day of the month
+   561→          const targetDate = getFirstBusinessDayOfMonth(y, m)
+   562→          scheduledDates.push(targetDate)
+   563→          break
+   564→        }
+   565→        case 'quarterly': {
+   566→          const qMonths = template.quarterMonths ?? []
+   567→          if (qMonths.includes(m + 1)) {
+   568→            const targetDate = getFirstBusinessDayOfMonth(y, m)
+   569→            scheduledDates.push(targetDate)
+   570→          }
+   571→          break
+   572→        }
+   573→        case 'semiannual': {
+   574→          const sMonths = template.semiMonths ?? []
+   575→          if (sMonths.includes(m + 1)) {
+   576→            const targetDate = getFirstBusinessDayOfMonth(y, m)
+   577→            scheduledDates.push(targetDate)
+   578→          }
+   579→          break
+   580→        }
+   581→        case 'annual': {
+   582→          const aMonth = template.annualMonth ?? 1
+   583→          if (m + 1 === aMonth) {
+   584→            const targetDate = getFirstBusinessDayOfMonth(y, m)
+   585→            scheduledDates.push(targetDate)
+   586→          }
+   587→          break
+   588→        }
+   589→      }
+   590→
+   591→      // For each scheduled date, check if LV already exists, if not create it
+   592→      for (const date of scheduledDates) {
+   593→        // Use local date components to avoid timezone issues
+   594→        const localYear = date.getFullYear()
+   595→        const localMonth = String(date.getMonth() + 1).padStart(2, '0')
+   596→        const localDay = String(date.getDate()).padStart(2, '0')
+   597→        const dateStr = `${localYear}-${localMonth}-${localDay}`
+   598→
+   599→        // Check if an LV with this codigo and date already exists
+   600→        const existing = await db.mantenimientoLV.findFirst({
+   601→          where: {
+   602→            codigo: template.codigo,
+   603→            scheduledDate: {
+   604→              gte: new Date(dateStr + 'T00:00:00.000Z'),
+   605→              lte: new Date(dateStr + 'T23:59:59.999Z'),
+   606→            },
+   607→          },
+   608→        })
+   609→
+   610→        if (existing) {
+   611→          skipped++
+   612→          continue
+   613→        }
+   614→
+   615→        // Create the LV with the date set to noon local to avoid timezone shift
+   616→        const scheduledDate = new Date(dateStr + 'T12:00:00.000Z')
+   617→
+   618→        await db.mantenimientoLV.create({
+   619→          data: {
+   620→            codigo: template.codigo,
+   621→            nombre: template.nombre,
+   622→            sector: template.sector,
+   623→            frecuencia: template.frecuencia,
+   624→            scheduledDate,
+   625→            status: 'PENDIENTE',
+   626→            progress: 0,
+   627→            items: {
+   628→              create: template.items.map((item, idx) => ({
+   629→                category: item.category,
+   630→                description: item.description,
+   631→                status: 'PENDIENTE',
+   632→                order: idx,
+   633→              })),
+   634→            },
+   635→          },
+   636→        })
+   637→        created++
+   638→      }
+   639→    }
+   640→
+   641→    return NextResponse.json({
+   642→      success: true,
+   643→      month: m + 1,
+   644→      year: y,
+   645→      created,
+   646→      skipped,
+   647→      message: `Se crearon ${created} listas de verificación (${skipped} ya existían)`,
+   648→    })
+   649→  } catch (error) {
+   650→    console.error('Error generating mantenimiento LVs:', error)
+   651→    return NextResponse.json({ error: 'Error al generar listas de verificación' }, { status: 500 })
+   652→  }
+   653→}
+   654→

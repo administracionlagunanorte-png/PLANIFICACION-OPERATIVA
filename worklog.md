@@ -128,3 +128,31 @@ Stage Summary:
   - asistencias
 - El seed de alertas es idempotente: puede ejecutarse múltiples veces sin duplicar
 - Para activar las nuevas alertas de tareas: ejecutar GET /api/seed-alerts en producción
+
+---
+Task ID: 7
+Agent: Main Agent
+Task: Fix LVs duplicadas + alertas no visibles en todos los módulos
+
+Work Log:
+- Diagnosticó que MantenimientoPanel auto-genera LVs con toast en CADA montaje (useEffect → handleGenerate())
+- La API ya es idempotente (no duplica), pero el toast "Listas generadas" aparecía cada vez, confundiendo al usuario
+- Cambió handleGenerate(silent=false) a handleGenerate(silent=true) en auto-generate — solo muestra toast si se crean nuevas LVs
+- Manual "Generar" ahora muestra: "Se crearon X listas nuevas" o "Sin listas nuevas — todas ya estaban generadas"
+- Diagnosticó que RendicionGastos y SolicitudesCompra ocultan ModuleAlertBanner cuando currentView !== 'list'
+- Quitó la condición `currentView === 'list'` en ambos componentes — banner ahora siempre visible
+- Agregó botón "Alertas" (campana) visible para Admin en TODOS los módulos:
+  - MantenimientoPanel (header)
+  - RendicionGastos (junto a "Nueva Rendicion")
+  - SolicitudesCompra (junto a "Nueva Solicitud")
+  - AnticiposPanel (ya existía)
+  - AsistenciasPanel (ya existía como "Config. Alertas")
+  - HomeClient/Tareas (en header de tabla)
+- Agregó imports de Bell en lucide-react donde faltaba (MantenimientoPanel, RendicionGastos, SolicitudesCompra, HomeClient)
+- Build exitoso sin errores
+
+Stage Summary:
+- LVs: auto-generación ahora silenciosa, solo notifica si se crean nuevas
+- Alertas: banner visible en TODOS los módulos SIN importar la vista interna
+- Botón "Alertas" accesible siempre para Admin en cada módulo
+- 6 módulos con alertas completas: tareas, mantenimiento, rendicion, compras, anticipos, asistencias
