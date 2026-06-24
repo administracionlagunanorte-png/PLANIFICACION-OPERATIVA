@@ -598,7 +598,7 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
   }
 
   // ============================================================
-  // Export report — restructured by worker, all atrasos then all faltas
+  // Export report — Resumen por persona (narrativo + tabla detalle)
   // ============================================================
   const generateReport = () => {
     const [yearStr, monthStr] = selectedMonth.split('-')
@@ -642,47 +642,76 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
     let html = `<html lang="es"><head><meta charset="UTF-8"><title>Informe de Atrasos e Inasistencias - ${monthName} ${yearStr}</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: Arial, sans-serif; margin: 20px; color: #1e293b; background: #fff; }
-h1 { font-size: 22px; text-align: center; margin-bottom: 4px; color: #0f172a; }
-h2 { font-size: 16px; text-align: center; color: #64748b; margin-bottom: 24px; font-weight: 400; }
-.worker-section { margin-bottom: 28px; page-break-inside: avoid; }
-.worker-header { background: #0f172a; color: white; padding: 10px 16px; font-size: 14px; font-weight: 700; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center; }
-.worker-header .rut { font-weight: 400; font-size: 12px; opacity: 0.85; }
-.worker-header .cargo { display: block; font-weight: 400; font-size: 11px; opacity: 0.7; margin-top: 2px; }
-.worker-header .horario { font-weight: 400; font-size: 11px; opacity: 0.8; margin-right: 12px; background: rgba(255,255,255,0.15); padding: 2px 6px; border-radius: 3px; }
-.sub-header { background: #334155; color: #e2e8f0; padding: 6px 16px; font-size: 12px; font-weight: 600; }
-.sub-header.atraso-header { border-left: 4px solid #f59e0b; }
-.sub-header.ausencia-header { border-left: 4px solid #ef4444; }
-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-th { background: #475569; color: white; padding: 8px 10px; text-align: left; font-weight: 600; font-size: 11px; }
-td { padding: 7px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
-tr:nth-child(even) { background: #f8fafc; }
-.worker-total { background: #f1f5f9; font-weight: 600; font-size: 12px; color: #0f172a; padding: 8px 16px; display: flex; justify-content: space-between; border-radius: 0 0 6px 6px; border-top: 2px solid #cbd5e1; }
-.summary { margin-top: 32px; padding: 16px; background: #f1f5f9; border-radius: 8px; }
-.summary h3 { margin: 0 0 8px; font-size: 14px; color: #0f172a; }
-.summary-item { display: inline-block; margin-right: 24px; font-size: 13px; }
-.summary-number { font-size: 20px; font-weight: 700; }
-.footer { margin-top: 32px; text-align: center; font-size: 11px; color: #94a3b8; }
-.empty-section { padding: 8px 16px; color: #94a3b8; font-size: 11px; font-style: italic; background: #f8fafc; }
+body { font-family: Arial, sans-serif; margin: 30px 40px; color: #1e293b; background: #fff; line-height: 1.5; }
+h1 { font-size: 20px; text-align: center; margin-bottom: 2px; color: #0f172a; letter-spacing: 0.5px; }
+h2 { font-size: 14px; text-align: center; color: #64748b; margin-bottom: 28px; font-weight: 400; }
+
+/* --- Resumen general al inicio --- */
+.resumen-general { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 20px; margin-bottom: 30px; }
+.resumen-general h3 { font-size: 13px; color: #0f172a; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+.resumen-general .stat-line { font-size: 13px; color: #334155; margin-bottom: 3px; }
+.resumen-general .stat-num { font-weight: 700; color: #0f172a; }
+
+/* --- Sección por persona --- */
+.persona { margin-bottom: 22px; page-break-inside: avoid; border-left: 4px solid #0f172a; padding-left: 14px; }
+.persona-header { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+.persona-header .rut-inline { font-weight: 400; font-size: 12px; color: #64748b; margin-left: 8px; }
+.persona-header .cargo-inline { font-weight: 400; font-size: 12px; color: #64748b; margin-left: 4px; }
+.persona-header .horario-inline { font-weight: 400; font-size: 11px; color: #94a3b8; margin-left: 8px; }
+
+/* --- Línea narrativa --- */
+.persona-resumen { font-size: 13px; color: #334155; margin-bottom: 6px; line-height: 1.7; }
+.persona-resumen .cant { font-weight: 700; color: #0f172a; }
+.persona-resumen .tipo-atraso { color: #b45309; font-weight: 600; }
+.persona-resumen .tipo-ausencia { color: #dc2626; font-weight: 600; }
+.fecha-lista { font-weight: 400; color: #475569; }
+
+/* --- Tabla detalle --- */
+.detalle-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px; margin-bottom: 4px; }
+.detalle-table th { background: #475569; color: white; padding: 5px 8px; text-align: left; font-size: 10px; font-weight: 600; }
+.detalle-table td { padding: 4px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+.detalle-table tr:nth-child(even) { background: #f8fafc; }
+
+/* --- Justificación badges --- */
+.just-badge { display: inline-block; padding: 1px 7px; border-radius: 8px; font-size: 9px; font-weight: 600; margin-right: 3px; }
+.just-badge.vacaciones { background: #dcfce7; color: #166534; }
+.just-badge.permiso { background: #fef3c7; color: #92400e; }
+.just-badge.licencia { background: #ede9fe; color: #5b21b6; }
+.just-badge.otro { background: #f1f5f9; color: #475569; }
+.just-detalle { font-size: 10px; color: #64748b; }
+.comp-link { color: #2563eb; text-decoration: underline; font-size: 10px; }
+
+/* --- Subtotal por persona --- */
+.persona-subtotal { font-size: 11px; color: #64748b; margin-top: 4px; padding-top: 4px; border-top: 1px dashed #cbd5e1; }
+
+/* --- Sin datos --- */
 .no-data-message { text-align: center; padding: 40px 20px; color: #64748b; font-size: 16px; }
 .no-data-message p { margin-top: 8px; font-size: 13px; color: #94a3b8; }
-.justificado-badge { display: inline-block; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; margin-left: 4px; }
-.justificado-badge.vacaciones { background: #dcfce7; color: #166534; }
-.justificado-badge.permiso { background: #fef3c7; color: #92400e; }
-.justificado-badge.licencia { background: #ede9fe; color: #5b21b6; }
-.justificado-badge.otro { background: #f1f5f9; color: #475569; }
-.comprobante-link { color: #2563eb; text-decoration: underline; font-size: 11px; }
-@media print { body { margin: 0; } .worker-section { page-break-inside: avoid; } }
+
+.footer { margin-top: 36px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+
+@media print {
+  body { margin: 15px 20px; }
+  .persona { page-break-inside: avoid; }
+}
 </style></head><body>
-<h1>Informe de Atrasos e Inasistencias</h1>
+<h1>INFORME DE ATRASOS E INASISTENCIAS</h1>
 <h2>Condominio Laguna Norte &mdash; ${monthName} ${yearStr}</h2>`
 
+    // --- Resumen general ---
+    html += `<div class="resumen-general">
+<h3>Resumen del Per&iacute;odo ${monthName} ${yearStr}</h3>
+<div class="stat-line">&bull; Trabajadores con registros: <span class="stat-num">${uniqueWorkers.size}</span></div>
+<div class="stat-line">&bull; Total atrasos: <span class="stat-num">${atrasos.length}</span> &mdash; Total inasistencias: <span class="stat-num">${ausencias.length}</span></div>
+<div class="stat-line">&bull; Tiempo total de retraso acumulado: <span class="stat-num">${formatMinutes(totalMinAtraso)}</span></div>
+</div>`
+
     if (filtered.length === 0) {
-      html += `<div class="no-data-message"><strong>No se encontraron registros de atrasos ni inasistencias</strong><p>Período: ${monthName} ${yearStr} — No hay datos para el mes seleccionado. Verifique que se haya importado el archivo de asistencia correctamente y que el mes seleccionado corresponda a los datos importados.</p></div>`
+      html += `<div class="no-data-message"><strong>No se encontraron registros de atrasos ni inasistencias</strong><p>Período: ${monthName} ${yearStr} — No hay datos para el mes seleccionado. Verifique que se haya importado el archivo de asistencia correctamente.</p></div>`
     }
 
-    // --- Workers: each worker gets all atrasos first, then all faltas ---
-    sortedWorkers.forEach(([, data]) => {
+    // --- Detalle por persona ---
+    sortedWorkers.forEach(([, data], workerIdx) => {
       const workerAtrasos = data.records.filter(r => r.type === 'ATRASO').sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       const workerAusencias = data.records.filter(r => r.type === 'AUSENCIA').sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       const workerCargo = data.worker.cargo || ''
@@ -690,50 +719,82 @@ tr:nth-child(even) { background: #f8fafc; }
       const workerTotalMin = workerAtrasos.reduce((s, r) => s + r.minutesLate, 0)
       const workerJustificados = data.records.filter(r => r.tipoJustificacion).length
 
-      html += `<div class="worker-section"><div class="worker-header"><div><span>${data.worker.nombre}</span>${workerCargo ? `<span class="cargo">${workerCargo}</span>` : ''}</div><div>${workerHorario ? `<span class="horario">Entrada: ${workerHorario}</span>` : ''}<span class="rut">${data.worker.rut}</span></div></div>`
+      // --- Header de persona ---
+      html += `<div class="persona">`
+      html += `<div class="persona-header">${workerIdx + 1}. ${data.worker.nombre}<span class="rut-inline">RUT: ${data.worker.rut}</span>${workerCargo ? `<span class="cargo-inline">&mdash; ${workerCargo}</span>` : ''}${workerHorario ? `<span class="horario-inline">Entrada: ${workerHorario}</span>` : ''}</div>`
 
-      // --- ATRASOS subsection ---
-      html += `<div class="sub-header atraso-header">Atrasos (${workerAtrasos.length})</div>`
+      // --- Línea narrativa resumen ---
+      html += `<div class="persona-resumen">`
       if (workerAtrasos.length > 0) {
-        html += `<table><thead><tr><th>N&deg;</th><th>Fecha</th><th>Tiempo de Retraso</th><th>Justificación</th><th>Comprobante</th></tr></thead><tbody>`
-        workerAtrasos.forEach((r, idx) => {
+        html += `<span class="tipo-atraso">Atrasos:</span> <span class="cant">${workerAtrasos.length}</span> &mdash; los d&iacute;as `
+        const atrasoFechas = workerAtrasos.map(r => {
           const dateStr = new Date(r.date).toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
-          const justBadge = r.tipoJustificacion
-            ? `<span class="justificado-badge ${(r.tipoJustificacion || '').toLowerCase()}">${escJustificacionTipo(r.tipoJustificacion)}</span>${r.justificacion ? '<br><span style="font-size:10px;color:#475569;">' + r.justificacion + '</span>' : ''}`
-            : '<span style="color:#94a3b8;font-size:11px;">Sin justificar</span>'
-          const compLink = r.comprobanteUrl
-            ? `<a class="comprobante-link" href="${r.comprobanteUrl}" target="_blank">${r.comprobanteNombre || 'Ver comprobante'}</a>`
-            : '<span style="color:#cbd5e1;font-size:11px;">-</span>'
-          html += `<tr><td>${idx + 1}</td><td>${dateStr}</td><td>${r.minutesLate > 0 ? formatMinutes(r.minutesLate) : '-'}</td><td>${justBadge}</td><td>${compLink}</td></tr>`
+          const mins = r.minutesLate > 0 ? ` (${formatMinutes(r.minutesLate)})` : ''
+          const just = r.tipoJustificacion ? ` [${escJustificacionTipo(r.tipoJustificacion)}${r.justificacion ? ': ' + r.justificacion : ''}]` : ''
+          return `<span class="fecha-lista">${dateStr}${mins}${just}</span>`
         })
-        html += `</tbody></table>`
+        html += atrasoFechas.join('; ')
+        html += `. Total retraso: <span class="cant">${formatMinutes(workerTotalMin)}</span>.`
       } else {
-        html += `<div class="empty-section">Sin atrasos registrados</div>`
+        html += `<span class="tipo-atraso">Atrasos:</span> <span class="cant">0</span>.`
       }
 
-      // --- INASISTENCIAS subsection ---
-      html += `<div class="sub-header ausencia-header">Inasistencias (${workerAusencias.length})</div>`
+      html += `<br/>`
+
       if (workerAusencias.length > 0) {
-        html += `<table><thead><tr><th>N&deg;</th><th>Fecha</th><th>Justificación</th><th>Comprobante</th></tr></thead><tbody>`
-        workerAusencias.forEach((r, idx) => {
+        html += `<span class="tipo-ausencia">Ausencias:</span> <span class="cant">${workerAusencias.length}</span> &mdash; los d&iacute;as `
+        const ausenciaFechas = workerAusencias.map(r => {
           const dateStr = new Date(r.date).toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
-          const justBadge = r.tipoJustificacion
-            ? `<span class="justificado-badge ${(r.tipoJustificacion || '').toLowerCase()}">${escJustificacionTipo(r.tipoJustificacion)}</span>${r.justificacion ? '<br><span style="font-size:10px;color:#475569;">' + r.justificacion + '</span>' : ''}`
-            : '<span style="color:#94a3b8;font-size:11px;">Sin justificar</span>'
-          const compLink = r.comprobanteUrl
-            ? `<a class="comprobante-link" href="${r.comprobanteUrl}" target="_blank">${r.comprobanteNombre || 'Ver comprobante'}</a>`
-            : '<span style="color:#cbd5e1;font-size:11px;">-</span>'
-          html += `<tr><td>${idx + 1}</td><td>${dateStr}</td><td>${justBadge}</td><td>${compLink}</td></tr>`
+          const just = r.tipoJustificacion ? ` [${escJustificacionTipo(r.tipoJustificacion)}${r.justificacion ? ': ' + r.justificacion : ''}]` : ''
+          return `<span class="fecha-lista">${dateStr}${just}</span>`
         })
-        html += `</tbody></table>`
+        html += ausenciaFechas.join('; ')
+        html += `.`
       } else {
-        html += `<div class="empty-section">Sin inasistencias registradas</div>`
+        html += `<span class="tipo-ausencia">Ausencias:</span> <span class="cant">0</span>.`
+      }
+      html += `</div>`
+
+      // --- Tabla detalle con justificación y comprobante ---
+      const hasAnyJust = data.records.some(r => r.tipoJustificacion)
+      const hasAnyComp = data.records.some(r => r.comprobanteUrl)
+      if (workerAtrasos.length > 0 || workerAusencias.length > 0) {
+        html += `<table class="detalle-table"><thead><tr><th>Tipo</th><th>Fecha</th><th>Retraso</th>${hasAnyJust ? '<th>Justificaci&oacute;n</th>' : ''}${hasAnyComp ? '<th>Comprobante</th>' : ''}</tr></thead><tbody>`
+
+        workerAtrasos.forEach(r => {
+          const dateStr = new Date(r.date).toLocaleDateString('es-CL', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })
+          html += `<tr><td style="color:#b45309;font-weight:600;">Atraso</td><td>${dateStr}</td><td>${r.minutesLate > 0 ? formatMinutes(r.minutesLate) : '-'}</td>`
+          if (hasAnyJust) {
+            html += `<td>${r.tipoJustificacion ? `<span class="just-badge ${(r.tipoJustificacion).toLowerCase()}">${escJustificacionTipo(r.tipoJustificacion)}</span>${r.justificacion ? `<span class="just-detalle"> ${r.justificacion}</span>` : ''}` : '-'}</td>`
+          }
+          if (hasAnyComp) {
+            html += `<td>${r.comprobanteUrl ? `<a class="comp-link" href="${r.comprobanteUrl}" target="_blank">${r.comprobanteNombre || 'Ver'}</a>` : '-'}</td>`
+          }
+          html += `</tr>`
+        })
+
+        workerAusencias.forEach(r => {
+          const dateStr = new Date(r.date).toLocaleDateString('es-CL', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })
+          html += `<tr><td style="color:#dc2626;font-weight:600;">Ausencia</td><td>${dateStr}</td><td>-</td>`
+          if (hasAnyJust) {
+            html += `<td>${r.tipoJustificacion ? `<span class="just-badge ${(r.tipoJustificacion).toLowerCase()}">${escJustificacionTipo(r.tipoJustificacion)}</span>${r.justificacion ? `<span class="just-detalle"> ${r.justificacion}</span>` : ''}` : '-'}</td>`
+          }
+          if (hasAnyComp) {
+            html += `<td>${r.comprobanteUrl ? `<a class="comp-link" href="${r.comprobanteUrl}" target="_blank">${r.comprobanteNombre || 'Ver'}</a>` : '-'}</td>`
+          }
+          html += `</tr>`
+        })
+
+        html += `</tbody></table>`
       }
 
-      html += `<div class="worker-total"><span>${workerAtrasos.length} atraso${workerAtrasos.length !== 1 ? 's' : ''}${workerAusencias.length > 0 ? ', ' + workerAusencias.length + ' inasistencia' + (workerAusencias.length !== 1 ? 's' : '') : ''}${workerJustificados > 0 ? ' &mdash; ' + workerJustificados + ' justificado' + (workerJustificados !== 1 ? 's' : '') : ''}</span><span>Total retraso: ${formatMinutes(workerTotalMin)}</span></div></div>`
+      // --- Subtotal ---
+      html += `<div class="persona-subtotal">${workerAtrasos.length} atraso${workerAtrasos.length !== 1 ? 's' : ''}${workerAusencias.length > 0 ? ', ' + workerAusencias.length + ' ausencia' + (workerAusencias.length !== 1 ? 's' : '') : ''}${workerTotalMin > 0 ? ' &mdash; Retraso acumulado: ' + formatMinutes(workerTotalMin) : ''}${workerJustificados > 0 ? ' &mdash; ' + workerJustificados + ' justificado' + (workerJustificados !== 1 ? 's' : '') : ''}</div>`
+
+      html += `</div>` // close .persona
     })
 
-    html += `<div class="summary"><h3>Resumen del Per&iacute;odo</h3><span class="summary-item"><span class="summary-number">${uniqueWorkers.size}</span> Trabajadores</span><span class="summary-item"><span class="summary-number">${atrasos.length}</span> Atrasos</span><span class="summary-item"><span class="summary-number">${ausencias.length}</span> Inasistencias</span><span class="summary-item"><span class="summary-number">${formatMinutes(totalMinAtraso)}</span> Total retraso</span></div><div class="footer">Condominio Laguna Norte &mdash; Informe generado autom&aacute;ticamente &mdash; ${new Date().toLocaleDateString('es-CL')}</div></body></html>`
+    html += `<div class="footer">Condominio Laguna Norte &mdash; Informe generado autom&aacute;ticamente &mdash; ${new Date().toLocaleDateString('es-CL')}</div></body></html>`
 
     // Store HTML and open report dialog
     setReportHtml(html)
