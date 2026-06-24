@@ -326,9 +326,14 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
 
       if (res.ok) {
         const summary = await res.json()
+        const parts = []
+        if (summary.atrasosCreated > 0) parts.push(`${summary.atrasosCreated} atraso(s)`)
+        if (summary.ausenciasCreated > 0) parts.push(`${summary.ausenciasCreated} inasistencia(s)`)
+        if (parts.length === 0) parts.push('0 registros nuevos')
+        const desc = `${parts.join(', ')} creado(s), ${summary.workersCreated} trabajador(es) nuevo(s), ${summary.skipped} existente(s) omitido(s)`
         toast({
           title: 'Importación completada',
-          description: `${summary.atrasosCreated} atraso(s) creado(s), ${summary.workersCreated} trabajador(es) nuevo(s), ${summary.skipped} existente(s) omitido(s)`,
+          description: desc,
         })
         fetchRecords()
         fetchWorkers()

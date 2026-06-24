@@ -5,11 +5,14 @@ import * as XLSX from 'xlsx'
 // ============================================================
 // XLS Import for Asistencias Module
 // ============================================================
-// Parses a biometric clock XLS file and creates ATRASO records
-// for workers in 4 specific departments who arrived late.
+// Parses a biometric clock XLS file and creates:
+//   - ATRASO records for workers who arrived late
+//   - AUSENCIA records for workers with no entry on work days (Mon-Sat)
 //
 // Morning shift threshold: 08:05 AM
 // Afternoon shift threshold: 14:05 (2:05 PM)
+//
+// Work days: Lunes a Sábado (no Sunday)
 //
 // Target departments only:
 // - Auxiliares de Aseo
@@ -47,28 +50,30 @@ interface ParsedRow {
   tipoRegistro: string
 }
 
-interface AtrasoDetail {
+interface ImportDetail {
   rut: string
   nombre: string
   departamento: string
   date: string
-  entryTime: string
-  shift: 'morning' | 'afternoon'
-  minutesLate: number
-  action: 'created' | 'skipped_existing' | 'skipped_no_worker'
+  type: 'ATRASO' | 'AUSENCIA'
+  entryTime?: string
+  shift?: 'morning' | 'afternoon'
+  minutesLate?: number
+  action: 'created' | 'skipped_existing'
 }
 
 interface ImportSummary {
   totalRecords: number
   atrasosFound: number
   atrasosCreated: number
+  ausenciasFound: number
+  ausenciasCreated: number
   workersCreated: number
   skipped: number
-  details: AtrasoDetail[]
+  details: ImportDetail[]
 }
 
 function normalizeRut(rut: string): string {
-  // Normalize RUT format: remove extra spaces, ensure consistent format
   return rut.trim().replace(/\s+/g, '')
 }
 
@@ -82,20 +87,66 @@ function parseExcelDate(value: unknown): Date | null {
     return value
   }
   if (typeof value === 'number') {
-    // Excel serial date number
     const date = XLSX.SSF.parse_date_code(value)
     if (date) {
       return new Date(date.y, date.m - 1, date.d, date.H || 0, date.M || 0, date.S || 0)
     }
   }
   if (typeof value === 'string') {
-    // Try parsing date string
     const parsed = new Date(value)
     if (!isNaN(parsed.getTime())) {
       return parsed
     }
   }
   return null
+}
+
+// Check if a date is a work day (Monday=1 to Saturday=6, NOT Sunday=0)
+function isWorkDay(date: Date): boolean {
+  const day = date.getDay()
+  return day !== 0 // Sunday = 0, everything else is a work day
+}
+
+// Format date as YYYY-MM-DD
+function formatDate(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+async function findOrCreateWorker(rut: string, nombre: string, summary: ImportSummary) {
+  let worker = await db.worker.findFirst({
+    where: { rut },
+  })
+
+  if (!worker) {
+    // Try with normalized RUT variations
+    const rutVariations = [
+      rut,
+      rut.replace(/\./g, ''),
+      rut.replace(/-/g, '.'),
+    ]
+    for (const rutVar of rutVariations) {
+      worker = await db.worker.findFirst({
+        where: { rut: rutVar },
+      })
+      if (worker) break
+    }
+  }
+
+  if (!worker) {
+    worker = await db.worker.create({
+      data: {
+        nombre,
+        rut,
+        cuentaBancaria: '',
+      },
+    })
+    summary.workersCreated++
+  }
+
+  return worker
 }
 
 export async function POST(req: NextRequest) {
@@ -107,7 +158,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No se proporcionó ningún archivo' }, { status: 400 })
     }
 
-    // Validate file extension
     const fileName = file.name.toLowerCase()
     if (!fileName.endsWith('.xls') && !fileName.endsWith('.xlsx')) {
       return NextResponse.json(
@@ -116,7 +166,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Read the file buffer
     const buffer = Buffer.from(await file.arrayBuffer())
 
     // Parse the XLS/XLSX file
@@ -128,12 +177,10 @@ export async function POST(req: NextRequest) {
     const sheet = workbook.Sheets[sheetName]
 
     // Auto-detect the header row by scanning rows for required columns
-    // Biometric clock exports may have 3, 4, or more header rows before the actual column headers
     const REQUIRED_COLS = [COL_DEPARTAMENTO, COL_RUT, COL_NOMBRE, COL_FECHA_HORA, COL_TIPO_REGISTRO]
     let headerRowIndex = -1
     let jsonData: Record<string, unknown>[] = []
 
-    // Try range values from 0 to 10 to find the correct header row
     for (let rangeAttempt = 0; rangeAttempt <= 10; rangeAttempt++) {
       const tryData: Record<string, unknown>[] = XLSX.utils.sheet_to_json(sheet, {
         range: rangeAttempt,
@@ -143,12 +190,12 @@ export async function POST(req: NextRequest) {
       if (tryData.length === 0) continue
 
       const columns = Object.keys(tryData[0])
-      const findColumn = (target: string): string | null => {
+      const findCol = (target: string): string | null => {
         const normalized = target.trim().toLowerCase()
         return columns.find(c => c.trim().toLowerCase() === normalized) || null
       }
 
-      const allFound = REQUIRED_COLS.every(col => findColumn(col) !== null)
+      const allFound = REQUIRED_COLS.every(col => findCol(col) !== null)
 
       if (allFound) {
         headerRowIndex = rangeAttempt
@@ -163,42 +210,40 @@ export async function POST(req: NextRequest) {
       }, { status: 400 })
     }
 
-    // Find column names (they might have slight variations)
+    // Find column names
     const firstRow = jsonData[0]
     const columns = Object.keys(firstRow)
 
-    // Try to find the matching columns (case-insensitive, trimmed)
     const findColumn = (target: string): string | null => {
       const normalized = target.trim().toLowerCase()
       return columns.find(c => c.trim().toLowerCase() === normalized) || null
     }
 
-    const colDepartamento = findColumn(COL_DEPARTAMENTO)
-    const colRut = findColumn(COL_RUT)
-    const colNombre = findColumn(COL_NOMBRE)
-    const colFechaHora = findColumn(COL_FECHA_HORA)
-    const colTipoRegistro = findColumn(COL_TIPO_REGISTRO)
+    const colDepartamento = findColumn(COL_DEPARTAMENTO)!
+    const colRut = findColumn(COL_RUT)!
+    const colNombre = findColumn(COL_NOMBRE)!
+    const colFechaHora = findColumn(COL_FECHA_HORA)!
+    const colTipoRegistro = findColumn(COL_TIPO_REGISTRO)!
+    const colCodigo = findColumn(COL_CODIGO)
 
-    // Parse all rows
-    const parsedRows: ParsedRow[] = []
+    // ============================================================
+    // STEP 1: Parse ALL rows from target departments (Entrada + Salida)
+    // ============================================================
+    const allTargetRows: ParsedRow[] = []
     for (const row of jsonData) {
       const departamento = String(row[colDepartamento] || '').trim()
+      if (!isTargetDepartment(departamento)) continue
+
       const rut = normalizeRut(String(row[colRut] || ''))
       const nombre = String(row[colNombre] || '').trim()
       const tipoRegistro = String(row[colTipoRegistro] || '').trim()
-
-      // Skip if not a target department
-      if (!isTargetDepartment(departamento)) continue
-
-      // Skip if not an "Entrada" record
-      if (tipoRegistro.toLowerCase() !== 'entrada') continue
-
-      // Parse the date/time
       const fechaHora = parseExcelDate(row[colFechaHora])
-      if (!fechaHora) continue
 
-      parsedRows.push({
-        codigo: String(row[findColumn(COL_CODIGO) || ''] || '').trim(),
+      if (!fechaHora) continue
+      if (!rut) continue
+
+      allTargetRows.push({
+        codigo: String(row[colCodigo || ''] || '').trim(),
         rut,
         nombre,
         departamento,
@@ -207,22 +252,57 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Group entries by RUT + date to find first entry per shift
-    // Key: "RUT|YYYY-MM-DD|shift"
-    const entryMap = new Map<string, ParsedRow>()
+    // ============================================================
+    // STEP 2: Build set of all dates and workers present per day
+    // Key: "RUT|YYYY-MM-DD" → Set of tipoRegistro values
+    // ============================================================
+    const workerDayEntries = new Map<string, Set<string>>() // "RUT|date" → Set of "Entrada"/"Salida"
+    const workerInfo = new Map<string, { nombre: string; departamento: string }>() // RUT → info
+    let minDate: Date | null = null
+    let maxDate: Date | null = null
 
-    for (const row of parsedRows) {
-      const dateStr = row.fechaHora.toISOString().split('T')[0]
+    for (const row of allTargetRows) {
+      const dateStr = formatDate(row.fechaHora)
+      const key = `${row.rut}|${dateStr}`
+
+      if (!workerDayEntries.has(key)) {
+        workerDayEntries.set(key, new Set())
+      }
+      workerDayEntries.get(key)!.add(row.tipoRegistro.toLowerCase())
+
+      workerInfo.set(row.rut, { nombre: row.nombre, departamento: row.departamento })
+
+      // Track date range
+      if (!minDate || row.fechaHora < minDate) minDate = row.fechaHora
+      if (!maxDate || row.fechaHora > maxDate) maxDate = row.fechaHora
+    }
+
+    // Get unique RUTs of target department workers
+    const targetRuts = new Set(allTargetRows.map(r => r.rut))
+
+    // Get unique dates where target department workers had any record
+    const allDates = new Set<string>()
+    for (const row of allTargetRows) {
+      allDates.add(formatDate(row.fechaHora))
+    }
+
+    // ============================================================
+    // STEP 3: Detect ATRASOS from Entrada records
+    // ============================================================
+    const entradaRows = allTargetRows.filter(r => r.tipoRegistro.toLowerCase() === 'entrada')
+
+    // Group entries by RUT + date + shift to find first entry per shift
+    const entryMap = new Map<string, ParsedRow>()
+    for (const row of entradaRows) {
+      const dateStr = formatDate(row.fechaHora)
       const hour = row.fechaHora.getHours()
 
-      // Determine shift: morning (before 12:00) or afternoon (12:00-18:00)
       let shift: 'morning' | 'afternoon'
       if (hour < 12) {
         shift = 'morning'
       } else if (hour < 18) {
         shift = 'afternoon'
       } else {
-        // Evening/night shift - skip
         continue
       }
 
@@ -234,16 +314,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Check each first entry for atraso
     const summary: ImportSummary = {
-      totalRecords: parsedRows.length,
+      totalRecords: allTargetRows.length,
       atrasosFound: 0,
       atrasosCreated: 0,
+      ausenciasFound: 0,
+      ausenciasCreated: 0,
       workersCreated: 0,
       skipped: 0,
       details: [],
     }
 
+    // Process atrasos
     for (const [key, row] of Array.from(entryMap.entries())) {
       const [, dateStr, shift] = key.split('|')
       const entryHour = row.fechaHora.getHours()
@@ -260,62 +342,26 @@ export async function POST(req: NextRequest) {
         thresholdMinute = 5
       }
 
-      // Check if late
       const entryTotalMinutes = entryHour * 60 + entryMinute
       const thresholdTotalMinutes = thresholdHour * 60 + thresholdMinute
 
       if (entryTotalMinutes <= thresholdTotalMinutes) {
-        // On time, not an atraso
-        continue
+        continue // On time
       }
 
       const minutesLate = entryTotalMinutes - thresholdTotalMinutes
       summary.atrasosFound++
 
-      // Find or create worker by RUT
-      let worker = await db.worker.findFirst({
-        where: { rut: row.rut },
-      })
+      const worker = await findOrCreateWorker(row.rut, row.nombre, summary)
 
-      if (!worker) {
-        // Try with normalized RUT variations
-        const rutVariations = [
-          row.rut,
-          row.rut.replace(/\./g, ''),  // Without dots
-          row.rut.replace(/-/g, '.'),  // Dash to dot
-        ]
-
-        for (const rutVar of rutVariations) {
-          worker = await db.worker.findFirst({
-            where: { rut: rutVar },
-          })
-          if (worker) break
-        }
-      }
-
-      if (!worker) {
-        // Create new worker
-        worker = await db.worker.create({
-          data: {
-            nombre: row.nombre,
-            rut: row.rut,
-            cuentaBancaria: '',
-          },
-        })
-        summary.workersCreated++
-      }
-
-      // Check if an AsistenciaRecord already exists for this worker+date+type
+      // Check if ATRASO already exists for this worker+date
       const dateStart = new Date(dateStr + 'T00:00:00.000Z')
       const dateEnd = new Date(dateStr + 'T23:59:59.999Z')
 
       const existingRecord = await db.asistenciaRecord.findFirst({
         where: {
           workerId: worker.id,
-          date: {
-            gte: dateStart,
-            lte: dateEnd,
-          },
+          date: { gte: dateStart, lte: dateEnd },
           type: 'ATRASO',
         },
       })
@@ -327,6 +373,7 @@ export async function POST(req: NextRequest) {
           nombre: row.nombre,
           departamento: row.departamento,
           date: dateStr,
+          type: 'ATRASO',
           entryTime: `${String(entryHour).padStart(2, '0')}:${String(entryMinute).padStart(2, '0')}`,
           shift: shift as 'morning' | 'afternoon',
           minutesLate,
@@ -335,11 +382,10 @@ export async function POST(req: NextRequest) {
         continue
       }
 
-      // Create the ATRASO record
       await db.asistenciaRecord.create({
         data: {
           workerId: worker.id,
-          date: new Date(dateStr + 'T12:00:00.000Z'), // Use noon to avoid timezone issues
+          date: new Date(dateStr + 'T12:00:00.000Z'),
           type: 'ATRASO',
           minutesLate,
           reason: `Importado desde registro de asistencia (${shift === 'morning' ? 'turno mañana' : 'turno tarde'})`,
@@ -353,12 +399,121 @@ export async function POST(req: NextRequest) {
         nombre: row.nombre,
         departamento: row.departamento,
         date: dateStr,
+        type: 'ATRASO',
         entryTime: `${String(entryHour).padStart(2, '0')}:${String(entryMinute).padStart(2, '0')}`,
         shift: shift as 'morning' | 'afternoon',
         minutesLate,
         action: 'created',
       })
     }
+
+    // ============================================================
+    // STEP 4: Detect AUSENCIAS (no entry on work days Mon-Sat)
+    // ============================================================
+    // For each worker in target departments and each work day in the
+    // date range, if there's NO "entrada" record, register AUSENCIA.
+    // ============================================================
+
+    if (minDate && maxDate && targetRuts.size > 0) {
+      // Build the list of work days (Mon-Sat) in the date range
+      const workDays: string[] = []
+      const current = new Date(minDate)
+      current.setHours(0, 0, 0, 0)
+      const end = new Date(maxDate)
+      end.setHours(23, 59, 59, 999)
+
+      while (current <= end) {
+        if (isWorkDay(current)) {
+          workDays.push(formatDate(current))
+        }
+        current.setDate(current.getDate() + 1)
+      }
+
+      // For each target worker, check each work day
+      for (const rut of targetRuts) {
+        const info = workerInfo.get(rut)
+        if (!info) continue
+
+        for (const dateStr of workDays) {
+          const key = `${rut}|${dateStr}`
+          const entries = workerDayEntries.get(key)
+
+          // If no "entrada" was recorded for this worker on this day
+          if (!entries || !entries.has('entrada')) {
+            summary.ausenciasFound++
+
+            const worker = await findOrCreateWorker(rut, info.nombre, summary)
+
+            // Check if AUSENCIA already exists for this worker+date
+            const dateStart = new Date(dateStr + 'T00:00:00.000Z')
+            const dateEnd = new Date(dateStr + 'T23:59:59.999Z')
+
+            const existingAusencia = await db.asistenciaRecord.findFirst({
+              where: {
+                workerId: worker.id,
+                date: { gte: dateStart, lte: dateEnd },
+                type: 'AUSENCIA',
+              },
+            })
+
+            if (existingAusencia) {
+              summary.skipped++
+              summary.details.push({
+                rut,
+                nombre: info.nombre,
+                departamento: info.departamento,
+                date: dateStr,
+                type: 'AUSENCIA',
+                action: 'skipped_existing',
+              })
+              continue
+            }
+
+            // Also skip if there's an ATRASO record for this day (already counted as present)
+            const existingAtraso = await db.asistenciaRecord.findFirst({
+              where: {
+                workerId: worker.id,
+                date: { gte: dateStart, lte: dateEnd },
+                type: 'ATRASO',
+              },
+            })
+
+            if (existingAtraso) {
+              // Worker was present (just late) - not an absence
+              continue
+            }
+
+            await db.asistenciaRecord.create({
+              data: {
+                workerId: worker.id,
+                date: new Date(dateStr + 'T12:00:00.000Z'),
+                type: 'AUSENCIA',
+                minutesLate: 0,
+                reason: 'Sin marcación de entrada en registro de asistencia',
+                reportedBy: 'Importación XLS',
+              },
+            })
+
+            summary.ausenciasCreated++
+            summary.details.push({
+              rut,
+              nombre: info.nombre,
+              departamento: info.departamento,
+              date: dateStr,
+              type: 'AUSENCIA',
+              action: 'created',
+            })
+          }
+        }
+      }
+    }
+
+    // Sort details: first by date, then by nombre
+    summary.details.sort((a, b) => {
+      const dateCompare = a.date.localeCompare(b.date)
+      if (dateCompare !== 0) return dateCompare
+      return a.nombre.localeCompare(b.nombre)
+    })
 
     return NextResponse.json(summary, { status: 200 })
   } catch (error) {
