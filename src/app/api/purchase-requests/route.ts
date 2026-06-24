@@ -27,12 +27,12 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       where.OR = [
-        { title: { contains: search } },
-        { productDescription: { contains: search } },
-        { brand: { contains: search } },
-        { directProvider: { contains: search } },
-        { notes: { contains: search } },
-        { responsible: { contains: search } },
+        { title: { contains: search, mode: 'insensitive' } },
+        { productDescription: { contains: search, mode: 'insensitive' } },
+        { brand: { contains: search, mode: 'insensitive' } },
+        { directProvider: { contains: search, mode: 'insensitive' } },
+        { notes: { contains: search, mode: 'insensitive' } },
+        { responsible: { contains: search, mode: 'insensitive' } },
       ]
     }
 

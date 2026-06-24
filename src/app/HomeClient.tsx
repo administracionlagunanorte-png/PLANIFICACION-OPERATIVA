@@ -3280,7 +3280,7 @@ export default function Home({ onAuthExpired }: HomeClientProps) {
       {/* View Tabs */}
       <div className="max-w-[1600px] mx-auto px-3 sm:px-4 py-2 sm:py-3">
         <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex bg-white rounded-lg border p-1 gap-1 overflow-x-auto scrollbar-none">
+          <div className="flex bg-white rounded-lg border p-1 gap-1 flex-wrap">
             <Button
               variant="ghost"
               size="sm"

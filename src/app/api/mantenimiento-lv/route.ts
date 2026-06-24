@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     const where: any = {}
     if (frecuencia && frecuencia !== 'all') where.frecuencia = frecuencia
     if (status && status !== 'all') where.status = status
-    if (sector && sector !== 'all') where.sector = { contains: sector }
+    if (sector && sector !== 'all') where.sector = { contains: sector, mode: 'insensitive' }
     if (from || to) {
       where.scheduledDate = {}
       if (from) where.scheduledDate.gte = new Date(from)
