@@ -152,6 +152,10 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
   const [filterType, setFilterType] = useState<string>('all')
   const [filterWorker, setFilterWorker] = useState<string>('all')
 
+  // --- Report state ---
+  const [reportHtml, setReportHtml] = useState<string>('')
+  const [reportOpen, setReportOpen] = useState(false)
+
   // --- Import state ---
   const [importing, setImporting] = useState(false)
   const [importingNomina, setImportingNomina] = useState(false)
@@ -340,10 +344,11 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
         if (summary.atrasosCreated > 0) parts.push(`${summary.atrasosCreated} atraso(s)`)
         if (summary.ausenciasCreated > 0) parts.push(`${summary.ausenciasCreated} inasistencia(s)`)
         if (parts.length === 0) parts.push('0 registros nuevos')
-        const desc = `${parts.join(', ')} creado(s), ${summary.workersCreated} trabajador(es) nuevo(s), ${summary.skipped} existente(s) omitido(s)`
+        const desc = `${parts.join(', ')} creado(s), ${summary.workersCreated} trabajador(es) nuevo(s), ${summary.skipped} existente(s) omitido(s). Total filas: ${summary.totalRecords}, Atrasos encontrados: ${summary.atrasosFound}, Ausencias encontradas: ${summary.ausenciasFound}. Columnas: ${JSON.stringify(summary.columnMapping)}`
         toast({
-          title: 'Importación completada',
+          title: summary.totalRecords > 0 && summary.atrasosFound === 0 && summary.ausenciasFound === 0 ? 'Importación sin resultados' : 'Importación completada',
           description: desc,
+          duration: 15000,
         })
         fetchRecords()
         fetchWorkers()
@@ -445,7 +450,7 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
   }
 
   // ============================================================
-  // Export report
+  // Export report — shows in-page dialog with print button
   // ============================================================
   const generateReport = () => {
     const [yearStr, monthStr] = selectedMonth.split('-')
@@ -464,10 +469,10 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
     }
 
     // Group records by worker
-    const workerMap = new Map<string, { worker: { nombre: string; rut: string }; records: typeof filtered }>()
+    const workerMap = new Map<string, { worker: { nombre: string; rut: string; cargo?: string; horaEntrada?: string }; records: typeof filtered }>()
     filtered.forEach(r => {
       if (!workerMap.has(r.workerId)) {
-        workerMap.set(r.workerId, { worker: r.worker, records: [] })
+        workerMap.set(r.workerId, { worker: r.worker as any, records: [] })
       }
       workerMap.get(r.workerId)!.records.push(r)
     })
@@ -483,207 +488,89 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
     const totalMinAtraso = atrasos.reduce((s, r) => s + r.minutesLate, 0)
     const uniqueWorkers = new Set(filtered.map(r => r.workerId))
 
-    // Helper: format minutes to hours+minutes
     const formatMinutes = (mins: number): string => {
       const h = Math.floor(mins / 60)
       const m = mins % 60
-      if (h > 0) {
-        return `${h} hr${h !== 1 ? 's' : ''}${m > 0 ? ' ' + m + ' min' : ''}`
-      }
+      if (h > 0) return `${h} hr${h !== 1 ? 's' : ''}${m > 0 ? ' ' + m + ' min' : ''}`
       return `${m} min`
     }
 
-    let html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Informe de Atrasos e Inasistencias - ${monthName} ${yearStr}</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; margin: 20px; color: #1e293b; background: #fff; }
-    h1 { font-size: 22px; text-align: center; margin-bottom: 4px; color: #0f172a; }
-    h2 { font-size: 16px; text-align: center; color: #64748b; margin-bottom: 24px; font-weight: 400; }
-    .worker-section { margin-bottom: 28px; page-break-inside: avoid; }
-    .worker-header { background: #0f172a; color: white; padding: 10px 16px; font-size: 14px; font-weight: 700; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center; }
-    .worker-header .rut { font-weight: 400; font-size: 12px; opacity: 0.85; }
-    .worker-header .cargo { display: block; font-weight: 400; font-size: 11px; opacity: 0.7; margin-top: 2px; }
-    .worker-header .horario { font-weight: 400; font-size: 11px; opacity: 0.8; margin-right: 12px; background: rgba(255,255,255,0.15); padding: 2px 6px; border-radius: 3px; }
-    .sub-header { background: #334155; color: #e2e8f0; padding: 6px 16px; font-size: 12px; font-weight: 600; }
-    .sub-header.atraso-header { border-left: 4px solid #f59e0b; }
-    .sub-header.ausencia-header { border-left: 4px solid #ef4444; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    th { background: #475569; color: white; padding: 8px 12px; text-align: left; font-weight: 600; font-size: 11px; }
-    td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
-    tr:nth-child(even) { background: #f8fafc; }
-    .atraso { background: #fffbeb; color: #92400e; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
-    .ausencia { background: #fef2f2; color: #991b1b; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
-    .worker-total { background: #f1f5f9; font-weight: 600; font-size: 12px; color: #0f172a; padding: 8px 16px; display: flex; justify-content: space-between; border-radius: 0 0 6px 6px; border-top: 2px solid #cbd5e1; }
-    .summary { margin-top: 32px; padding: 16px; background: #f1f5f9; border-radius: 8px; }
-    .summary h3 { margin: 0 0 8px; font-size: 14px; color: #0f172a; }
-    .summary-item { display: inline-block; margin-right: 24px; font-size: 13px; }
-    .summary-number { font-size: 20px; font-weight: 700; }
-    .footer { margin-top: 32px; text-align: center; font-size: 11px; color: #94a3b8; }
-    .date-cell { min-width: 100px; }
-    .time-cell { min-width: 80px; }
-    .no-records { text-align: center; padding: 12px; color: #94a3b8; font-size: 12px; font-style: italic; }
-    .empty-section { padding: 8px 16px; color: #94a3b8; font-size: 11px; font-style: italic; background: #f8fafc; }
-    @media print { body { margin: 0; } .worker-section { page-break-inside: avoid; } }
-  </style>
-</head>
-<body>
-  <h1>Informe de Atrasos e Inasistencias</h1>
-  <h2>Condominio Laguna Norte &mdash; ${monthName} ${yearStr}</h2>`
+    let html = `<html lang="es"><head><meta charset="UTF-8"><title>Informe de Atrasos e Inasistencias - ${monthName} ${yearStr}</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; margin: 20px; color: #1e293b; background: #fff; }
+h1 { font-size: 22px; text-align: center; margin-bottom: 4px; color: #0f172a; }
+h2 { font-size: 16px; text-align: center; color: #64748b; margin-bottom: 24px; font-weight: 400; }
+.worker-section { margin-bottom: 28px; page-break-inside: avoid; }
+.worker-header { background: #0f172a; color: white; padding: 10px 16px; font-size: 14px; font-weight: 700; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center; }
+.worker-header .rut { font-weight: 400; font-size: 12px; opacity: 0.85; }
+.worker-header .cargo { display: block; font-weight: 400; font-size: 11px; opacity: 0.7; margin-top: 2px; }
+.worker-header .horario { font-weight: 400; font-size: 11px; opacity: 0.8; margin-right: 12px; background: rgba(255,255,255,0.15); padding: 2px 6px; border-radius: 3px; }
+.sub-header { background: #334155; color: #e2e8f0; padding: 6px 16px; font-size: 12px; font-weight: 600; }
+.sub-header.atraso-header { border-left: 4px solid #f59e0b; }
+.sub-header.ausencia-header { border-left: 4px solid #ef4444; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th { background: #475569; color: white; padding: 8px 12px; text-align: left; font-weight: 600; font-size: 11px; }
+td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
+tr:nth-child(even) { background: #f8fafc; }
+.worker-total { background: #f1f5f9; font-weight: 600; font-size: 12px; color: #0f172a; padding: 8px 16px; display: flex; justify-content: space-between; border-radius: 0 0 6px 6px; border-top: 2px solid #cbd5e1; }
+.summary { margin-top: 32px; padding: 16px; background: #f1f5f9; border-radius: 8px; }
+.summary h3 { margin: 0 0 8px; font-size: 14px; color: #0f172a; }
+.summary-item { display: inline-block; margin-right: 24px; font-size: 13px; }
+.summary-number { font-size: 20px; font-weight: 700; }
+.footer { margin-top: 32px; text-align: center; font-size: 11px; color: #94a3b8; }
+.empty-section { padding: 8px 16px; color: #94a3b8; font-size: 11px; font-style: italic; background: #f8fafc; }
+@media print { body { margin: 0; } .worker-section { page-break-inside: avoid; } }
+</style></head><body>
+<h1>Informe de Atrasos e Inasistencias</h1>
+<h2>Condominio Laguna Norte &mdash; ${monthName} ${yearStr}</h2>`
 
     sortedWorkers.forEach(([, data]) => {
-      // Separate atrasos and ausencias, sort each by date ascending
-      const workerAtrasos = data.records
-        .filter(r => r.type === 'ATRASO')
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      const workerAusencias = data.records
-        .filter(r => r.type === 'AUSENCIA')
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      const workerCargo = (data.worker as any).cargo || ''
-      const workerHorario = (data.worker as any).horaEntrada || ''
+      const workerAtrasos = data.records.filter(r => r.type === 'ATRASO').sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      const workerAusencias = data.records.filter(r => r.type === 'AUSENCIA').sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      const workerCargo = data.worker.cargo || ''
+      const workerHorario = data.worker.horaEntrada || ''
       const workerTotalMin = workerAtrasos.reduce((s, r) => s + r.minutesLate, 0)
 
-      html += `
-  <div class="worker-section">
-    <div class="worker-header">
-      <div>
-        <span>${data.worker.nombre}</span>
-        ${workerCargo ? `<span class="cargo">${workerCargo}</span>` : ''}
-      </div>
-      <div>
-        ${workerHorario ? `<span class="horario">Entrada: ${workerHorario}</span>` : ''}
-        <span class="rut">${data.worker.rut}</span>
-      </div>
-    </div>`
-
-      // --- ATRASOS section ---
-      html += `
-    <div class="sub-header atraso-header">Atrasos (${workerAtrasos.length})</div>`
-
+      html += `<div class="worker-section"><div class="worker-header"><div><span>${data.worker.nombre}</span>${workerCargo ? `<span class="cargo">${workerCargo}</span>` : ''}</div><div>${workerHorario ? `<span class="horario">Entrada: ${workerHorario}</span>` : ''}<span class="rut">${data.worker.rut}</span></div></div>`
+      html += `<div class="sub-header atraso-header">Atrasos (${workerAtrasos.length})</div>`
       if (workerAtrasos.length > 0) {
-        html += `
-    <table>
-      <thead>
-        <tr>
-          <th>N&deg;</th>
-          <th>Fecha</th>
-          <th>Tiempo de Retraso</th>
-        </tr>
-      </thead>
-      <tbody>`
-
+        html += `<table><thead><tr><th>N&deg;</th><th>Fecha</th><th>Tiempo de Retraso</th></tr></thead><tbody>`
         workerAtrasos.forEach((r, idx) => {
           const dateStr = new Date(r.date).toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
-          const timeDisplay = r.minutesLate > 0 ? formatMinutes(r.minutesLate) : '-'
-
-          html += `
-        <tr>
-          <td>${idx + 1}</td>
-          <td class="date-cell">${dateStr}</td>
-          <td class="time-cell">${timeDisplay}</td>
-        </tr>`
+          html += `<tr><td>${idx + 1}</td><td>${dateStr}</td><td>${r.minutesLate > 0 ? formatMinutes(r.minutesLate) : '-'}</td></tr>`
         })
-
-        html += `
-      </tbody>
-    </table>`
+        html += `</tbody></table>`
       } else {
-        html += `
-    <div class="empty-section">Sin atrasos registrados</div>`
+        html += `<div class="empty-section">Sin atrasos registrados</div>`
       }
-
-      // --- AUSENCIAS section ---
-      html += `
-    <div class="sub-header ausencia-header">Inasistencias (${workerAusencias.length})</div>`
-
+      html += `<div class="sub-header ausencia-header">Inasistencias (${workerAusencias.length})</div>`
       if (workerAusencias.length > 0) {
-        html += `
-    <table>
-      <thead>
-        <tr>
-          <th>N&deg;</th>
-          <th>Fecha</th>
-        </tr>
-      </thead>
-      <tbody>`
-
+        html += `<table><thead><tr><th>N&deg;</th><th>Fecha</th></tr></thead><tbody>`
         workerAusencias.forEach((r, idx) => {
           const dateStr = new Date(r.date).toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
-
-          html += `
-        <tr>
-          <td>${idx + 1}</td>
-          <td class="date-cell">${dateStr}</td>
-        </tr>`
+          html += `<tr><td>${idx + 1}</td><td>${dateStr}</td></tr>`
         })
-
-        html += `
-      </tbody>
-    </table>`
+        html += `</tbody></table>`
       } else {
-        html += `
-    <div class="empty-section">Sin inasistencias registradas</div>`
+        html += `<div class="empty-section">Sin inasistencias registradas</div>`
       }
-
-      // Worker subtotal
-      const totalStr = formatMinutes(workerTotalMin)
-      html += `
-    <div class="worker-total">
-      <span>${workerAtrasos.length} atraso${workerAtrasos.length !== 1 ? 's' : ''}${workerAusencias.length > 0 ? ', ' + workerAusencias.length + ' inasistencia' + (workerAusencias.length !== 1 ? 's' : '') : ''}</span>
-      <span>Total retraso: ${totalStr}</span>
-    </div>
-  </div>`
+      html += `<div class="worker-total"><span>${workerAtrasos.length} atraso${workerAtrasos.length !== 1 ? 's' : ''}${workerAusencias.length > 0 ? ', ' + workerAusencias.length + ' inasistencia' + (workerAusencias.length !== 1 ? 's' : '') : ''}</span><span>Total retraso: ${formatMinutes(workerTotalMin)}</span></div></div>`
     })
 
-    const totalStr = formatMinutes(totalMinAtraso)
+    html += `<div class="summary"><h3>Resumen del Per&iacute;odo</h3><span class="summary-item"><span class="summary-number">${uniqueWorkers.size}</span> Trabajadores</span><span class="summary-item"><span class="summary-number">${atrasos.length}</span> Atrasos</span><span class="summary-item"><span class="summary-number">${ausencias.length}</span> Inasistencias</span><span class="summary-item"><span class="summary-number">${formatMinutes(totalMinAtraso)}</span> Total retraso</span></div><div class="footer">Condominio Laguna Norte &mdash; Informe generado autom&aacute;ticamente &mdash; ${new Date().toLocaleDateString('es-CL')}</div></body></html>`
 
-    html += `
-  <div class="summary">
-    <h3>Resumen del Per&iacute;odo</h3>
-    <span class="summary-item"><span class="summary-number">${uniqueWorkers.size}</span> Trabajadores</span>
-    <span class="summary-item"><span class="summary-number">${atrasos.length}</span> Atrasos</span>
-    <span class="summary-item"><span class="summary-number">${ausencias.length}</span> Inasistencias</span>
-    <span class="summary-item"><span class="summary-number">${totalStr}</span> Total retraso</span>
-  </div>
-  <div class="footer">Condominio Laguna Norte &mdash; Informe generado autom&aacute;ticamente &mdash; ${new Date().toLocaleDateString('es-CL')}</div>
-</body>
-</html>`
+    // Store HTML and open report dialog
+    setReportHtml(html)
+    setReportOpen(true)
+  }
 
-    // Open report in new tab using Blob URL (reliable, avoids popup blockers)
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
-    const blobUrl = URL.createObjectURL(blob)
-    const newWindow = window.open(blobUrl, '_blank')
-    if (newWindow) {
-      // Auto-print once loaded
-      const checkLoaded = setInterval(() => {
-        try {
-          if (newWindow.document && newWindow.document.readyState === 'complete') {
-            clearInterval(checkLoaded)
-            setTimeout(() => newWindow.print(), 300)
-          }
-        } catch {
-          // Cross-origin restriction — just let user print manually
-          clearInterval(checkLoaded)
-        }
-      }, 200)
-      // Clean up after 60 seconds
-      setTimeout(() => {
-        clearInterval(checkLoaded)
-        URL.revokeObjectURL(blobUrl)
-      }, 60000)
-    } else {
-      // Ultimate fallback: download as HTML file
-      const link = document.createElement('a')
-      link.href = blobUrl
-      link.download = `Informe_Atrasos_${monthName}_${yearStr}.html`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
+  // Print the report from the dialog
+  const handlePrintReport = () => {
+    const iframe = document.getElementById('report-iframe') as HTMLIFrameElement
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.focus()
+      iframe.contentWindow.print()
     }
   }
 
@@ -1106,6 +993,33 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
         itemTitle="Informe de Asistencias"
         submittedBy={userName || userRole}
       />
+
+      {/* Report Dialog — shows report in-page with print button */}
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="max-w-[95vw] max-h-[90vh] flex flex-col p-0">
+          <DialogHeader className="px-6 pt-4 pb-2 flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <DialogTitle>Informe de Atrasos e Inasistencias</DialogTitle>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={handlePrintReport} className="gap-1">
+                  <Download className="h-3.5 w-3.5" /> Imprimir
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setReportOpen(false)}>
+                  <X className="h-3.5 w-3.5" /> Cerrar
+                </Button>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden px-2 pb-2">
+            <iframe
+              id="report-iframe"
+              srcDoc={reportHtml}
+              className="w-full h-[75vh] border-0 rounded"
+              title="Informe"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
