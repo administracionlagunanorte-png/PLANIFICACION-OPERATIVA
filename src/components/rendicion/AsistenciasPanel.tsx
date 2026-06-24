@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -145,6 +145,10 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
   // --- Filter state ---
   const [filterType, setFilterType] = useState<string>('all')
   const [filterWorker, setFilterWorker] = useState<string>('all')
+
+  // --- Import state ---
+  const [importing, setImporting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ============================================================
   // Data fetching
@@ -294,6 +298,55 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
       toast({ title: 'Error', description: 'No se pudo eliminar el registro', variant: 'destructive' })
     }
     setDeleteConfirm(null)
+  }
+
+  // ============================================================
+  // Import XLS
+  // ============================================================
+  const handleImportXls = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const validExtensions = ['.xls', '.xlsx']
+    const fileName = file.name.toLowerCase()
+    if (!validExtensions.some(ext => fileName.endsWith(ext))) {
+      toast({ title: 'Error', description: 'Seleccione un archivo .xls o .xlsx', variant: 'destructive' })
+      return
+    }
+
+    setImporting(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const res = await fetch('/api/asistencias/import', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (res.ok) {
+        const summary = await res.json()
+        toast({
+          title: 'Importación completada',
+          description: `${summary.atrasosCreated} atraso(s) creado(s), ${summary.workersCreated} trabajador(es) nuevo(s), ${summary.skipped} existente(s) omitido(s)`,
+        })
+        fetchRecords()
+        fetchWorkers()
+      } else {
+        const error = await res.json()
+        toast({
+          title: 'Error de importación',
+          description: error.error || 'No se pudo procesar el archivo',
+          variant: 'destructive',
+        })
+      }
+    } catch {
+      toast({ title: 'Error', description: 'No se pudo importar el archivo', variant: 'destructive' })
+    } finally {
+      setImporting(false)
+      // Reset the file input so the same file can be re-imported if needed
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   // ============================================================
@@ -448,6 +501,26 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
               <Upload className="h-3.5 w-3.5" /> Enviar a Revisión
             </Button>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+          >
+            {importing ? (
+              <><div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-emerald-600" /> Importando...</>
+            ) : (
+              <><Upload className="h-3.5 w-3.5" /> Importar XLS</>
+            )}
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xls,.xlsx"
+            onChange={handleImportXls}
+            className="hidden"
+          />
           <Button variant="outline" size="sm" className="gap-1" onClick={generateReport}>
             <FileText className="h-3.5 w-3.5" /> Informe
           </Button>
