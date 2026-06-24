@@ -598,14 +598,61 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
   }
 
   // ============================================================
-  // Export report — Resumen por persona (narrativo + tabla detalle)
+  // Export report — Resumen por persona (FETCHES FRESH FROM API)
   // ============================================================
-  const generateReport = () => {
+  const generateReport = async () => {
     const [yearStr, monthStr] = selectedMonth.split('-')
     const monthNamesReport = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
     const monthName = monthNamesReport[parseInt(monthStr) - 1]
 
-    const filtered = getFilteredRecords()
+    // --- FETCH FRESH DATA FROM API (don't rely on client state) ---
+    let apiRecords: AsistenciaRecord[] = []
+    try {
+      const params = new URLSearchParams({ month: monthStr, year: yearStr })
+      const res = await fetch(`/api/asistencias?${params}`)
+      if (res.ok) {
+        apiRecords = await res.json()
+      }
+    } catch (err) {
+      console.error('Error fetching records for report:', err)
+    }
+
+    // Fallback 1: Try dedicated report API
+    if (apiRecords.length === 0) {
+      try {
+        const params = new URLSearchParams({ month: monthStr, year: yearStr })
+        const res = await fetch(`/api/asistencias/reporte?${params}`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.records && data.records.length > 0) {
+            apiRecords = data.records
+          }
+        }
+      } catch {}
+    }
+
+    // Fallback 2: Get ALL records (no month filter)
+    if (apiRecords.length === 0) {
+      try {
+        const res = await fetch(`/api/asistencias`)
+        if (res.ok) {
+          const allRecords = await res.json()
+          if (allRecords.length > 0) {
+            // Filter locally for the selected month
+            const m = parseInt(monthStr)
+            const y = parseInt(yearStr)
+            const monthFiltered = allRecords.filter((r: AsistenciaRecord) => {
+              const d = new Date(r.date)
+              return d.getUTCMonth() + 1 === m && d.getUTCFullYear() === y
+            })
+            // If still nothing, use ALL records as fallback
+            apiRecords = monthFiltered.length > 0 ? monthFiltered : allRecords
+          }
+        }
+      } catch {}
+    }
+
+    const filtered = apiRecords
 
     // Group records by worker
     const workerMap = new Map<string, { worker: { nombre: string; rut: string; cargo?: string; horaEntrada?: string }; records: typeof filtered }>()
@@ -639,159 +686,159 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
       return justificacionLabels[tipo] || tipo
     }
 
-    let html = `<html lang="es"><head><meta charset="UTF-8"><title>Informe de Atrasos e Inasistencias - ${monthName} ${yearStr}</title>
+    const fmtDate = (dateStr: string): string => {
+      try {
+        return new Date(dateStr).toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
+      } catch {
+        return dateStr
+      }
+    }
+
+    const fmtDateShort = (dateStr: string): string => {
+      try {
+        return new Date(dateStr).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      } catch {
+        return dateStr
+      }
+    }
+
+    // Detect actual data range for the report title
+    let dataMonthName = monthName
+    let dataYearStr = yearStr
+    if (filtered.length > 0) {
+      const firstDate = new Date(filtered[0].date)
+      dataMonthName = monthNamesReport[firstDate.getUTCMonth()]
+      dataYearStr = String(firstDate.getUTCFullYear())
+    }
+
+    let html = `<html lang="es"><head><meta charset="UTF-8"><title>Informe de Atrasos e Inasistencias - ${dataMonthName} ${dataYearStr}</title>
 <style>
+@page { margin: 1.5cm; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: Arial, sans-serif; margin: 30px 40px; color: #1e293b; background: #fff; line-height: 1.5; }
-h1 { font-size: 20px; text-align: center; margin-bottom: 2px; color: #0f172a; letter-spacing: 0.5px; }
-h2 { font-size: 14px; text-align: center; color: #64748b; margin-bottom: 28px; font-weight: 400; }
+body { font-family: Arial, Helvetica, sans-serif; margin: 25px 35px; color: #1a1a1a; background: #fff; line-height: 1.6; font-size: 12px; }
 
-/* --- Resumen general al inicio --- */
-.resumen-general { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 20px; margin-bottom: 30px; }
-.resumen-general h3 { font-size: 13px; color: #0f172a; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
-.resumen-general .stat-line { font-size: 13px; color: #334155; margin-bottom: 3px; }
-.resumen-general .stat-num { font-weight: 700; color: #0f172a; }
+h1 { font-size: 16px; text-align: center; margin-bottom: 2px; color: #000; text-transform: uppercase; letter-spacing: 1px; }
+h2 { font-size: 13px; text-align: center; color: #555; margin-bottom: 20px; font-weight: 400; }
 
-/* --- Sección por persona --- */
-.persona { margin-bottom: 22px; page-break-inside: avoid; border-left: 4px solid #0f172a; padding-left: 14px; }
-.persona-header { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
-.persona-header .rut-inline { font-weight: 400; font-size: 12px; color: #64748b; margin-left: 8px; }
-.persona-header .cargo-inline { font-weight: 400; font-size: 12px; color: #64748b; margin-left: 4px; }
-.persona-header .horario-inline { font-weight: 400; font-size: 11px; color: #94a3b8; margin-left: 8px; }
+.resumen-box { background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; padding: 10px 16px; margin-bottom: 24px; }
+.resumen-box p { font-size: 12px; color: #333; margin-bottom: 2px; }
+.resumen-box strong { color: #000; }
 
-/* --- Línea narrativa --- */
-.persona-resumen { font-size: 13px; color: #334155; margin-bottom: 6px; line-height: 1.7; }
-.persona-resumen .cant { font-weight: 700; color: #0f172a; }
-.persona-resumen .tipo-atraso { color: #b45309; font-weight: 600; }
-.persona-resumen .tipo-ausencia { color: #dc2626; font-weight: 600; }
-.fecha-lista { font-weight: 400; color: #475569; }
+.persona-bloque { margin-bottom: 18px; page-break-inside: avoid; }
+.persona-nombre { font-size: 13px; font-weight: 700; color: #000; margin-bottom: 3px; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 2px; }
+.persona-nombre .rut { font-weight: 400; font-size: 11px; color: #666; text-transform: none; margin-left: 10px; }
+.persona-nombre .cargo { font-weight: 400; font-size: 11px; color: #666; text-transform: none; margin-left: 5px; }
 
-/* --- Tabla detalle --- */
-.detalle-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px; margin-bottom: 4px; }
-.detalle-table th { background: #475569; color: white; padding: 5px 8px; text-align: left; font-size: 10px; font-weight: 600; }
-.detalle-table td { padding: 4px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
-.detalle-table tr:nth-child(even) { background: #f8fafc; }
+.persona-linea { font-size: 12px; color: #222; margin-bottom: 2px; padding-left: 12px; }
+.persona-linea .etiqueta { font-weight: 700; }
+.persona-linea .etiqueta-atraso { color: #b45309; }
+.persona-linea .etiqueta-ausencia { color: #dc2626; }
+.persona-linea .cantidad { font-weight: 700; color: #000; }
+.persona-linea .dias { color: #333; }
+.persona-linea .justificacion { color: #1d4ed8; font-size: 11px; }
 
-/* --- Justificación badges --- */
-.just-badge { display: inline-block; padding: 1px 7px; border-radius: 8px; font-size: 9px; font-weight: 600; margin-right: 3px; }
+.persona-subtotal { font-size: 11px; color: #555; margin-top: 3px; padding-left: 12px; font-style: italic; }
+
+.detalle-tabla { width: 100%; border-collapse: collapse; font-size: 11px; margin: 6px 0 4px 12px; }
+.detalle-tabla th { background: #333; color: white; padding: 4px 8px; text-align: left; font-size: 10px; }
+.detalle-tabla td { padding: 3px 8px; border-bottom: 1px solid #ddd; }
+.detalle-tabla tr:nth-child(even) { background: #fafafa; }
+
+.just-badge { display: inline-block; padding: 1px 6px; border-radius: 6px; font-size: 9px; font-weight: 600; }
 .just-badge.vacaciones { background: #dcfce7; color: #166534; }
 .just-badge.permiso { background: #fef3c7; color: #92400e; }
 .just-badge.licencia { background: #ede9fe; color: #5b21b6; }
 .just-badge.otro { background: #f1f5f9; color: #475569; }
-.just-detalle { font-size: 10px; color: #64748b; }
-.comp-link { color: #2563eb; text-decoration: underline; font-size: 10px; }
 
-/* --- Subtotal por persona --- */
-.persona-subtotal { font-size: 11px; color: #64748b; margin-top: 4px; padding-top: 4px; border-top: 1px dashed #cbd5e1; }
+.no-data { text-align: center; padding: 30px; color: #888; font-size: 14px; }
+.no-data p { margin-top: 6px; font-size: 12px; color: #aaa; }
 
-/* --- Sin datos --- */
-.no-data-message { text-align: center; padding: 40px 20px; color: #64748b; font-size: 16px; }
-.no-data-message p { margin-top: 8px; font-size: 13px; color: #94a3b8; }
+.footer { margin-top: 30px; text-align: center; font-size: 10px; color: #999; border-top: 1px solid #ddd; padding-top: 8px; }
 
-.footer { margin-top: 36px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 10px; }
-
-@media print {
-  body { margin: 15px 20px; }
-  .persona { page-break-inside: avoid; }
-}
+@media print { body { margin: 10px 15px; } .persona-bloque { page-break-inside: avoid; } }
 </style></head><body>
-<h1>INFORME DE ATRASOS E INASISTENCIAS</h1>
-<h2>Condominio Laguna Norte &mdash; ${monthName} ${yearStr}</h2>`
+<h1>Informe de Atrasos e Inasistencias</h1>
+<h2>Condominio Laguna Norte &mdash; ${dataMonthName} ${dataYearStr}</h2>`
 
     // --- Resumen general ---
-    html += `<div class="resumen-general">
-<h3>Resumen del Per&iacute;odo ${monthName} ${yearStr}</h3>
-<div class="stat-line">&bull; Trabajadores con registros: <span class="stat-num">${uniqueWorkers.size}</span></div>
-<div class="stat-line">&bull; Total atrasos: <span class="stat-num">${atrasos.length}</span> &mdash; Total inasistencias: <span class="stat-num">${ausencias.length}</span></div>
-<div class="stat-line">&bull; Tiempo total de retraso acumulado: <span class="stat-num">${formatMinutes(totalMinAtraso)}</span></div>
+    html += `<div class="resumen-box">
+<p><strong>Resumen del Per&iacute;odo ${dataMonthName} ${dataYearStr}:</strong></p>
+<p>&bull; Trabajadores con registros: <strong>${uniqueWorkers.size}</strong></p>
+<p>&bull; Total atrasos: <strong>${atrasos.length}</strong> &mdash; Total inasistencias: <strong>${ausencias.length}</strong></p>
+<p>&bull; Tiempo total de retraso acumulado: <strong>${formatMinutes(totalMinAtraso)}</strong></p>
 </div>`
 
     if (filtered.length === 0) {
-      html += `<div class="no-data-message"><strong>No se encontraron registros de atrasos ni inasistencias</strong><p>Período: ${monthName} ${yearStr} — No hay datos para el mes seleccionado. Verifique que se haya importado el archivo de asistencia correctamente.</p></div>`
+      html += `<div class="no-data"><strong>No se encontraron registros de atrasos ni inasistencias</strong><p>Período: ${dataMonthName} ${dataYearStr}. Verifique que se haya importado el archivo de asistencia y que el mes seleccionado corresponda a los datos importados.</p><p style="margin-top:10px;font-size:11px;">Datos consultados directamente de la base de datos. Si importó datos pero no aparecen, intente cambiar el mes en el selector.</p></div>`
     }
 
-    // --- Detalle por persona ---
+    // --- DETALLE POR PERSONA ---
+    // FORMATO: PABLO TORO tiene X atrasos los días: ..., X ausencias los días: ...
     sortedWorkers.forEach(([, data], workerIdx) => {
       const workerAtrasos = data.records.filter(r => r.type === 'ATRASO').sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       const workerAusencias = data.records.filter(r => r.type === 'AUSENCIA').sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       const workerCargo = data.worker.cargo || ''
-      const workerHorario = data.worker.horaEntrada || ''
       const workerTotalMin = workerAtrasos.reduce((s, r) => s + r.minutesLate, 0)
       const workerJustificados = data.records.filter(r => r.tipoJustificacion).length
 
-      // --- Header de persona ---
-      html += `<div class="persona">`
-      html += `<div class="persona-header">${workerIdx + 1}. ${data.worker.nombre}<span class="rut-inline">RUT: ${data.worker.rut}</span>${workerCargo ? `<span class="cargo-inline">&mdash; ${workerCargo}</span>` : ''}${workerHorario ? `<span class="horario-inline">Entrada: ${workerHorario}</span>` : ''}</div>`
+      html += `<div class="persona-bloque">`
 
-      // --- Línea narrativa resumen ---
-      html += `<div class="persona-resumen">`
+      // --- NOMBRE en mayúsculas ---
+      html += `<div class="persona-nombre">${workerIdx + 1}. ${data.worker.nombre.toUpperCase()}<span class="rut">RUT: ${data.worker.rut}</span>${workerCargo ? `<span class="cargo">&mdash; ${workerCargo}</span>` : ''}</div>`
+
+      // --- ATRASOS ---
       if (workerAtrasos.length > 0) {
-        html += `<span class="tipo-atraso">Atrasos:</span> <span class="cant">${workerAtrasos.length}</span> &mdash; los d&iacute;as `
-        const atrasoFechas = workerAtrasos.map(r => {
-          const dateStr = new Date(r.date).toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
-          const mins = r.minutesLate > 0 ? ` (${formatMinutes(r.minutesLate)})` : ''
-          const just = r.tipoJustificacion ? ` [${escJustificacionTipo(r.tipoJustificacion)}${r.justificacion ? ': ' + r.justificacion : ''}]` : ''
-          return `<span class="fecha-lista">${dateStr}${mins}${just}</span>`
+        html += `<div class="persona-linea"><span class="etiqueta etiqueta-atraso">Atrasos: ${workerAtrasos.length}</span> &mdash; los d&iacute;as: `
+        const diasAtraso = workerAtrasos.map(r => {
+          let s = fmtDate(r.date)
+          if (r.minutesLate > 0) s += ` (${formatMinutes(r.minutesLate)} de retraso)`
+          if (r.tipoJustificacion) s += ` [${escJustificacionTipo(r.tipoJustificacion)}${r.justificacion ? ': ' + r.justificacion : ''}]`
+          return s
         })
-        html += atrasoFechas.join('; ')
-        html += `. Total retraso: <span class="cant">${formatMinutes(workerTotalMin)}</span>.`
+        html += `<span class="dias">${diasAtraso.join('; ')}</span>`
+        html += `. Total retraso: <span class="cantidad">${formatMinutes(workerTotalMin)}</span>.</div>`
       } else {
-        html += `<span class="tipo-atraso">Atrasos:</span> <span class="cant">0</span>.`
+        html += `<div class="persona-linea"><span class="etiqueta etiqueta-atraso">Atrasos: 0</span></div>`
       }
 
-      html += `<br/>`
-
+      // --- AUSENCIAS ---
       if (workerAusencias.length > 0) {
-        html += `<span class="tipo-ausencia">Ausencias:</span> <span class="cant">${workerAusencias.length}</span> &mdash; los d&iacute;as `
-        const ausenciaFechas = workerAusencias.map(r => {
-          const dateStr = new Date(r.date).toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
-          const just = r.tipoJustificacion ? ` [${escJustificacionTipo(r.tipoJustificacion)}${r.justificacion ? ': ' + r.justificacion : ''}]` : ''
-          return `<span class="fecha-lista">${dateStr}${just}</span>`
+        html += `<div class="persona-linea"><span class="etiqueta etiqueta-ausencia">Ausencias: ${workerAusencias.length}</span> &mdash; los d&iacute;as: `
+        const diasAusencia = workerAusencias.map(r => {
+          let s = fmtDate(r.date)
+          if (r.tipoJustificacion) s += ` [${escJustificacionTipo(r.tipoJustificacion)}${r.justificacion ? ': ' + r.justificacion : ''}]`
+          return s
         })
-        html += ausenciaFechas.join('; ')
-        html += `.`
+        html += `<span class="dias">${diasAusencia.join('; ')}</span>`
+        html += `.</div>`
       } else {
-        html += `<span class="tipo-ausencia">Ausencias:</span> <span class="cant">0</span>.`
+        html += `<div class="persona-linea"><span class="etiqueta etiqueta-ausencia">Ausencias: 0</span></div>`
       }
-      html += `</div>`
 
-      // --- Tabla detalle con justificación y comprobante ---
+      // --- Tabla detalle si hay justificaciones o comprobantes ---
       const hasAnyJust = data.records.some(r => r.tipoJustificacion)
       const hasAnyComp = data.records.some(r => r.comprobanteUrl)
-      if (workerAtrasos.length > 0 || workerAusencias.length > 0) {
-        html += `<table class="detalle-table"><thead><tr><th>Tipo</th><th>Fecha</th><th>Retraso</th>${hasAnyJust ? '<th>Justificaci&oacute;n</th>' : ''}${hasAnyComp ? '<th>Comprobante</th>' : ''}</tr></thead><tbody>`
-
+      if ((hasAnyJust || hasAnyComp) && (workerAtrasos.length > 0 || workerAusencias.length > 0)) {
+        html += `<table class="detalle-tabla"><thead><tr><th>Tipo</th><th>Fecha</th><th>Retraso</th>${hasAnyJust ? '<th>Justificaci&oacute;n</th>' : ''}${hasAnyComp ? '<th>Comprobante</th>' : ''}</tr></thead><tbody>`
         workerAtrasos.forEach(r => {
-          const dateStr = new Date(r.date).toLocaleDateString('es-CL', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })
-          html += `<tr><td style="color:#b45309;font-weight:600;">Atraso</td><td>${dateStr}</td><td>${r.minutesLate > 0 ? formatMinutes(r.minutesLate) : '-'}</td>`
-          if (hasAnyJust) {
-            html += `<td>${r.tipoJustificacion ? `<span class="just-badge ${(r.tipoJustificacion).toLowerCase()}">${escJustificacionTipo(r.tipoJustificacion)}</span>${r.justificacion ? `<span class="just-detalle"> ${r.justificacion}</span>` : ''}` : '-'}</td>`
-          }
-          if (hasAnyComp) {
-            html += `<td>${r.comprobanteUrl ? `<a class="comp-link" href="${r.comprobanteUrl}" target="_blank">${r.comprobanteNombre || 'Ver'}</a>` : '-'}</td>`
-          }
+          html += `<tr><td style="color:#b45309;font-weight:600;">Atraso</td><td>${fmtDateShort(r.date)}</td><td>${r.minutesLate > 0 ? formatMinutes(r.minutesLate) : '-'}</td>`
+          if (hasAnyJust) html += `<td>${r.tipoJustificacion ? `<span class="just-badge ${(r.tipoJustificacion).toLowerCase()}">${escJustificacionTipo(r.tipoJustificacion)}</span>${r.justificacion ? ' ' + r.justificacion : ''}` : '-'}</td>`
+          if (hasAnyComp) html += `<td>${r.comprobanteUrl ? `<a href="${r.comprobanteUrl}" target="_blank" style="color:#2563eb;font-size:10px;">${r.comprobanteNombre || 'Ver'}</a>` : '-'}</td>`
           html += `</tr>`
         })
-
         workerAusencias.forEach(r => {
-          const dateStr = new Date(r.date).toLocaleDateString('es-CL', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })
-          html += `<tr><td style="color:#dc2626;font-weight:600;">Ausencia</td><td>${dateStr}</td><td>-</td>`
-          if (hasAnyJust) {
-            html += `<td>${r.tipoJustificacion ? `<span class="just-badge ${(r.tipoJustificacion).toLowerCase()}">${escJustificacionTipo(r.tipoJustificacion)}</span>${r.justificacion ? `<span class="just-detalle"> ${r.justificacion}</span>` : ''}` : '-'}</td>`
-          }
-          if (hasAnyComp) {
-            html += `<td>${r.comprobanteUrl ? `<a class="comp-link" href="${r.comprobanteUrl}" target="_blank">${r.comprobanteNombre || 'Ver'}</a>` : '-'}</td>`
-          }
+          html += `<tr><td style="color:#dc2626;font-weight:600;">Ausencia</td><td>${fmtDateShort(r.date)}</td><td>-</td>`
+          if (hasAnyJust) html += `<td>${r.tipoJustificacion ? `<span class="just-badge ${(r.tipoJustificacion).toLowerCase()}">${escJustificacionTipo(r.tipoJustificacion)}</span>${r.justificacion ? ' ' + r.justificacion : ''}` : '-'}</td>`
+          if (hasAnyComp) html += `<td>${r.comprobanteUrl ? `<a href="${r.comprobanteUrl}" target="_blank" style="color:#2563eb;font-size:10px;">${r.comprobanteNombre || 'Ver'}</a>` : '-'}</td>`
           html += `</tr>`
         })
-
         html += `</tbody></table>`
       }
 
       // --- Subtotal ---
       html += `<div class="persona-subtotal">${workerAtrasos.length} atraso${workerAtrasos.length !== 1 ? 's' : ''}${workerAusencias.length > 0 ? ', ' + workerAusencias.length + ' ausencia' + (workerAusencias.length !== 1 ? 's' : '') : ''}${workerTotalMin > 0 ? ' &mdash; Retraso acumulado: ' + formatMinutes(workerTotalMin) : ''}${workerJustificados > 0 ? ' &mdash; ' + workerJustificados + ' justificado' + (workerJustificados !== 1 ? 's' : '') : ''}</div>`
 
-      html += `</div>` // close .persona
+      html += `</div>`
     })
 
     html += `<div class="footer">Condominio Laguna Norte &mdash; Informe generado autom&aacute;ticamente &mdash; ${new Date().toLocaleDateString('es-CL')}</div></body></html>`
