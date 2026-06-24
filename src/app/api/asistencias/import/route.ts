@@ -325,6 +325,19 @@ async function findOrCreateWorker(rut: string, nombre: string, summary: ImportSu
 
 export async function POST(req: NextRequest) {
   try {
+    // First, ensure the database schema is up to date
+    try {
+      const { execSync } = require('child_process')
+      execSync('npx prisma db push --accept-data-loss 2>&1', {
+        encoding: 'utf-8',
+        timeout: 60000,
+        stdio: 'pipe',
+      })
+    } catch (syncErr: any) {
+      console.warn('Schema sync warning:', syncErr.message?.slice(0, 200))
+      // Continue anyway — the columns might already exist
+    }
+
     const formData = await req.formData()
     const file = formData.get('file') as File | null
 
