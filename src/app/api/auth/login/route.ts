@@ -14,16 +14,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Buscar usuario por email exacto primero, luego insensible a mayúsculas
-    let user = await db.user.findUnique({
-      where: { email },
+    // Buscar usuario por email (insensible a mayúsculas)
+    const user = await db.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
     })
-
-    if (!user) {
-      // SQLite doesn't support mode: 'insensitive', try lowercase match
-      const users = await db.user.findMany()
-      user = users.find(u => u.email.toLowerCase() === email.toLowerCase()) || null
-    }
 
     if (!user) {
       return NextResponse.json(

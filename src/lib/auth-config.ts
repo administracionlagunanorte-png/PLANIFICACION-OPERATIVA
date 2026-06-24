@@ -16,16 +16,10 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        // Buscar usuario por email exacto primero, luego insensible a mayúsculas
-        let user = await db.user.findUnique({
-          where: { email: credentials.email },
+        // Buscar usuario por email (insensible a mayúsculas)
+        let user = await db.user.findFirst({
+          where: { email: { equals: credentials.email, mode: 'insensitive' } },
         })
-
-        if (!user) {
-          // SQLite doesn't support mode: 'insensitive', try lowercase match
-          const users = await db.user.findMany()
-          user = users.find(u => u.email.toLowerCase() === credentials.email.toLowerCase()) || null
-        }
 
         if (!user) return null
 
