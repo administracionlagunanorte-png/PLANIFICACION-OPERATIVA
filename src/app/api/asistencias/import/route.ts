@@ -3,39 +3,28 @@ import { db } from '@/lib/db'
 import * as XLSX from 'xlsx'
 
 // ============================================================
-// XLS Import for Asistencias Module
+// XLS Import for Asistencias Module — Universal Version
 // ============================================================
-// Parses a biometric clock XLS/XLSX file and creates:
-//   - ATRASO records for workers who arrived late
-//   - AUSENCIA records for workers with no entry on work days (Mon-Sat)
+// Works with ANY biometric clock Excel file.
 //
-// Morning shift threshold: 08:05 AM
-// Afternoon shift threshold: 14:05 (2:05 PM)
+// Key features:
+// - Flexible column name detection (multiple variations in Spanish/English)
+// - No mandatory department filter (processes ALL workers by default)
+// - Worker-specific schedule thresholds (from NOMINA data)
+// - Falls back to 08:05/14:05 if no schedule is configured
+// - Detects ATRASOS and AUSENCIAS
 //
 // Work days: Lunes a Sábado (no Sunday)
-//
-// Target departments (if Departamento column exists):
-// - Auxiliares de Aseo
-// - Auxiliares de Servicios Generales
-// - Encargados de Laguna
-// - Mantenimiento
-//
-// If NO Departamento column exists, ALL workers are processed.
-//
-// Column matching is flexible — multiple name variations are tried
-// for each required field so that files from different biometric
-// clock brands / configurations can be read.
 // ============================================================
 
-const TARGET_DEPARTMENTS = [
-  'Auxiliares de Aseo',
-  'Auxiliares de Servicios Generales',
-  'Encargados de Laguna',
-  'Mantenimiento',
-]
+// Default thresholds (used when worker has no specific schedule)
+const DEFAULT_MORNING_THRESHOLD_HR = 8
+const DEFAULT_MORNING_THRESHOLD_MIN = 5
+const DEFAULT_AFTERNOON_THRESHOLD_HR = 14
+const DEFAULT_AFTERNOON_THRESHOLD_MIN = 5
+const GRACE_MINUTES = 5 // grace period added to scheduled entry time
 
 // Column name variations for flexible matching
-// Each key maps to an array of possible column names (lowercased)
 const COLUMN_VARIATIONS: Record<string, string[]> = {
   departamento: [
     'departamento',
@@ -47,6 +36,10 @@ const COLUMN_VARIATIONS: Record<string, string[]> = {
     'sección',
     'seccion',
     'unidad',
+    'cargo',
+    'posición',
+    'posicion',
+    'puesto',
   ],
   rut: [
     'rut',
@@ -65,6 +58,13 @@ const COLUMN_VARIATIONS: Record<string, string[]> = {
     'id',
     'identificación',
     'identificacion',
+    'rut/pasaporte',
+    'número',
+    'numero',
+    'código',
+    'codigo',
+    'code',
+    'nº',
   ],
   nombre: [
     'nombre',
@@ -119,26 +119,9 @@ const COLUMN_VARIATIONS: Record<string, string[]> = {
     'marca',
     'evento',
   ],
-  codigo: [
-    'código',
-    'codigo',
-    'code',
-    'código empleado',
-    'codigo empleado',
-    'emp_code',
-    'empcode',
-    'número',
-    'numero',
-    'num',
-    'nº',
-    'no.',
-    'id empleado',
-    'employee id',
-  ],
 }
 
 interface ParsedRow {
-  codigo: string
   rut: string
   nombre: string
   departamento: string
@@ -153,7 +136,7 @@ interface ImportDetail {
   date: string
   type: 'ATRASO' | 'AUSENCIA'
   entryTime?: string
-  shift?: 'morning' | 'afternoon'
+  shift?: 'morning' | 'afternoon' | 'night'
   minutesLate?: number
   action: 'created' | 'skipped_existing'
 }
@@ -167,16 +150,11 @@ interface ImportSummary {
   workersCreated: number
   skipped: number
   details: ImportDetail[]
-  columnMapping: Record<string, string> // show user what was detected
+  columnMapping: Record<string, string>
 }
 
 function normalizeRut(rut: string): string {
   return rut.trim().replace(/\s+/g, '')
-}
-
-function isTargetDepartment(departamento: string): boolean {
-  const normalized = departamento.trim()
-  return TARGET_DEPARTMENTS.some(d => normalized === d || normalized.toLowerCase() === d.toLowerCase())
 }
 
 function parseExcelDate(value: unknown): Date | null {
@@ -194,7 +172,7 @@ function parseExcelDate(value: unknown): Date | null {
     if (!isNaN(parsed.getTime())) {
       return parsed
     }
-    // Try common date formats
+    // Try common date formats: DD/MM/YYYY or DD-MM-YYYY
     const parts = value.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/)
     if (parts) {
       const day = parseInt(parts[1])
@@ -207,13 +185,10 @@ function parseExcelDate(value: unknown): Date | null {
   return null
 }
 
-// Check if a date is a work day (Monday=1 to Saturday=6, NOT Sunday=0)
 function isWorkDay(date: Date): boolean {
-  const day = date.getDay()
-  return day !== 0 // Sunday = 0, everything else is a work day
+  return date.getDay() !== 0 // Not Sunday
 }
 
-// Format date as YYYY-MM-DD
 function formatDate(date: Date): string {
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, '0')
@@ -221,7 +196,6 @@ function formatDate(date: Date): string {
   return `${y}-${m}-${d}`
 }
 
-// Flexible column matching: find the best column name from available columns
 function findColumnMatch(
   availableColumns: string[],
   fieldKey: string
@@ -229,80 +203,117 @@ function findColumnMatch(
   const variations = COLUMN_VARIATIONS[fieldKey]
   if (!variations) return null
 
-  // Normalize available columns for comparison
   const normalizedColumns = availableColumns.map(c => ({
     original: c,
-    normalized: c.trim().toLowerCase().replace(/[_\-\.]/g, ' ').replace(/\s+/g, ' ').trim(),
+    normalized: c.trim().toLowerCase().replace(/[_\-\.\/]/g, ' ').replace(/\s+/g, ' ').trim(),
   }))
 
   for (const variant of variations) {
-    const normalizedVariant = variant.replace(/[_\-\.]/g, ' ').replace(/\s+/g, ' ').trim()
+    const nv = variant.replace(/[_\-\.\/]/g, ' ').replace(/\s+/g, ' ').trim()
 
-    // Exact match (normalized)
-    const exactMatch = normalizedColumns.find(c => c.normalized === normalizedVariant)
+    const exactMatch = normalizedColumns.find(c => c.normalized === nv)
     if (exactMatch) return exactMatch.original
 
-    // Contains match
-    const containsMatch = normalizedColumns.find(c => c.normalized.includes(normalizedVariant) || normalizedVariant.includes(c.normalized))
+    const containsMatch = normalizedColumns.find(c =>
+      c.normalized.includes(nv) || nv.includes(c.normalized)
+    )
     if (containsMatch) return containsMatch.original
   }
 
   return null
 }
 
-// Determine if a tipoRegistro value means "Entrada" (entry/clock-in)
 function isEntradaType(value: string): boolean {
   const v = value.toLowerCase().trim()
-  return v === 'entrada' ||
-    v === 'entry' ||
-    v === 'in' ||
-    v === 'entrar' ||
-    v === 'ingreso' ||
-    v === 'check in' ||
-    v === 'check-in' ||
-    v === 'e/s: entrada' ||
-    v === '0' // some clocks use 0 for entrada, 1 for salida
+  return v === 'entrada' || v === 'entry' || v === 'in' ||
+    v === 'ingreso' || v === 'check in' || v === 'check-in' ||
+    v === 'e/s: entrada' || v === '0'
 }
 
-// Determine if a tipoRegistro value means "Salida" (exit/clock-out)
 function isSalidaType(value: string): boolean {
   const v = value.toLowerCase().trim()
-  return v === 'salida' ||
-    v === 'exit' ||
-    v === 'out' ||
-    v === 'salir' ||
-    v === 'egreso' ||
-    v === 'check out' ||
-    v === 'check-out' ||
-    v === 'e/s: salida' ||
-    v === '1' // some clocks use 1 for salida
+  return v === 'salida' || v === 'exit' || v === 'out' ||
+    v === 'egreso' || v === 'check out' || v === 'check-out' ||
+    v === 'e/s: salida' || v === '1'
+}
+
+// Parse time string "HH:MM" to total minutes from midnight
+function parseTimeToMinutes(timeStr: string): number | null {
+  if (!timeStr) return null
+  const match = timeStr.match(/(\d{1,2}):(\d{2})/)
+  if (!match) return null
+  return parseInt(match[1]) * 60 + parseInt(match[2])
+}
+
+// Get the threshold for a worker based on their schedule
+// Returns { morningHr, morningMin, afternoonHr, afternoonMin }
+function getWorkerThreshold(horaEntrada: string | null): {
+  morningHr: number; morningMin: number;
+  afternoonHr: number; afternoonMin: number;
+} {
+  const entryMinutes = parseTimeToMinutes(horaEntrada || '')
+
+  if (entryMinutes !== null) {
+    // Worker has a specific schedule — use it + grace period
+    const thresholdMinutes = entryMinutes + GRACE_MINUTES
+    const hr = Math.floor(thresholdMinutes / 60)
+    const min = thresholdMinutes % 60
+
+    // If entry is in the afternoon (>= 12:00), set morning to default
+    if (entryMinutes >= 12 * 60) {
+      return {
+        morningHr: DEFAULT_MORNING_THRESHOLD_HR,
+        morningMin: DEFAULT_MORNING_THRESHOLD_MIN,
+        afternoonHr: hr,
+        afternoonMin: min,
+      }
+    }
+
+    return {
+      morningHr: hr,
+      morningMin: min,
+      afternoonHr: DEFAULT_AFTERNOON_THRESHOLD_HR,
+      afternoonMin: DEFAULT_AFTERNOON_THRESHOLD_MIN,
+    }
+  }
+
+  // No schedule configured — use defaults
+  return {
+    morningHr: DEFAULT_MORNING_THRESHOLD_HR,
+    morningMin: DEFAULT_MORNING_THRESHOLD_MIN,
+    afternoonHr: DEFAULT_AFTERNOON_THRESHOLD_HR,
+    afternoonMin: DEFAULT_AFTERNOON_THRESHOLD_MIN,
+  }
 }
 
 async function findOrCreateWorker(rut: string, nombre: string, summary: ImportSummary) {
-  let worker = await db.worker.findFirst({
-    where: { rut },
-  })
+  let worker = null
 
-  if (!worker) {
-    // Try with normalized RUT variations
-    const rutVariations = [
-      rut,
-      rut.replace(/\./g, ''),
-      rut.replace(/-/g, '.'),
-    ]
-    for (const rutVar of rutVariations) {
-      worker = await db.worker.findFirst({
-        where: { rut: rutVar },
-      })
-      if (worker) break
+  if (rut) {
+    worker = await db.worker.findFirst({ where: { rut } })
+    if (!worker) {
+      // Try normalized RUT
+      const rutVariations = [rut, rut.replace(/\./g, ''), rut.replace(/-/g, '.')]
+      for (const rv of rutVariations) {
+        worker = await db.worker.findFirst({ where: { rut: rv } })
+        if (worker) break
+      }
     }
+  }
+
+  if (!worker && nombre) {
+    // Try to match by partial name
+    const nameParts = nombre.trim().split(/\s+/).slice(0, 2).join(' ')
+    worker = await db.worker.findFirst({
+      where: { nombre: { contains: nameParts, mode: 'insensitive' } },
+    })
   }
 
   if (!worker) {
     worker = await db.worker.create({
       data: {
         nombre,
-        rut,
+        rut: rut || `SIN-RUT-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         cuentaBancaria: '',
       },
     })
@@ -330,8 +341,6 @@ export async function POST(req: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
-
-    // Parse the XLS/XLSX/CSV file
     const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true })
     const sheetName = workbook.SheetNames[0]
     if (!sheetName) {
@@ -339,9 +348,7 @@ export async function POST(req: NextRequest) {
     }
     const sheet = workbook.Sheets[sheetName]
 
-    // Auto-detect the header row by scanning rows for required columns
-    // Required: nombre + fechaHora (minimum to identify a person and a date)
-    // Optional: rut, departamento, tipoRegistro
+    // Auto-detect header row
     const MIN_REQUIRED = ['nombre', 'fechaHora']
     let headerRowIndex = -1
     let jsonData: Record<string, unknown>[] = []
@@ -356,20 +363,16 @@ export async function POST(req: NextRequest) {
       if (tryData.length === 0) continue
 
       const columns = Object.keys(tryData[0])
-
-      // Try to map each required/optional field
       const mapping: Record<string, string | null> = {}
       for (const fieldKey of Object.keys(COLUMN_VARIATIONS)) {
         mapping[fieldKey] = findColumnMatch(columns, fieldKey)
       }
 
-      // Check if minimum required fields are found
       const minFound = MIN_REQUIRED.every(key => mapping[key] !== null)
 
       if (minFound) {
         headerRowIndex = rangeAttempt
         jsonData = tryData
-        // Store the mapping (only non-null values)
         for (const [key, val] of Object.entries(mapping)) {
           if (val) columnMapping[key] = val
         }
@@ -378,8 +381,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (headerRowIndex === -1 || jsonData.length === 0) {
+      // Return helpful error with what columns were found
+      const testCols = jsonData.length > 0 ? Object.keys(jsonData[0]).join(', ') : 'ninguna'
       return NextResponse.json({
-        error: 'No se pudieron identificar las columnas requeridas. Se necesitan al menos columnas de Nombre y Fecha/Hora. Columnas encontradas: ' + (jsonData.length > 0 ? Object.keys(jsonData[0]).join(', ') : 'ninguna'),
+        error: `No se pudieron identificar las columnas requeridas (Nombre y Fecha/Hora). Columnas encontradas: ${testCols}`,
       }, { status: 400 })
     }
 
@@ -388,20 +393,15 @@ export async function POST(req: NextRequest) {
     const colRut = columnMapping['rut'] || null
     const colDepartamento = columnMapping['departamento'] || null
     const colTipoRegistro = columnMapping['tipoRegistro'] || null
-    const colCodigo = columnMapping['codigo'] || null
 
     const hasRut = !!colRut
     const hasDepartamento = !!colDepartamento
     const hasTipoRegistro = !!colTipoRegistro
 
-    // If no RUT column, use Nombre as identifier
-    // If no Departamento column, process ALL workers (no department filter)
-    // If no TipoRegistro column, treat all records as potential Entrada
-
     // ============================================================
     // STEP 1: Parse ALL rows
     // ============================================================
-    const allTargetRows: ParsedRow[] = []
+    const allRows: ParsedRow[] = []
     for (const row of jsonData) {
       const nombre = String(row[colNombre] || '').trim()
       if (!nombre) continue
@@ -415,36 +415,24 @@ export async function POST(req: NextRequest) {
       const departamento = colDepartamento ? String(row[colDepartamento] || '').trim() : ''
       const tipoRegistro = colTipoRegistro ? String(row[colTipoRegistro] || '').trim() : 'entrada'
 
-      // Filter by department only if department column exists
-      if (hasDepartamento && departamento && !isTargetDepartment(departamento)) {
-        continue
-      }
-
-      allTargetRows.push({
-        codigo: colCodigo ? String(row[colCodigo] || '').trim() : '',
-        rut,
-        nombre,
-        departamento,
-        fechaHora,
-        tipoRegistro,
-      })
+      allRows.push({ rut, nombre, departamento, fechaHora, tipoRegistro })
     }
 
-    if (allTargetRows.length === 0) {
+    if (allRows.length === 0) {
       return NextResponse.json({
-        error: 'No se encontraron registros para los departamentos objetivo en el archivo',
+        error: 'No se encontraron registros válidos en el archivo',
       }, { status: 400 })
     }
 
     // ============================================================
-    // STEP 2: Build set of all dates and workers present per day
+    // STEP 2: Build worker-day entries map
     // ============================================================
-    const workerDayEntries = new Map<string, Set<string>>() // "RUT|date" → Set of "entrada"/"salida"
-    const workerInfo = new Map<string, { nombre: string; departamento: string }>() // RUT → info
+    const workerDayEntries = new Map<string, Set<string>>()
+    const workerInfo = new Map<string, { nombre: string; departamento: string }>()
     let minDate: Date | null = null
     let maxDate: Date | null = null
 
-    for (const row of allTargetRows) {
+    for (const row of allRows) {
       const dateStr = formatDate(row.fechaHora)
       const key = `${row.rut}|${dateStr}`
 
@@ -452,61 +440,62 @@ export async function POST(req: NextRequest) {
         workerDayEntries.set(key, new Set())
       }
 
-      // Classify the type of record
       if (hasTipoRegistro) {
         if (isEntradaType(row.tipoRegistro)) {
           workerDayEntries.get(key)!.add('entrada')
         } else if (isSalidaType(row.tipoRegistro)) {
           workerDayEntries.get(key)!.add('salida')
         } else {
-          // Unknown type — treat as entrada if it has a time component
           workerDayEntries.get(key)!.add('entrada')
         }
       } else {
-        // No tipo registro column — assume all records are entrada
         workerDayEntries.get(key)!.add('entrada')
       }
 
       workerInfo.set(row.rut, { nombre: row.nombre, departamento: row.departamento })
 
-      // Track date range
       if (!minDate || row.fechaHora < minDate) minDate = row.fechaHora
       if (!maxDate || row.fechaHora > maxDate) maxDate = row.fechaHora
     }
 
-    // Get unique RUTs of target workers
-    const targetRuts = new Set(allTargetRows.map(r => r.rut))
-
-    // Get unique dates where target workers had any record
-    const allDates = new Set<string>()
-    for (const row of allTargetRows) {
-      allDates.add(formatDate(row.fechaHora))
-    }
+    const targetRuts = new Set(allRows.map(r => r.rut))
 
     // ============================================================
     // STEP 3: Detect ATRASOS from Entrada records
     // ============================================================
-    const entradaRows = allTargetRows.filter(r => {
-      if (hasTipoRegistro) {
-        return isEntradaType(r.tipoRegistro)
-      }
-      // If no tipo registro, treat all records as potential entrada
+    const entradaRows = allRows.filter(r => {
+      if (hasTipoRegistro) return isEntradaType(r.tipoRegistro)
       return true
     })
 
-    // Group entries by RUT + date + shift to find first entry per shift
+    // Load all workers from DB for schedule lookup
+    const dbWorkers = await db.worker.findMany({
+      where: { active: true },
+    })
+    const workerScheduleMap = new Map<string, { horaEntrada: string | null; horaSalida: string | null }>()
+    for (const w of dbWorkers) {
+      // Index by RUT and by name
+      if (w.rut) workerScheduleMap.set(w.rut, { horaEntrada: w.horaEntrada, horaSalida: w.horaSalida })
+      // Also index by first two name words for matching
+      const nameKey = w.nombre.trim().split(/\s+/).slice(0, 2).join(' ').toLowerCase()
+      if (!workerScheduleMap.has(nameKey)) {
+        workerScheduleMap.set(nameKey, { horaEntrada: w.horaEntrada, horaSalida: w.horaSalida })
+      }
+    }
+
+    // Group entries by RUT + date + shift
     const entryMap = new Map<string, ParsedRow>()
     for (const row of entradaRows) {
       const dateStr = formatDate(row.fechaHora)
       const hour = row.fechaHora.getHours()
 
-      let shift: 'morning' | 'afternoon'
-      if (hour < 12) {
+      let shift: 'morning' | 'afternoon' | 'night'
+      if (hour >= 5 && hour < 12) {
         shift = 'morning'
-      } else if (hour < 18) {
+      } else if (hour >= 12 && hour < 18) {
         shift = 'afternoon'
       } else {
-        continue
+        shift = 'night' // Night shift workers (19:00-07:00 etc.)
       }
 
       const key = `${row.rut}|${dateStr}|${shift}`
@@ -518,7 +507,7 @@ export async function POST(req: NextRequest) {
     }
 
     const summary: ImportSummary = {
-      totalRecords: allTargetRows.length,
+      totalRecords: allRows.length,
       atrasosFound: 0,
       atrasosCreated: 0,
       ausenciasFound: 0,
@@ -531,19 +520,27 @@ export async function POST(req: NextRequest) {
 
     // Process atrasos
     for (const [key, row] of Array.from(entryMap.entries())) {
-      const [, dateStr, shift] = key.split('|')
+      const [, dateStr, shiftStr] = key.split('|')
       const entryHour = row.fechaHora.getHours()
       const entryMinute = row.fechaHora.getMinutes()
+
+      // Skip night shift workers for atraso detection (they have different schedules)
+      if (shiftStr === 'night') continue
+
+      // Look up worker's schedule
+      const schedule = workerScheduleMap.get(row.rut) ||
+        workerScheduleMap.get(row.nombre.trim().split(/\s+/).slice(0, 2).join(' ').toLowerCase())
+      const threshold = getWorkerThreshold(schedule?.horaEntrada || null)
 
       let thresholdHour: number
       let thresholdMinute: number
 
-      if (shift === 'morning') {
-        thresholdHour = 8
-        thresholdMinute = 5
+      if (shiftStr === 'morning') {
+        thresholdHour = threshold.morningHr
+        thresholdMinute = threshold.morningMin
       } else {
-        thresholdHour = 14
-        thresholdMinute = 5
+        thresholdHour = threshold.afternoonHr
+        thresholdMinute = threshold.afternoonMin
       }
 
       const entryTotalMinutes = entryHour * 60 + entryMinute
@@ -558,7 +555,6 @@ export async function POST(req: NextRequest) {
 
       const worker = await findOrCreateWorker(row.rut, row.nombre, summary)
 
-      // Check if ATRASO already exists for this worker+date
       const dateStart = new Date(dateStr + 'T00:00:00.000Z')
       const dateEnd = new Date(dateStr + 'T23:59:59.999Z')
 
@@ -579,7 +575,7 @@ export async function POST(req: NextRequest) {
           date: dateStr,
           type: 'ATRASO',
           entryTime: `${String(entryHour).padStart(2, '0')}:${String(entryMinute).padStart(2, '0')}`,
-          shift: shift as 'morning' | 'afternoon',
+          shift: shiftStr as 'morning' | 'afternoon',
           minutesLate,
           action: 'skipped_existing',
         })
@@ -592,7 +588,7 @@ export async function POST(req: NextRequest) {
           date: new Date(dateStr + 'T12:00:00.000Z'),
           type: 'ATRASO',
           minutesLate,
-          reason: `Importado desde registro de asistencia (${shift === 'morning' ? 'turno mañana' : 'turno tarde'})`,
+          reason: `Importado desde registro de asistencia (${shiftStr === 'morning' ? 'turno mañana' : 'turno tarde'})`,
           reportedBy: 'Importación XLS',
         },
       })
@@ -605,17 +601,16 @@ export async function POST(req: NextRequest) {
         date: dateStr,
         type: 'ATRASO',
         entryTime: `${String(entryHour).padStart(2, '0')}:${String(entryMinute).padStart(2, '0')}`,
-        shift: shift as 'morning' | 'afternoon',
+        shift: shiftStr as 'morning' | 'afternoon',
         minutesLate,
         action: 'created',
       })
     }
 
     // ============================================================
-    // STEP 4: Detect AUSENCIAS (no entry on work days Mon-Sat)
+    // STEP 4: Detect AUSENCIAS
     // ============================================================
     if (minDate && maxDate && targetRuts.size > 0) {
-      // Build the list of work days (Mon-Sat) in the date range
       const workDays: string[] = []
       const current = new Date(minDate)
       current.setHours(0, 0, 0, 0)
@@ -629,7 +624,6 @@ export async function POST(req: NextRequest) {
         current.setDate(current.getDate() + 1)
       }
 
-      // For each target worker, check each work day
       for (const rut of targetRuts) {
         const info = workerInfo.get(rut)
         if (!info) continue
@@ -638,13 +632,11 @@ export async function POST(req: NextRequest) {
           const key = `${rut}|${dateStr}`
           const entries = workerDayEntries.get(key)
 
-          // If no "entrada" was recorded for this worker on this day
           if (!entries || !entries.has('entrada')) {
             summary.ausenciasFound++
 
             const worker = await findOrCreateWorker(rut, info.nombre, summary)
 
-            // Check if AUSENCIA already exists for this worker+date
             const dateStart = new Date(dateStr + 'T00:00:00.000Z')
             const dateEnd = new Date(dateStr + 'T23:59:59.999Z')
 
@@ -669,7 +661,6 @@ export async function POST(req: NextRequest) {
               continue
             }
 
-            // Also skip if there's an ATRASO record for this day (already counted as present)
             const existingAtraso = await db.asistenciaRecord.findFirst({
               where: {
                 workerId: worker.id,
@@ -678,10 +669,7 @@ export async function POST(req: NextRequest) {
               },
             })
 
-            if (existingAtraso) {
-              // Worker was present (just late) - not an absence
-              continue
-            }
+            if (existingAtraso) continue
 
             await db.asistenciaRecord.create({
               data: {
@@ -708,7 +696,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Sort details: first by date, then by nombre
     summary.details.sort((a, b) => {
       const dateCompare = a.date.localeCompare(b.date)
       if (dateCompare !== 0) return dateCompare

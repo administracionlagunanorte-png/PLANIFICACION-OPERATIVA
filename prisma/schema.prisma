@@ -276,6 +276,11 @@ model Worker {
   nombre          String              // Nombre completo
   rut             String              // RUT
   cuentaBancaria  String   @default("")  // Cuenta bancaria
+  cargo           String?             // Cargo (desde nómina)
+  turnoA          String?             // Horario turno A (desde nómina)
+  turnoB          String?             // Horario turno B (desde nómina)
+  horaEntrada     String?             // Hora de entrada esperada HH:MM (parseado del turno)
+  horaSalida      String?             // Hora de salida esperada HH:MM (parseado del turno)
   active          Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

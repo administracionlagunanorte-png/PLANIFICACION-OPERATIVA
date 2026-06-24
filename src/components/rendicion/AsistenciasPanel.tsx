@@ -74,6 +74,11 @@ interface Worker {
   rut: string
   cuentaBancaria: string
   active: boolean
+  cargo?: string | null
+  turnoA?: string | null
+  turnoB?: string | null
+  horaEntrada?: string | null
+  horaSalida?: string | null
 }
 
 interface AsistenciaRecord {
@@ -149,9 +154,11 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
 
   // --- Import state ---
   const [importing, setImporting] = useState(false)
+  const [importingNomina, setImportingNomina] = useState(false)
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
   const [clearing, setClearing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const nominaInputRef = useRef<HTMLInputElement>(null)
 
   // ============================================================
   // Data fetching
@@ -352,8 +359,54 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
       toast({ title: 'Error', description: 'No se pudo importar el archivo', variant: 'destructive' })
     } finally {
       setImporting(false)
-      // Reset the file input so the same file can be re-imported if needed
       if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  // ============================================================
+  // Import NOMINA (worker schedules)
+  // ============================================================
+  const handleImportNomina = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const validExtensions = ['.xls', '.xlsx', '.csv']
+    const fileName = file.name.toLowerCase()
+    if (!validExtensions.some(ext => fileName.endsWith(ext))) {
+      toast({ title: 'Error', description: 'Seleccione un archivo .xls, .xlsx o .csv', variant: 'destructive' })
+      return
+    }
+
+    setImportingNomina(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const res = await fetch('/api/workers/import-nomina', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (res.ok) {
+        const result = await res.json()
+        toast({
+          title: 'Nómina importada',
+          description: `${result.workersCreated} trabajador(es) creado(s), ${result.workersUpdated} actualizado(s)`,
+        })
+        fetchWorkers()
+      } else {
+        const error = await res.json()
+        toast({
+          title: 'Error',
+          description: error.error || 'No se pudo procesar la nómina',
+          variant: 'destructive',
+        })
+      }
+    } catch {
+      toast({ title: 'Error', description: 'No se pudo importar la nómina', variant: 'destructive' })
+    } finally {
+      setImportingNomina(false)
+      if (nominaInputRef.current) nominaInputRef.current.value = ''
     }
   }
 
@@ -450,6 +503,8 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
     .worker-section { margin-bottom: 28px; page-break-inside: avoid; }
     .worker-header { background: #0f172a; color: white; padding: 10px 16px; font-size: 14px; font-weight: 700; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center; }
     .worker-header .rut { font-weight: 400; font-size: 12px; opacity: 0.85; }
+    .worker-header .cargo { display: block; font-weight: 400; font-size: 11px; opacity: 0.7; margin-top: 2px; }
+    .worker-header .horario { font-weight: 400; font-size: 11px; opacity: 0.8; margin-right: 12px; background: rgba(255,255,255,0.15); padding: 2px 6px; border-radius: 3px; }
     .sub-header { background: #334155; color: #e2e8f0; padding: 6px 16px; font-size: 12px; font-weight: 600; }
     .sub-header.atraso-header { border-left: 4px solid #f59e0b; }
     .sub-header.ausencia-header { border-left: 4px solid #ef4444; }
@@ -484,13 +539,21 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
       const workerAusencias = data.records
         .filter(r => r.type === 'AUSENCIA')
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      const workerCargo = (data.worker as any).cargo || ''
+      const workerHorario = (data.worker as any).horaEntrada || ''
       const workerTotalMin = workerAtrasos.reduce((s, r) => s + r.minutesLate, 0)
 
       html += `
   <div class="worker-section">
     <div class="worker-header">
-      <span>${data.worker.nombre}</span>
-      <span class="rut">${data.worker.rut}</span>
+      <div>
+        <span>${data.worker.nombre}</span>
+        ${workerCargo ? `<span class="cargo">${workerCargo}</span>` : ''}
+      </div>
+      <div>
+        ${workerHorario ? `<span class="horario">Entrada: ${workerHorario}</span>` : ''}
+        <span class="rut">${data.worker.rut}</span>
+      </div>
     </div>`
 
       // --- ATRASOS section ---
@@ -675,7 +738,7 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
             {importing ? (
               <><div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-emerald-600" /> Importando...</>
             ) : (
-              <><Upload className="h-3.5 w-3.5" /> Importar XLS</>
+              <><Upload className="h-3.5 w-3.5" /> Importar Asistencia</>
             )}
           </Button>
           <input
@@ -683,6 +746,26 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
             type="file"
             accept=".xls,.xlsx,.csv"
             onChange={handleImportXls}
+            className="hidden"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1 border-blue-300 text-blue-700 hover:bg-blue-50"
+            onClick={() => nominaInputRef.current?.click()}
+            disabled={importingNomina}
+          >
+            {importingNomina ? (
+              <><div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-blue-600" /> Importando...</>
+            ) : (
+              <><Users className="h-3.5 w-3.5" /> Importar Nómina</>
+            )}
+          </Button>
+          <input
+            ref={nominaInputRef}
+            type="file"
+            accept=".xls,.xlsx,.csv"
+            onChange={handleImportNomina}
             className="hidden"
           />
           <Button variant="outline" size="sm" className="gap-1" onClick={generateReport}>
