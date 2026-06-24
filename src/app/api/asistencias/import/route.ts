@@ -3,121 +3,62 @@ import { db } from '@/lib/db'
 import * as XLSX from 'xlsx'
 
 // ============================================================
-// XLS Import for Asistencias Module — Universal Version
+// XLS Import for Asistencias Module — Universal Version v2
 // ============================================================
 // Works with ANY biometric clock Excel file.
 //
-// Key features:
-// - Flexible column name detection (multiple variations in Spanish/English)
-// - No mandatory department filter (processes ALL workers by default)
-// - Worker-specific schedule thresholds (from NOMINA data)
-// - Falls back to 08:05/14:05 if no schedule is configured
-// - Detects ATRASOS and AUSENCIAS
-//
-// Work days: Lunes a Sábado (no Sunday)
+// Key fixes from v1:
+// - Handles SEPARATE date + time columns (most biometric exports)
+// - Handles combined date/time column
+// - Night shift: does NOT skip — only uses different threshold
+// - Comprehensive diagnostic output
 // ============================================================
 
-// Default thresholds (used when worker has no specific schedule)
 const DEFAULT_MORNING_THRESHOLD_HR = 8
 const DEFAULT_MORNING_THRESHOLD_MIN = 5
 const DEFAULT_AFTERNOON_THRESHOLD_HR = 14
 const DEFAULT_AFTERNOON_THRESHOLD_MIN = 5
-const GRACE_MINUTES = 5 // grace period added to scheduled entry time
+const GRACE_MINUTES = 5
 
-// Column name variations for flexible matching
+// Column name variations — now includes separate fecha and hora
 const COLUMN_VARIATIONS: Record<string, string[]> = {
   departamento: [
-    'departamento',
-    'department',
-    'depto',
-    'dept',
-    'área',
-    'area',
-    'sección',
-    'seccion',
-    'unidad',
-    'cargo',
-    'posición',
-    'posicion',
-    'puesto',
+    'departamento', 'department', 'depto', 'dept', 'área', 'area',
+    'sección', 'seccion', 'unidad', 'cargo', 'posición', 'posicion', 'puesto',
   ],
   rut: [
-    'rut',
-    'r.u.t',
-    'r.u.t.',
-    'run',
-    'r.u.n',
-    'r.u.n.',
-    'cedula',
-    'cédula',
-    'ci',
-    'documento',
-    'número documento',
-    'numero documento',
-    'num documento',
-    'id',
-    'identificación',
-    'identificacion',
-    'rut/pasaporte',
-    'número',
-    'numero',
-    'código',
-    'codigo',
-    'code',
-    'nº',
+    'rut', 'r.u.t', 'r.u.t.', 'run', 'r.u.n', 'r.u.n.',
+    'cedula', 'cédula', 'ci', 'documento', 'número documento',
+    'numero documento', 'num documento', 'id', 'identificación',
+    'identificacion', 'rut/pasaporte', 'número', 'numero',
+    'código', 'codigo', 'code', 'nº', 'n°',
   ],
   nombre: [
-    'nombre',
-    'name',
-    'nombres',
-    'nombre completo',
-    'trabajador',
-    'empleado',
-    'colaborador',
-    'persona',
-    'funcionario',
-    'nombre y apellido',
-    'apellidos y nombres',
-    'apellido y nombre',
-    'nombre y apellidos',
+    'nombre', 'name', 'nombres', 'nombre completo', 'trabajador',
+    'empleado', 'colaborador', 'persona', 'funcionario',
+    'nombre y apellido', 'apellidos y nombres', 'apellido y nombre',
+    'nombre y apellidos', 'apellido, nombre',
   ],
+  // COMBINED date+time column — ONLY matches columns that clearly have both
   fechaHora: [
-    'fecha/hora',
-    'fecha / hora',
-    'fecha hora',
-    'fechahora',
-    'fecha y hora',
-    'fecha',
-    'date/time',
-    'datetime',
-    'date',
-    'fecha_registro',
-    'fecha registro',
-    'marcación',
-    'marcacion',
-    'hora',
-    'time',
-    'timestamp',
-    'fecha de marcación',
-    'fecha de marcacion',
+    'fecha/hora', 'fecha / hora', 'fecha hora', 'fechahora',
+    'fecha y hora', 'date/time', 'datetime', 'timestamp',
+    'marcación', 'marcacion', 'fecha de marcación', 'fecha de marcacion',
+  ],
+  // SEPARATE date column (no time) — matches columns that are clearly date-only
+  fecha: [
+    'fecha', 'date', 'día', 'dia', 'fecha_registro', 'fecha registro',
+  ],
+  // SEPARATE time column (no date) — matches columns that are clearly time-only
+  hora: [
+    'hora', 'time', 'hora_registro', 'hora registro',
+    'hora de marcación', 'hora de marcacion', 'hora marcación',
   ],
   tipoRegistro: [
-    'tipo registro',
-    'tipo de registro',
-    'tipo_registro',
-    'tiporegistro',
-    'tipo',
-    'type',
-    'registro',
-    'entrada/salida',
-    'entrada / salida',
-    'direccion',
-    'dirección',
-    'direction',
-    'estado',
-    'status',
-    'marca',
-    'evento',
+    'tipo registro', 'tipo de registro', 'tipo_registro', 'tiporegistro',
+    'tipo', 'type', 'registro', 'entrada/salida', 'entrada / salida',
+    'direccion', 'dirección', 'direction', 'estado', 'status',
+    'marca', 'evento',
   ],
 }
 
@@ -143,6 +84,7 @@ interface ImportDetail {
 
 interface ImportSummary {
   totalRecords: number
+  rowsParsed: number
   atrasosFound: number
   atrasosCreated: number
   ausenciasFound: number
@@ -151,6 +93,13 @@ interface ImportSummary {
   skipped: number
   details: ImportDetail[]
   columnMapping: Record<string, string>
+  diagnostics: {
+    columnsFound: string[]
+    columnMapping: Record<string, string>
+    sampleRows: Record<string, unknown>[]
+    parsingNotes: string[]
+    dateMode: 'combined' | 'separate' | 'unknown'
+  }
 }
 
 function normalizeRut(rut: string): string {
@@ -172,7 +121,7 @@ function parseExcelDate(value: unknown): Date | null {
     if (!isNaN(parsed.getTime())) {
       return parsed
     }
-    // Try common date formats: DD/MM/YYYY or DD-MM-YYYY
+    // Try DD/MM/YYYY or DD-MM-YYYY
     const parts = value.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/)
     if (parts) {
       const day = parseInt(parts[1])
@@ -183,6 +132,57 @@ function parseExcelDate(value: unknown): Date | null {
     }
   }
   return null
+}
+
+// Parse a time-only value (from a separate "Hora" column)
+// Returns { hours, minutes } or null
+function parseTimeValue(value: unknown): { hours: number; minutes: number } | null {
+  if (typeof value === 'string') {
+    const v = value.trim()
+    // "HH:MM" or "HH:MM:SS"
+    const match = v.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/)
+    if (match) {
+      const h = parseInt(match[1])
+      const m = parseInt(match[2])
+      if (h >= 0 && h < 24 && m >= 0 && m < 60) {
+        return { hours: h, minutes: m }
+      }
+    }
+    // "HHMM" (no colon)
+    const match2 = v.match(/^(\d{1,2})(\d{2})$/)
+    if (match2) {
+      const h = parseInt(match2[1])
+      const m = parseInt(match2[2])
+      if (h >= 0 && h < 24 && m >= 0 && m < 60) {
+        return { hours: h, minutes: m }
+      }
+    }
+  }
+  if (typeof value === 'number') {
+    // Excel time is stored as fraction of day (e.g. 0.333 = 8:00 AM)
+    if (value >= 0 && value < 1) {
+      const totalMinutes = Math.round(value * 24 * 60)
+      const hours = Math.floor(totalMinutes / 60)
+      const minutes = totalMinutes % 60
+      return { hours, minutes }
+    }
+    // Could also be a date serial that contains time
+    const date = XLSX.SSF.parse_date_code(value)
+    if (date && (date.H !== undefined)) {
+      return { hours: date.H, minutes: date.M || 0 }
+    }
+  }
+  if (value instanceof Date) {
+    return { hours: value.getHours(), minutes: value.getMinutes() }
+  }
+  return null
+}
+
+// Combine a date-only Date with a time value
+function combineDateAndTime(dateOnly: Date, time: { hours: number; minutes: number }): Date {
+  const result = new Date(dateOnly)
+  result.setHours(time.hours, time.minutes, 0, 0)
+  return result
 }
 
 function isWorkDay(date: Date): boolean {
@@ -211,9 +211,14 @@ function findColumnMatch(
   for (const variant of variations) {
     const nv = variant.replace(/[_\-\.\/]/g, ' ').replace(/\s+/g, ' ').trim()
 
+    // Exact match first (highest priority)
     const exactMatch = normalizedColumns.find(c => c.normalized === nv)
     if (exactMatch) return exactMatch.original
+  }
 
+  // Second pass: contains match (lower priority)
+  for (const variant of variations) {
+    const nv = variant.replace(/[_\-\.\/]/g, ' ').replace(/\s+/g, ' ').trim()
     const containsMatch = normalizedColumns.find(c =>
       c.normalized.includes(nv) || nv.includes(c.normalized)
     )
@@ -237,7 +242,6 @@ function isSalidaType(value: string): boolean {
     v === 'e/s: salida' || v === '1'
 }
 
-// Parse time string "HH:MM" to total minutes from midnight
 function parseTimeToMinutes(timeStr: string): number | null {
   if (!timeStr) return null
   const match = timeStr.match(/(\d{1,2}):(\d{2})/)
@@ -245,8 +249,6 @@ function parseTimeToMinutes(timeStr: string): number | null {
   return parseInt(match[1]) * 60 + parseInt(match[2])
 }
 
-// Get the threshold for a worker based on their schedule
-// Returns { morningHr, morningMin, afternoonHr, afternoonMin }
 function getWorkerThreshold(horaEntrada: string | null): {
   morningHr: number; morningMin: number;
   afternoonHr: number; afternoonMin: number;
@@ -254,12 +256,10 @@ function getWorkerThreshold(horaEntrada: string | null): {
   const entryMinutes = parseTimeToMinutes(horaEntrada || '')
 
   if (entryMinutes !== null) {
-    // Worker has a specific schedule — use it + grace period
     const thresholdMinutes = entryMinutes + GRACE_MINUTES
     const hr = Math.floor(thresholdMinutes / 60)
     const min = thresholdMinutes % 60
 
-    // If entry is in the afternoon (>= 12:00), set morning to default
     if (entryMinutes >= 12 * 60) {
       return {
         morningHr: DEFAULT_MORNING_THRESHOLD_HR,
@@ -277,7 +277,6 @@ function getWorkerThreshold(horaEntrada: string | null): {
     }
   }
 
-  // No schedule configured — use defaults
   return {
     morningHr: DEFAULT_MORNING_THRESHOLD_HR,
     morningMin: DEFAULT_MORNING_THRESHOLD_MIN,
@@ -292,7 +291,6 @@ async function findOrCreateWorker(rut: string, nombre: string, summary: ImportSu
   if (rut) {
     worker = await db.worker.findFirst({ where: { rut } })
     if (!worker) {
-      // Try normalized RUT
       const rutVariations = [rut, rut.replace(/\./g, ''), rut.replace(/-/g, '.')]
       for (const rv of rutVariations) {
         worker = await db.worker.findFirst({ where: { rut: rv } })
@@ -302,7 +300,6 @@ async function findOrCreateWorker(rut: string, nombre: string, summary: ImportSu
   }
 
   if (!worker && nombre) {
-    // Try to match by partial name
     const nameParts = nombre.trim().split(/\s+/).slice(0, 2).join(' ')
     worker = await db.worker.findFirst({
       where: { nombre: { contains: nameParts, mode: 'insensitive' } },
@@ -360,10 +357,11 @@ export async function POST(req: NextRequest) {
     const sheet = workbook.Sheets[sheetName]
 
     // Auto-detect header row
-    const MIN_REQUIRED = ['nombre', 'fechaHora']
+    const MIN_REQUIRED_FIELDS = ['nombre'] // Only nombre is absolutely required
     let headerRowIndex = -1
     let jsonData: Record<string, unknown>[] = []
     let columnMapping: Record<string, string> = {}
+    let allColumnsFound: string[] = []
 
     for (let rangeAttempt = 0; rangeAttempt <= 15; rangeAttempt++) {
       const tryData: Record<string, unknown>[] = XLSX.utils.sheet_to_json(sheet, {
@@ -379,11 +377,12 @@ export async function POST(req: NextRequest) {
         mapping[fieldKey] = findColumnMatch(columns, fieldKey)
       }
 
-      const minFound = MIN_REQUIRED.every(key => mapping[key] !== null)
+      const minFound = MIN_REQUIRED_FIELDS.every(key => mapping[key] !== null)
 
       if (minFound) {
         headerRowIndex = rangeAttempt
         jsonData = tryData
+        allColumnsFound = columns
         for (const [key, val] of Object.entries(mapping)) {
           if (val) columnMapping[key] = val
         }
@@ -392,15 +391,53 @@ export async function POST(req: NextRequest) {
     }
 
     if (headerRowIndex === -1 || jsonData.length === 0) {
-      // Return helpful error with what columns were found
       const testCols = jsonData.length > 0 ? Object.keys(jsonData[0]).join(', ') : 'ninguna'
       return NextResponse.json({
-        error: `No se pudieron identificar las columnas requeridas (Nombre y Fecha/Hora). Columnas encontradas: ${testCols}`,
+        error: `No se pudieron identificar las columnas requeridas (Nombre). Columnas encontradas: ${testCols}`,
       }, { status: 400 })
     }
 
+    // ============================================================
+    // SMART COLUMN CONFLICT RESOLUTION
+    // ============================================================
+    // If we have BOTH separate 'fecha' and 'hora' columns, we should
+    // NOT use 'fechaHora' because that would match one of them
+    // incorrectly (e.g., matching "Hora" to fechaHora would lose the date).
+    // Priority: separate columns (fecha+hora) > combined column (fechaHora)
+    const colFecha = columnMapping['fecha'] || null
+    const colHora = columnMapping['hora'] || null
+    const colFechaHora = columnMapping['fechaHora'] || null
+
+    // If both fecha AND hora exist separately, remove fechaHora mapping
+    // because we'll combine fecha+hora ourselves
+    if (colFecha && colHora) {
+      // Check if fechaHora was mapped to the same column as fecha or hora
+      // If so, it's a false match — remove it
+      if (colFechaHora && (colFechaHora === colFecha || colFechaHora === colHora)) {
+        delete columnMapping['fechaHora']
+      }
+      // Even if fechaHora was mapped to a different column, prefer separate columns
+      // because they're more reliable for biometric clock data
+    }
+
+    // If we have a fechaHora combined column that happens to match the same
+    // column as 'fecha' or 'hora', remove the conflicting mappings
+    if (colFechaHora) {
+      if (colFechaHora === colFecha) {
+        // fechaHora and fecha point to same column — likely just a date column
+        // Remove fechaHora, keep fecha for separate processing
+        delete columnMapping['fechaHora']
+      } else if (colFechaHora === colHora) {
+        // fechaHora was incorrectly matched to the Hora column
+        delete columnMapping['fechaHora']
+      }
+    }
+
+    // Re-read after conflict resolution
+    const finalColFechaHora = columnMapping['fechaHora'] || null
+    const finalColFecha = columnMapping['fecha'] || null
+    const finalColHora = columnMapping['hora'] || null
     const colNombre = columnMapping['nombre']!
-    const colFechaHora = columnMapping['fechaHora']!
     const colRut = columnMapping['rut'] || null
     const colDepartamento = columnMapping['departamento'] || null
     const colTipoRegistro = columnMapping['tipoRegistro'] || null
@@ -409,16 +446,53 @@ export async function POST(req: NextRequest) {
     const hasDepartamento = !!colDepartamento
     const hasTipoRegistro = !!colTipoRegistro
 
+    // Determine the date parsing mode
+    let dateMode: 'combined' | 'separate' | 'unknown' = 'unknown'
+    const parsingNotes: string[] = []
+
+    if (finalColFechaHora) {
+      dateMode = 'combined'
+      parsingNotes.push(`Modo: Columna combinada fecha/hora "${finalColFechaHora}"`)
+    } else if (finalColFecha && finalColHora) {
+      dateMode = 'separate'
+      parsingNotes.push(`Modo: Columnas separadas "${finalColFecha}" + "${finalColHora}"`)
+    } else if (finalColFecha) {
+      // Only date column, no time — try to infer time from the date value itself
+      // (Excel sometimes stores date+time in a "Fecha" column even if it's named just "Fecha")
+      dateMode = 'separate'
+      parsingNotes.push(`Modo: Solo columna de fecha "${finalColFecha}" sin hora separada. Se intentará extraer hora del valor de fecha.`)
+    } else if (finalColHora) {
+      // Only time, no date — can't process
+      parsingNotes.push(`ERROR: Solo se encontró columna de hora "${finalColHora}" sin fecha. No se puede procesar.`)
+    } else {
+      parsingNotes.push('ERROR: No se encontró ninguna columna de fecha u hora.')
+    }
+
+    // Make sure we have at least some way to get dates
+    if (!finalColFechaHora && !finalColFecha) {
+      return NextResponse.json({
+        error: `No se encontró columna de fecha. Columnas encontradas: ${allColumnsFound.join(', ')}`,
+        columnMapping,
+        diagnostics: {
+          columnsFound: allColumnsFound,
+          columnMapping,
+          sampleRows: jsonData.slice(0, 3),
+          parsingNotes,
+          dateMode,
+        },
+      }, { status: 400 })
+    }
+
     // ============================================================
-    // STEP 1: Parse ALL rows
+    // STEP 1: Parse ALL rows with smart date/time handling
     // ============================================================
     const allRows: ParsedRow[] = []
+    let rowsWithZeroHour = 0
+    let rowsWithValidTime = 0
+
     for (const row of jsonData) {
       const nombre = String(row[colNombre] || '').trim()
       if (!nombre) continue
-
-      const fechaHora = parseExcelDate(row[colFechaHora])
-      if (!fechaHora) continue
 
       const rut = colRut ? normalizeRut(String(row[colRut] || '')) : nombre
       if (!rut) continue
@@ -426,13 +500,121 @@ export async function POST(req: NextRequest) {
       const departamento = colDepartamento ? String(row[colDepartamento] || '').trim() : ''
       const tipoRegistro = colTipoRegistro ? String(row[colTipoRegistro] || '').trim() : 'entrada'
 
+      let fechaHora: Date | null = null
+
+      if (dateMode === 'combined' && finalColFechaHora) {
+        // Combined date/time column
+        fechaHora = parseExcelDate(row[finalColFechaHora])
+      } else if (dateMode === 'separate') {
+        // Separate date and time columns (or date-only with possible embedded time)
+        const dateValue = finalColFecha ? row[finalColFecha] : null
+        const timeValue = finalColHora ? row[finalColHora] : null
+
+        const parsedDate = dateValue !== null ? parseExcelDate(dateValue) : null
+
+        if (parsedDate) {
+          if (timeValue !== null && finalColHora) {
+            // We have both date and time columns
+            const parsedTime = parseTimeValue(timeValue)
+            if (parsedTime) {
+              fechaHora = combineDateAndTime(parsedDate, parsedTime)
+              rowsWithValidTime++
+            } else {
+              // Couldn't parse time — use date as-is (might have time embedded)
+              fechaHora = parsedDate
+              rowsWithZeroHour++
+            }
+          } else {
+            // Date column only — check if it has time info embedded
+            // (Excel sometimes stores full datetime in "Fecha" column)
+            if (parsedDate.getHours() !== 0 || parsedDate.getMinutes() !== 0) {
+              // The date value actually contains time info
+              fechaHora = parsedDate
+              rowsWithValidTime++
+            } else {
+              // Date at midnight — we have NO time info
+              // Mark as having zero hour so we can handle it later
+              fechaHora = parsedDate
+              rowsWithZeroHour++
+            }
+          }
+        }
+      }
+
+      if (!fechaHora) continue
+
       allRows.push({ rut, nombre, departamento, fechaHora, tipoRegistro })
     }
 
     if (allRows.length === 0) {
       return NextResponse.json({
         error: 'No se encontraron registros válidos en el archivo',
+        columnMapping,
+        diagnostics: {
+          columnsFound: allColumnsFound,
+          columnMapping,
+          sampleRows: jsonData.slice(0, 5),
+          parsingNotes: [...parsingNotes, `Filas parseadas: 0 de ${jsonData.length}`],
+          dateMode,
+        },
       }, { status: 400 })
+    }
+
+    // If most rows have zero hour, add a note and try alternative parsing
+    if (rowsWithZeroHour > 0 && rowsWithValidTime === 0) {
+      parsingNotes.push(
+        `⚠️ ${rowsWithZeroHour} filas tienen hora 00:00 (medianoche). ` +
+        `Intentando leer valores crudos de fecha/hora...`
+      )
+
+      // Try re-reading the Excel WITHOUT cellDates to get raw date values
+      // Sometimes cellDates:true converts date+time to date-only at midnight
+      const rawWorkbook = XLSX.read(buffer, { type: 'buffer', cellDates: false })
+      const rawSheet = rawWorkbook.Sheets[rawWorkbook.SheetNames[0]]
+      const rawJsonData: Record<string, unknown>[] = XLSX.utils.sheet_to_json(rawSheet, {
+        range: headerRowIndex,
+        defval: '',
+      })
+
+      // Try to parse raw values — Excel serial numbers contain both date AND time
+      let reParsedWithTime = 0
+      for (let i = 0; i < allRows.length && i < rawJsonData.length; i++) {
+        const rawRow = rawJsonData[i]
+        const rawDateVal = finalColFecha ? rawRow[finalColFecha] : (finalColFechaHora ? rawRow[finalColFechaHora] : null)
+        const rawTimeVal = finalColHora ? rawRow[finalColHora] : null
+
+        // Try to parse the raw date value as a serial number
+        if (typeof rawDateVal === 'number' && rawDateVal > 1) {
+          // Excel serial number — contains both date and time
+          const parsed = XLSX.SSF.parse_date_code(rawDateVal)
+          if (parsed && (parsed.H !== undefined) && (parsed.H > 0 || parsed.M > 0)) {
+            allRows[i].fechaHora = new Date(parsed.y, parsed.m - 1, parsed.d, parsed.H, parsed.M, parsed.S || 0)
+            reParsedWithTime++
+          }
+        }
+
+        // If we have a separate time column, try combining
+        if (finalColHora && rawTimeVal !== null && rawTimeVal !== '') {
+          const parsedTime = parseTimeValue(rawTimeVal)
+          if (parsedTime && (parsedTime.hours > 0 || parsedTime.minutes > 0)) {
+            const dateOnly = allRows[i].fechaHora
+            allRows[i].fechaHora = combineDateAndTime(dateOnly, parsedTime)
+            reParsedWithTime++
+          }
+        }
+      }
+
+      if (reParsedWithTime > 0) {
+        parsingNotes.push(`✅ Se recuperó hora de ${reParsedWithTime} registros usando lectura cruda del Excel.`)
+        rowsWithZeroHour -= reParsedWithTime
+        rowsWithValidTime += reParsedWithTime
+      } else {
+        parsingNotes.push(
+          `❌ No se pudo recuperar información de hora. ` +
+          `Los registros se procesarán sin detección de atrasos por hora. ` +
+          `Solo se detectarán ausencias.`
+        )
+      }
     }
 
     // ============================================================
@@ -485,9 +667,7 @@ export async function POST(req: NextRequest) {
     })
     const workerScheduleMap = new Map<string, { horaEntrada: string | null; horaSalida: string | null }>()
     for (const w of dbWorkers) {
-      // Index by RUT and by name
       if (w.rut) workerScheduleMap.set(w.rut, { horaEntrada: w.horaEntrada, horaSalida: w.horaSalida })
-      // Also index by first two name words for matching
       const nameKey = w.nombre.trim().split(/\s+/).slice(0, 2).join(' ').toLowerCase()
       if (!workerScheduleMap.has(nameKey)) {
         workerScheduleMap.set(nameKey, { horaEntrada: w.horaEntrada, horaSalida: w.horaSalida })
@@ -495,23 +675,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Group entries by RUT + date + shift
+    // For each worker+date, find the EARLIEST entrada of the day
     const entryMap = new Map<string, ParsedRow>()
     for (const row of entradaRows) {
       const dateStr = formatDate(row.fechaHora)
-      const hour = row.fechaHora.getHours()
-
-      let shift: 'morning' | 'afternoon' | 'night'
-      if (hour >= 5 && hour < 12) {
-        shift = 'morning'
-      } else if (hour >= 12 && hour < 18) {
-        shift = 'afternoon'
-      } else {
-        shift = 'night' // Night shift workers (19:00-07:00 etc.)
-      }
-
-      const key = `${row.rut}|${dateStr}|${shift}`
+      const key = `${row.rut}|${dateStr}`
       const existing = entryMap.get(key)
 
+      // Keep the earliest entry of the day for each worker
       if (!existing || row.fechaHora < existing.fechaHora) {
         entryMap.set(key, row)
       }
@@ -519,6 +690,7 @@ export async function POST(req: NextRequest) {
 
     const summary: ImportSummary = {
       totalRecords: allRows.length,
+      rowsParsed: allRows.length,
       atrasosFound: 0,
       atrasosCreated: 0,
       ausenciasFound: 0,
@@ -527,16 +699,31 @@ export async function POST(req: NextRequest) {
       skipped: 0,
       details: [],
       columnMapping,
+      diagnostics: {
+        columnsFound: allColumnsFound,
+        columnMapping,
+        sampleRows: jsonData.slice(0, 3),
+        parsingNotes,
+        dateMode,
+      },
     }
 
-    // Process atrasos
+    // Process atrasos — for each worker+date, check if the earliest entry is late
     for (const [key, row] of Array.from(entryMap.entries())) {
-      const [, dateStr, shiftStr] = key.split('|')
+      const [rut, dateStr] = key.split('|')
       const entryHour = row.fechaHora.getHours()
       const entryMinute = row.fechaHora.getMinutes()
 
-      // Skip night shift workers for atraso detection (they have different schedules)
-      if (shiftStr === 'night') continue
+      // Determine shift based on entry hour
+      // IMPORTANT: Night shift workers are NOT skipped anymore!
+      let shift: 'morning' | 'afternoon' | 'night'
+      if (entryHour >= 5 && entryHour < 12) {
+        shift = 'morning'
+      } else if (entryHour >= 12 && entryHour < 18) {
+        shift = 'afternoon'
+      } else {
+        shift = 'night'
+      }
 
       // Look up worker's schedule
       const schedule = workerScheduleMap.get(row.rut) ||
@@ -546,12 +733,30 @@ export async function POST(req: NextRequest) {
       let thresholdHour: number
       let thresholdMinute: number
 
-      if (shiftStr === 'morning') {
+      if (shift === 'morning') {
         thresholdHour = threshold.morningHr
         thresholdMinute = threshold.morningMin
-      } else {
+      } else if (shift === 'afternoon') {
         thresholdHour = threshold.afternoonHr
         thresholdMinute = threshold.afternoonMin
+      } else {
+        // Night shift — use the worker's schedule threshold if available
+        // Otherwise use a reasonable default (e.g., 5 minutes after their scheduled start)
+        if (schedule?.horaEntrada) {
+          const nightEntry = parseTimeToMinutes(schedule.horaEntrada)
+          if (nightEntry !== null) {
+            const thresholdMin = nightEntry + GRACE_MINUTES
+            thresholdHour = Math.floor(thresholdMin / 60)
+            thresholdMinute = thresholdMin % 60
+          } else {
+            // No schedule for night worker — skip atraso detection
+            // (can't determine if they're late without knowing their schedule)
+            continue
+          }
+        } else {
+          // No schedule configured for night worker — skip
+          continue
+        }
       }
 
       const entryTotalMinutes = entryHour * 60 + entryMinute
@@ -586,7 +791,7 @@ export async function POST(req: NextRequest) {
           date: dateStr,
           type: 'ATRASO',
           entryTime: `${String(entryHour).padStart(2, '0')}:${String(entryMinute).padStart(2, '0')}`,
-          shift: shiftStr as 'morning' | 'afternoon',
+          shift,
           minutesLate,
           action: 'skipped_existing',
         })
@@ -599,7 +804,7 @@ export async function POST(req: NextRequest) {
           date: new Date(dateStr + 'T12:00:00.000Z'),
           type: 'ATRASO',
           minutesLate,
-          reason: `Importado desde registro de asistencia (${shiftStr === 'morning' ? 'turno mañana' : 'turno tarde'})`,
+          reason: `Importado desde registro de asistencia (${shift === 'morning' ? 'turno mañana' : shift === 'afternoon' ? 'turno tarde' : 'turno noche'})`,
           reportedBy: 'Importación XLS',
         },
       })
@@ -612,7 +817,7 @@ export async function POST(req: NextRequest) {
         date: dateStr,
         type: 'ATRASO',
         entryTime: `${String(entryHour).padStart(2, '0')}:${String(entryMinute).padStart(2, '0')}`,
-        shift: shiftStr as 'morning' | 'afternoon',
+        shift,
         minutesLate,
         action: 'created',
       })
@@ -712,6 +917,18 @@ export async function POST(req: NextRequest) {
       if (dateCompare !== 0) return dateCompare
       return a.nombre.localeCompare(b.nombre)
     })
+
+    // Add final diagnostics
+    summary.diagnostics.parsingNotes.push(
+      `Total filas en Excel: ${jsonData.length}`,
+      `Filas parseadas: ${allRows.length}`,
+      `RUTs únicos: ${targetRuts.size}`,
+      `Entradas procesadas: ${entradaRows.length}`,
+      `Días hábiles en rango: ${minDate && maxDate ? 'calculados' : 'sin rango'}`,
+      `Filas con hora 00:00: ${rowsWithZeroHour}`,
+      `Filas con hora válida: ${rowsWithValidTime}`,
+      `Trabajadores con horario (NOMINA): ${workerScheduleMap.size}`,
+    )
 
     return NextResponse.json(summary, { status: 200 })
   } catch (error) {

@@ -344,20 +344,50 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
         if (summary.atrasosCreated > 0) parts.push(`${summary.atrasosCreated} atraso(s)`)
         if (summary.ausenciasCreated > 0) parts.push(`${summary.ausenciasCreated} inasistencia(s)`)
         if (parts.length === 0) parts.push('0 registros nuevos')
-        const desc = `${parts.join(', ')} creado(s), ${summary.workersCreated} trabajador(es) nuevo(s), ${summary.skipped} existente(s) omitido(s). Total filas: ${summary.totalRecords}, Atrasos encontrados: ${summary.atrasosFound}, Ausencias encontradas: ${summary.ausenciasFound}. Columnas: ${JSON.stringify(summary.columnMapping)}`
+
+        // Build detailed description with diagnostics
+        let desc = `${parts.join(', ')} creado(s), ${summary.workersCreated} trabajador(es) nuevo(s), ${summary.skipped} existente(s) omitido(s).`
+        desc += ` Total filas: ${summary.totalRecords}, Atrasos encontrados: ${summary.atrasosFound}, Ausencias encontradas: ${summary.ausenciasFound}.`
+
+        // Add diagnostics info
+        if (summary.diagnostics) {
+          const d = summary.diagnostics
+          desc += ` Modo fecha: ${d.dateMode}.`
+          if (d.parsingNotes && d.parsingNotes.length > 0) {
+            desc += ` Notas: ${d.parsingNotes.filter((n: string) => !n.startsWith('Total') && !n.startsWith('Filas parseadas')).join('; ')}.`
+          }
+          // Show column mapping clearly
+          const mapping = Object.entries(d.columnMapping || summary.columnMapping || {})
+            .map(([k, v]) => `${k}→${v}`)
+            .join(', ')
+          desc += ` Mapeo: ${mapping}.`
+        }
+
+        const hasNoResults = summary.totalRecords > 0 && summary.atrasosFound === 0 && summary.ausenciasFound === 0
+
         toast({
-          title: summary.totalRecords > 0 && summary.atrasosFound === 0 && summary.ausenciasFound === 0 ? 'Importación sin resultados' : 'Importación completada',
+          title: hasNoResults ? '⚠️ Importación sin resultados' : '✅ Importación completada',
           description: desc,
-          duration: 15000,
+          duration: 30000,
+          variant: hasNoResults ? 'destructive' : 'default',
         })
         fetchRecords()
         fetchWorkers()
       } else {
         const error = await res.json()
+        let errDesc = error.error || 'No se pudo procesar el archivo'
+        // Show diagnostics if available in error response
+        if (error.diagnostics) {
+          errDesc += ` | Columnas: ${error.diagnostics.columnsFound?.join(', ') || 'ninguna'}`
+          if (error.diagnostics.parsingNotes?.length > 0) {
+            errDesc += ` | Notas: ${error.diagnostics.parsingNotes.join('; ')}`
+          }
+        }
         toast({
           title: 'Error de importación',
-          description: error.error || 'No se pudo procesar el archivo',
+          description: errDesc,
           variant: 'destructive',
+          duration: 30000,
         })
       }
     } catch {
