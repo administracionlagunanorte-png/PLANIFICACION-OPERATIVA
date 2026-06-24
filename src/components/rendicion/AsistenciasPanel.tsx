@@ -401,6 +401,11 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
 
     const filtered = getFilteredRecords()
 
+    if (filtered.length === 0) {
+      toast({ title: 'Sin datos', description: 'No hay registros para generar el informe del mes seleccionado', variant: 'destructive' })
+      return
+    }
+
     // Group records by worker
     const workerMap = new Map<string, { worker: { nombre: string; rut: string }; records: typeof filtered }>()
     filtered.forEach(r => {
@@ -422,42 +427,45 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
 
     // Calculate totals
     const atrasos = filtered.filter(r => r.type === 'ATRASO')
+    const ausencias = filtered.filter(r => r.type === 'AUSENCIA')
     const totalMinAtraso = atrasos.reduce((s, r) => s + r.minutesLate, 0)
     const uniqueWorkers = new Set(filtered.map(r => r.workerId))
 
-    let html = `
-    <html>
-    <head>
-      <title>Informe de Atrasos - ${monthName} ${yearStr}</title>
-      <style>
-        body { font-family: Arial, sans-serif; margin: 20px; color: #1e293b; }
-        h1 { font-size: 22px; text-align: center; margin-bottom: 4px; color: #0f172a; }
-        h2 { font-size: 16px; text-align: center; color: #64748b; margin-bottom: 24px; font-weight: 400; }
-        .logo { text-align: center; margin-bottom: 16px; }
-        .logo img { height: 60px; }
-        .worker-section { margin-bottom: 28px; page-break-inside: avoid; }
-        .worker-header { background: #0f172a; color: white; padding: 10px 16px; font-size: 14px; font-weight: 700; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center; }
-        .worker-header .rut { font-weight: 400; font-size: 12px; opacity: 0.85; }
-        table { width: 100%; border-collapse: collapse; font-size: 12px; }
-        th { background: #334155; color: white; padding: 8px 12px; text-align: left; font-weight: 600; font-size: 11px; }
-        td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
-        tr:nth-child(even) { background: #f8fafc; }
-        .atraso { background: #fffbeb; color: #92400e; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
-        .ausencia { background: #fef2f2; color: #991b1b; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
-        .worker-total { background: #f1f5f9; font-weight: 600; font-size: 12px; color: #0f172a; padding: 8px 16px; display: flex; justify-content: space-between; border-radius: 0 0 6px 6px; border-top: 2px solid #cbd5e1; }
-        .summary { margin-top: 32px; padding: 16px; background: #f1f5f9; border-radius: 8px; }
-        .summary h3 { margin: 0 0 8px; font-size: 14px; color: #0f172a; }
-        .summary-item { display: inline-block; margin-right: 24px; font-size: 13px; }
-        .summary-number { font-size: 20px; font-weight: 700; }
-        .footer { margin-top: 32px; text-align: center; font-size: 11px; color: #94a3b8; }
-        .date-cell { min-width: 100px; }
-        .time-cell { min-width: 80px; }
-      </style>
-    </head>
-    <body>
-      <div class="logo"><img src="/logo-laguna-norte.jpg" alt="Laguna Norte" /></div>
-      <h1>Informe de Atrasos</h1>
-      <h2>Condominio Laguna Norte — ${monthName} ${yearStr}</h2>`
+    let html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Informe de Atrasos - ${monthName} ${yearStr}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; margin: 20px; color: #1e293b; background: #fff; }
+    h1 { font-size: 22px; text-align: center; margin-bottom: 4px; color: #0f172a; }
+    h2 { font-size: 16px; text-align: center; color: #64748b; margin-bottom: 24px; font-weight: 400; }
+    .worker-section { margin-bottom: 28px; page-break-inside: avoid; }
+    .worker-header { background: #0f172a; color: white; padding: 10px 16px; font-size: 14px; font-weight: 700; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center; }
+    .worker-header .rut { font-weight: 400; font-size: 12px; opacity: 0.85; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { background: #334155; color: white; padding: 8px 12px; text-align: left; font-weight: 600; font-size: 11px; }
+    td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
+    tr:nth-child(even) { background: #f8fafc; }
+    .atraso { background: #fffbeb; color: #92400e; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+    .ausencia { background: #fef2f2; color: #991b1b; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+    .worker-total { background: #f1f5f9; font-weight: 600; font-size: 12px; color: #0f172a; padding: 8px 16px; display: flex; justify-content: space-between; border-radius: 0 0 6px 6px; border-top: 2px solid #cbd5e1; }
+    .summary { margin-top: 32px; padding: 16px; background: #f1f5f9; border-radius: 8px; }
+    .summary h3 { margin: 0 0 8px; font-size: 14px; color: #0f172a; }
+    .summary-item { display: inline-block; margin-right: 24px; font-size: 13px; }
+    .summary-number { font-size: 20px; font-weight: 700; }
+    .footer { margin-top: 32px; text-align: center; font-size: 11px; color: #94a3b8; }
+    .date-cell { min-width: 100px; }
+    .time-cell { min-width: 80px; }
+    .no-records { text-align: center; padding: 40px; color: #94a3b8; font-size: 16px; }
+    @media print { body { margin: 0; } }
+  </style>
+</head>
+<body>
+  <h1>Informe de Atrasos e Inasistencias</h1>
+  <h2>Condominio Laguna Norte &mdash; ${monthName} ${yearStr}</h2>`
 
     let globalIndex = 0
     sortedWorkers.forEach(([, data]) => {
@@ -468,21 +476,21 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
       const workerAusencias = data.records.filter(r => r.type === 'AUSENCIA').length
 
       html += `
-      <div class="worker-section">
-        <div class="worker-header">
-          <span>${data.worker.nombre}</span>
-          <span class="rut">${data.worker.rut}</span>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>N°</th>
-              <th>Fecha</th>
-              <th>Tipo</th>
-              <th>Tiempo de Retraso</th>
-            </tr>
-          </thead>
-          <tbody>`
+  <div class="worker-section">
+    <div class="worker-header">
+      <span>${data.worker.nombre}</span>
+      <span class="rut">${data.worker.rut}</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>N&deg;</th>
+          <th>Fecha</th>
+          <th>Tipo</th>
+          <th>Tiempo de Retraso</th>
+        </tr>
+      </thead>
+      <tbody>`
 
       data.records.forEach(r => {
         globalIndex++
@@ -500,45 +508,63 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
             timeDisplay = `${mins} min`
           }
         } else if (r.type === 'AUSENCIA') {
-          timeDisplay = 'Día completo'
+          timeDisplay = 'D&iacute;a completo'
         }
 
         html += `
-            <tr>
-              <td>${globalIndex}</td>
-              <td class="date-cell">${dateStr}</td>
-              <td><span class="${typeClass}">${typeLabel}</span></td>
-              <td class="time-cell">${timeDisplay}</td>
-            </tr>`
+        <tr>
+          <td>${globalIndex}</td>
+          <td class="date-cell">${dateStr}</td>
+          <td><span class="${typeClass}">${typeLabel}</span></td>
+          <td class="time-cell">${timeDisplay}</td>
+        </tr>`
       })
 
+      const totalHours = Math.floor(workerTotalMin / 60)
+      const totalMins = workerTotalMin % 60
+      const totalStr = totalHours > 0
+        ? `${totalHours} hr${totalHours !== 1 ? 's' : ''}${totalMins > 0 ? ' ' + totalMins + ' min' : ''}`
+        : `${totalMins} min`
+
       html += `
-          </tbody>
-        </table>
-        <div class="worker-total">
-          <span>${workerAtrasos} atraso${workerAtrasos !== 1 ? 's' : ''}${workerAusencias > 0 ? ', ' + workerAusencias + ' inasistencia' + (workerAusencias !== 1 ? 's' : '') : ''}</span>
-          <span>Total retraso: ${workerTotalMin} min (${Math.floor(workerTotalMin / 60)} hr${Math.floor(workerTotalMin / 60) !== 1 ? 's' : ''} ${workerTotalMin % 60 > 0 ? (workerTotalMin % 60) + ' min' : ''})</span>
-        </div>
-      </div>`
+      </tbody>
+    </table>
+    <div class="worker-total">
+      <span>${workerAtrasos} atraso${workerAtrasos !== 1 ? 's' : ''}${workerAusencias > 0 ? ', ' + workerAusencias + ' inasistencia' + (workerAusencias !== 1 ? 's' : '') : ''}</span>
+      <span>Total retraso: ${totalStr}</span>
+    </div>
+  </div>`
     })
 
-    html += `
-      <div class="summary">
-        <h3>Resumen del Período</h3>
-        <span class="summary-item"><span class="summary-number">${uniqueWorkers.size}</span> Trabajadores con atraso</span>
-        <span class="summary-item"><span class="summary-number">${atrasos.length}</span> Atrasos totales</span>
-        <span class="summary-item"><span class="summary-number">${totalMinAtraso}</span> Min. totales retraso</span>
-      </div>
-      <div class="footer">Condominio Laguna Norte — Informe generado automáticamente — ${new Date().toLocaleDateString('es-CL')}</div>
-    </body>
-    </html>`
+    const totalHours = Math.floor(totalMinAtraso / 60)
+    const totalMins = totalMinAtraso % 60
+    const totalStr = totalHours > 0
+      ? `${totalHours} hr${totalHours !== 1 ? 's' : ''}${totalMins > 0 ? ' ' + totalMins + ' min' : ''}`
+      : `${totalMins} min`
 
-    const printWindow = window.open('', '_blank')
-    if (printWindow) {
-      printWindow.document.write(html)
-      printWindow.document.close()
-      printWindow.onload = () => printWindow.print()
-    }
+    html += `
+  <div class="summary">
+    <h3>Resumen del Per&iacute;odo</h3>
+    <span class="summary-item"><span class="summary-number">${uniqueWorkers.size}</span> Trabajadores</span>
+    <span class="summary-item"><span class="summary-number">${atrasos.length}</span> Atrasos</span>
+    <span class="summary-item"><span class="summary-number">${ausencias.length}</span> Inasistencias</span>
+    <span class="summary-item"><span class="summary-number">${totalStr}</span> Total retraso</span>
+  </div>
+  <div class="footer">Condominio Laguna Norte &mdash; Informe generado autom&aacute;ticamente &mdash; ${new Date().toLocaleDateString('es-CL')}</div>
+</body>
+</html>`
+
+    // Use Blob URL instead of window.open to avoid popup blockers
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `Informe_Atrasos_${monthName}_${yearStr}.html`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    // Revoke after a short delay to allow download to start
+    setTimeout(() => URL.revokeObjectURL(url), 5000)
   }
 
   // ============================================================
