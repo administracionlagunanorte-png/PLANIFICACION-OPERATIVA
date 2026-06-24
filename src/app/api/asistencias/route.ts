@@ -68,3 +68,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Error al crear registro de asistencia' }, { status: 500 })
   }
 }
+
+// DELETE /api/asistencias?month=X&year=Y — Delete all records for a given month
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url)
+    const month = searchParams.get('month')
+    const year = searchParams.get('year')
+
+    if (!month || !year) {
+      return NextResponse.json({ error: 'month y year son requeridos' }, { status: 400 })
+    }
+
+    const m = parseInt(month)
+    const y = parseInt(year)
+    const start = new Date(y, m - 1, 1)
+    const end = new Date(y, m, 1)
+
+    const result = await db.asistenciaRecord.deleteMany({
+      where: {
+        date: { gte: start, lt: end },
+      },
+    })
+
+    return NextResponse.json({ deleted: result.count })
+  } catch (error) {
+    console.error('Error deleting asistencias:', error)
+    return NextResponse.json({ error: 'Error al eliminar registros de asistencia' }, { status: 500 })
+  }
+}

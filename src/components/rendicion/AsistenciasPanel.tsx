@@ -58,6 +58,7 @@ import {
   ChevronLeft,
   X,
   Upload,
+  RotateCcw,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import ModuleAlertBanner, { ModuleAlertItem } from './ModuleAlertBanner'
@@ -148,6 +149,8 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
 
   // --- Import state ---
   const [importing, setImporting] = useState(false)
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
+  const [clearing, setClearing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ============================================================
@@ -351,6 +354,40 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
       setImporting(false)
       // Reset the file input so the same file can be re-imported if needed
       if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  // ============================================================
+  // Clear all records for current month
+  // ============================================================
+  const handleClearRecords = async () => {
+    setClearing(true)
+    try {
+      const [yearStr, monthStr] = selectedMonth.split('-')
+      const res = await fetch(`/api/asistencias?month=${monthStr}&year=${yearStr}`, {
+        method: 'DELETE',
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        toast({
+          title: 'Registros eliminados',
+          description: `Se eliminaron ${data.deleted} registro(s) del mes seleccionado`,
+        })
+        fetchRecords()
+      } else {
+        const error = await res.json()
+        toast({
+          title: 'Error',
+          description: error.error || 'No se pudieron eliminar los registros',
+          variant: 'destructive',
+        })
+      }
+    } catch {
+      toast({ title: 'Error', description: 'No se pudieron eliminar los registros', variant: 'destructive' })
+    } finally {
+      setClearing(false)
+      setClearConfirmOpen(false)
     }
   }
 
@@ -584,6 +621,21 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
           <Button variant="outline" size="sm" className="gap-1" onClick={generateReport}>
             <FileText className="h-3.5 w-3.5" /> Informe
           </Button>
+          {isAdmin && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1 border-red-300 text-red-700 hover:bg-red-50"
+              onClick={() => setClearConfirmOpen(true)}
+              disabled={clearing || records.length === 0}
+            >
+              {clearing ? (
+                <><div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-red-600" /> Limpiando...</>
+              ) : (
+                <><RotateCcw className="h-3.5 w-3.5" /> Limpiar</>
+              )}
+            </Button>
+          )}
           {canEdit && (
             <Button size="sm" className="gap-1 bg-rose-600 hover:bg-rose-700 text-white" onClick={openCreate}>
               <Plus className="h-4 w-4" /> Registrar
@@ -848,6 +900,24 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => deleteConfirm && handleDelete(deleteConfirm)}>
               Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clear All Records Confirm */}
+      <AlertDialog open={clearConfirmOpen} onOpenChange={setClearConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Limpiar todos los registros del mes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará <strong>todos los registros de atrasos e inasistencias</strong> del mes seleccionado. Esto le permitirá importar un archivo nuevo y generar un informe limpio. Esta acción <strong>no se puede deshacer</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={handleClearRecords} disabled={clearing}>
+              {clearing ? 'Limpiando...' : 'Sí, limpiar todo'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
