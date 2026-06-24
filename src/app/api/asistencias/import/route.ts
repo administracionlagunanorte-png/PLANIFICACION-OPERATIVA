@@ -127,15 +127,40 @@ export async function POST(req: NextRequest) {
     }
     const sheet = workbook.Sheets[sheetName]
 
-    // Convert to JSON with header at row 4 (0-indexed row 3)
-    // The header row is row 4 in the Excel file, which is index 3
-    const jsonData: Record<string, unknown>[] = XLSX.utils.sheet_to_json(sheet, {
-      range: 3, // Skip first 3 rows (0-indexed), so data starts from row 4
-      defval: '',
-    })
+    // Auto-detect the header row by scanning rows for required columns
+    // Biometric clock exports may have 3, 4, or more header rows before the actual column headers
+    const REQUIRED_COLS = [COL_DEPARTAMENTO, COL_RUT, COL_NOMBRE, COL_FECHA_HORA, COL_TIPO_REGISTRO]
+    let headerRowIndex = -1
+    let jsonData: Record<string, unknown>[] = []
 
-    if (jsonData.length === 0) {
-      return NextResponse.json({ error: 'El archivo no contiene datos' }, { status: 400 })
+    // Try range values from 0 to 10 to find the correct header row
+    for (let rangeAttempt = 0; rangeAttempt <= 10; rangeAttempt++) {
+      const tryData: Record<string, unknown>[] = XLSX.utils.sheet_to_json(sheet, {
+        range: rangeAttempt,
+        defval: '',
+      })
+
+      if (tryData.length === 0) continue
+
+      const columns = Object.keys(tryData[0])
+      const findColumn = (target: string): string | null => {
+        const normalized = target.trim().toLowerCase()
+        return columns.find(c => c.trim().toLowerCase() === normalized) || null
+      }
+
+      const allFound = REQUIRED_COLS.every(col => findColumn(col) !== null)
+
+      if (allFound) {
+        headerRowIndex = rangeAttempt
+        jsonData = tryData
+        break
+      }
+    }
+
+    if (headerRowIndex === -1 || jsonData.length === 0) {
+      return NextResponse.json({
+        error: 'El archivo no tiene las columnas requeridas. Se esperan: Departamento, RUT, Nombre, Fecha/Hora, Tipo registro',
+      }, { status: 400 })
     }
 
     // Find column names (they might have slight variations)
@@ -153,13 +178,6 @@ export async function POST(req: NextRequest) {
     const colNombre = findColumn(COL_NOMBRE)
     const colFechaHora = findColumn(COL_FECHA_HORA)
     const colTipoRegistro = findColumn(COL_TIPO_REGISTRO)
-
-    if (!colDepartamento || !colRut || !colNombre || !colFechaHora || !colTipoRegistro) {
-      return NextResponse.json({
-        error: 'El archivo no tiene las columnas requeridas. Se esperan: Departamento, RUT, Nombre, Fecha/Hora, Tipo registro',
-        foundColumns: columns,
-      }, { status: 400 })
-    }
 
     // Parse all rows
     const parsedRows: ParsedRow[] = []

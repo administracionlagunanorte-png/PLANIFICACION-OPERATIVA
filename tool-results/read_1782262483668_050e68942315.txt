@@ -1,0 +1,816 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useRef } from 'react'
+     4→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+     5→import { Button } from '@/components/ui/button'
+     6→import { Input } from '@/components/ui/input'
+     7→import { Label } from '@/components/ui/label'
+     8→import { Textarea } from '@/components/ui/textarea'
+     9→import { Badge } from '@/components/ui/badge'
+    10→import {
+    11→  Dialog,
+    12→  DialogContent,
+    13→  DialogDescription,
+    14→  DialogFooter,
+    15→  DialogHeader,
+    16→  DialogTitle,
+    17→} from '@/components/ui/dialog'
+    18→import {
+    19→  Select,
+    20→  SelectContent,
+    21→  SelectItem,
+    22→  SelectTrigger,
+    23→  SelectValue,
+    24→} from '@/components/ui/select'
+    25→import {
+    26→  Table,
+    27→  TableBody,
+    28→  TableCell,
+    29→  TableHead,
+    30→  TableHeader,
+    31→  TableRow,
+    32→} from '@/components/ui/table'
+    33→import {
+    34→  AlertDialog,
+    35→  AlertDialogAction,
+    36→  AlertDialogCancel,
+    37→  AlertDialogContent,
+    38→  AlertDialogDescription,
+    39→  AlertDialogFooter,
+    40→  AlertDialogHeader,
+    41→  AlertDialogTitle,
+    42→} from '@/components/ui/alert-dialog'
+    43→import {
+    44→  Clock,
+    45→  UserX,
+    46→  Plus,
+    47→  Pencil,
+    48→  Trash2,
+    49→  Bell,
+    50→  BellRing,
+    51→  Settings,
+    52→  AlertTriangle,
+    53→  Download,
+    54→  CalendarDays,
+    55→  Users,
+    56→  Save,
+    57→  FileText,
+    58→  ChevronLeft,
+    59→  X,
+    60→  Upload,
+    61→} from 'lucide-react'
+    62→import { useToast } from '@/hooks/use-toast'
+    63→import ModuleAlertBanner, { ModuleAlertItem } from './ModuleAlertBanner'
+    64→import AlertConfigDialog from './AlertConfigDialog'
+    65→import SendToReviewDialog from './SendToReviewDialog'
+    66→
+    67→// ============================================================
+    68→// Types
+    69→// ============================================================
+    70→interface Worker {
+    71→  id: string
+    72→  nombre: string
+    73→  rut: string
+    74→  cuentaBancaria: string
+    75→  active: boolean
+    76→}
+    77→
+    78→interface AsistenciaRecord {
+    79→  id: string
+    80→  workerId: string
+    81→  worker: Worker
+    82→  date: string
+    83→  type: string
+    84→  minutesLate: number
+    85→  reason: string | null
+    86→  reportedBy: string | null
+    87→  createdAt: string
+    88→  updatedAt: string
+    89→}
+    90→
+    91→// AlertConfig type is now ModuleAlertItem from the unified system
+    92→
+    93→// ============================================================
+    94→// Status config
+    95→// ============================================================
+    96→const typeConfig: Record<string, { label: string; color: string; bgColor: string; borderColor: string; icon: React.ReactNode }> = {
+    97→  AUSENCIA: { label: 'Inasistencia', color: 'text-red-700', bgColor: 'bg-red-50', borderColor: 'border-l-red-500', icon: <UserX className="h-3.5 w-3.5" /> },
+    98→  ATRASO: { label: 'Atraso', color: 'text-amber-700', bgColor: 'bg-amber-50', borderColor: 'border-l-amber-500', icon: <Clock className="h-3.5 w-3.5" /> },
+    99→}
+   100→
+   101→// ============================================================
+   102→// Props
+   103→// ============================================================
+   104→interface AsistenciasPanelProps {
+   105→  userRole?: string
+   106→  userName?: string
+   107→}
+   108→
+   109→// ============================================================
+   110→// Component
+   111→// ============================================================
+   112→export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: AsistenciasPanelProps) {
+   113→  const { toast } = useToast()
+   114→  const isAdmin = userRole === 'ADMIN'
+   115→  const isSupervisor = userRole === 'SUPERVISOR'
+   116→  const canEdit = isAdmin || isSupervisor
+   117→
+   118→  // --- State ---
+   119→  const [records, setRecords] = useState<AsistenciaRecord[]>([])
+   120→  const [workers, setWorkers] = useState<Worker[]>([])
+   121→  const [loading, setLoading] = useState(false)
+   122→  const [selectedMonth, setSelectedMonth] = useState(() => {
+   123→    const now = new Date()
+   124→    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+   125→  })
+   126→
+   127→  // --- Alert state (unified system) ---
+   128→  const [moduleAlerts, setModuleAlerts] = useState<ModuleAlertItem[]>([])
+   129→  const [alertConfigOpen, setAlertConfigOpen] = useState(false)
+   130→  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
+   131→  const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
+   132→
+   133→  // --- Dialog state ---
+   134→  const [dialogOpen, setDialogOpen] = useState(false)
+   135→  const [editingRecord, setEditingRecord] = useState<AsistenciaRecord | null>(null)
+   136→  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+   137→  const [form, setForm] = useState({
+   138→    workerId: '',
+   139→    date: '',
+   140→    type: 'AUSENCIA',
+   141→    minutesLate: 0,
+   142→    reason: '',
+   143→  })
+   144→
+   145→  // --- Filter state ---
+   146→  const [filterType, setFilterType] = useState<string>('all')
+   147→  const [filterWorker, setFilterWorker] = useState<string>('all')
+   148→
+   149→  // --- Import state ---
+   150→  const [importing, setImporting] = useState(false)
+   151→  const fileInputRef = useRef<HTMLInputElement>(null)
+   152→
+   153→  // ============================================================
+   154→  // Data fetching
+   155→  // ============================================================
+   156→  const fetchWorkers = async () => {
+   157→    try {
+   158→      const res = await fetch('/api/workers')
+   159→      if (res.ok) {
+   160→        const data = await res.json()
+   161→        setWorkers(data.filter((w: Worker) => w.active))
+   162→      }
+   163→    } catch (err) {
+   164→      console.error('Error fetching workers:', err)
+   165→    }
+   166→  }
+   167→
+   168→  const fetchRecords = async () => {
+   169→    setLoading(true)
+   170→    try {
+   171→      const [yearStr, monthStr] = selectedMonth.split('-')
+   172→      const params = new URLSearchParams({ month: monthStr, year: yearStr })
+   173→      const res = await fetch(`/api/asistencias?${params}`)
+   174→      if (res.ok) {
+   175→        const data = await res.json()
+   176→        setRecords(data)
+   177→      }
+   178→    } catch (err) {
+   179→      console.error('Error fetching asistencias:', err)
+   180→      toast({ title: 'Error', description: 'No se pudieron cargar los registros', variant: 'destructive' })
+   181→    } finally {
+   182→      setLoading(false)
+   183→    }
+   184→  }
+   185→
+   186→  const fetchModuleAlerts = async () => {
+   187→    try {
+   188→      const res = await fetch('/api/module-alerts?module=asistencias')
+   189→      if (res.ok) {
+   190→        const data = await res.json()
+   191→        setModuleAlerts(data)
+   192→      }
+   193→    } catch (err) {
+   194→      console.error('Error fetching module alerts:', err)
+   195→    }
+   196→  }
+   197→
+   198→  useEffect(() => {
+   199→    fetchWorkers()
+   200→    fetchModuleAlerts()
+   201→  }, [])
+   202→
+   203→  useEffect(() => {
+   204→    fetchRecords()
+   205→  }, [selectedMonth])
+   206→
+   207→  // ============================================================
+   208→  // Alert logic
+   209→  // ============================================================
+   210→  const handleDismissAlert = (id: string) => {
+   211→    setDismissedAlerts(prev => new Set([...prev, id]))
+   212→  }
+   213→
+   214→  const visibleAlerts = moduleAlerts.filter(a => !dismissedAlerts.has(a.id))
+   215→
+   216→  // ============================================================
+   217→  // CRUD
+   218→  // ============================================================
+   219→  const openCreate = () => {
+   220→    setEditingRecord(null)
+   221→    setForm({
+   222→      workerId: '',
+   223→      date: new Date().toISOString().split('T')[0],
+   224→      type: 'AUSENCIA',
+   225→      minutesLate: 0,
+   226→      reason: '',
+   227→    })
+   228→    setDialogOpen(true)
+   229→  }
+   230→
+   231→  const openEdit = (record: AsistenciaRecord) => {
+   232→    setEditingRecord(record)
+   233→    setForm({
+   234→      workerId: record.workerId,
+   235→      date: record.date.split('T')[0],
+   236→      type: record.type,
+   237→      minutesLate: record.minutesLate,
+   238→      reason: record.reason || '',
+   239→    })
+   240→    setDialogOpen(true)
+   241→  }
+   242→
+   243→  const handleSave = async () => {
+   244→    if (!form.workerId) {
+   245→      toast({ title: 'Error', description: 'Seleccione un trabajador', variant: 'destructive' })
+   246→      return
+   247→    }
+   248→    if (!form.date) {
+   249→      toast({ title: 'Error', description: 'Seleccione una fecha', variant: 'destructive' })
+   250→      return
+   251→    }
+   252→    if (form.type === 'ATRASO' && form.minutesLate <= 0) {
+   253→      toast({ title: 'Error', description: 'Ingrese los minutos de atraso', variant: 'destructive' })
+   254→      return
+   255→    }
+   256→
+   257→    try {
+   258→      const payload = {
+   259→        ...form,
+   260→        reportedBy: userName || userRole,
+   261→        minutesLate: form.type === 'ATRASO' ? form.minutesLate : 0,
+   262→      }
+   263→
+   264→      if (editingRecord) {
+   265→        const res = await fetch(`/api/asistencias/${editingRecord.id}`, {
+   266→          method: 'PUT',
+   267→          headers: { 'Content-Type': 'application/json' },
+   268→          body: JSON.stringify(payload),
+   269→        })
+   270→        if (res.ok) {
+   271→          toast({ title: 'Registro actualizado', description: 'El registro de asistencia fue actualizado correctamente' })
+   272→        }
+   273→      } else {
+   274→        const res = await fetch('/api/asistencias', {
+   275→          method: 'POST',
+   276→          headers: { 'Content-Type': 'application/json' },
+   277→          body: JSON.stringify(payload),
+   278→        })
+   279→        if (res.ok) {
+   280→          toast({ title: 'Registro creado', description: 'El registro de asistencia fue creado correctamente' })
+   281→        }
+   282→      }
+   283→      setDialogOpen(false)
+   284→      fetchRecords()
+   285→    } catch {
+   286→      toast({ title: 'Error', description: 'No se pudo guardar el registro', variant: 'destructive' })
+   287→    }
+   288→  }
+   289→
+   290→  const handleDelete = async (id: string) => {
+   291→    try {
+   292→      const res = await fetch(`/api/asistencias/${id}`, { method: 'DELETE' })
+   293→      if (res.ok) {
+   294→        toast({ title: 'Registro eliminado', description: 'El registro de asistencia fue eliminado' })
+   295→        fetchRecords()
+   296→      }
+   297→    } catch {
+   298→      toast({ title: 'Error', description: 'No se pudo eliminar el registro', variant: 'destructive' })
+   299→    }
+   300→    setDeleteConfirm(null)
+   301→  }
+   302→
+   303→  // ============================================================
+   304→  // Import XLS
+   305→  // ============================================================
+   306→  const handleImportXls = async (e: React.ChangeEvent<HTMLInputElement>) => {
+   307→    const file = e.target.files?.[0]
+   308→    if (!file) return
+   309→
+   310→    const validExtensions = ['.xls', '.xlsx']
+   311→    const fileName = file.name.toLowerCase()
+   312→    if (!validExtensions.some(ext => fileName.endsWith(ext))) {
+   313→      toast({ title: 'Error', description: 'Seleccione un archivo .xls o .xlsx', variant: 'destructive' })
+   314→      return
+   315→    }
+   316→
+   317→    setImporting(true)
+   318→    try {
+   319→      const formData = new FormData()
+   320→      formData.append('file', file)
+   321→
+   322→      const res = await fetch('/api/asistencias/import', {
+   323→        method: 'POST',
+   324→        body: formData,
+   325→      })
+   326→
+   327→      if (res.ok) {
+   328→        const summary = await res.json()
+   329→        toast({
+   330→          title: 'Importación completada',
+   331→          description: `${summary.atrasosCreated} atraso(s) creado(s), ${summary.workersCreated} trabajador(es) nuevo(s), ${summary.skipped} existente(s) omitido(s)`,
+   332→        })
+   333→        fetchRecords()
+   334→        fetchWorkers()
+   335→      } else {
+   336→        const error = await res.json()
+   337→        toast({
+   338→          title: 'Error de importación',
+   339→          description: error.error || 'No se pudo procesar el archivo',
+   340→          variant: 'destructive',
+   341→        })
+   342→      }
+   343→    } catch {
+   344→      toast({ title: 'Error', description: 'No se pudo importar el archivo', variant: 'destructive' })
+   345→    } finally {
+   346→      setImporting(false)
+   347→      // Reset the file input so the same file can be re-imported if needed
+   348→      if (fileInputRef.current) fileInputRef.current.value = ''
+   349→    }
+   350→  }
+   351→
+   352→  // ============================================================
+   353→  // Export report
+   354→  // ============================================================
+   355→  const generateReport = () => {
+   356→    const [yearStr, monthStr] = selectedMonth.split('-')
+   357→    const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+   358→    const monthName = monthNames[parseInt(monthStr) - 1]
+   359→
+   360→    let html = `
+   361→    <html>
+   362→    <head>
+   363→      <title>Informe de Asistencias - ${monthName} ${yearStr}</title>
+   364→      <style>
+   365→        body { font-family: Arial, sans-serif; margin: 20px; color: #1e293b; }
+   366→        h1 { font-size: 22px; text-align: center; margin-bottom: 4px; color: #0f172a; }
+   367→        h2 { font-size: 16px; text-align: center; color: #64748b; margin-bottom: 20px; font-weight: 400; }
+   368→        .logo { text-align: center; margin-bottom: 16px; }
+   369→        .logo img { height: 60px; }
+   370→        table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
+   371→        th { background: #0f172a; color: white; padding: 10px 12px; text-align: left; font-weight: 600; }
+   372→        td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
+   373→        tr:nth-child(even) { background: #f8fafc; }
+   374→        .ausencia { background: #fef2f2; color: #991b1b; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+   375→        .atraso { background: #fffbeb; color: #92400e; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+   376→        .summary { margin-top: 24px; padding: 16px; background: #f1f5f9; border-radius: 8px; }
+   377→        .summary h3 { margin: 0 0 8px; font-size: 14px; color: #0f172a; }
+   378→        .summary-item { display: inline-block; margin-right: 24px; font-size: 13px; }
+   379→        .summary-number { font-size: 20px; font-weight: 700; }
+   380→        .footer { margin-top: 32px; text-align: center; font-size: 11px; color: #94a3b8; }
+   381→      </style>
+   382→    </head>
+   383→    <body>
+   384→      <div class="logo"><img src="/logo-laguna-norte.jpg" alt="Laguna Norte" /></div>
+   385→      <h1>Informe de Asistencias</h1>
+   386→      <h2>Condominio Laguna Norte — ${monthName} ${yearStr}</h2>
+   387→      <table>
+   388→        <thead>
+   389→          <tr>
+   390→            <th>N°</th>
+   391→            <th>Trabajador</th>
+   392→            <th>RUT</th>
+   393→            <th>Fecha</th>
+   394→            <th>Tipo</th>
+   395→            <th>Min. Atraso</th>
+   396→            <th>Motivo</th>
+   397→            <th>Reportado por</th>
+   398→          </tr>
+   399→        </thead>
+   400→        <tbody>`
+   401→
+   402→    const filtered = getFilteredRecords()
+   403→    filtered.forEach((r, i) => {
+   404→      const dateStr = new Date(r.date).toLocaleDateString('es-CL')
+   405→      const typeClass = r.type === 'AUSENCIA' ? 'ausencia' : 'atraso'
+   406→      const typeLabel = r.type === 'AUSENCIA' ? 'Inasistencia' : 'Atraso'
+   407→      html += `
+   408→          <tr>
+   409→            <td>${i + 1}</td>
+   410→            <td>${r.worker.nombre}</td>
+   411→            <td>${r.worker.rut}</td>
+   412→            <td>${dateStr}</td>
+   413→            <td><span class="${typeClass}">${typeLabel}</span></td>
+   414→            <td>${r.type === 'ATRASO' ? r.minutesLate + ' min' : '-'}</td>
+   415→            <td>${r.reason || '-'}</td>
+   416→            <td>${r.reportedBy || '-'}</td>
+   417→          </tr>`
+   418→    })
+   419→
+   420→    const ausencias = filtered.filter(r => r.type === 'AUSENCIA')
+   421→    const atrasos = filtered.filter(r => r.type === 'ATRASO')
+   422→    const totalMinAtraso = atrasos.reduce((s, r) => s + r.minutesLate, 0)
+   423→    const uniqueWorkers = new Set(filtered.map(r => r.workerId))
+   424→
+   425→    html += `
+   426→        </tbody>
+   427→      </table>
+   428→      <div class="summary">
+   429→        <h3>Resumen del Período</h3>
+   430→        <span class="summary-item"><span class="summary-number">${ausencias.length}</span> Inasistencias</span>
+   431→        <span class="summary-item"><span class="summary-number">${atrasos.length}</span> Atrasos</span>
+   432→        <span class="summary-item"><span class="summary-number">${totalMinAtraso}</span> Min. totales atraso</span>
+   433→        <span class="summary-item"><span class="summary-number">${uniqueWorkers.size}</span> Trabajadores afectados</span>
+   434→      </div>
+   435→      <div class="footer">Condominio Laguna Norte — Informe generado automáticamente — ${new Date().toLocaleDateString('es-CL')}</div>
+   436→    </body>
+   437→    </html>`
+   438→
+   439→    const printWindow = window.open('', '_blank')
+   440→    if (printWindow) {
+   441→      printWindow.document.write(html)
+   442→      printWindow.document.close()
+   443→      printWindow.onload = () => printWindow.print()
+   444→    }
+   445→  }
+   446→
+   447→  // ============================================================
+   448→  // Filters
+   449→  // ============================================================
+   450→  const getFilteredRecords = () => {
+   451→    return records.filter(r => {
+   452→      if (filterType !== 'all' && r.type !== filterType) return false
+   453→      if (filterWorker !== 'all' && r.workerId !== filterWorker) return false
+   454→      return true
+   455→    })
+   456→  }
+   457→
+   458→  const filteredRecords = getFilteredRecords()
+   459→
+   460→  // ============================================================
+   461→  // Stats
+   462→  // ============================================================
+   463→  const totalAusencias = records.filter(r => r.type === 'AUSENCIA').length
+   464→  const totalAtrasos = records.filter(r => r.type === 'ATRASO').length
+   465→  const totalMinAtraso = records.filter(r => r.type === 'ATRASO').reduce((s, r) => s + r.minutesLate, 0)
+   466→  const uniqueWorkersAffected = new Set(records.map(r => r.workerId)).size
+   467→
+   468→  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+   469→
+   470→  // ============================================================
+   471→  // RENDER
+   472→  // ============================================================
+   473→  return (
+   474→    <div className="space-y-4">
+   475→      {/* Alert Banner (unified system) */}
+   476→      <ModuleAlertBanner
+   477→        alerts={visibleAlerts}
+   478→        userRole={userRole}
+   479→        onConfigure={() => setAlertConfigOpen(true)}
+   480→        onDismiss={handleDismissAlert}
+   481→      />
+   482→
+   483→      {/* Header */}
+   484→      <div className="flex items-center justify-between flex-wrap gap-3">
+   485→        <div>
+   486→          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+   487→            <CalendarDays className="h-5 w-5 text-rose-600" />
+   488→            Control de Asistencias
+   489→          </h2>
+   490→          <p className="text-sm text-slate-500 mt-1">Registro de inasistencias y atrasos de trabajadores</p>
+   491→        </div>
+   492→        <div className="flex items-center gap-2">
+   493→          {/* Alert config button (always visible for admin) */}
+   494→          {isAdmin && (
+   495→            <Button variant="outline" size="sm" className="gap-1" onClick={() => setAlertConfigOpen(true)}>
+   496→              <Bell className="h-3.5 w-3.5" /> Config. Alertas
+   497→            </Button>
+   498→          )}
+   499→          {(isSupervisor || isAdmin) && (
+   500→            <Button variant="outline" size="sm" className="gap-1 border-blue-300 text-blue-700 hover:bg-blue-50" onClick={() => setReviewDialogOpen(true)}>
+   501→              <Upload className="h-3.5 w-3.5" /> Enviar a Revisión
+   502→            </Button>
+   503→          )}
+   504→          <Button
+   505→            variant="outline"
+   506→            size="sm"
+   507→            className="gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+   508→            onClick={() => fileInputRef.current?.click()}
+   509→            disabled={importing}
+   510→          >
+   511→            {importing ? (
+   512→              <><div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-emerald-600" /> Importando...</>
+   513→            ) : (
+   514→              <><Upload className="h-3.5 w-3.5" /> Importar XLS</>
+   515→            )}
+   516→          </Button>
+   517→          <input
+   518→            ref={fileInputRef}
+   519→            type="file"
+   520→            accept=".xls,.xlsx"
+   521→            onChange={handleImportXls}
+   522→            className="hidden"
+   523→          />
+   524→          <Button variant="outline" size="sm" className="gap-1" onClick={generateReport}>
+   525→            <FileText className="h-3.5 w-3.5" /> Informe
+   526→          </Button>
+   527→          {canEdit && (
+   528→            <Button size="sm" className="gap-1 bg-rose-600 hover:bg-rose-700 text-white" onClick={openCreate}>
+   529→              <Plus className="h-4 w-4" /> Registrar
+   530→            </Button>
+   531→          )}
+   532→        </div>
+   533→      </div>
+   534→
+   535→      {/* Stats Cards */}
+   536→      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   537→        <Card className="border-l-4 border-l-red-400">
+   538→          <CardContent className="p-4">
+   539→            <div className="flex items-center gap-3">
+   540→              <div className="h-10 w-10 rounded-full bg-red-50 flex items-center justify-center">
+   541→                <UserX className="h-5 w-5 text-red-600" />
+   542→              </div>
+   543→              <div>
+   544→                <p className="text-2xl font-bold text-slate-900">{totalAusencias}</p>
+   545→                <p className="text-xs text-slate-500">Inasistencias</p>
+   546→              </div>
+   547→            </div>
+   548→          </CardContent>
+   549→        </Card>
+   550→        <Card className="border-l-4 border-l-amber-400">
+   551→          <CardContent className="p-4">
+   552→            <div className="flex items-center gap-3">
+   553→              <div className="h-10 w-10 rounded-full bg-amber-50 flex items-center justify-center">
+   554→                <Clock className="h-5 w-5 text-amber-600" />
+   555→              </div>
+   556→              <div>
+   557→                <p className="text-2xl font-bold text-slate-900">{totalAtrasos}</p>
+   558→                <p className="text-xs text-slate-500">Atrasos</p>
+   559→              </div>
+   560→            </div>
+   561→          </CardContent>
+   562→        </Card>
+   563→        <Card className="border-l-4 border-l-orange-400">
+   564→          <CardContent className="p-4">
+   565→            <div className="flex items-center gap-3">
+   566→              <div className="h-10 w-10 rounded-full bg-orange-50 flex items-center justify-center">
+   567→                <Clock className="h-5 w-5 text-orange-600" />
+   568→              </div>
+   569→              <div>
+   570→                <p className="text-2xl font-bold text-slate-900">{totalMinAtraso}</p>
+   571→                <p className="text-xs text-slate-500">Min. atraso total</p>
+   572→              </div>
+   573→            </div>
+   574→          </CardContent>
+   575→        </Card>
+   576→        <Card className="border-l-4 border-l-slate-400">
+   577→          <CardContent className="p-4">
+   578→            <div className="flex items-center gap-3">
+   579→              <div className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center">
+   580→                <Users className="h-5 w-5 text-slate-600" />
+   581→              </div>
+   582→              <div>
+   583→                <p className="text-2xl font-bold text-slate-900">{uniqueWorkersAffected}</p>
+   584→                <p className="text-xs text-slate-500">Trab. afectados</p>
+   585→              </div>
+   586→            </div>
+   587→          </CardContent>
+   588→        </Card>
+   589→      </div>
+   590→
+   591→      {/* Filters + Month Selector */}
+   592→      <div className="flex items-center gap-3 flex-wrap">
+   593→        <div className="flex items-center gap-2">
+   594→          <Label className="text-xs text-slate-500">Mes:</Label>
+   595→          <Input
+   596→            type="month"
+   597→            value={selectedMonth}
+   598→            onChange={(e) => setSelectedMonth(e.target.value)}
+   599→            className="w-[170px] h-8 text-sm"
+   600→          />
+   601→        </div>
+   602→        <Select value={filterType} onValueChange={setFilterType}>
+   603→          <SelectTrigger className="w-[140px] h-8 text-xs">
+   604→            <SelectValue placeholder="Tipo" />
+   605→          </SelectTrigger>
+   606→          <SelectContent>
+   607→            <SelectItem value="all">Todos</SelectItem>
+   608→            <SelectItem value="AUSENCIA">Inasistencias</SelectItem>
+   609→            <SelectItem value="ATRASO">Atrasos</SelectItem>
+   610→          </SelectContent>
+   611→        </Select>
+   612→        <Select value={filterWorker} onValueChange={setFilterWorker}>
+   613→          <SelectTrigger className="w-[180px] h-8 text-xs">
+   614→            <SelectValue placeholder="Trabajador" />
+   615→          </SelectTrigger>
+   616→          <SelectContent>
+   617→            <SelectItem value="all">Todos los trabajadores</SelectItem>
+   618→            {workers.map(w => (
+   619→              <SelectItem key={w.id} value={w.id}>{w.nombre}</SelectItem>
+   620→            ))}
+   621→          </SelectContent>
+   622→        </Select>
+   623→      </div>
+   624→
+   625→      {/* Records Table */}
+   626→      <Card>
+   627→        <CardContent className="p-0">
+   628→          {loading ? (
+   629→            <div className="flex items-center justify-center py-12">
+   630→              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-600"></div>
+   631→            </div>
+   632→          ) : filteredRecords.length === 0 ? (
+   633→            <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+   634→              <CalendarDays className="h-12 w-12 mb-3" />
+   635→              <p className="text-sm font-medium">No hay registros de asistencia</p>
+   636→              <p className="text-xs mt-1">Para el período seleccionado no se registraron inasistencias ni atrasos</p>
+   637→            </div>
+   638→          ) : (
+   639→            <Table>
+   640→              <TableHeader>
+   641→                <TableRow>
+   642→                  <TableHead className="w-[40px]">N°</TableHead>
+   643→                  <TableHead>Trabajador</TableHead>
+   644→                  <TableHead>RUT</TableHead>
+   645→                  <TableHead>Fecha</TableHead>
+   646→                  <TableHead>Tipo</TableHead>
+   647→                  <TableHead>Min. Atraso</TableHead>
+   648→                  <TableHead>Motivo</TableHead>
+   649→                  <TableHead>Reportado por</TableHead>
+   650→                  {canEdit && <TableHead className="w-[80px] text-right">Acciones</TableHead>}
+   651→                </TableRow>
+   652→              </TableHeader>
+   653→              <TableBody>
+   654→                {filteredRecords.map((record, idx) => {
+   655→                  const tc = typeConfig[record.type]
+   656→                  const dateStr = new Date(record.date).toLocaleDateString('es-CL')
+   657→                  return (
+   658→                    <TableRow key={record.id} className={tc?.bgColor}>
+   659→                      <TableCell className="font-mono text-xs">{idx + 1}</TableCell>
+   660→                      <TableCell className="font-medium">{record.worker.nombre}</TableCell>
+   661→                      <TableCell className="text-sm text-slate-600">{record.worker.rut}</TableCell>
+   662→                      <TableCell className="text-sm">{dateStr}</TableCell>
+   663→                      <TableCell>
+   664→                        <Badge variant="outline" className={`${tc?.color} ${tc?.bgColor} border-0 text-xs gap-1`}>
+   665→                          {tc?.icon} {tc?.label}
+   666→                        </Badge>
+   667→                      </TableCell>
+   668→                      <TableCell className="text-sm">
+   669→                        {record.type === 'ATRASO' ? `${record.minutesLate} min` : '-'}
+   670→                      </TableCell>
+   671→                      <TableCell className="text-sm text-slate-600 max-w-[200px] truncate">
+   672→                        {record.reason || '-'}
+   673→                      </TableCell>
+   674→                      <TableCell className="text-sm text-slate-500">{record.reportedBy || '-'}</TableCell>
+   675→                      {canEdit && (
+   676→                        <TableCell className="text-right">
+   677→                          <div className="flex items-center justify-end gap-1">
+   678→                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(record)}>
+   679→                              <Pencil className="h-3.5 w-3.5" />
+   680→                            </Button>
+   681→                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-600 hover:text-red-700" onClick={() => setDeleteConfirm(record.id)}>
+   682→                              <Trash2 className="h-3.5 w-3.5" />
+   683→                            </Button>
+   684→                          </div>
+   685→                        </TableCell>
+   686→                      )}
+   687→                    </TableRow>
+   688→                  )
+   689→                })}
+   690→              </TableBody>
+   691→            </Table>
+   692→          )}
+   693→        </CardContent>
+   694→      </Card>
+   695→
+   696→      {/* Create/Edit Dialog */}
+   697→      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+   698→        <DialogContent className="sm:max-w-[480px]">
+   699→          <DialogHeader>
+   700→            <DialogTitle className="flex items-center gap-2">
+   701→              {editingRecord ? (
+   702→                <><Pencil className="h-4 w-4" /> Editar Registro</>
+   703→              ) : (
+   704→                <><Plus className="h-4 w-4" /> Registrar Asistencia</>
+   705→              )}
+   706→            </DialogTitle>
+   707→            <DialogDescription>
+   708→              {editingRecord ? 'Modifique los datos del registro' : 'Registre una inasistencia o atraso'}
+   709→            </DialogDescription>
+   710→          </DialogHeader>
+   711→          <div className="space-y-4">
+   712→            <div>
+   713→              <Label>Trabajador</Label>
+   714→              <Select value={form.workerId} onValueChange={(v) => setForm(f => ({ ...f, workerId: v }))}>
+   715→                <SelectTrigger>
+   716→                  <SelectValue placeholder="Seleccione un trabajador" />
+   717→                </SelectTrigger>
+   718→                <SelectContent>
+   719→                  {workers.map(w => (
+   720→                    <SelectItem key={w.id} value={w.id}>{w.nombre} — {w.rut}</SelectItem>
+   721→                  ))}
+   722→                </SelectContent>
+   723→              </Select>
+   724→            </div>
+   725→            <div className="grid grid-cols-2 gap-3">
+   726→              <div>
+   727→                <Label>Fecha</Label>
+   728→                <Input
+   729→                  type="date"
+   730→                  value={form.date}
+   731→                  onChange={(e) => setForm(f => ({ ...f, date: e.target.value }))}
+   732→                />
+   733→              </div>
+   734→              <div>
+   735→                <Label>Tipo</Label>
+   736→                <Select value={form.type} onValueChange={(v) => setForm(f => ({ ...f, type: v, minutesLate: v === 'AUSENCIA' ? 0 : f.minutesLate }))}>
+   737→                  <SelectTrigger>
+   738→                    <SelectValue />
+   739→                  </SelectTrigger>
+   740→                  <SelectContent>
+   741→                    <SelectItem value="AUSENCIA">Inasistencia</SelectItem>
+   742→                    <SelectItem value="ATRASO">Atraso</SelectItem>
+   743→                  </SelectContent>
+   744→                </Select>
+   745→              </div>
+   746→            </div>
+   747→            {form.type === 'ATRASO' && (
+   748→              <div>
+   749→                <Label>Minutos de atraso</Label>
+   750→                <Input
+   751→                  type="number"
+   752→                  min={1}
+   753→                  value={form.minutesLate || ''}
+   754→                  onChange={(e) => setForm(f => ({ ...f, minutesLate: parseInt(e.target.value) || 0 }))}
+   755→                  placeholder="Ej: 15"
+   756→                />
+   757→              </div>
+   758→            )}
+   759→            <div>
+   760→              <Label>Motivo / Observación</Label>
+   761→              <Textarea
+   762→                value={form.reason}
+   763→                onChange={(e) => setForm(f => ({ ...f, reason: e.target.value }))}
+   764→                placeholder="Ej: Sin aviso, transporte, etc."
+   765→                rows={2}
+   766→              />
+   767→            </div>
+   768→          </div>
+   769→          <DialogFooter>
+   770→            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+   771→            <Button className="bg-rose-600 hover:bg-rose-700 text-white gap-1" onClick={handleSave}>
+   772→              <Save className="h-4 w-4" /> {editingRecord ? 'Actualizar' : 'Guardar'}
+   773→            </Button>
+   774→          </DialogFooter>
+   775→        </DialogContent>
+   776→      </Dialog>
+   777→
+   778→      {/* Delete Confirm */}
+   779→      <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+   780→        <AlertDialogContent>
+   781→          <AlertDialogHeader>
+   782→            <AlertDialogTitle>¿Eliminar registro?</AlertDialogTitle>
+   783→            <AlertDialogDescription>
+   784→              Esta acción no se puede deshacer. El registro de asistencia será eliminado permanentemente.
+   785→            </AlertDialogDescription>
+   786→          </AlertDialogHeader>
+   787→          <AlertDialogFooter>
+   788→            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+   789→            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => deleteConfirm && handleDelete(deleteConfirm)}>
+   790→              Eliminar
+   791→            </AlertDialogAction>
+   792→          </AlertDialogFooter>
+   793→        </AlertDialogContent>
+   794→      </AlertDialog>
+   795→
+   796→      {/* Alert Config Dialog (unified system) */}
+   797→      <AlertConfigDialog
+   798→        open={alertConfigOpen}
+   799→        onOpenChange={setAlertConfigOpen}
+   800→        moduleName="asistencias"
+   801→        moduleLabel="Asistencias"
+   802→        userRole={userRole}
+   803→      />
+   804→      <SendToReviewDialog
+   805→        open={reviewDialogOpen}
+   806→        onOpenChange={setReviewDialogOpen}
+   807→        module="asistencias"
+   808→        moduleLabel="Asistencias"
+   809→        itemId="asistencias-informe"
+   810→        itemTitle="Informe de Asistencias"
+   811→        submittedBy={userName || userRole}
+   812→      />
+   813→    </div>
+   814→  )
+   815→}
+   816→

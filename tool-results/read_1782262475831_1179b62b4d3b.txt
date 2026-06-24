@@ -1,0 +1,890 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect } from 'react'
+     4→import { Button } from '@/components/ui/button'
+     5→import { Badge } from '@/components/ui/badge'
+     6→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+     7→import { Input } from '@/components/ui/input'
+     8→import { Label } from '@/components/ui/label'
+     9→import { Textarea } from '@/components/ui/textarea'
+    10→import {
+    11→  Dialog,
+    12→  DialogContent,
+    13→  DialogDescription,
+    14→  DialogFooter,
+    15→  DialogHeader,
+    16→  DialogTitle,
+    17→} from '@/components/ui/dialog'
+    18→import {
+    19→  Select,
+    20→  SelectContent,
+    21→  SelectItem,
+    22→  SelectTrigger,
+    23→  SelectValue,
+    24→} from '@/components/ui/select'
+    25→import {
+    26→  Table,
+    27→  TableBody,
+    28→  TableCell,
+    29→  TableHead,
+    30→  TableHeader,
+    31→  TableRow,
+    32→} from '@/components/ui/table'
+    33→import {
+    34→  AlertDialog,
+    35→  AlertDialogAction,
+    36→  AlertDialogCancel,
+    37→  AlertDialogContent,
+    38→  AlertDialogDescription,
+    39→  AlertDialogFooter,
+    40→  AlertDialogHeader,
+    41→  AlertDialogTitle,
+    42→} from '@/components/ui/alert-dialog'
+    43→import {
+    44→  Bell, BellRing, AlertTriangle, Info, Clock, CheckCircle2, XCircle,
+    45→  Settings, Plus, Pencil, Trash2, Save, FileText, Upload,
+    46→  Shield, ShieldCheck, Eye, CheckCheck, RotateCcw,
+    47→  Wrench, DollarSign, CalendarDays, ShoppingBag, Users, LayoutDashboard,
+    48→} from 'lucide-react'
+    49→import { useToast } from '@/hooks/use-toast'
+    50→
+    51→// ============================================================
+    52→// Types
+    53→// ============================================================
+    54→interface ModuleAlertItem {
+    55→  id: string
+    56→  module: string
+    57→  alertType: string
+    58→  title: string
+    59→  message: string
+    60→  dayOfMonth: number
+    61→  active: boolean
+    62→  auto: boolean
+    63→  targetRole: string
+    64→  priority: string
+    65→  status: string
+    66→  monthYear: string | null
+    67→  completedBy: string | null
+    68→  completedAt: string | null
+    69→  createdAt: string
+    70→  updatedAt: string
+    71→}
+    72→
+    73→interface ReviewSubmission {
+    74→  id: string
+    75→  module: string
+    76→  itemId: string
+    77→  itemTitle: string
+    78→  submittedBy: string
+    79→  submittedRole: string
+    80→  attachmentUrl: string
+    81→  attachmentName: string | null
+    82→  notes: string | null
+    83→  status: string
+    84→  reviewedBy: string | null
+    85→  reviewedAt: string | null
+    86→  reviewNotes: string | null
+    87→  createdAt: string
+    88→}
+    89→
+    90→interface AlertasPanelProps {
+    91→  userRole?: string
+    92→  userName?: string
+    93→}
+    94→
+    95→// ============================================================
+    96→// Constants
+    97→// ============================================================
+    98→const moduleConfig: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
+    99→  tareas: { label: 'Tareas', icon: <LayoutDashboard className="h-4 w-4" />, color: 'text-blue-600' },
+   100→  mantenimiento: { label: 'Mantenimiento', icon: <Wrench className="h-4 w-4" />, color: 'text-teal-600' },
+   101→  rendicion: { label: 'Rendición', icon: <DollarSign className="h-4 w-4" />, color: 'text-emerald-600' },
+   102→  compras: { label: 'Compras', icon: <ShoppingBag className="h-4 w-4" />, color: 'text-pink-600' },
+   103→  anticipos: { label: 'Anticipos', icon: <DollarSign className="h-4 w-4" />, color: 'text-cyan-600' },
+   104→  asistencias: { label: 'Asistencias', icon: <Users className="h-4 w-4" />, color: 'text-rose-600' },
+   105→}
+   106→
+   107→const priorityConfig: Record<string, { label: string; icon: React.ReactNode; bg: string; text: string }> = {
+   108→  info: { label: 'Informativa', icon: <Info className="h-3.5 w-3.5 text-blue-500" />, bg: 'bg-blue-100', text: 'text-blue-800' },
+   109→  warning: { label: 'Advertencia', icon: <Bell className="h-3.5 w-3.5 text-amber-500" />, bg: 'bg-amber-100', text: 'text-amber-800' },
+   110→  urgent: { label: 'Urgente', icon: <AlertTriangle className="h-3.5 w-3.5 text-orange-500" />, bg: 'bg-orange-100', text: 'text-orange-800' },
+   111→  critical: { label: 'Crítica', icon: <BellRing className="h-3.5 w-3.5 text-red-500" />, bg: 'bg-red-100', text: 'text-red-800' },
+   112→}
+   113→
+   114→const alertTypeLabels: Record<string, string> = {
+   115→  vencimiento: 'Vencimiento',
+   116→  informe: 'Informe',
+   117→  recordatorio: 'Recordatorio',
+   118→  urgente: 'Urgente',
+   119→}
+   120→
+   121→const targetRoleLabels: Record<string, string> = {
+   122→  ALL: 'Todos',
+   123→  ADMIN: 'Solo Admin',
+   124→  SUPERVISOR: 'Solo Supervisor',
+   125→  USER: 'Solo Usuarios',
+   126→}
+   127→
+   128→const reviewModuleLabels: Record<string, string> = {
+   129→  anticipos: 'Anticipos',
+   130→  asistencias: 'Asistencias',
+   131→  mantenimiento: 'Mantenimiento',
+   132→}
+   133→
+   134→// ============================================================
+   135→// Component
+   136→// ============================================================
+   137→export default function AlertasPanel({ userRole = 'USER', userName = '' }: AlertasPanelProps) {
+   138→  const { toast } = useToast()
+   139→  const isAdmin = userRole === 'ADMIN'
+   140→  const isSupervisor = userRole === 'SUPERVISOR'
+   141→  const [alerts, setAlerts] = useState<ModuleAlertItem[]>([])
+   142→  const [reviews, setReviews] = useState<ReviewSubmission[]>([])
+   143→  const [loading, setLoading] = useState(true)
+   144→  const [activeTab, setActiveTab] = useState<'activas' | 'programadas' | 'completadas' | 'revision'>('activas')
+   145→  const [filterModule, setFilterModule] = useState<string>('all')
+   146→
+   147→  // Alert form
+   148→  const [showForm, setShowForm] = useState(false)
+   149→  const [editAlert, setEditAlert] = useState<ModuleAlertItem | null>(null)
+   150→  const [form, setForm] = useState({
+   151→    module: 'tareas', alertType: 'vencimiento', title: '', message: '',
+   152→    dayOfMonth: 1, active: true, auto: true, targetRole: 'ALL', priority: 'warning',
+   153→  })
+   154→  const [deleteId, setDeleteId] = useState<string | null>(null)
+   155→
+   156→  // Review dialog
+   157→  const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
+   158→  const [reviewingSubmission, setReviewingSubmission] = useState<ReviewSubmission | null>(null)
+   159→  const [reviewAction, setReviewAction] = useState<'aprobada' | 'rechazada'>('aprobada')
+   160→  const [reviewNotes, setReviewNotes] = useState('')
+   161→
+   162→  // ============================================================
+   163→  // Data fetching
+   164→  // ============================================================
+   165→  const fetchAlerts = async () => {
+   166→    try {
+   167→      const res = await fetch('/api/module-alerts')
+   168→      if (res.ok) setAlerts(await res.json())
+   169→    } catch (err) {
+   170→      console.error('Error fetching alerts:', err)
+   171→    }
+   172→  }
+   173→
+   174→  const fetchReviews = async () => {
+   175→    try {
+   176→      const res = await fetch('/api/review-submissions')
+   177→      if (res.ok) setReviews(await res.json())
+   178→    } catch (err) {
+   179→      console.error('Error fetching reviews:', err)
+   180→    }
+   181→  }
+   182→
+   183→  useEffect(() => {
+   184→    const load = async () => {
+   185→      setLoading(true)
+   186→      await Promise.all([fetchAlerts(), fetchReviews()])
+   187→      setLoading(false)
+   188→    }
+   189→    load()
+   190→  }, [])
+   191→
+   192→  // ============================================================
+   193→  // Filtering
+   194→  // ============================================================
+   195→  const now = new Date()
+   196→  const currentDay = now.getDate()
+   197→  const currentMonthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+   198→
+   199→  const filteredAlerts = alerts.filter(a => {
+   200→    if (filterModule !== 'all' && a.module !== filterModule) return false
+   201→    // Role visibility
+   202→    if (a.targetRole === 'ALL') return true
+   203→    if (a.targetRole === 'ADMIN' && userRole === 'ADMIN') return true
+   204→    if (a.targetRole === 'SUPERVISOR' && userRole === 'SUPERVISOR') return true
+   205→    if (a.targetRole === 'USER' && userRole === 'USER') return true
+   206→    if (userRole === 'ADMIN') return true
+   207→    return false
+   208→  })
+   209→
+   210→  const activas = filteredAlerts.filter(a => a.active && a.status === 'activa' && (!a.auto || currentDay >= a.dayOfMonth))
+   211→  const programadas = filteredAlerts.filter(a => a.active && a.status === 'activa' && a.auto && currentDay < a.dayOfMonth)
+   212→  const completadas = filteredAlerts.filter(a => a.status === 'completada')
+   213→  const pendingReviews = reviews.filter(r => r.status === 'pendiente')
+   214→  const completedReviews = reviews.filter(r => r.status !== 'pendiente')
+   215→
+   216→  // ============================================================
+   217→  // Alert CRUD
+   218→  // ============================================================
+   219→  const openCreate = () => {
+   220→    setEditAlert(null)
+   221→    setForm({ module: 'tareas', alertType: 'vencimiento', title: '', message: '', dayOfMonth: 1, active: true, auto: true, targetRole: 'ALL', priority: 'warning' })
+   222→    setShowForm(true)
+   223→  }
+   224→
+   225→  const openEdit = (alert: ModuleAlertItem) => {
+   226→    setEditAlert(alert)
+   227→    setForm({
+   228→      module: alert.module, alertType: alert.alertType, title: alert.title, message: alert.message,
+   229→      dayOfMonth: alert.dayOfMonth, active: alert.active, auto: alert.auto, targetRole: alert.targetRole, priority: alert.priority,
+   230→    })
+   231→    setShowForm(true)
+   232→  }
+   233→
+   234→  const handleSave = async () => {
+   235→    if (!form.title || !form.message) {
+   236→      toast({ title: 'Error', description: 'Complete título y mensaje', variant: 'destructive' })
+   237→      return
+   238→    }
+   239→    try {
+   240→      if (editAlert) {
+   241→        const res = await fetch(`/api/module-alerts/${editAlert.id}`, {
+   242→          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+   243→          body: JSON.stringify(form),
+   244→        })
+   245→        if (res.ok) toast({ title: 'Alerta actualizada' })
+   246→      } else {
+   247→        const res = await fetch('/api/module-alerts', {
+   248→          method: 'POST', headers: { 'Content-Type': 'application/json' },
+   249→          body: JSON.stringify(form),
+   250→        })
+   251→        if (res.ok) toast({ title: 'Alerta creada' })
+   252→      }
+   253→      setShowForm(false)
+   254→      fetchAlerts()
+   255→    } catch {
+   256→      toast({ title: 'Error', description: 'No se pudo guardar', variant: 'destructive' })
+   257→    }
+   258→  }
+   259→
+   260→  const handleDelete = async (id: string) => {
+   261→    try {
+   262→      await fetch(`/api/module-alerts/${id}`, { method: 'DELETE' })
+   263→      toast({ title: 'Alerta eliminada' })
+   264→      fetchAlerts()
+   265→    } catch {
+   266→      toast({ title: 'Error', description: 'No se pudo eliminar', variant: 'destructive' })
+   267→    }
+   268→    setDeleteId(null)
+   269→  }
+   270→
+   271→  const handleComplete = async (alert: ModuleAlertItem) => {
+   272→    try {
+   273→      await fetch(`/api/module-alerts/${alert.id}`, {
+   274→        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+   275→        body: JSON.stringify({ status: 'completada', completedBy: userName || userRole }),
+   276→      })
+   277→      toast({ title: 'Alerta completada', description: `"${alert.title}" marcada como cumplida` })
+   278→      fetchAlerts()
+   279→    } catch {
+   280→      toast({ title: 'Error', description: 'No se pudo completar', variant: 'destructive' })
+   281→    }
+   282→  }
+   283→
+   284→  const handleReactivate = async (alert: ModuleAlertItem) => {
+   285→    try {
+   286→      await fetch(`/api/module-alerts/${alert.id}`, {
+   287→        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+   288→        body: JSON.stringify({ status: 'activa' }),
+   289→      })
+   290→      toast({ title: 'Alerta reactivada' })
+   291→      fetchAlerts()
+   292→    } catch {
+   293→      toast({ title: 'Error', description: 'No se pudo reactivar', variant: 'destructive' })
+   294→    }
+   295→  }
+   296→
+   297→  const toggleActive = async (alert: ModuleAlertItem) => {
+   298→    try {
+   299→      await fetch(`/api/module-alerts/${alert.id}`, {
+   300→        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+   301→        body: JSON.stringify({ active: !alert.active }),
+   302→      })
+   303→      fetchAlerts()
+   304→    } catch {
+   305→      toast({ title: 'Error', description: 'No se pudo cambiar', variant: 'destructive' })
+   306→    }
+   307→  }
+   308→
+   309→  // ============================================================
+   310→  // Review actions
+   311→  // ============================================================
+   312→  const openReviewDialog = (submission: ReviewSubmission, action: 'aprobada' | 'rechazada') => {
+   313→    setReviewingSubmission(submission)
+   314→    setReviewAction(action)
+   315→    setReviewNotes('')
+   316→    setReviewDialogOpen(true)
+   317→  }
+   318→
+   319→  const handleReview = async () => {
+   320→    if (!reviewingSubmission) return
+   321→    try {
+   322→      const res = await fetch(`/api/review-submissions/${reviewingSubmission.id}`, {
+   323→        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+   324→        body: JSON.stringify({ status: reviewAction, reviewedBy: userName || userRole, reviewNotes }),
+   325→      })
+   326→      if (res.ok) {
+   327→        toast({
+   328→          title: reviewAction === 'aprobada' ? 'Envío aprobado' : 'Envío rechazado',
+   329→          description: `"${reviewingSubmission.itemTitle}" — ${reviewAction === 'aprobada' ? 'Aprobado' : 'Rechazado'}`,
+   330→        })
+   331→        fetchReviews()
+   332→      }
+   333→    } catch {
+   334→      toast({ title: 'Error', description: 'No se pudo procesar', variant: 'destructive' })
+   335→    }
+   336→    setReviewDialogOpen(false)
+   337→  }
+   338→
+   339→  // ============================================================
+   340→  // Stats
+   341→  // ============================================================
+   342→  const stats = {
+   343→    activas: activas.length,
+   344→    programadas: programadas.length,
+   345→    completadas: completadas.length,
+   346→    pendientes: pendingReviews.length,
+   347→  }
+   348→
+   349→  // ============================================================
+   350→  // Render helpers
+   351→  // ============================================================
+   352→  const renderAlertRow = (alert: ModuleAlertItem, showActions = true) => {
+   353→    const pCfg = priorityConfig[alert.priority] || priorityConfig.warning
+   354→    const mCfg = moduleConfig[alert.module] || { label: alert.module, icon: <Bell className="h-4 w-4" />, color: 'text-slate-600' }
+   355→    const isActive = alert.status === 'activa' && (!alert.auto || currentDay >= alert.dayOfMonth)
+   356→    return (
+   357→      <TableRow key={alert.id} className={alert.status === 'completada' ? 'opacity-60' : !alert.active ? 'opacity-40' : ''}>
+   358→        <TableCell>
+   359→          <div className="flex items-center gap-1.5">
+   360→            {pCfg.icon}
+   361→            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${pCfg.bg} ${pCfg.text} border-0`}>
+   362→              {pCfg.label}
+   363→            </Badge>
+   364→          </div>
+   365→        </TableCell>
+   366→        <TableCell>
+   367→          <div className="flex items-center gap-1.5">
+   368→            <span className={mCfg.color}>{mCfg.icon}</span>
+   369→            <span className="text-xs font-medium">{mCfg.label}</span>
+   370→          </div>
+   371→        </TableCell>
+   372→        <TableCell>
+   373→          <p className="font-medium text-xs">{alert.title}</p>
+   374→          <p className="text-[11px] text-slate-500 truncate max-w-[200px]">{alert.message}</p>
+   375→        </TableCell>
+   376→        <TableCell className="text-xs">
+   377→          <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-slate-100 text-slate-600 border-0">
+   378→            {alertTypeLabels[alert.alertType] || alert.alertType}
+   379→          </Badge>
+   380→        </TableCell>
+   381→        <TableCell className="text-xs font-mono">{alert.dayOfMonth}</TableCell>
+   382→        <TableCell className="text-xs">
+   383→          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 border-0 ${alert.auto ? 'bg-green-50 text-green-700' : 'bg-purple-50 text-purple-700'}`}>
+   384→            {alert.auto ? 'Auto' : 'Manual'}
+   385→          </Badge>
+   386→        </TableCell>
+   387→        <TableCell className="text-xs">{targetRoleLabels[alert.targetRole] || alert.targetRole}</TableCell>
+   388→        <TableCell>
+   389→          {alert.status === 'completada' ? (
+   390→            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-50 text-emerald-700 border-0">
+   391→              <CheckCheck className="h-2.5 w-2.5 mr-0.5" /> Cumplida
+   392→            </Badge>
+   393→          ) : isActive ? (
+   394→            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-50 text-emerald-700 border-0">
+   395→              Activa
+   396→            </Badge>
+   397→          ) : (
+   398→            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-amber-50 text-amber-700 border-0">
+   399→              <Clock className="h-2.5 w-2.5 mr-0.5" /> Día {alert.dayOfMonth}
+   400→            </Badge>
+   401→          )}
+   402→        </TableCell>
+   403→        <TableCell>
+   404→          <input type="checkbox" checked={alert.active} onChange={() => toggleActive(alert)} className="rounded" disabled={!isAdmin} />
+   405→        </TableCell>
+   406→        {showActions && isAdmin && (
+   407→          <TableCell>
+   408→            <div className="flex gap-1">
+   409→              {alert.status === 'activa' && (
+   410→                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-emerald-600 hover:bg-emerald-50" onClick={() => handleComplete(alert)} title="Marcar cumplida">
+   411→                  <CheckCheck className="h-3.5 w-3.5" />
+   412→                </Button>
+   413→              )}
+   414→              {alert.status === 'completada' && (
+   415→                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-blue-600 hover:bg-blue-50" onClick={() => handleReactivate(alert)} title="Reactivar">
+   416→                  <RotateCcw className="h-3.5 w-3.5" />
+   417→                </Button>
+   418→              )}
+   419→              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => openEdit(alert)}>
+   420→                <Pencil className="h-3 w-3" />
+   421→              </Button>
+   422→              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-600" onClick={() => setDeleteId(alert.id)}>
+   423→                <Trash2 className="h-3 w-3" />
+   424→              </Button>
+   425→            </div>
+   426→          </TableCell>
+   427→        )}
+   428→      </TableRow>
+   429→    )
+   430→  }
+   431→
+   432→  const renderReviewRow = (sub: ReviewSubmission) => {
+   433→    const mCfg = reviewModuleLabels[sub.module] || sub.module
+   434→    return (
+   435→      <TableRow key={sub.id} className={sub.status !== 'pendiente' ? 'opacity-60' : ''}>
+   436→        <TableCell>
+   437→          <div className="flex items-center gap-1.5">
+   438→            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-slate-100 text-slate-700 border-0">
+   439→              {mCfg}
+   440→            </Badge>
+   441→          </div>
+   442→        </TableCell>
+   443→        <TableCell>
+   444→          <p className="font-medium text-xs">{sub.itemTitle}</p>
+   445→          {sub.notes && <p className="text-[11px] text-slate-500 truncate max-w-[200px]">{sub.notes}</p>}
+   446→        </TableCell>
+   447→        <TableCell className="text-xs">{sub.submittedBy}</TableCell>
+   448→        <TableCell>
+   449→          {sub.attachmentName ? (
+   450→            <a href={sub.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs flex items-center gap-1">
+   451→              <FileText className="h-3 w-3" /> {sub.attachmentName}
+   452→            </a>
+   453→          ) : (
+   454→            <a href={sub.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs flex items-center gap-1">
+   455→              <FileText className="h-3 w-3" /> Ver adjunto
+   456→            </a>
+   457→          )}
+   458→        </TableCell>
+   459→        <TableCell className="text-xs">
+   460→          {new Date(sub.createdAt).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+   461→        </TableCell>
+   462→        <TableCell>
+   463→          {sub.status === 'pendiente' ? (
+   464→            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-amber-50 text-amber-700 border-0">
+   465→              <Clock className="h-2.5 w-2.5 mr-0.5" /> Pendiente
+   466→            </Badge>
+   467→          ) : sub.status === 'aprobada' ? (
+   468→            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-50 text-emerald-700 border-0">
+   469→              <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" /> Aprobada
+   470→            </Badge>
+   471→          ) : (
+   472→            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-red-50 text-red-700 border-0">
+   473→              <XCircle className="h-2.5 w-2.5 mr-0.5" /> Rechazada
+   474→            </Badge>
+   475→          )}
+   476→        </TableCell>
+   477→        {isAdmin && sub.status === 'pendiente' && (
+   478→          <TableCell>
+   479→            <div className="flex gap-1">
+   480→              <Button variant="ghost" size="sm" className="h-6 p-0 px-1.5 text-emerald-600 hover:bg-emerald-50 text-[10px] gap-0.5" onClick={() => openReviewDialog(sub, 'aprobada')}>
+   481→                <CheckCircle2 className="h-3 w-3" /> Aprobar
+   482→              </Button>
+   483→              <Button variant="ghost" size="sm" className="h-6 p-0 px-1.5 text-red-600 hover:bg-red-50 text-[10px] gap-0.5" onClick={() => openReviewDialog(sub, 'rechazada')}>
+   484→                <XCircle className="h-3 w-3" /> Rechazar
+   485→              </Button>
+   486→            </div>
+   487→          </TableCell>
+   488→        )}
+   489→        {sub.status !== 'pendiente' && (
+   490→          <TableCell className="text-[11px] text-slate-500">
+   491→            {sub.reviewedBy && `Por ${sub.reviewedBy}`}
+   492→            {sub.reviewNotes && <p className="truncate max-w-[150px]">{sub.reviewNotes}</p>}
+   493→          </TableCell>
+   494→        )}
+   495→      </TableRow>
+   496→    )
+   497→  }
+   498→
+   499→  // ============================================================
+   500→  // Render
+   501→  // ============================================================
+   502→  if (loading) {
+   503→    return <div className="flex items-center justify-center py-20 text-slate-400"><Clock className="h-6 w-6 animate-spin mr-2" /> Cargando alertas...</div>
+   504→  }
+   505→
+   506→  return (
+   507→    <div className="space-y-4">
+   508→      {/* Header */}
+   509→      <div className="flex items-center justify-between">
+   510→        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+   511→          <BellRing className="h-5 w-5 text-amber-600" />
+   512→          Centro de Alertas
+   513→        </h2>
+   514→        {isAdmin && (
+   515→          <Button className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white" onClick={openCreate}>
+   516→            <Plus className="h-4 w-4" /> Nueva Alerta
+   517→          </Button>
+   518→        )}
+   519→      </div>
+   520→
+   521→      {/* Stats */}
+   522→      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   523→        <Card className="cursor-pointer hover:shadow-md transition-shadow border-emerald-200" onClick={() => setActiveTab('activas')}>
+   524→          <CardContent className="p-3 text-center">
+   525→            <div className="text-[10px] text-emerald-600 uppercase tracking-wider font-semibold">Activas Hoy</div>
+   526→            <div className="text-2xl font-bold text-emerald-700">{stats.activas}</div>
+   527→          </CardContent>
+   528→        </Card>
+   529→        <Card className="cursor-pointer hover:shadow-md transition-shadow border-amber-200" onClick={() => setActiveTab('programadas')}>
+   530→          <CardContent className="p-3 text-center">
+   531→            <div className="text-[10px] text-amber-600 uppercase tracking-wider font-semibold">Programadas</div>
+   532→            <div className="text-2xl font-bold text-amber-700">{stats.programadas}</div>
+   533→          </CardContent>
+   534→        </Card>
+   535→        <Card className="cursor-pointer hover:shadow-md transition-shadow border-slate-200" onClick={() => setActiveTab('completadas')}>
+   536→          <CardContent className="p-3 text-center">
+   537→            <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Completadas</div>
+   538→            <div className="text-2xl font-bold text-slate-600">{stats.completadas}</div>
+   539→          </CardContent>
+   540→        </Card>
+   541→        <Card className="cursor-pointer hover:shadow-md transition-shadow border-blue-200" onClick={() => setActiveTab('revision')}>
+   542→          <CardContent className="p-3 text-center">
+   543→            <div className="text-[10px] text-blue-600 uppercase tracking-wider font-semibold">En Revisión</div>
+   544→            <div className="text-2xl font-bold text-blue-700">{stats.pendientes}</div>
+   545→          </CardContent>
+   546→        </Card>
+   547→      </div>
+   548→
+   549→      {/* Filter by module */}
+   550→      <div className="flex items-center gap-2 flex-wrap">
+   551→        <Label className="text-xs text-slate-500">Módulo:</Label>
+   552→        <Button variant={filterModule === 'all' ? 'default' : 'outline'} size="sm" className="h-7 text-xs" onClick={() => setFilterModule('all')}>Todos</Button>
+   553→        {Object.entries(moduleConfig).map(([key, cfg]) => (
+   554→          <Button key={key} variant={filterModule === key ? 'default' : 'outline'} size="sm" className={`h-7 text-xs gap-1 ${filterModule === key ? cfg.color : ''}`} onClick={() => setFilterModule(key)}>
+   555→            {cfg.icon} {cfg.label}
+   556→          </Button>
+   557→        ))}
+   558→      </div>
+   559→
+   560→      {/* Tabs */}
+   561→      <div className="flex gap-1 border-b pb-0">
+   562→        {[
+   563→          { key: 'activas', label: 'Activas', count: stats.activas, color: 'text-emerald-600' },
+   564→          { key: 'programadas', label: 'Programadas', count: stats.programadas, color: 'text-amber-600' },
+   565→          { key: 'completadas', label: 'Completadas', count: stats.completadas, color: 'text-slate-500' },
+   566→          { key: 'revision', label: 'En Revisión', count: stats.pendientes, color: 'text-blue-600' },
+   567→        ].map(tab => (
+   568→          <button
+   569→            key={tab.key}
+   570→            className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.key ? `border-current ${tab.color}` : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+   571→            onClick={() => setActiveTab(tab.key as any)}
+   572→          >
+   573→            {tab.label} <span className="text-xs ml-1 bg-slate-100 px-1.5 py-0.5 rounded-full">{tab.count}</span>
+   574→          </button>
+   575→        ))}
+   576→      </div>
+   577→
+   578→      {/* Content */}
+   579→      <Card>
+   580→        <CardContent className="p-0">
+   581→          {/* Activas */}
+   582→          {activeTab === 'activas' && (
+   583→            activas.length === 0 ? (
+   584→              <div className="text-center py-12 text-slate-400">
+   585→                <CheckCircle2 className="h-10 w-10 mx-auto mb-2" />
+   586→                <p className="text-sm">No hay alertas activas hoy</p>
+   587→              </div>
+   588→            ) : (
+   589→              <Table>
+   590→                <TableHeader>
+   591→                  <TableRow>
+   592→                    <TableHead className="w-[80px]">Prioridad</TableHead>
+   593→                    <TableHead className="w-[100px]">Módulo</TableHead>
+   594→                    <TableHead>Alerta</TableHead>
+   595→                    <TableHead className="w-[90px]">Tipo</TableHead>
+   596→                    <TableHead className="w-[40px]">Día</TableHead>
+   597→                    <TableHead className="w-[60px]">Modo</TableHead>
+   598→                    <TableHead className="w-[80px]">Destino</TableHead>
+   599→                    <TableHead className="w-[80px]">Estado</TableHead>
+   600→                    <TableHead className="w-[40px]">On</TableHead>
+   601→                    {isAdmin && <TableHead className="w-[100px]"></TableHead>}
+   602→                  </TableRow>
+   603→                </TableHeader>
+   604→                <TableBody>
+   605→                  {activas.map(a => renderAlertRow(a, true))}
+   606→                </TableBody>
+   607→              </Table>
+   608→            )
+   609→          )}
+   610→
+   611→          {/* Programadas */}
+   612→          {activeTab === 'programadas' && (
+   613→            programadas.length === 0 ? (
+   614→              <div className="text-center py-12 text-slate-400">
+   615→                <Clock className="h-10 w-10 mx-auto mb-2" />
+   616→                <p className="text-sm">No hay alertas programadas para este mes</p>
+   617→              </div>
+   618→            ) : (
+   619→              <Table>
+   620→                <TableHeader>
+   621→                  <TableRow>
+   622→                    <TableHead className="w-[80px]">Prioridad</TableHead>
+   623→                    <TableHead className="w-[100px]">Módulo</TableHead>
+   624→                    <TableHead>Alerta</TableHead>
+   625→                    <TableHead className="w-[90px]">Tipo</TableHead>
+   626→                    <TableHead className="w-[40px]">Día</TableHead>
+   627→                    <TableHead className="w-[60px]">Modo</TableHead>
+   628→                    <TableHead className="w-[80px]">Destino</TableHead>
+   629→                    <TableHead className="w-[80px]">Estado</TableHead>
+   630→                    <TableHead className="w-[40px]">On</TableHead>
+   631→                    {isAdmin && <TableHead className="w-[100px]"></TableHead>}
+   632→                  </TableRow>
+   633→                </TableHeader>
+   634→                <TableBody>
+   635→                  {programadas.map(a => renderAlertRow(a, true))}
+   636→                </TableBody>
+   637→              </Table>
+   638→            )
+   639→          )}
+   640→
+   641→          {/* Completadas */}
+   642→          {activeTab === 'completadas' && (
+   643→            completadas.length === 0 ? (
+   644→              <div className="text-center py-12 text-slate-400">
+   645→                <CheckCheck className="h-10 w-10 mx-auto mb-2" />
+   646→                <p className="text-sm">No hay alertas completadas</p>
+   647→              </div>
+   648→            ) : (
+   649→              <Table>
+   650→                <TableHeader>
+   651→                  <TableRow>
+   652→                    <TableHead className="w-[80px]">Prioridad</TableHead>
+   653→                    <TableHead className="w-[100px]">Módulo</TableHead>
+   654→                    <TableHead>Alerta</TableHead>
+   655→                    <TableHead className="w-[90px]">Tipo</TableHead>
+   656→                    <TableHead className="w-[40px]">Día</TableHead>
+   657→                    <TableHead className="w-[60px]">Modo</TableHead>
+   658→                    <TableHead className="w-[80px]">Destino</TableHead>
+   659→                    <TableHead className="w-[80px]">Estado</TableHead>
+   660→                    <TableHead className="w-[40px]">On</TableHead>
+   661→                    {isAdmin && <TableHead className="w-[100px]"></TableHead>}
+   662→                  </TableRow>
+   663→                </TableHeader>
+   664→                <TableBody>
+   665→                  {completadas.map(a => renderAlertRow(a, true))}
+   666→                </TableBody>
+   667→              </Table>
+   668→            )
+   669→          )}
+   670→
+   671→          {/* Revisión */}
+   672→          {activeTab === 'revision' && (
+   673→            <div className="space-y-4 p-4">
+   674→              <h3 className="font-semibold text-sm text-slate-700 flex items-center gap-2">
+   675→                <Clock className="h-4 w-4 text-amber-500" /> Pendientes de Revisión ({pendingReviews.length})
+   676→              </h3>
+   677→              {pendingReviews.length === 0 ? (
+   678→                <div className="text-center py-8 text-slate-400">
+   679→                  <CheckCircle2 className="h-8 w-8 mx-auto mb-2" />
+   680→                  <p className="text-sm">No hay envíos pendientes de revisión</p>
+   681→                </div>
+   682→              ) : (
+   683→                <Table>
+   684→                  <TableHeader>
+   685→                    <TableRow>
+   686→                      <TableHead className="w-[100px]">Módulo</TableHead>
+   687→                      <TableHead>Item</TableHead>
+   688→                      <TableHead className="w-[100px]">Enviado por</TableHead>
+   689→                      <TableHead className="w-[130px]">Adjunto</TableHead>
+   690→                      <TableHead className="w-[120px]">Fecha</TableHead>
+   691→                      <TableHead className="w-[80px]">Estado</TableHead>
+   692→                      {isAdmin && <TableHead className="w-[130px]"></TableHead>}
+   693→                    </TableRow>
+   694→                  </TableHeader>
+   695→                  <TableBody>
+   696→                    {pendingReviews.map(r => renderReviewRow(r))}
+   697→                  </TableBody>
+   698→                </Table>
+   699→              )}
+   700→
+   701→              {completedReviews.length > 0 && (
+   702→                <>
+   703→                  <h3 className="font-semibold text-sm text-slate-500 flex items-center gap-2 mt-6">
+   704→                    <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Revisadas ({completedReviews.length})
+   705→                  </h3>
+   706→                  <Table>
+   707→                    <TableHeader>
+   708→                      <TableRow>
+   709→                        <TableHead className="w-[100px]">Módulo</TableHead>
+   710→                        <TableHead>Item</TableHead>
+   711→                        <TableHead className="w-[100px]">Enviado por</TableHead>
+   712→                        <TableHead className="w-[130px]">Adjunto</TableHead>
+   713→                        <TableHead className="w-[120px]">Fecha</TableHead>
+   714→                        <TableHead className="w-[80px]">Estado</TableHead>
+   715→                        <TableHead>Revisión</TableHead>
+   716→                      </TableRow>
+   717→                    </TableHeader>
+   718→                    <TableBody>
+   719→                      {completedReviews.map(r => renderReviewRow(r))}
+   720→                    </TableBody>
+   721→                  </Table>
+   722→                </>
+   723→              )}
+   724→            </div>
+   725→          )}
+   726→        </CardContent>
+   727→      </Card>
+   728→
+   729→      {/* Month info */}
+   730→      <div className="text-xs text-slate-400 text-center">
+   731→        Mes actual: {now.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })} — Las alertas automáticas se reinician al cambiar de mes
+   732→      </div>
+   733→
+   734→      {/* Create/Edit Form Dialog */}
+   735→      <Dialog open={showForm} onOpenChange={setShowForm}>
+   736→        <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+   737→          <DialogHeader>
+   738→            <DialogTitle className="flex items-center gap-2">
+   739→              <Settings className="h-4 w-4 text-amber-500" />
+   740→              {editAlert ? 'Editar Alerta' : 'Nueva Alerta'}
+   741→            </DialogTitle>
+   742→            <DialogDescription>
+   743→              {editAlert ? 'Modifica la configuración de la alerta' : 'Configura una nueva alerta para el sistema'}
+   744→            </DialogDescription>
+   745→          </DialogHeader>
+   746→          <div className="space-y-3">
+   747→            <div className="grid grid-cols-2 gap-3">
+   748→              <div>
+   749→                <Label className="text-xs">Módulo</Label>
+   750→                <Select value={form.module} onValueChange={v => setForm(f => ({ ...f, module: v }))}>
+   751→                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+   752→                  <SelectContent>
+   753→                    {Object.entries(moduleConfig).map(([k, cfg]) => (
+   754→                      <SelectItem key={k} value={k}>{cfg.label}</SelectItem>
+   755→                    ))}
+   756→                  </SelectContent>
+   757→                </Select>
+   758→              </div>
+   759→              <div>
+   760→                <Label className="text-xs">Tipo de Alerta</Label>
+   761→                <Select value={form.alertType} onValueChange={v => setForm(f => ({ ...f, alertType: v }))}>
+   762→                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+   763→                  <SelectContent>
+   764→                    {Object.entries(alertTypeLabels).map(([k, v]) => (
+   765→                      <SelectItem key={k} value={k}>{v}</SelectItem>
+   766→                    ))}
+   767→                  </SelectContent>
+   768→                </Select>
+   769→              </div>
+   770→            </div>
+   771→            <div className="grid grid-cols-2 gap-3">
+   772→              <div>
+   773→                <Label className="text-xs">Prioridad</Label>
+   774→                <Select value={form.priority} onValueChange={v => setForm(f => ({ ...f, priority: v }))}>
+   775→                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+   776→                  <SelectContent>
+   777→                    {Object.entries(priorityConfig).map(([k, cfg]) => (
+   778→                      <SelectItem key={k} value={k}>{cfg.label}</SelectItem>
+   779→                    ))}
+   780→                  </SelectContent>
+   781→                </Select>
+   782→              </div>
+   783→              <div>
+   784→                <Label className="text-xs">Destinatario</Label>
+   785→                <Select value={form.targetRole} onValueChange={v => setForm(f => ({ ...f, targetRole: v }))}>
+   786→                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+   787→                  <SelectContent>
+   788→                    {Object.entries(targetRoleLabels).map(([k, v]) => (
+   789→                      <SelectItem key={k} value={k}>{v}</SelectItem>
+   790→                    ))}
+   791→                  </SelectContent>
+   792→                </Select>
+   793→              </div>
+   794→            </div>
+   795→            <div>
+   796→              <Label className="text-xs">Título</Label>
+   797→              <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Ej: Informe Mensual" className="h-8 text-sm" />
+   798→            </div>
+   799→            <div>
+   800→              <Label className="text-xs">Mensaje</Label>
+   801→              <Textarea value={form.message} onChange={e => setForm(f => ({ ...f, message: e.target.value }))} placeholder="Descripción detallada de la alerta" rows={2} className="text-sm" />
+   802→            </div>
+   803→            <div className="grid grid-cols-2 gap-3">
+   804→              <div>
+   805→                <Label className="text-xs">Día del mes</Label>
+   806→                <Input type="number" min={1} max={31} value={form.dayOfMonth} onChange={e => setForm(f => ({ ...f, dayOfMonth: parseInt(e.target.value) || 1 }))} className="h-8 text-sm" />
+   807→              </div>
+   808→              <div>
+   809→                <Label className="text-xs">Modo</Label>
+   810→                <Select value={form.auto ? 'auto' : 'manual'} onValueChange={v => setForm(f => ({ ...f, auto: v === 'auto' }))}>
+   811→                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+   812→                  <SelectContent>
+   813→                    <SelectItem value="auto">Automática</SelectItem>
+   814→                    <SelectItem value="manual">Manual (persiste hasta completar)</SelectItem>
+   815→                  </SelectContent>
+   816→                </Select>
+   817→              </div>
+   818→            </div>
+   819→            <div className="flex items-center gap-2">
+   820→              <input type="checkbox" id="alertActiveForm" checked={form.active} onChange={e => setForm(f => ({ ...f, active: e.target.checked }))} className="rounded" />
+   821→              <Label htmlFor="alertActiveForm" className="text-xs">Alerta activa</Label>
+   822→            </div>
+   823→            <div className="flex gap-2 justify-end">
+   824→              <Button variant="outline" size="sm" onClick={() => setShowForm(false)}>Cancelar</Button>
+   825→              <Button size="sm" className="gap-1 bg-amber-600 hover:bg-amber-700 text-white" onClick={handleSave}>
+   826→                <Save className="h-3.5 w-3.5" /> {editAlert ? 'Actualizar' : 'Crear'}
+   827→              </Button>
+   828→            </div>
+   829→          </div>
+   830→        </DialogContent>
+   831→      </Dialog>
+   832→
+   833→      {/* Delete Confirm */}
+   834→      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+   835→        <AlertDialogContent>
+   836→          <AlertDialogHeader>
+   837→            <AlertDialogTitle>¿Eliminar alerta?</AlertDialogTitle>
+   838→            <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+   839→          </AlertDialogHeader>
+   840→          <AlertDialogFooter>
+   841→            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+   842→            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => deleteId && handleDelete(deleteId)}>Eliminar</AlertDialogAction>
+   843→          </AlertDialogFooter>
+   844→        </AlertDialogContent>
+   845→      </AlertDialog>
+   846→
+   847→      {/* Review Dialog */}
+   848→      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+   849→        <DialogContent className="sm:max-w-[480px]">
+   850→          <DialogHeader>
+   851→            <DialogTitle className="flex items-center gap-2">
+   852→              {reviewAction === 'aprobada' ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : <XCircle className="h-5 w-5 text-red-500" />}
+   853→              {reviewAction === 'aprobada' ? 'Aprobar Envío' : 'Rechazar Envío'}
+   854→            </DialogTitle>
+   855→            <DialogDescription>
+   856→              {reviewingSubmission && `Revisar: "${reviewingSubmission.itemTitle}" enviado por ${reviewingSubmission.submittedBy}`}
+   857→            </DialogDescription>
+   858→          </DialogHeader>
+   859→          <div className="space-y-3">
+   860→            {reviewingSubmission && (
+   861→              <div className="bg-slate-50 p-3 rounded-lg">
+   862→                <p className="text-xs text-slate-500">Adjunto:</p>
+   863→                <a href={reviewingSubmission.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm flex items-center gap-1">
+   864→                  <FileText className="h-4 w-4" /> {reviewingSubmission.attachmentName || 'Ver adjunto'}
+   865→                </a>
+   866→                {reviewingSubmission.notes && (
+   867→                  <p className="text-xs text-slate-500 mt-1">Notas: {reviewingSubmission.notes}</p>
+   868→                )}
+   869→              </div>
+   870→            )}
+   871→            <div>
+   872→              <Label className="text-xs">Notas de revisión (opcional)</Label>
+   873→              <Textarea value={reviewNotes} onChange={e => setReviewNotes(e.target.value)} placeholder="Comentarios sobre la revisión..." rows={2} className="text-sm" />
+   874→            </div>
+   875→          </div>
+   876→          <DialogFooter>
+   877→            <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>Cancelar</Button>
+   878→            <Button
+   879→              className={reviewAction === 'aprobada' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}
+   880→              onClick={handleReview}
+   881→            >
+   882→              {reviewAction === 'aprobada' ? 'Aprobar' : 'Rechazar'}
+   883→            </Button>
+   884→          </DialogFooter>
+   885→        </DialogContent>
+   886→      </Dialog>
+   887→    </div>
+   888→  )
+   889→}
+   890→
