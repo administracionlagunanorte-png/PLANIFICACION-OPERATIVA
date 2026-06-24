@@ -325,17 +325,15 @@ async function findOrCreateWorker(rut: string, nombre: string, summary: ImportSu
 
 export async function POST(req: NextRequest) {
   try {
-    // First, ensure the database schema is up to date
+    // Ensure new columns exist in the database (safe, idempotent)
     try {
-      const { execSync } = require('child_process')
-      execSync('npx prisma db push --accept-data-loss 2>&1', {
-        encoding: 'utf-8',
-        timeout: 60000,
-        stdio: 'pipe',
-      })
-    } catch (syncErr: any) {
-      console.warn('Schema sync warning:', syncErr.message?.slice(0, 200))
-      // Continue anyway — the columns might already exist
+      await db.$executeRawUnsafe(`ALTER TABLE workers ADD COLUMN IF NOT EXISTS "cargo" TEXT`)
+      await db.$executeRawUnsafe(`ALTER TABLE workers ADD COLUMN IF NOT EXISTS "turnoA" TEXT`)
+      await db.$executeRawUnsafe(`ALTER TABLE workers ADD COLUMN IF NOT EXISTS "turnoB" TEXT`)
+      await db.$executeRawUnsafe(`ALTER TABLE workers ADD COLUMN IF NOT EXISTS "horaEntrada" TEXT`)
+      await db.$executeRawUnsafe(`ALTER TABLE workers ADD COLUMN IF NOT EXISTS "horaSalida" TEXT`)
+    } catch (alterErr: any) {
+      console.warn('Column sync warning:', alterErr.message?.slice(0, 200))
     }
 
     const formData = await req.formData()
