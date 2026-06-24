@@ -48,3 +48,23 @@ Stage Summary:
 - Import now works correctly with biometric clock XLS exports that have variable header rows
 - All tardiness logic was already correctly implemented (08:05 morning, 14:05 afternoon) for the 4 specified departments
 - Deploy will be auto-triggered on Vercel from GitHub push
+
+---
+Task ID: fix-postgres-schema-production
+Agent: Main Agent
+Task: Fix Prisma SQLite schema error in production (Vercel)
+
+Work Log:
+- Analyzed user's screenshot: "Error al procesar el archivo: Invalid prisma.worker.findFirst - URL must start with protocol 'file:'"
+- Root cause: schema.prisma was changed to SQLite (provider = "sqlite") for local development but was pushed to GitHub
+- On Vercel (production), DATABASE_URL is PostgreSQL (postgresql://...) but schema expects SQLite (file:...)
+- Restored schema.prisma to PostgreSQL version from commit 3053ce7
+- Restored auth-config.ts and login/route.ts to use mode: 'insensitive' (PostgreSQL feature)
+- Removed all SQLite workarounds from code
+- Rebuilt successfully and pushed to GitHub (commit 02b97cc)
+
+Stage Summary:
+- Production error was caused by SQLite schema in PostgreSQL environment
+- Restored PostgreSQL schema with @db.Text, relationMode = "prisma", and mode: 'insensitive'
+- Vercel will auto-deploy from the GitHub push
+- Local development note: for local SQLite testing, schema would need to be temporarily changed again
