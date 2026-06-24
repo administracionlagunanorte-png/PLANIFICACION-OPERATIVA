@@ -20,10 +20,9 @@ export async function POST(request: NextRequest) {
     })
 
     if (!user) {
-      const users = await db.user.findMany({
-        where: { email: { equals: email, mode: 'insensitive' } },
-      })
-      user = users[0] || null
+      // SQLite doesn't support mode: 'insensitive', try lowercase match
+      const users = await db.user.findMany()
+      user = users.find(u => u.email.toLowerCase() === email.toLowerCase()) || null
     }
 
     if (!user) {
