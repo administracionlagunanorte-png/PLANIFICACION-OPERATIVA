@@ -1,0 +1,562 @@
+   500→   500→   500→    // Group records by worker
+   501→   501→   501→    const workerMap = new Map<string, { worker: { nombre: string; rut: string; cargo?: string; horaEntrada?: string }; records: typeof filtered }>()
+   502→   502→   502→    filtered.forEach(r => {
+   503→   503→   503→      if (!workerMap.has(r.workerId)) {
+   504→   504→   504→        workerMap.set(r.workerId, { worker: r.worker as any, records: [] })
+   505→   505→   505→      }
+   506→   506→   506→      workerMap.get(r.workerId)!.records.push(r)
+   507→   507→   507→    })
+   508→   508→   508→
+   509→   509→   509→    // Sort workers alphabetically by name
+   510→   510→   510→    const sortedWorkers = Array.from(workerMap.entries()).sort((a, b) =>
+   511→   511→   511→      a[1].worker.nombre.localeCompare(b[1].worker.nombre)
+   512→   512→   512→    )
+   513→   513→   513→
+   514→   514→   514→    // Calculate totals
+   515→   515→   515→    const atrasos = filtered.filter(r => r.type === 'ATRASO')
+   516→   516→   516→    const ausencias = filtered.filter(r => r.type === 'AUSENCIA')
+   517→   517→   517→    const totalMinAtraso = atrasos.reduce((s, r) => s + r.minutesLate, 0)
+   518→   518→   518→    const uniqueWorkers = new Set(filtered.map(r => r.workerId))
+   519→   519→   519→
+   520→   520→   520→    const formatMinutes = (mins: number): string => {
+   521→   521→   521→      const h = Math.floor(mins / 60)
+   522→   522→   522→      const m = mins % 60
+   523→   523→   523→      if (h > 0) return `${h} hr${h !== 1 ? 's' : ''}${m > 0 ? ' ' + m + ' min' : ''}`
+   524→   524→   524→      return `${m} min`
+   525→   525→   525→    }
+   526→   526→   526→
+   527→   527→   527→    let html = `<html lang="es"><head><meta charset="UTF-8"><title>Informe de Atrasos e Inasistencias - ${monthName} ${yearStr}</title>
+   528→   528→   528→<style>
+   529→   529→   529→* { box-sizing: border-box; margin: 0; padding: 0; }
+   530→   530→   530→body { font-family: Arial, sans-serif; margin: 20px; color: #1e293b; background: #fff; }
+   531→   531→   531→h1 { font-size: 22px; text-align: center; margin-bottom: 4px; color: #0f172a; }
+   532→   532→   532→h2 { font-size: 16px; text-align: center; color: #64748b; margin-bottom: 24px; font-weight: 400; }
+   533→   533→   533→.worker-section { margin-bottom: 28px; page-break-inside: avoid; }
+   534→   534→   534→.worker-header { background: #0f172a; color: white; padding: 10px 16px; font-size: 14px; font-weight: 700; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center; }
+   535→   535→   535→.worker-header .rut { font-weight: 400; font-size: 12px; opacity: 0.85; }
+   536→   536→   536→.worker-header .cargo { display: block; font-weight: 400; font-size: 11px; opacity: 0.7; margin-top: 2px; }
+   537→   537→   537→.worker-header .horario { font-weight: 400; font-size: 11px; opacity: 0.8; margin-right: 12px; background: rgba(255,255,255,0.15); padding: 2px 6px; border-radius: 3px; }
+   538→   538→   538→.sub-header { background: #334155; color: #e2e8f0; padding: 6px 16px; font-size: 12px; font-weight: 600; }
+   539→   539→   539→.sub-header.atraso-header { border-left: 4px solid #f59e0b; }
+   540→   540→   540→.sub-header.ausencia-header { border-left: 4px solid #ef4444; }
+   541→   541→   541→table { width: 100%; border-collapse: collapse; font-size: 12px; }
+   542→   542→   542→th { background: #475569; color: white; padding: 8px 12px; text-align: left; font-weight: 600; font-size: 11px; }
+   543→   543→   543→td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
+   544→   544→   544→tr:nth-child(even) { background: #f8fafc; }
+   545→   545→   545→.worker-total { background: #f1f5f9; font-weight: 600; font-size: 12px; color: #0f172a; padding: 8px 16px; display: flex; justify-content: space-between; border-radius: 0 0 6px 6px; border-top: 2px solid #cbd5e1; }
+   546→   546→   546→.summary { margin-top: 32px; padding: 16px; background: #f1f5f9; border-radius: 8px; }
+   547→   547→   547→.summary h3 { margin: 0 0 8px; font-size: 14px; color: #0f172a; }
+   548→   548→   548→.summary-item { display: inline-block; margin-right: 24px; font-size: 13px; }
+   549→   549→   549→.summary-number { font-size: 20px; font-weight: 700; }
+   550→   550→   550→.footer { margin-top: 32px; text-align: center; font-size: 11px; color: #94a3b8; }
+   551→   551→   551→.empty-section { padding: 8px 16px; color: #94a3b8; font-size: 11px; font-style: italic; background: #f8fafc; }
+   552→   552→   552→.no-data-message { text-align: center; padding: 40px 20px; color: #64748b; font-size: 16px; }
+   553→   553→   553→.no-data-message p { margin-top: 8px; font-size: 13px; color: #94a3b8; }
+   554→   554→   554→@media print { body { margin: 0; } .worker-section { page-break-inside: avoid; } }
+   555→   555→   555→</style></head><body>
+   556→   556→   556→<h1>Informe de Atrasos e Inasistencias</h1>
+   557→   557→   557→<h2>Condominio Laguna Norte &mdash; ${monthName} ${yearStr}</h2>`
+   558→   558→   558→
+   559→   559→   559→    if (filtered.length === 0) {
+   560→   560→   560→      html += `<div class="no-data-message"><strong>No se encontraron registros de atrasos ni inasistencias</strong><p>Período: ${monthName} ${yearStr} — No hay datos para el mes seleccionado. Verifique que se haya importado el archivo de asistencia correctamente y que el mes seleccionado corresponda a los datos importados.</p></div>`
+   561→   561→   561→    }
+   562→   562→   562→
+   563→   563→   563→    sortedWorkers.forEach(([, data]) => {
+   564→   564→   564→      const workerAtrasos = data.records.filter(r => r.type === 'ATRASO').sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+   565→   565→   565→      const workerAusencias = data.records.filter(r => r.type === 'AUSENCIA').sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+   566→   566→   566→      const workerCargo = data.worker.cargo || ''
+   567→   567→   567→      const workerHorario = data.worker.horaEntrada || ''
+   568→   568→   568→      const workerTotalMin = workerAtrasos.reduce((s, r) => s + r.minutesLate, 0)
+   569→   569→   569→
+   570→   570→   570→      html += `<div class="worker-section"><div class="worker-header"><div><span>${data.worker.nombre}</span>${workerCargo ? `<span class="cargo">${workerCargo}</span>` : ''}</div><div>${workerHorario ? `<span class="horario">Entrada: ${workerHorario}</span>` : ''}<span class="rut">${data.worker.rut}</span></div></div>`
+   571→   571→   571→      html += `<div class="sub-header atraso-header">Atrasos (${workerAtrasos.length})</div>`
+   572→   572→   572→      if (workerAtrasos.length > 0) {
+   573→   573→   573→        html += `<table><thead><tr><th>N&deg;</th><th>Fecha</th><th>Tiempo de Retraso</th></tr></thead><tbody>`
+   574→   574→   574→        workerAtrasos.forEach((r, idx) => {
+   575→   575→   575→          const dateStr = new Date(r.date).toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
+   576→   576→   576→          html += `<tr><td>${idx + 1}</td><td>${dateStr}</td><td>${r.minutesLate > 0 ? formatMinutes(r.minutesLate) : '-'}</td></tr>`
+   577→   577→   577→        })
+   578→   578→   578→        html += `</tbody></table>`
+   579→   579→   579→      } else {
+   580→   580→   580→        html += `<div class="empty-section">Sin atrasos registrados</div>`
+   581→   581→   581→      }
+   582→   582→   582→      html += `<div class="sub-header ausencia-header">Inasistencias (${workerAusencias.length})</div>`
+   583→   583→   583→      if (workerAusencias.length > 0) {
+   584→   584→   584→        html += `<table><thead><tr><th>N&deg;</th><th>Fecha</th></tr></thead><tbody>`
+   585→   585→   585→        workerAusencias.forEach((r, idx) => {
+   586→   586→   586→          const dateStr = new Date(r.date).toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
+   587→   587→   587→          html += `<tr><td>${idx + 1}</td><td>${dateStr}</td></tr>`
+   588→   588→   588→        })
+   589→   589→   589→        html += `</tbody></table>`
+   590→   590→   590→      } else {
+   591→   591→   591→        html += `<div class="empty-section">Sin inasistencias registradas</div>`
+   592→   592→   592→      }
+   593→   593→   593→      html += `<div class="worker-total"><span>${workerAtrasos.length} atraso${workerAtrasos.length !== 1 ? 's' : ''}${workerAusencias.length > 0 ? ', ' + workerAusencias.length + ' inasistencia' + (workerAusencias.length !== 1 ? 's' : '') : ''}</span><span>Total retraso: ${formatMinutes(workerTotalMin)}</span></div></div>`
+   594→   594→   594→    })
+   595→   595→   595→
+   596→   596→   596→    html += `<div class="summary"><h3>Resumen del Per&iacute;odo</h3><span class="summary-item"><span class="summary-number">${uniqueWorkers.size}</span> Trabajadores</span><span class="summary-item"><span class="summary-number">${atrasos.length}</span> Atrasos</span><span class="summary-item"><span class="summary-number">${ausencias.length}</span> Inasistencias</span><span class="summary-item"><span class="summary-number">${formatMinutes(totalMinAtraso)}</span> Total retraso</span></div><div class="footer">Condominio Laguna Norte &mdash; Informe generado autom&aacute;ticamente &mdash; ${new Date().toLocaleDateString('es-CL')}</div></body></html>`
+   597→   597→   597→
+   598→   598→   598→    // Store HTML and open report dialog
+   599→   599→   599→    setReportHtml(html)
+   600→   600→   600→    setReportOpen(true)
+   601→   601→   601→  }
+   602→   602→   602→
+   603→   603→   603→  // Print the report from the dialog
+   604→   604→   604→  const handlePrintReport = () => {
+   605→   605→   605→    const iframe = document.getElementById('report-iframe') as HTMLIFrameElement
+   606→   606→   606→    if (iframe && iframe.contentWindow) {
+   607→   607→   607→      iframe.contentWindow.focus()
+   608→   608→   608→      iframe.contentWindow.print()
+   609→   609→   609→    }
+   610→   610→   610→  }
+   611→   611→   611→
+   612→   612→   612→  // ============================================================
+   613→   613→   613→  // Filters
+   614→   614→   614→  // ============================================================
+   615→   615→   615→  const getFilteredRecords = () => {
+   616→   616→   616→    return records.filter(r => {
+   617→   617→   617→      if (filterType !== 'all' && r.type !== filterType) return false
+   618→   618→   618→      if (filterWorker !== 'all' && r.workerId !== filterWorker) return false
+   619→   619→   619→      return true
+   620→   620→   620→    })
+   621→   621→   621→  }
+   622→   622→   622→
+   623→   623→   623→  const filteredRecords = getFilteredRecords()
+   624→   624→   624→
+   625→   625→   625→  // ============================================================
+   626→   626→   626→  // Stats
+   627→   627→   627→  // ============================================================
+   628→   628→   628→  const totalAusencias = records.filter(r => r.type === 'AUSENCIA').length
+   629→   629→   629→  const totalAtrasos = records.filter(r => r.type === 'ATRASO').length
+   630→   630→   630→  const totalMinAtraso = records.filter(r => r.type === 'ATRASO').reduce((s, r) => s + r.minutesLate, 0)
+   631→   631→   631→  const uniqueWorkersAffected = new Set(records.map(r => r.workerId)).size
+   632→   632→   632→
+   633→   633→   633→  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+   634→   634→   634→
+   635→   635→   635→  // ============================================================
+   636→   636→   636→  // RENDER
+   637→   637→   637→  // ============================================================
+   638→   638→   638→  return (
+   639→   639→   639→    <div className="space-y-4">
+   640→   640→   640→      {/* Alert Banner (unified system) */}
+   641→   641→   641→      <ModuleAlertBanner
+   642→   642→   642→        alerts={visibleAlerts}
+   643→   643→   643→        userRole={userRole}
+   644→   644→   644→        onConfigure={() => setAlertConfigOpen(true)}
+   645→   645→   645→        onDismiss={handleDismissAlert}
+   646→   646→   646→      />
+   647→   647→   647→
+   648→   648→   648→      {/* Header */}
+   649→   649→   649→      <div className="flex items-center justify-between flex-wrap gap-3">
+   650→   650→   650→        <div>
+   651→   651→   651→          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+   652→   652→   652→            <CalendarDays className="h-5 w-5 text-rose-600" />
+   653→   653→   653→            Control de Asistencias
+   654→   654→   654→          </h2>
+   655→   655→   655→          <p className="text-sm text-slate-500 mt-1">Registro de inasistencias y atrasos de trabajadores</p>
+   656→   656→   656→        </div>
+   657→   657→   657→        <div className="flex items-center gap-2">
+   658→   658→   658→          {/* Alert config button (always visible for admin) */}
+   659→   659→   659→          {isAdmin && (
+   660→   660→   660→            <Button variant="outline" size="sm" className="gap-1" onClick={() => setAlertConfigOpen(true)}>
+   661→   661→   661→              <Bell className="h-3.5 w-3.5" /> Config. Alertas
+   662→   662→   662→            </Button>
+   663→   663→   663→          )}
+   664→   664→   664→          {(isSupervisor || isAdmin) && (
+   665→   665→   665→            <Button variant="outline" size="sm" className="gap-1 border-blue-300 text-blue-700 hover:bg-blue-50" onClick={() => setReviewDialogOpen(true)}>
+   666→   666→   666→              <Upload className="h-3.5 w-3.5" /> Enviar a Revisión
+   667→   667→   667→            </Button>
+   668→   668→   668→          )}
+   669→   669→   669→          <Button
+   670→   670→   670→            variant="outline"
+   671→   671→   671→            size="sm"
+   672→   672→   672→            className="gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+   673→   673→   673→            onClick={() => fileInputRef.current?.click()}
+   674→   674→   674→            disabled={importing}
+   675→   675→   675→          >
+   676→   676→   676→            {importing ? (
+   677→   677→   677→              <><div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-emerald-600" /> Importando...</>
+   678→   678→   678→            ) : (
+   679→   679→   679→              <><Upload className="h-3.5 w-3.5" /> Importar Asistencia</>
+   680→   680→   680→            )}
+   681→   681→   681→          </Button>
+   682→   682→   682→          <input
+   683→   683→   683→            ref={fileInputRef}
+   684→   684→   684→            type="file"
+   685→   685→   685→            accept=".xls,.xlsx,.csv"
+   686→   686→   686→            onChange={handleImportXls}
+   687→   687→   687→            className="hidden"
+   688→   688→   688→          />
+   689→   689→   689→          <Button
+   690→   690→   690→            variant="outline"
+   691→   691→   691→            size="sm"
+   692→   692→   692→            className="gap-1 border-blue-300 text-blue-700 hover:bg-blue-50"
+   693→   693→   693→            onClick={() => nominaInputRef.current?.click()}
+   694→   694→   694→            disabled={importingNomina}
+   695→   695→   695→          >
+   696→   696→   696→            {importingNomina ? (
+   697→   697→   697→              <><div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-blue-600" /> Importando...</>
+   698→   698→   698→            ) : (
+   699→   699→   699→              <><Users className="h-3.5 w-3.5" /> Importar Nómina</>
+   700→   700→   700→            )}
+   701→   701→   701→          </Button>
+   702→   702→   702→          <input
+   703→   703→   703→            ref={nominaInputRef}
+   704→   704→   704→            type="file"
+   705→   705→   705→            accept=".xls,.xlsx,.csv"
+   706→   706→   706→            onChange={handleImportNomina}
+   707→   707→   707→            className="hidden"
+   708→   708→   708→          />
+   709→   709→   709→          <Button variant="outline" size="sm" className="gap-1" onClick={generateReport}>
+   710→   710→   710→            <FileText className="h-3.5 w-3.5" /> Informe
+   711→   711→   711→          </Button>
+   712→   712→   712→          {isAdmin && (
+   713→   713→   713→            <Button
+   714→   714→   714→              variant="outline"
+   715→   715→   715→              size="sm"
+   716→   716→   716→              className="gap-1 border-red-300 text-red-700 hover:bg-red-50"
+   717→   717→   717→              onClick={() => setClearConfirmOpen(true)}
+   718→   718→   718→              disabled={clearing || records.length === 0}
+   719→   719→   719→            >
+   720→   720→   720→              {clearing ? (
+   721→   721→   721→                <><div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-red-600" /> Limpiando...</>
+   722→   722→   722→              ) : (
+   723→   723→   723→                <><RotateCcw className="h-3.5 w-3.5" /> Limpiar</>
+   724→   724→   724→              )}
+   725→   725→   725→            </Button>
+   726→   726→   726→          )}
+   727→   727→   727→          {canEdit && (
+   728→   728→   728→            <Button size="sm" className="gap-1 bg-rose-600 hover:bg-rose-700 text-white" onClick={openCreate}>
+   729→   729→   729→              <Plus className="h-4 w-4" /> Registrar
+   730→   730→   730→            </Button>
+   731→   731→   731→          )}
+   732→   732→   732→        </div>
+   733→   733→   733→      </div>
+   734→   734→   734→
+   735→   735→   735→      {/* Stats Cards */}
+   736→   736→   736→      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   737→   737→   737→        <Card className="border-l-4 border-l-red-400">
+   738→   738→   738→          <CardContent className="p-4">
+   739→   739→   739→            <div className="flex items-center gap-3">
+   740→   740→   740→              <div className="h-10 w-10 rounded-full bg-red-50 flex items-center justify-center">
+   741→   741→   741→                <UserX className="h-5 w-5 text-red-600" />
+   742→   742→   742→              </div>
+   743→   743→   743→              <div>
+   744→   744→   744→                <p className="text-2xl font-bold text-slate-900">{totalAusencias}</p>
+   745→   745→   745→                <p className="text-xs text-slate-500">Inasistencias</p>
+   746→   746→   746→              </div>
+   747→   747→   747→            </div>
+   748→   748→   748→          </CardContent>
+   749→   749→   749→        </Card>
+   750→   750→   750→        <Card className="border-l-4 border-l-amber-400">
+   751→   751→   751→          <CardContent className="p-4">
+   752→   752→   752→            <div className="flex items-center gap-3">
+   753→   753→   753→              <div className="h-10 w-10 rounded-full bg-amber-50 flex items-center justify-center">
+   754→   754→   754→                <Clock className="h-5 w-5 text-amber-600" />
+   755→   755→   755→              </div>
+   756→   756→   756→              <div>
+   757→   757→   757→                <p className="text-2xl font-bold text-slate-900">{totalAtrasos}</p>
+   758→   758→   758→                <p className="text-xs text-slate-500">Atrasos</p>
+   759→   759→   759→              </div>
+   760→   760→   760→            </div>
+   761→   761→   761→          </CardContent>
+   762→   762→   762→        </Card>
+   763→   763→   763→        <Card className="border-l-4 border-l-orange-400">
+   764→   764→   764→          <CardContent className="p-4">
+   765→   765→   765→            <div className="flex items-center gap-3">
+   766→   766→   766→              <div className="h-10 w-10 rounded-full bg-orange-50 flex items-center justify-center">
+   767→   767→   767→                <Clock className="h-5 w-5 text-orange-600" />
+   768→   768→   768→              </div>
+   769→   769→   769→              <div>
+   770→   770→   770→                <p className="text-2xl font-bold text-slate-900">{totalMinAtraso}</p>
+   771→   771→   771→                <p className="text-xs text-slate-500">Min. atraso total</p>
+   772→   772→   772→              </div>
+   773→   773→   773→            </div>
+   774→   774→   774→          </CardContent>
+   775→   775→   775→        </Card>
+   776→   776→   776→        <Card className="border-l-4 border-l-slate-400">
+   777→   777→   777→          <CardContent className="p-4">
+   778→   778→   778→            <div className="flex items-center gap-3">
+   779→   779→   779→              <div className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center">
+   780→   780→   780→                <Users className="h-5 w-5 text-slate-600" />
+   781→   781→   781→              </div>
+   782→   782→   782→              <div>
+   783→   783→   783→                <p className="text-2xl font-bold text-slate-900">{uniqueWorkersAffected}</p>
+   784→   784→   784→                <p className="text-xs text-slate-500">Trab. afectados</p>
+   785→   785→   785→              </div>
+   786→   786→   786→            </div>
+   787→   787→   787→          </CardContent>
+   788→   788→   788→        </Card>
+   789→   789→   789→      </div>
+   790→   790→   790→
+   791→   791→   791→      {/* Filters + Month Selector */}
+   792→   792→   792→      <div className="flex items-center gap-3 flex-wrap">
+   793→   793→   793→        <div className="flex items-center gap-2">
+   794→   794→   794→          <Label className="text-xs text-slate-500">Mes:</Label>
+   795→   795→   795→          <Input
+   796→   796→   796→            type="month"
+   797→   797→   797→            value={selectedMonth}
+   798→   798→   798→            onChange={(e) => setSelectedMonth(e.target.value)}
+   799→   799→   799→            className="w-[170px] h-8 text-sm"
+   800→   800→   800→          />
+   801→   801→   801→        </div>
+   802→   802→   802→        <Select value={filterType} onValueChange={setFilterType}>
+   803→   803→   803→          <SelectTrigger className="w-[140px] h-8 text-xs">
+   804→   804→   804→            <SelectValue placeholder="Tipo" />
+   805→   805→   805→          </SelectTrigger>
+   806→   806→   806→          <SelectContent>
+   807→   807→   807→            <SelectItem value="all">Todos</SelectItem>
+   808→   808→   808→            <SelectItem value="AUSENCIA">Inasistencias</SelectItem>
+   809→   809→   809→            <SelectItem value="ATRASO">Atrasos</SelectItem>
+   810→   810→   810→          </SelectContent>
+   811→   811→   811→        </Select>
+   812→   812→   812→        <Select value={filterWorker} onValueChange={setFilterWorker}>
+   813→   813→   813→          <SelectTrigger className="w-[180px] h-8 text-xs">
+   814→   814→   814→            <SelectValue placeholder="Trabajador" />
+   815→   815→   815→          </SelectTrigger>
+   816→   816→   816→          <SelectContent>
+   817→   817→   817→            <SelectItem value="all">Todos los trabajadores</SelectItem>
+   818→   818→   818→            {workers.map(w => (
+   819→   819→   819→              <SelectItem key={w.id} value={w.id}>{w.nombre}</SelectItem>
+   820→   820→   820→            ))}
+   821→   821→   821→          </SelectContent>
+   822→   822→   822→        </Select>
+   823→   823→   823→      </div>
+   824→   824→   824→
+   825→   825→   825→      {/* Records Table */}
+   826→   826→   826→      <Card>
+   827→   827→   827→        <CardContent className="p-0">
+   828→   828→   828→          {loading ? (
+   829→   829→   829→            <div className="flex items-center justify-center py-12">
+   830→   830→   830→              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-600"></div>
+   831→   831→   831→            </div>
+   832→   832→   832→          ) : filteredRecords.length === 0 ? (
+   833→   833→   833→            <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+   834→   834→   834→              <CalendarDays className="h-12 w-12 mb-3" />
+   835→   835→   835→              <p className="text-sm font-medium">No hay registros de asistencia</p>
+   836→   836→   836→              <p className="text-xs mt-1">Para el período seleccionado no se registraron inasistencias ni atrasos</p>
+   837→   837→   837→            </div>
+   838→   838→   838→          ) : (
+   839→   839→   839→            <Table>
+   840→   840→   840→              <TableHeader>
+   841→   841→   841→                <TableRow>
+   842→   842→   842→                  <TableHead className="w-[40px]">N°</TableHead>
+   843→   843→   843→                  <TableHead>Trabajador</TableHead>
+   844→   844→   844→                  <TableHead>RUT</TableHead>
+   845→   845→   845→                  <TableHead>Fecha</TableHead>
+   846→   846→   846→                  <TableHead>Tipo</TableHead>
+   847→   847→   847→                  <TableHead>Min. Atraso</TableHead>
+   848→   848→   848→                  <TableHead>Motivo</TableHead>
+   849→   849→   849→                  <TableHead>Reportado por</TableHead>
+   850→   850→   850→                  {canEdit && <TableHead className="w-[80px] text-right">Acciones</TableHead>}
+   851→   851→   851→                </TableRow>
+   852→   852→   852→              </TableHeader>
+   853→   853→   853→              <TableBody>
+   854→   854→   854→                {filteredRecords.map((record, idx) => {
+   855→   855→   855→                  const tc = typeConfig[record.type]
+   856→   856→   856→                  const dateStr = new Date(record.date).toLocaleDateString('es-CL')
+   857→   857→   857→                  return (
+   858→   858→   858→                    <TableRow key={record.id} className={tc?.bgColor}>
+   859→   859→   859→                      <TableCell className="font-mono text-xs">{idx + 1}</TableCell>
+   860→   860→   860→                      <TableCell className="font-medium">{record.worker.nombre}</TableCell>
+   861→   861→   861→                      <TableCell className="text-sm text-slate-600">{record.worker.rut}</TableCell>
+   862→   862→   862→                      <TableCell className="text-sm">{dateStr}</TableCell>
+   863→   863→   863→                      <TableCell>
+   864→   864→   864→                        <Badge variant="outline" className={`${tc?.color} ${tc?.bgColor} border-0 text-xs gap-1`}>
+   865→   865→   865→                          {tc?.icon} {tc?.label}
+   866→   866→   866→                        </Badge>
+   867→   867→   867→                      </TableCell>
+   868→   868→   868→                      <TableCell className="text-sm">
+   869→   869→   869→                        {record.type === 'ATRASO' ? `${record.minutesLate} min` : '-'}
+   870→   870→   870→                      </TableCell>
+   871→   871→   871→                      <TableCell className="text-sm text-slate-600 max-w-[200px] truncate">
+   872→   872→   872→                        {record.reason || '-'}
+   873→   873→   873→                      </TableCell>
+   874→   874→   874→                      <TableCell className="text-sm text-slate-500">{record.reportedBy || '-'}</TableCell>
+   875→   875→   875→                      {canEdit && (
+   876→   876→   876→                        <TableCell className="text-right">
+   877→   877→   877→                          <div className="flex items-center justify-end gap-1">
+   878→   878→   878→                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(record)}>
+   879→   879→   879→                              <Pencil className="h-3.5 w-3.5" />
+   880→   880→   880→                            </Button>
+   881→   881→   881→                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-600 hover:text-red-700" onClick={() => setDeleteConfirm(record.id)}>
+   882→   882→   882→                              <Trash2 className="h-3.5 w-3.5" />
+   883→   883→   883→                            </Button>
+   884→   884→   884→                          </div>
+   885→   885→   885→                        </TableCell>
+   886→   886→   886→                      )}
+   887→   887→   887→                    </TableRow>
+   888→   888→   888→                  )
+   889→   889→   889→                })}
+   890→   890→   890→              </TableBody>
+   891→   891→   891→            </Table>
+   892→   892→   892→          )}
+   893→   893→   893→        </CardContent>
+   894→   894→   894→      </Card>
+   895→   895→   895→
+   896→   896→   896→      {/* Create/Edit Dialog */}
+   897→   897→   897→      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+   898→   898→   898→        <DialogContent className="sm:max-w-[480px]">
+   899→   899→   899→          <DialogHeader>
+   900→   900→   900→            <DialogTitle className="flex items-center gap-2">
+   901→   901→   901→              {editingRecord ? (
+   902→   902→   902→                <><Pencil className="h-4 w-4" /> Editar Registro</>
+   903→   903→   903→              ) : (
+   904→   904→   904→                <><Plus className="h-4 w-4" /> Registrar Asistencia</>
+   905→   905→   905→              )}
+   906→   906→   906→            </DialogTitle>
+   907→   907→   907→            <DialogDescription>
+   908→   908→   908→              {editingRecord ? 'Modifique los datos del registro' : 'Registre una inasistencia o atraso'}
+   909→   909→   909→            </DialogDescription>
+   910→   910→   910→          </DialogHeader>
+   911→   911→   911→          <div className="space-y-4">
+   912→   912→   912→            <div>
+   913→   913→   913→              <Label>Trabajador</Label>
+   914→   914→   914→              <Select value={form.workerId} onValueChange={(v) => setForm(f => ({ ...f, workerId: v }))}>
+   915→   915→   915→                <SelectTrigger>
+   916→   916→   916→                  <SelectValue placeholder="Seleccione un trabajador" />
+   917→   917→   917→                </SelectTrigger>
+   918→   918→   918→                <SelectContent>
+   919→   919→   919→                  {workers.map(w => (
+   920→   920→   920→                    <SelectItem key={w.id} value={w.id}>{w.nombre} — {w.rut}</SelectItem>
+   921→   921→   921→                  ))}
+   922→   922→   922→                </SelectContent>
+   923→   923→   923→              </Select>
+   924→   924→   924→            </div>
+   925→   925→   925→            <div className="grid grid-cols-2 gap-3">
+   926→   926→   926→              <div>
+   927→   927→   927→                <Label>Fecha</Label>
+   928→   928→   928→                <Input
+   929→   929→   929→                  type="date"
+   930→   930→   930→                  value={form.date}
+   931→   931→   931→                  onChange={(e) => setForm(f => ({ ...f, date: e.target.value }))}
+   932→   932→   932→                />
+   933→   933→   933→              </div>
+   934→   934→   934→              <div>
+   935→   935→   935→                <Label>Tipo</Label>
+   936→   936→   936→                <Select value={form.type} onValueChange={(v) => setForm(f => ({ ...f, type: v, minutesLate: v === 'AUSENCIA' ? 0 : f.minutesLate }))}>
+   937→   937→   937→                  <SelectTrigger>
+   938→   938→   938→                    <SelectValue />
+   939→   939→   939→                  </SelectTrigger>
+   940→   940→   940→                  <SelectContent>
+   941→   941→   941→                    <SelectItem value="AUSENCIA">Inasistencia</SelectItem>
+   942→   942→   942→                    <SelectItem value="ATRASO">Atraso</SelectItem>
+   943→   943→   943→                  </SelectContent>
+   944→   944→   944→                </Select>
+   945→   945→   945→              </div>
+   946→   946→   946→            </div>
+   947→   947→   947→            {form.type === 'ATRASO' && (
+   948→   948→   948→              <div>
+   949→   949→   949→                <Label>Minutos de atraso</Label>
+   950→   950→   950→                <Input
+   951→   951→   951→                  type="number"
+   952→   952→   952→                  min={1}
+   953→   953→   953→                  value={form.minutesLate || ''}
+   954→   954→   954→                  onChange={(e) => setForm(f => ({ ...f, minutesLate: parseInt(e.target.value) || 0 }))}
+   955→   955→   955→                  placeholder="Ej: 15"
+   956→   956→   956→                />
+   957→   957→   957→              </div>
+   958→   958→   958→            )}
+   959→   959→   959→            <div>
+   960→   960→   960→              <Label>Motivo / Observación</Label>
+   961→   961→   961→              <Textarea
+   962→   962→   962→                value={form.reason}
+   963→   963→   963→                onChange={(e) => setForm(f => ({ ...f, reason: e.target.value }))}
+   964→   964→   964→                placeholder="Ej: Sin aviso, transporte, etc."
+   965→   965→   965→                rows={2}
+   966→   966→   966→              />
+   967→   967→   967→            </div>
+   968→   968→   968→          </div>
+   969→   969→   969→          <DialogFooter>
+   970→   970→   970→            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+   971→   971→   971→            <Button className="bg-rose-600 hover:bg-rose-700 text-white gap-1" onClick={handleSave}>
+   972→   972→   972→              <Save className="h-4 w-4" /> {editingRecord ? 'Actualizar' : 'Guardar'}
+   973→   973→   973→            </Button>
+   974→   974→   974→          </DialogFooter>
+   975→   975→   975→        </DialogContent>
+   976→   976→   976→      </Dialog>
+   977→   977→   977→
+   978→   978→   978→      {/* Delete Confirm */}
+   979→   979→   979→      <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+   980→   980→   980→        <AlertDialogContent>
+   981→   981→   981→          <AlertDialogHeader>
+   982→   982→   982→            <AlertDialogTitle>¿Eliminar registro?</AlertDialogTitle>
+   983→   983→   983→            <AlertDialogDescription>
+   984→   984→   984→              Esta acción no se puede deshacer. El registro de asistencia será eliminado permanentemente.
+   985→   985→   985→            </AlertDialogDescription>
+   986→   986→   986→          </AlertDialogHeader>
+   987→   987→   987→          <AlertDialogFooter>
+   988→   988→   988→            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+   989→   989→   989→            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => deleteConfirm && handleDelete(deleteConfirm)}>
+   990→   990→   990→              Eliminar
+   991→   991→   991→            </AlertDialogAction>
+   992→   992→   992→          </AlertDialogFooter>
+   993→   993→   993→        </AlertDialogContent>
+   994→   994→   994→      </AlertDialog>
+   995→   995→   995→
+   996→   996→   996→      {/* Clear All Records Confirm */}
+   997→   997→   997→      <AlertDialog open={clearConfirmOpen} onOpenChange={setClearConfirmOpen}>
+   998→   998→   998→        <AlertDialogContent>
+   999→   999→   999→          <AlertDialogHeader>
+  1000→  1000→  1000→            <AlertDialogTitle>¿Limpiar todos los registros del mes?</AlertDialogTitle>
+  1001→  1001→  1001→            <AlertDialogDescription>
+  1002→  1002→  1002→              Esta acción eliminará <strong>todos los registros de atrasos e inasistencias</strong> del mes seleccionado. Esto le permitirá importar un archivo nuevo y generar un informe limpio. Esta acción <strong>no se puede deshacer</strong>.
+  1003→  1003→  1003→            </AlertDialogDescription>
+  1004→  1004→  1004→          </AlertDialogHeader>
+  1005→  1005→  1005→          <AlertDialogFooter>
+  1006→  1006→  1006→            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+  1007→  1007→  1007→            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={handleClearRecords} disabled={clearing}>
+  1008→  1008→  1008→              {clearing ? 'Limpiando...' : 'Sí, limpiar todo'}
+  1009→  1009→  1009→            </AlertDialogAction>
+  1010→  1010→  1010→          </AlertDialogFooter>
+  1011→  1011→  1011→        </AlertDialogContent>
+  1012→  1012→  1012→      </AlertDialog>
+  1013→  1013→  1013→
+  1014→  1014→  1014→      {/* Alert Config Dialog (unified system) */}
+  1015→  1015→  1015→      <AlertConfigDialog
+  1016→  1016→  1016→        open={alertConfigOpen}
+  1017→  1017→  1017→        onOpenChange={setAlertConfigOpen}
+  1018→  1018→  1018→        moduleName="asistencias"
+  1019→  1019→  1019→        moduleLabel="Asistencias"
+  1020→  1020→  1020→        userRole={userRole}
+  1021→  1021→  1021→      />
+  1022→  1022→  1022→      <SendToReviewDialog
+  1023→  1023→  1023→        open={reviewDialogOpen}
+  1024→  1024→  1024→        onOpenChange={setReviewDialogOpen}
+  1025→  1025→  1025→        module="asistencias"
+  1026→  1026→  1026→        moduleLabel="Asistencias"
+  1027→  1027→  1027→        itemId="asistencias-informe"
+  1028→  1028→  1028→        itemTitle="Informe de Asistencias"
+  1029→  1029→  1029→        submittedBy={userName || userRole}
+  1030→  1030→  1030→      />
+  1031→  1031→  1031→
+  1032→  1032→  1032→      {/* Report Dialog — shows report in-page with print button */}
+  1033→  1033→  1033→      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+  1034→  1034→  1034→        <DialogContent className="max-w-[95vw] max-h-[90vh] flex flex-col p-0">
+  1035→  1035→  1035→          <DialogHeader className="px-6 pt-4 pb-2 flex-shrink-0">
+  1036→  1036→  1036→            <div className="flex items-center justify-between">
+  1037→  1037→  1037→              <DialogTitle>Informe de Atrasos e Inasistencias</DialogTitle>
+  1038→  1038→  1038→              <div className="flex gap-2">
+  1039→  1039→  1039→                <Button size="sm" onClick={handlePrintReport} className="gap-1">
+  1040→  1040→  1040→                  <Download className="h-3.5 w-3.5" /> Imprimir
+  1041→  1041→  1041→                </Button>
+  1042→  1042→  1042→                <Button size="sm" variant="outline" onClick={() => setReportOpen(false)}>
+  1043→  1043→  1043→                  <X className="h-3.5 w-3.5" /> Cerrar
+  1044→  1044→  1044→                </Button>
+  1045→  1045→  1045→              </div>
+  1046→  1046→  1046→            </div>
+  1047→  1047→  1047→          </DialogHeader>
+  1048→  1048→  1048→          <div className="flex-1 overflow-hidden px-2 pb-2">
+  1049→  1049→  1049→            <iframe
+  1050→  1050→  1050→              id="report-iframe"
+  1051→  1051→  1051→              srcDoc={reportHtml}
+  1052→  1052→  1052→              className="w-full h-[75vh] border-0 rounded"
+  1053→  1053→  1053→              title="Informe"
+  1054→  1054→  1054→            />
+  1055→  1055→  1055→          </div>
+  1056→  1056→  1056→        </DialogContent>
+  1057→  1057→  1057→      </Dialog>
+  1058→  1058→  1058→    </div>
+  1059→  1059→  1059→  )
+  1060→  1060→  1060→}
+  1061→  1061→  1061→

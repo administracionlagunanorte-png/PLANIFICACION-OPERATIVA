@@ -47,18 +47,18 @@ import {
   Pencil,
   Trash2,
   Bell,
-  BellRing,
   Settings,
-  AlertTriangle,
   Download,
   CalendarDays,
   Users,
   Save,
   FileText,
-  ChevronLeft,
   X,
   Upload,
   RotateCcw,
+  Paperclip,
+  ShieldCheck,
+  FileCheck,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import ModuleAlertBanner, { ModuleAlertItem } from './ModuleAlertBanner'
@@ -90,11 +90,13 @@ interface AsistenciaRecord {
   minutesLate: number
   reason: string | null
   reportedBy: string | null
+  tipoJustificacion?: string | null
+  justificacion?: string | null
+  comprobanteUrl?: string | null
+  comprobanteNombre?: string | null
   createdAt: string
   updatedAt: string
 }
-
-// AlertConfig type is now ModuleAlertItem from the unified system
 
 // ============================================================
 // Status config
@@ -102,6 +104,20 @@ interface AsistenciaRecord {
 const typeConfig: Record<string, { label: string; color: string; bgColor: string; borderColor: string; icon: React.ReactNode }> = {
   AUSENCIA: { label: 'Inasistencia', color: 'text-red-700', bgColor: 'bg-red-50', borderColor: 'border-l-red-500', icon: <UserX className="h-3.5 w-3.5" /> },
   ATRASO: { label: 'Atraso', color: 'text-amber-700', bgColor: 'bg-amber-50', borderColor: 'border-l-amber-500', icon: <Clock className="h-3.5 w-3.5" /> },
+}
+
+const justificacionTipos = [
+  { value: 'PERMISO', label: 'Permiso' },
+  { value: 'VACACIONES', label: 'Vacaciones' },
+  { value: 'LICENCIA', label: 'Licencia Médica' },
+  { value: 'OTRO', label: 'Otro' },
+]
+
+const justificacionLabels: Record<string, string> = {
+  PERMISO: 'Permiso',
+  VACACIONES: 'Vacaciones',
+  LICENCIA: 'Licencia Médica',
+  OTRO: 'Otro',
 }
 
 // ============================================================
@@ -146,7 +162,21 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
     type: 'AUSENCIA',
     minutesLate: 0,
     reason: '',
+    tipoJustificacion: '' as string,
+    justificacion: '',
   })
+
+  // --- Justificación dialog state ---
+  const [justificacionDialogOpen, setJustificacionDialogOpen] = useState(false)
+  const [justificacionRecord, setJustificacionRecord] = useState<AsistenciaRecord | null>(null)
+  const [justificacionForm, setJustificacionForm] = useState({
+    tipoJustificacion: '' as string,
+    justificacion: '',
+  })
+  const [comprobanteFile, setComprobanteFile] = useState<File | null>(null)
+  const [uploadingComprobante, setUploadingComprobante] = useState(false)
+  const [savingJustificacion, setSavingJustificacion] = useState(false)
+  const comprobanteInputRef = useRef<HTMLInputElement>(null)
 
   // --- Filter state ---
   const [filterType, setFilterType] = useState<string>('all')
@@ -238,6 +268,8 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
       type: 'AUSENCIA',
       minutesLate: 0,
       reason: '',
+      tipoJustificacion: '',
+      justificacion: '',
     })
     setDialogOpen(true)
   }
@@ -250,6 +282,8 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
       type: record.type,
       minutesLate: record.minutesLate,
       reason: record.reason || '',
+      tipoJustificacion: record.tipoJustificacion || '',
+      justificacion: record.justificacion || '',
     })
     setDialogOpen(true)
   }
@@ -273,6 +307,8 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
         ...form,
         reportedBy: userName || userRole,
         minutesLate: form.type === 'ATRASO' ? form.minutesLate : 0,
+        tipoJustificacion: form.tipoJustificacion || null,
+        justificacion: form.justificacion || null,
       }
 
       if (editingRecord) {
@@ -312,6 +348,84 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
       toast({ title: 'Error', description: 'No se pudo eliminar el registro', variant: 'destructive' })
     }
     setDeleteConfirm(null)
+  }
+
+  // ============================================================
+  // Justificación dialog
+  // ============================================================
+  const openJustificacion = (record: AsistenciaRecord) => {
+    setJustificacionRecord(record)
+    setJustificacionForm({
+      tipoJustificacion: record.tipoJustificacion || '',
+      justificacion: record.justificacion || '',
+    })
+    setComprobanteFile(null)
+    setJustificacionDialogOpen(true)
+  }
+
+  const handleSaveJustificacion = async () => {
+    if (!justificacionRecord) return
+    if (!justificacionForm.tipoJustificacion) {
+      toast({ title: 'Error', description: 'Seleccione el tipo de justificación', variant: 'destructive' })
+      return
+    }
+
+    setSavingJustificacion(true)
+    try {
+      let comprobanteUrl = justificacionRecord.comprobanteUrl || null
+      let comprobanteNombre = justificacionRecord.comprobanteNombre || null
+
+      // Upload comprobante file if selected
+      if (comprobanteFile) {
+        setUploadingComprobante(true)
+        const formData = new FormData()
+        formData.append('file', comprobanteFile)
+
+        const uploadRes = await fetch('/api/asistencias/upload-comprobante', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json()
+          comprobanteUrl = uploadData.url
+          comprobanteNombre = uploadData.nombre
+        } else {
+          toast({ title: 'Error', description: 'No se pudo subir el comprobante', variant: 'destructive' })
+          setUploadingComprobante(false)
+          setSavingJustificacion(false)
+          return
+        }
+        setUploadingComprobante(false)
+      }
+
+      // Update the record with justificación
+      const res = await fetch(`/api/asistencias/${justificacionRecord.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipoJustificacion: justificacionForm.tipoJustificacion,
+          justificacion: justificacionForm.justificacion,
+          comprobanteUrl,
+          comprobanteNombre,
+        }),
+      })
+
+      if (res.ok) {
+        toast({
+          title: 'Justificación guardada',
+          description: `Se justificó el registro como ${justificacionLabels[justificacionForm.tipoJustificacion] || justificacionForm.tipoJustificacion}`,
+        })
+        setJustificacionDialogOpen(false)
+        fetchRecords()
+      } else {
+        toast({ title: 'Error', description: 'No se pudo guardar la justificación', variant: 'destructive' })
+      }
+    } catch {
+      toast({ title: 'Error', description: 'No se pudo guardar la justificación', variant: 'destructive' })
+    } finally {
+      setSavingJustificacion(false)
+    }
   }
 
   // ============================================================
@@ -356,7 +470,6 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
           if (d.parsingNotes && d.parsingNotes.length > 0) {
             desc += ` Notas: ${d.parsingNotes.filter((n: string) => !n.startsWith('Total') && !n.startsWith('Filas parseadas')).join('; ')}.`
           }
-          // Show column mapping clearly
           const mapping = Object.entries(d.columnMapping || summary.columnMapping || {})
             .map(([k, v]) => `${k}→${v}`)
             .join(', ')
@@ -382,7 +495,6 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
       } else {
         const error = await res.json()
         let errDesc = error.error || 'No se pudo procesar el archivo'
-        // Show diagnostics if available in error response
         if (error.diagnostics) {
           errDesc += ` | Columnas: ${error.diagnostics.columnsFound?.join(', ') || 'ninguna'}`
           if (error.diagnostics.parsingNotes?.length > 0) {
@@ -486,7 +598,7 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
   }
 
   // ============================================================
-  // Export report — shows in-page dialog with print button
+  // Export report — restructured by worker, all atrasos then all faltas
   // ============================================================
   const generateReport = () => {
     const [yearStr, monthStr] = selectedMonth.split('-')
@@ -494,8 +606,6 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
     const monthName = monthNamesReport[parseInt(monthStr) - 1]
 
     const filtered = getFilteredRecords()
-
-    // Always generate the report, even if no data — show a message in the report
 
     // Group records by worker
     const workerMap = new Map<string, { worker: { nombre: string; rut: string; cargo?: string; horaEntrada?: string }; records: typeof filtered }>()
@@ -524,6 +634,11 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
       return `${m} min`
     }
 
+    const escJustificacionTipo = (tipo: string | null | undefined): string => {
+      if (!tipo) return ''
+      return justificacionLabels[tipo] || tipo
+    }
+
     let html = `<html lang="es"><head><meta charset="UTF-8"><title>Informe de Atrasos e Inasistencias - ${monthName} ${yearStr}</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -539,8 +654,8 @@ h2 { font-size: 16px; text-align: center; color: #64748b; margin-bottom: 24px; f
 .sub-header.atraso-header { border-left: 4px solid #f59e0b; }
 .sub-header.ausencia-header { border-left: 4px solid #ef4444; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
-th { background: #475569; color: white; padding: 8px 12px; text-align: left; font-weight: 600; font-size: 11px; }
-td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
+th { background: #475569; color: white; padding: 8px 10px; text-align: left; font-weight: 600; font-size: 11px; }
+td { padding: 7px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
 tr:nth-child(even) { background: #f8fafc; }
 .worker-total { background: #f1f5f9; font-weight: 600; font-size: 12px; color: #0f172a; padding: 8px 16px; display: flex; justify-content: space-between; border-radius: 0 0 6px 6px; border-top: 2px solid #cbd5e1; }
 .summary { margin-top: 32px; padding: 16px; background: #f1f5f9; border-radius: 8px; }
@@ -551,6 +666,12 @@ tr:nth-child(even) { background: #f8fafc; }
 .empty-section { padding: 8px 16px; color: #94a3b8; font-size: 11px; font-style: italic; background: #f8fafc; }
 .no-data-message { text-align: center; padding: 40px 20px; color: #64748b; font-size: 16px; }
 .no-data-message p { margin-top: 8px; font-size: 13px; color: #94a3b8; }
+.justificado-badge { display: inline-block; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; margin-left: 4px; }
+.justificado-badge.vacaciones { background: #dcfce7; color: #166534; }
+.justificado-badge.permiso { background: #fef3c7; color: #92400e; }
+.justificado-badge.licencia { background: #ede9fe; color: #5b21b6; }
+.justificado-badge.otro { background: #f1f5f9; color: #475569; }
+.comprobante-link { color: #2563eb; text-decoration: underline; font-size: 11px; }
 @media print { body { margin: 0; } .worker-section { page-break-inside: avoid; } }
 </style></head><body>
 <h1>Informe de Atrasos e Inasistencias</h1>
@@ -560,37 +681,56 @@ tr:nth-child(even) { background: #f8fafc; }
       html += `<div class="no-data-message"><strong>No se encontraron registros de atrasos ni inasistencias</strong><p>Período: ${monthName} ${yearStr} — No hay datos para el mes seleccionado. Verifique que se haya importado el archivo de asistencia correctamente y que el mes seleccionado corresponda a los datos importados.</p></div>`
     }
 
+    // --- Workers: each worker gets all atrasos first, then all faltas ---
     sortedWorkers.forEach(([, data]) => {
       const workerAtrasos = data.records.filter(r => r.type === 'ATRASO').sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       const workerAusencias = data.records.filter(r => r.type === 'AUSENCIA').sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       const workerCargo = data.worker.cargo || ''
       const workerHorario = data.worker.horaEntrada || ''
       const workerTotalMin = workerAtrasos.reduce((s, r) => s + r.minutesLate, 0)
+      const workerJustificados = data.records.filter(r => r.tipoJustificacion).length
 
       html += `<div class="worker-section"><div class="worker-header"><div><span>${data.worker.nombre}</span>${workerCargo ? `<span class="cargo">${workerCargo}</span>` : ''}</div><div>${workerHorario ? `<span class="horario">Entrada: ${workerHorario}</span>` : ''}<span class="rut">${data.worker.rut}</span></div></div>`
+
+      // --- ATRASOS subsection ---
       html += `<div class="sub-header atraso-header">Atrasos (${workerAtrasos.length})</div>`
       if (workerAtrasos.length > 0) {
-        html += `<table><thead><tr><th>N&deg;</th><th>Fecha</th><th>Tiempo de Retraso</th></tr></thead><tbody>`
+        html += `<table><thead><tr><th>N&deg;</th><th>Fecha</th><th>Tiempo de Retraso</th><th>Justificación</th><th>Comprobante</th></tr></thead><tbody>`
         workerAtrasos.forEach((r, idx) => {
           const dateStr = new Date(r.date).toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
-          html += `<tr><td>${idx + 1}</td><td>${dateStr}</td><td>${r.minutesLate > 0 ? formatMinutes(r.minutesLate) : '-'}</td></tr>`
+          const justBadge = r.tipoJustificacion
+            ? `<span class="justificado-badge ${(r.tipoJustificacion || '').toLowerCase()}">${escJustificacionTipo(r.tipoJustificacion)}</span>${r.justificacion ? '<br><span style="font-size:10px;color:#475569;">' + r.justificacion + '</span>' : ''}`
+            : '<span style="color:#94a3b8;font-size:11px;">Sin justificar</span>'
+          const compLink = r.comprobanteUrl
+            ? `<a class="comprobante-link" href="${r.comprobanteUrl}" target="_blank">${r.comprobanteNombre || 'Ver comprobante'}</a>`
+            : '<span style="color:#cbd5e1;font-size:11px;">-</span>'
+          html += `<tr><td>${idx + 1}</td><td>${dateStr}</td><td>${r.minutesLate > 0 ? formatMinutes(r.minutesLate) : '-'}</td><td>${justBadge}</td><td>${compLink}</td></tr>`
         })
         html += `</tbody></table>`
       } else {
         html += `<div class="empty-section">Sin atrasos registrados</div>`
       }
+
+      // --- INASISTENCIAS subsection ---
       html += `<div class="sub-header ausencia-header">Inasistencias (${workerAusencias.length})</div>`
       if (workerAusencias.length > 0) {
-        html += `<table><thead><tr><th>N&deg;</th><th>Fecha</th></tr></thead><tbody>`
+        html += `<table><thead><tr><th>N&deg;</th><th>Fecha</th><th>Justificación</th><th>Comprobante</th></tr></thead><tbody>`
         workerAusencias.forEach((r, idx) => {
           const dateStr = new Date(r.date).toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
-          html += `<tr><td>${idx + 1}</td><td>${dateStr}</td></tr>`
+          const justBadge = r.tipoJustificacion
+            ? `<span class="justificado-badge ${(r.tipoJustificacion || '').toLowerCase()}">${escJustificacionTipo(r.tipoJustificacion)}</span>${r.justificacion ? '<br><span style="font-size:10px;color:#475569;">' + r.justificacion + '</span>' : ''}`
+            : '<span style="color:#94a3b8;font-size:11px;">Sin justificar</span>'
+          const compLink = r.comprobanteUrl
+            ? `<a class="comprobante-link" href="${r.comprobanteUrl}" target="_blank">${r.comprobanteNombre || 'Ver comprobante'}</a>`
+            : '<span style="color:#cbd5e1;font-size:11px;">-</span>'
+          html += `<tr><td>${idx + 1}</td><td>${dateStr}</td><td>${justBadge}</td><td>${compLink}</td></tr>`
         })
         html += `</tbody></table>`
       } else {
         html += `<div class="empty-section">Sin inasistencias registradas</div>`
       }
-      html += `<div class="worker-total"><span>${workerAtrasos.length} atraso${workerAtrasos.length !== 1 ? 's' : ''}${workerAusencias.length > 0 ? ', ' + workerAusencias.length + ' inasistencia' + (workerAusencias.length !== 1 ? 's' : '') : ''}</span><span>Total retraso: ${formatMinutes(workerTotalMin)}</span></div></div>`
+
+      html += `<div class="worker-total"><span>${workerAtrasos.length} atraso${workerAtrasos.length !== 1 ? 's' : ''}${workerAusencias.length > 0 ? ', ' + workerAusencias.length + ' inasistencia' + (workerAusencias.length !== 1 ? 's' : '') : ''}${workerJustificados > 0 ? ' &mdash; ' + workerJustificados + ' justificado' + (workerJustificados !== 1 ? 's' : '') : ''}</span><span>Total retraso: ${formatMinutes(workerTotalMin)}</span></div></div>`
     })
 
     html += `<div class="summary"><h3>Resumen del Per&iacute;odo</h3><span class="summary-item"><span class="summary-number">${uniqueWorkers.size}</span> Trabajadores</span><span class="summary-item"><span class="summary-number">${atrasos.length}</span> Atrasos</span><span class="summary-item"><span class="summary-number">${ausencias.length}</span> Inasistencias</span><span class="summary-item"><span class="summary-number">${formatMinutes(totalMinAtraso)}</span> Total retraso</span></div><div class="footer">Condominio Laguna Norte &mdash; Informe generado autom&aacute;ticamente &mdash; ${new Date().toLocaleDateString('es-CL')}</div></body></html>`
@@ -629,6 +769,7 @@ tr:nth-child(even) { background: #f8fafc; }
   const totalAtrasos = records.filter(r => r.type === 'ATRASO').length
   const totalMinAtraso = records.filter(r => r.type === 'ATRASO').reduce((s, r) => s + r.minutesLate, 0)
   const uniqueWorkersAffected = new Set(records.map(r => r.workerId)).size
+  const totalJustificados = records.filter(r => r.tipoJustificacion).length
 
   const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
@@ -654,8 +795,7 @@ tr:nth-child(even) { background: #f8fafc; }
           </h2>
           <p className="text-sm text-slate-500 mt-1">Registro de inasistencias y atrasos de trabajadores</p>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Alert config button (always visible for admin) */}
+        <div className="flex items-center gap-2 flex-wrap">
           {isAdmin && (
             <Button variant="outline" size="sm" className="gap-1" onClick={() => setAlertConfigOpen(true)}>
               <Bell className="h-3.5 w-3.5" /> Config. Alertas
@@ -733,7 +873,7 @@ tr:nth-child(even) { background: #f8fafc; }
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <Card className="border-l-4 border-l-red-400">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -782,6 +922,19 @@ tr:nth-child(even) { background: #f8fafc; }
               <div>
                 <p className="text-2xl font-bold text-slate-900">{uniqueWorkersAffected}</p>
                 <p className="text-xs text-slate-500">Trab. afectados</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-blue-400">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center">
+                <ShieldCheck className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-900">{totalJustificados}</p>
+                <p className="text-xs text-slate-500">Justificados</p>
               </div>
             </div>
           </CardContent>
@@ -845,9 +998,9 @@ tr:nth-child(even) { background: #f8fafc; }
                   <TableHead>Fecha</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Min. Atraso</TableHead>
-                  <TableHead>Motivo</TableHead>
-                  <TableHead>Reportado por</TableHead>
-                  {canEdit && <TableHead className="w-[80px] text-right">Acciones</TableHead>}
+                  <TableHead>Justificación</TableHead>
+                  <TableHead>Comprobante</TableHead>
+                  <TableHead className="w-[80px] text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -868,22 +1021,55 @@ tr:nth-child(even) { background: #f8fafc; }
                       <TableCell className="text-sm">
                         {record.type === 'ATRASO' ? `${record.minutesLate} min` : '-'}
                       </TableCell>
-                      <TableCell className="text-sm text-slate-600 max-w-[200px] truncate">
-                        {record.reason || '-'}
+                      <TableCell className="text-sm max-w-[180px]">
+                        {record.tipoJustificacion ? (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <Badge variant="outline" className={
+                              record.tipoJustificacion === 'VACACIONES' ? 'bg-green-50 text-green-700 border-green-200 text-xs' :
+                              record.tipoJustificacion === 'PERMISO' ? 'bg-amber-50 text-amber-700 border-amber-200 text-xs' :
+                              record.tipoJustificacion === 'LICENCIA' ? 'bg-purple-50 text-purple-700 border-purple-200 text-xs' :
+                              'bg-slate-50 text-slate-700 border-slate-200 text-xs'
+                            }>
+                              {justificacionLabels[record.tipoJustificacion] || record.tipoJustificacion}
+                            </Badge>
+                            {record.justificacion && (
+                              <span className="text-xs text-slate-500 truncate max-w-[120px]" title={record.justificacion}>
+                                {record.justificacion}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400">Sin justificar</span>
+                        )}
                       </TableCell>
-                      <TableCell className="text-sm text-slate-500">{record.reportedBy || '-'}</TableCell>
-                      {canEdit && (
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
+                      <TableCell className="text-sm">
+                        {record.comprobanteUrl ? (
+                          <a href={record.comprobanteUrl} target="_blank" className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1">
+                            <Paperclip className="h-3 w-3" /> {record.comprobanteNombre || 'Ver'}
+                          </a>
+                        ) : (
+                          <span className="text-xs text-slate-300">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {canEdit && (
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Justificar" onClick={() => openJustificacion(record)}>
+                              <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
+                            </Button>
+                          )}
+                          {canEdit && (
                             <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(record)}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
+                          )}
+                          {canEdit && (
                             <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-600 hover:text-red-700" onClick={() => setDeleteConfirm(record.id)}>
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
-                          </div>
-                        </TableCell>
-                      )}
+                          )}
+                        </div>
+                      </TableCell>
                     </TableRow>
                   )
                 })}
@@ -970,6 +1156,88 @@ tr:nth-child(even) { background: #f8fafc; }
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button className="bg-rose-600 hover:bg-rose-700 text-white gap-1" onClick={handleSave}>
               <Save className="h-4 w-4" /> {editingRecord ? 'Actualizar' : 'Guardar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Justificación Dialog */}
+      <Dialog open={justificacionDialogOpen} onOpenChange={setJustificacionDialogOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-blue-600" /> Justificar Registro
+            </DialogTitle>
+            <DialogDescription>
+              {justificacionRecord && (
+                <>Atraso/Inasistencia de <strong>{justificacionRecord.worker?.nombre}</strong> del {new Date(justificacionRecord.date).toLocaleDateString('es-CL')}</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Tipo de Justificación *</Label>
+              <Select value={justificacionForm.tipoJustificacion} onValueChange={(v) => setJustificacionForm(f => ({ ...f, tipoJustificacion: v }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccione tipo de justificación" />
+                </SelectTrigger>
+                <SelectContent>
+                  {justificacionTipos.map(t => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Detalle de la Justificación</Label>
+              <Textarea
+                value={justificacionForm.justificacion}
+                onChange={(e) => setJustificacionForm(f => ({ ...f, justificacion: e.target.value }))}
+                placeholder="Ej: Permiso médico, vacaciones del 01 al 15..."
+                rows={3}
+              />
+            </div>
+            <div>
+              <Label>Comprobante Adjunto</Label>
+              <div className="flex items-center gap-3 mt-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => comprobanteInputRef.current?.click()}
+                >
+                  <Paperclip className="h-3.5 w-3.5" /> Adjuntar archivo
+                </Button>
+                <input
+                  ref={comprobanteInputRef}
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.gif,.webp,.pdf"
+                  onChange={(e) => setComprobanteFile(e.target.files?.[0] || null)}
+                  className="hidden"
+                />
+                {comprobanteFile && (
+                  <span className="text-xs text-slate-600 flex items-center gap-1">
+                    <FileCheck className="h-3 w-3 text-green-600" /> {comprobanteFile.name}
+                  </span>
+                )}
+                {!comprobanteFile && justificacionRecord?.comprobanteUrl && (
+                  <span className="text-xs text-blue-600 flex items-center gap-1">
+                    <Paperclip className="h-3 w-3" />
+                    <a href={justificacionRecord.comprobanteUrl} target="_blank">{justificacionRecord.comprobanteNombre || 'Ver actual'}</a>
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 mt-1">JPG, PNG, GIF, WebP o PDF. Máximo 10MB.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setJustificacionDialogOpen(false)}>Cancelar</Button>
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-1" onClick={handleSaveJustificacion} disabled={savingJustificacion || uploadingComprobante}>
+              {savingJustificacion ? (
+                <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> Guardando...</>
+              ) : (
+                <><Save className="h-4 w-4" /> Guardar Justificación</>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

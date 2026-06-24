@@ -348,16 +348,20 @@ model MantenimientoItem {
 // ============================================================
 
 model AsistenciaRecord {
-  id            String   @id @default(cuid())
-  workerId      String                      // FK a Worker
-  worker        Worker    @relation(fields: [workerId], references: [id])
-  date          DateTime                    // Fecha de la ausencia/atraso
-  type          String                      // "AUSENCIA" o "ATRASO"
-  minutesLate   Int       @default(0)       // Minutos de atraso (solo si type=ATRASO)
-  reason        String?                     // Motivo u observación
-  reportedBy    String?                     // Quien reportó (supervisor)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  workerId            String                      // FK a Worker
+  worker              Worker    @relation(fields: [workerId], references: [id])
+  date                DateTime                    // Fecha de la ausencia/atraso
+  type                String                      // "AUSENCIA" o "ATRASO"
+  minutesLate         Int       @default(0)       // Minutos de atraso (solo si type=ATRASO)
+  reason              String?                     // Motivo u observación
+  reportedBy          String?                     // Quien reportó (supervisor)
+  tipoJustificacion   String?                     // "PERMISO", "VACACIONES", "LICENCIA", "OTRO" o null (sin justificar)
+  justificacion       String?                     // Detalle de la justificación
+  comprobanteUrl      String?  @db.Text           // URL del archivo comprobante adjunto
+  comprobanteNombre   String?                     // Nombre original del archivo comprobante
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   @@map("asistencia_records")
 }

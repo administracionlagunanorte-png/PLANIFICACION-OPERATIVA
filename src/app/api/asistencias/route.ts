@@ -4,13 +4,21 @@ import { db } from '@/lib/db'
 // GET /api/asistencias — List records with filters
 export async function GET(req: NextRequest) {
   try {
-    // Ensure worker columns exist (safe, idempotent)
+    // Ensure all worker columns exist (safe, idempotent)
     try {
       await db.$executeRawUnsafe(`ALTER TABLE workers ADD COLUMN IF NOT EXISTS "cargo" TEXT`)
       await db.$executeRawUnsafe(`ALTER TABLE workers ADD COLUMN IF NOT EXISTS "turnoA" TEXT`)
       await db.$executeRawUnsafe(`ALTER TABLE workers ADD COLUMN IF NOT EXISTS "turnoB" TEXT`)
       await db.$executeRawUnsafe(`ALTER TABLE workers ADD COLUMN IF NOT EXISTS "horaEntrada" TEXT`)
       await db.$executeRawUnsafe(`ALTER TABLE workers ADD COLUMN IF NOT EXISTS "horaSalida" TEXT`)
+    } catch {}
+
+    // Ensure justificacion columns exist (safe, idempotent)
+    try {
+      await db.$executeRawUnsafe(`ALTER TABLE asistencia_records ADD COLUMN IF NOT EXISTS "tipoJustificacion" TEXT`)
+      await db.$executeRawUnsafe(`ALTER TABLE asistencia_records ADD COLUMN IF NOT EXISTS "justificacion" TEXT`)
+      await db.$executeRawUnsafe(`ALTER TABLE asistencia_records ADD COLUMN IF NOT EXISTS "comprobanteUrl" TEXT`)
+      await db.$executeRawUnsafe(`ALTER TABLE asistencia_records ADD COLUMN IF NOT EXISTS "comprobanteNombre" TEXT`)
     } catch {}
 
     const { searchParams } = new URL(req.url)
@@ -48,8 +56,16 @@ export async function GET(req: NextRequest) {
 // POST /api/asistencias — Create a new record
 export async function POST(req: NextRequest) {
   try {
+    // Ensure justificacion columns exist
+    try {
+      await db.$executeRawUnsafe(`ALTER TABLE asistencia_records ADD COLUMN IF NOT EXISTS "tipoJustificacion" TEXT`)
+      await db.$executeRawUnsafe(`ALTER TABLE asistencia_records ADD COLUMN IF NOT EXISTS "justificacion" TEXT`)
+      await db.$executeRawUnsafe(`ALTER TABLE asistencia_records ADD COLUMN IF NOT EXISTS "comprobanteUrl" TEXT`)
+      await db.$executeRawUnsafe(`ALTER TABLE asistencia_records ADD COLUMN IF NOT EXISTS "comprobanteNombre" TEXT`)
+    } catch {}
+
     const body = await req.json()
-    const { workerId, date, type, minutesLate, reason, reportedBy } = body
+    const { workerId, date, type, minutesLate, reason, reportedBy, tipoJustificacion, justificacion, comprobanteUrl, comprobanteNombre } = body
 
     if (!workerId || !date || !type) {
       return NextResponse.json({ error: 'workerId, date y type son requeridos' }, { status: 400 })
@@ -69,6 +85,10 @@ export async function POST(req: NextRequest) {
         minutesLate: type === 'ATRASO' ? minutesLate : 0,
         reason: reason || null,
         reportedBy: reportedBy || null,
+        tipoJustificacion: tipoJustificacion || null,
+        justificacion: justificacion || null,
+        comprobanteUrl: comprobanteUrl || null,
+        comprobanteNombre: comprobanteNombre || null,
       },
       include: { worker: true },
     })
