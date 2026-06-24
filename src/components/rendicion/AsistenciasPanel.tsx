@@ -310,10 +310,10 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
     const file = e.target.files?.[0]
     if (!file) return
 
-    const validExtensions = ['.xls', '.xlsx']
+    const validExtensions = ['.xls', '.xlsx', '.csv']
     const fileName = file.name.toLowerCase()
     if (!validExtensions.some(ext => fileName.endsWith(ext))) {
-      toast({ title: 'Error', description: 'Seleccione un archivo .xls o .xlsx', variant: 'destructive' })
+      toast({ title: 'Error', description: 'Seleccione un archivo .xls, .xlsx o .csv', variant: 'destructive' })
       return
     }
 
@@ -415,11 +415,6 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
       workerMap.get(r.workerId)!.records.push(r)
     })
 
-    // Sort each worker's records by date ascending
-    workerMap.forEach(val => {
-      val.records.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    })
-
     // Sort workers alphabetically by name
     const sortedWorkers = Array.from(workerMap.entries()).sort((a, b) =>
       a[1].worker.nombre.localeCompare(b[1].worker.nombre)
@@ -431,12 +426,22 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
     const totalMinAtraso = atrasos.reduce((s, r) => s + r.minutesLate, 0)
     const uniqueWorkers = new Set(filtered.map(r => r.workerId))
 
+    // Helper: format minutes to hours+minutes
+    const formatMinutes = (mins: number): string => {
+      const h = Math.floor(mins / 60)
+      const m = mins % 60
+      if (h > 0) {
+        return `${h} hr${h !== 1 ? 's' : ''}${m > 0 ? ' ' + m + ' min' : ''}`
+      }
+      return `${m} min`
+    }
+
     let html = `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Informe de Atrasos - ${monthName} ${yearStr}</title>
+  <title>Informe de Atrasos e Inasistencias - ${monthName} ${yearStr}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, sans-serif; margin: 20px; color: #1e293b; background: #fff; }
@@ -445,8 +450,11 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
     .worker-section { margin-bottom: 28px; page-break-inside: avoid; }
     .worker-header { background: #0f172a; color: white; padding: 10px 16px; font-size: 14px; font-weight: 700; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center; }
     .worker-header .rut { font-weight: 400; font-size: 12px; opacity: 0.85; }
+    .sub-header { background: #334155; color: #e2e8f0; padding: 6px 16px; font-size: 12px; font-weight: 600; }
+    .sub-header.atraso-header { border-left: 4px solid #f59e0b; }
+    .sub-header.ausencia-header { border-left: 4px solid #ef4444; }
     table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    th { background: #334155; color: white; padding: 8px 12px; text-align: left; font-weight: 600; font-size: 11px; }
+    th { background: #475569; color: white; padding: 8px 12px; text-align: left; font-weight: 600; font-size: 11px; }
     td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
     tr:nth-child(even) { background: #f8fafc; }
     .atraso { background: #fffbeb; color: #92400e; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
@@ -459,88 +467,112 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
     .footer { margin-top: 32px; text-align: center; font-size: 11px; color: #94a3b8; }
     .date-cell { min-width: 100px; }
     .time-cell { min-width: 80px; }
-    .no-records { text-align: center; padding: 40px; color: #94a3b8; font-size: 16px; }
-    @media print { body { margin: 0; } }
+    .no-records { text-align: center; padding: 12px; color: #94a3b8; font-size: 12px; font-style: italic; }
+    .empty-section { padding: 8px 16px; color: #94a3b8; font-size: 11px; font-style: italic; background: #f8fafc; }
+    @media print { body { margin: 0; } .worker-section { page-break-inside: avoid; } }
   </style>
 </head>
 <body>
   <h1>Informe de Atrasos e Inasistencias</h1>
   <h2>Condominio Laguna Norte &mdash; ${monthName} ${yearStr}</h2>`
 
-    let globalIndex = 0
     sortedWorkers.forEach(([, data]) => {
-      const workerTotalMin = data.records
+      // Separate atrasos and ausencias, sort each by date ascending
+      const workerAtrasos = data.records
         .filter(r => r.type === 'ATRASO')
-        .reduce((s, r) => s + r.minutesLate, 0)
-      const workerAtrasos = data.records.filter(r => r.type === 'ATRASO').length
-      const workerAusencias = data.records.filter(r => r.type === 'AUSENCIA').length
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      const workerAusencias = data.records
+        .filter(r => r.type === 'AUSENCIA')
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      const workerTotalMin = workerAtrasos.reduce((s, r) => s + r.minutesLate, 0)
 
       html += `
   <div class="worker-section">
     <div class="worker-header">
       <span>${data.worker.nombre}</span>
       <span class="rut">${data.worker.rut}</span>
-    </div>
+    </div>`
+
+      // --- ATRASOS section ---
+      html += `
+    <div class="sub-header atraso-header">Atrasos (${workerAtrasos.length})</div>`
+
+      if (workerAtrasos.length > 0) {
+        html += `
     <table>
       <thead>
         <tr>
           <th>N&deg;</th>
           <th>Fecha</th>
-          <th>Tipo</th>
           <th>Tiempo de Retraso</th>
         </tr>
       </thead>
       <tbody>`
 
-      data.records.forEach(r => {
-        globalIndex++
-        const dateStr = new Date(r.date).toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
-        const typeClass = r.type === 'AUSENCIA' ? 'ausencia' : 'atraso'
-        const typeLabel = r.type === 'AUSENCIA' ? 'Inasistencia' : 'Atraso'
+        workerAtrasos.forEach((r, idx) => {
+          const dateStr = new Date(r.date).toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
+          const timeDisplay = r.minutesLate > 0 ? formatMinutes(r.minutesLate) : '-'
 
-        let timeDisplay = '-'
-        if (r.type === 'ATRASO' && r.minutesLate > 0) {
-          const hours = Math.floor(r.minutesLate / 60)
-          const mins = r.minutesLate % 60
-          if (hours > 0) {
-            timeDisplay = `${hours} hr${hours > 1 ? 's' : ''} ${mins > 0 ? mins + ' min' : ''}`.trim()
-          } else {
-            timeDisplay = `${mins} min`
-          }
-        } else if (r.type === 'AUSENCIA') {
-          timeDisplay = 'D&iacute;a completo'
-        }
-
-        html += `
+          html += `
         <tr>
-          <td>${globalIndex}</td>
+          <td>${idx + 1}</td>
           <td class="date-cell">${dateStr}</td>
-          <td><span class="${typeClass}">${typeLabel}</span></td>
           <td class="time-cell">${timeDisplay}</td>
         </tr>`
-      })
+        })
 
-      const totalHours = Math.floor(workerTotalMin / 60)
-      const totalMins = workerTotalMin % 60
-      const totalStr = totalHours > 0
-        ? `${totalHours} hr${totalHours !== 1 ? 's' : ''}${totalMins > 0 ? ' ' + totalMins + ' min' : ''}`
-        : `${totalMins} min`
-
-      html += `
+        html += `
       </tbody>
-    </table>
+    </table>`
+      } else {
+        html += `
+    <div class="empty-section">Sin atrasos registrados</div>`
+      }
+
+      // --- AUSENCIAS section ---
+      html += `
+    <div class="sub-header ausencia-header">Inasistencias (${workerAusencias.length})</div>`
+
+      if (workerAusencias.length > 0) {
+        html += `
+    <table>
+      <thead>
+        <tr>
+          <th>N&deg;</th>
+          <th>Fecha</th>
+        </tr>
+      </thead>
+      <tbody>`
+
+        workerAusencias.forEach((r, idx) => {
+          const dateStr = new Date(r.date).toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
+
+          html += `
+        <tr>
+          <td>${idx + 1}</td>
+          <td class="date-cell">${dateStr}</td>
+        </tr>`
+        })
+
+        html += `
+      </tbody>
+    </table>`
+      } else {
+        html += `
+    <div class="empty-section">Sin inasistencias registradas</div>`
+      }
+
+      // Worker subtotal
+      const totalStr = formatMinutes(workerTotalMin)
+      html += `
     <div class="worker-total">
-      <span>${workerAtrasos} atraso${workerAtrasos !== 1 ? 's' : ''}${workerAusencias > 0 ? ', ' + workerAusencias + ' inasistencia' + (workerAusencias !== 1 ? 's' : '') : ''}</span>
+      <span>${workerAtrasos.length} atraso${workerAtrasos.length !== 1 ? 's' : ''}${workerAusencias.length > 0 ? ', ' + workerAusencias.length + ' inasistencia' + (workerAusencias.length !== 1 ? 's' : '') : ''}</span>
       <span>Total retraso: ${totalStr}</span>
     </div>
   </div>`
     })
 
-    const totalHours = Math.floor(totalMinAtraso / 60)
-    const totalMins = totalMinAtraso % 60
-    const totalStr = totalHours > 0
-      ? `${totalHours} hr${totalHours !== 1 ? 's' : ''}${totalMins > 0 ? ' ' + totalMins + ' min' : ''}`
-      : `${totalMins} min`
+    const totalStr = formatMinutes(totalMinAtraso)
 
     html += `
   <div class="summary">
@@ -554,17 +586,26 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
 </body>
 </html>`
 
-    // Use Blob URL instead of window.open to avoid popup blockers
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `Informe_Atrasos_${monthName}_${yearStr}.html`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    // Revoke after a short delay to allow download to start
-    setTimeout(() => URL.revokeObjectURL(url), 5000)
+    // Open in new window for printing
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(html)
+      printWindow.document.close()
+      printWindow.onload = () => {
+        printWindow.print()
+      }
+    } else {
+      // Fallback: if popup blocked, use Blob URL
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.target = '_blank'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      setTimeout(() => URL.revokeObjectURL(url), 10000)
+    }
   }
 
   // ============================================================
@@ -640,7 +681,7 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
           <input
             ref={fileInputRef}
             type="file"
-            accept=".xls,.xlsx"
+            accept=".xls,.xlsx,.csv"
             onChange={handleImportXls}
             className="hidden"
           />

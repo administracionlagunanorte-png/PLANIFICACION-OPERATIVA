@@ -1,0 +1,972 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useEffect, useRef } from 'react'
+     4→     4→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+     5→     5→import { Button } from '@/components/ui/button'
+     6→     6→import { Input } from '@/components/ui/input'
+     7→     7→import { Label } from '@/components/ui/label'
+     8→     8→import { Textarea } from '@/components/ui/textarea'
+     9→     9→import { Badge } from '@/components/ui/badge'
+    10→    10→import {
+    11→    11→  Dialog,
+    12→    12→  DialogContent,
+    13→    13→  DialogDescription,
+    14→    14→  DialogFooter,
+    15→    15→  DialogHeader,
+    16→    16→  DialogTitle,
+    17→    17→} from '@/components/ui/dialog'
+    18→    18→import {
+    19→    19→  Select,
+    20→    20→  SelectContent,
+    21→    21→  SelectItem,
+    22→    22→  SelectTrigger,
+    23→    23→  SelectValue,
+    24→    24→} from '@/components/ui/select'
+    25→    25→import {
+    26→    26→  Table,
+    27→    27→  TableBody,
+    28→    28→  TableCell,
+    29→    29→  TableHead,
+    30→    30→  TableHeader,
+    31→    31→  TableRow,
+    32→    32→} from '@/components/ui/table'
+    33→    33→import {
+    34→    34→  AlertDialog,
+    35→    35→  AlertDialogAction,
+    36→    36→  AlertDialogCancel,
+    37→    37→  AlertDialogContent,
+    38→    38→  AlertDialogDescription,
+    39→    39→  AlertDialogFooter,
+    40→    40→  AlertDialogHeader,
+    41→    41→  AlertDialogTitle,
+    42→    42→} from '@/components/ui/alert-dialog'
+    43→    43→import {
+    44→    44→  Clock,
+    45→    45→  UserX,
+    46→    46→  Plus,
+    47→    47→  Pencil,
+    48→    48→  Trash2,
+    49→    49→  Bell,
+    50→    50→  BellRing,
+    51→    51→  Settings,
+    52→    52→  AlertTriangle,
+    53→    53→  Download,
+    54→    54→  CalendarDays,
+    55→    55→  Users,
+    56→    56→  Save,
+    57→    57→  FileText,
+    58→    58→  ChevronLeft,
+    59→    59→  X,
+    60→    60→  Upload,
+    61→    61→  RotateCcw,
+    62→    62→} from 'lucide-react'
+    63→    63→import { useToast } from '@/hooks/use-toast'
+    64→    64→import ModuleAlertBanner, { ModuleAlertItem } from './ModuleAlertBanner'
+    65→    65→import AlertConfigDialog from './AlertConfigDialog'
+    66→    66→import SendToReviewDialog from './SendToReviewDialog'
+    67→    67→
+    68→    68→// ============================================================
+    69→    69→// Types
+    70→    70→// ============================================================
+    71→    71→interface Worker {
+    72→    72→  id: string
+    73→    73→  nombre: string
+    74→    74→  rut: string
+    75→    75→  cuentaBancaria: string
+    76→    76→  active: boolean
+    77→    77→}
+    78→    78→
+    79→    79→interface AsistenciaRecord {
+    80→    80→  id: string
+    81→    81→  workerId: string
+    82→    82→  worker: Worker
+    83→    83→  date: string
+    84→    84→  type: string
+    85→    85→  minutesLate: number
+    86→    86→  reason: string | null
+    87→    87→  reportedBy: string | null
+    88→    88→  createdAt: string
+    89→    89→  updatedAt: string
+    90→    90→}
+    91→    91→
+    92→    92→// AlertConfig type is now ModuleAlertItem from the unified system
+    93→    93→
+    94→    94→// ============================================================
+    95→    95→// Status config
+    96→    96→// ============================================================
+    97→    97→const typeConfig: Record<string, { label: string; color: string; bgColor: string; borderColor: string; icon: React.ReactNode }> = {
+    98→    98→  AUSENCIA: { label: 'Inasistencia', color: 'text-red-700', bgColor: 'bg-red-50', borderColor: 'border-l-red-500', icon: <UserX className="h-3.5 w-3.5" /> },
+    99→    99→  ATRASO: { label: 'Atraso', color: 'text-amber-700', bgColor: 'bg-amber-50', borderColor: 'border-l-amber-500', icon: <Clock className="h-3.5 w-3.5" /> },
+   100→   100→}
+   101→   101→
+   102→   102→// ============================================================
+   103→   103→// Props
+   104→   104→// ============================================================
+   105→   105→interface AsistenciasPanelProps {
+   106→   106→  userRole?: string
+   107→   107→  userName?: string
+   108→   108→}
+   109→   109→
+   110→   110→// ============================================================
+   111→   111→// Component
+   112→   112→// ============================================================
+   113→   113→export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: AsistenciasPanelProps) {
+   114→   114→  const { toast } = useToast()
+   115→   115→  const isAdmin = userRole === 'ADMIN'
+   116→   116→  const isSupervisor = userRole === 'SUPERVISOR'
+   117→   117→  const canEdit = isAdmin || isSupervisor
+   118→   118→
+   119→   119→  // --- State ---
+   120→   120→  const [records, setRecords] = useState<AsistenciaRecord[]>([])
+   121→   121→  const [workers, setWorkers] = useState<Worker[]>([])
+   122→   122→  const [loading, setLoading] = useState(false)
+   123→   123→  const [selectedMonth, setSelectedMonth] = useState(() => {
+   124→   124→    const now = new Date()
+   125→   125→    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+   126→   126→  })
+   127→   127→
+   128→   128→  // --- Alert state (unified system) ---
+   129→   129→  const [moduleAlerts, setModuleAlerts] = useState<ModuleAlertItem[]>([])
+   130→   130→  const [alertConfigOpen, setAlertConfigOpen] = useState(false)
+   131→   131→  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
+   132→   132→  const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
+   133→   133→
+   134→   134→  // --- Dialog state ---
+   135→   135→  const [dialogOpen, setDialogOpen] = useState(false)
+   136→   136→  const [editingRecord, setEditingRecord] = useState<AsistenciaRecord | null>(null)
+   137→   137→  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+   138→   138→  const [form, setForm] = useState({
+   139→   139→    workerId: '',
+   140→   140→    date: '',
+   141→   141→    type: 'AUSENCIA',
+   142→   142→    minutesLate: 0,
+   143→   143→    reason: '',
+   144→   144→  })
+   145→   145→
+   146→   146→  // --- Filter state ---
+   147→   147→  const [filterType, setFilterType] = useState<string>('all')
+   148→   148→  const [filterWorker, setFilterWorker] = useState<string>('all')
+   149→   149→
+   150→   150→  // --- Import state ---
+   151→   151→  const [importing, setImporting] = useState(false)
+   152→   152→  const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
+   153→   153→  const [clearing, setClearing] = useState(false)
+   154→   154→  const fileInputRef = useRef<HTMLInputElement>(null)
+   155→   155→
+   156→   156→  // ============================================================
+   157→   157→  // Data fetching
+   158→   158→  // ============================================================
+   159→   159→  const fetchWorkers = async () => {
+   160→   160→    try {
+   161→   161→      const res = await fetch('/api/workers')
+   162→   162→      if (res.ok) {
+   163→   163→        const data = await res.json()
+   164→   164→        setWorkers(data.filter((w: Worker) => w.active))
+   165→   165→      }
+   166→   166→    } catch (err) {
+   167→   167→      console.error('Error fetching workers:', err)
+   168→   168→    }
+   169→   169→  }
+   170→   170→
+   171→   171→  const fetchRecords = async () => {
+   172→   172→    setLoading(true)
+   173→   173→    try {
+   174→   174→      const [yearStr, monthStr] = selectedMonth.split('-')
+   175→   175→      const params = new URLSearchParams({ month: monthStr, year: yearStr })
+   176→   176→      const res = await fetch(`/api/asistencias?${params}`)
+   177→   177→      if (res.ok) {
+   178→   178→        const data = await res.json()
+   179→   179→        setRecords(data)
+   180→   180→      }
+   181→   181→    } catch (err) {
+   182→   182→      console.error('Error fetching asistencias:', err)
+   183→   183→      toast({ title: 'Error', description: 'No se pudieron cargar los registros', variant: 'destructive' })
+   184→   184→    } finally {
+   185→   185→      setLoading(false)
+   186→   186→    }
+   187→   187→  }
+   188→   188→
+   189→   189→  const fetchModuleAlerts = async () => {
+   190→   190→    try {
+   191→   191→      const res = await fetch('/api/module-alerts?module=asistencias')
+   192→   192→      if (res.ok) {
+   193→   193→        const data = await res.json()
+   194→   194→        setModuleAlerts(data)
+   195→   195→      }
+   196→   196→    } catch (err) {
+   197→   197→      console.error('Error fetching module alerts:', err)
+   198→   198→    }
+   199→   199→  }
+   200→   200→
+   201→   201→  useEffect(() => {
+   202→   202→    fetchWorkers()
+   203→   203→    fetchModuleAlerts()
+   204→   204→  }, [])
+   205→   205→
+   206→   206→  useEffect(() => {
+   207→   207→    fetchRecords()
+   208→   208→  }, [selectedMonth])
+   209→   209→
+   210→   210→  // ============================================================
+   211→   211→  // Alert logic
+   212→   212→  // ============================================================
+   213→   213→  const handleDismissAlert = (id: string) => {
+   214→   214→    setDismissedAlerts(prev => new Set([...prev, id]))
+   215→   215→  }
+   216→   216→
+   217→   217→  const visibleAlerts = moduleAlerts.filter(a => !dismissedAlerts.has(a.id))
+   218→   218→
+   219→   219→  // ============================================================
+   220→   220→  // CRUD
+   221→   221→  // ============================================================
+   222→   222→  const openCreate = () => {
+   223→   223→    setEditingRecord(null)
+   224→   224→    setForm({
+   225→   225→      workerId: '',
+   226→   226→      date: new Date().toISOString().split('T')[0],
+   227→   227→      type: 'AUSENCIA',
+   228→   228→      minutesLate: 0,
+   229→   229→      reason: '',
+   230→   230→    })
+   231→   231→    setDialogOpen(true)
+   232→   232→  }
+   233→   233→
+   234→   234→  const openEdit = (record: AsistenciaRecord) => {
+   235→   235→    setEditingRecord(record)
+   236→   236→    setForm({
+   237→   237→      workerId: record.workerId,
+   238→   238→      date: record.date.split('T')[0],
+   239→   239→      type: record.type,
+   240→   240→      minutesLate: record.minutesLate,
+   241→   241→      reason: record.reason || '',
+   242→   242→    })
+   243→   243→    setDialogOpen(true)
+   244→   244→  }
+   245→   245→
+   246→   246→  const handleSave = async () => {
+   247→   247→    if (!form.workerId) {
+   248→   248→      toast({ title: 'Error', description: 'Seleccione un trabajador', variant: 'destructive' })
+   249→   249→      return
+   250→   250→    }
+   251→   251→    if (!form.date) {
+   252→   252→      toast({ title: 'Error', description: 'Seleccione una fecha', variant: 'destructive' })
+   253→   253→      return
+   254→   254→    }
+   255→   255→    if (form.type === 'ATRASO' && form.minutesLate <= 0) {
+   256→   256→      toast({ title: 'Error', description: 'Ingrese los minutos de atraso', variant: 'destructive' })
+   257→   257→      return
+   258→   258→    }
+   259→   259→
+   260→   260→    try {
+   261→   261→      const payload = {
+   262→   262→        ...form,
+   263→   263→        reportedBy: userName || userRole,
+   264→   264→        minutesLate: form.type === 'ATRASO' ? form.minutesLate : 0,
+   265→   265→      }
+   266→   266→
+   267→   267→      if (editingRecord) {
+   268→   268→        const res = await fetch(`/api/asistencias/${editingRecord.id}`, {
+   269→   269→          method: 'PUT',
+   270→   270→          headers: { 'Content-Type': 'application/json' },
+   271→   271→          body: JSON.stringify(payload),
+   272→   272→        })
+   273→   273→        if (res.ok) {
+   274→   274→          toast({ title: 'Registro actualizado', description: 'El registro de asistencia fue actualizado correctamente' })
+   275→   275→        }
+   276→   276→      } else {
+   277→   277→        const res = await fetch('/api/asistencias', {
+   278→   278→          method: 'POST',
+   279→   279→          headers: { 'Content-Type': 'application/json' },
+   280→   280→          body: JSON.stringify(payload),
+   281→   281→        })
+   282→   282→        if (res.ok) {
+   283→   283→          toast({ title: 'Registro creado', description: 'El registro de asistencia fue creado correctamente' })
+   284→   284→        }
+   285→   285→      }
+   286→   286→      setDialogOpen(false)
+   287→   287→      fetchRecords()
+   288→   288→    } catch {
+   289→   289→      toast({ title: 'Error', description: 'No se pudo guardar el registro', variant: 'destructive' })
+   290→   290→    }
+   291→   291→  }
+   292→   292→
+   293→   293→  const handleDelete = async (id: string) => {
+   294→   294→    try {
+   295→   295→      const res = await fetch(`/api/asistencias/${id}`, { method: 'DELETE' })
+   296→   296→      if (res.ok) {
+   297→   297→        toast({ title: 'Registro eliminado', description: 'El registro de asistencia fue eliminado' })
+   298→   298→        fetchRecords()
+   299→   299→      }
+   300→   300→    } catch {
+   301→   301→      toast({ title: 'Error', description: 'No se pudo eliminar el registro', variant: 'destructive' })
+   302→   302→    }
+   303→   303→    setDeleteConfirm(null)
+   304→   304→  }
+   305→   305→
+   306→   306→  // ============================================================
+   307→   307→  // Import XLS
+   308→   308→  // ============================================================
+   309→   309→  const handleImportXls = async (e: React.ChangeEvent<HTMLInputElement>) => {
+   310→   310→    const file = e.target.files?.[0]
+   311→   311→    if (!file) return
+   312→   312→
+   313→   313→    const validExtensions = ['.xls', '.xlsx']
+   314→   314→    const fileName = file.name.toLowerCase()
+   315→   315→    if (!validExtensions.some(ext => fileName.endsWith(ext))) {
+   316→   316→      toast({ title: 'Error', description: 'Seleccione un archivo .xls o .xlsx', variant: 'destructive' })
+   317→   317→      return
+   318→   318→    }
+   319→   319→
+   320→   320→    setImporting(true)
+   321→   321→    try {
+   322→   322→      const formData = new FormData()
+   323→   323→      formData.append('file', file)
+   324→   324→
+   325→   325→      const res = await fetch('/api/asistencias/import', {
+   326→   326→        method: 'POST',
+   327→   327→        body: formData,
+   328→   328→      })
+   329→   329→
+   330→   330→      if (res.ok) {
+   331→   331→        const summary = await res.json()
+   332→   332→        const parts = []
+   333→   333→        if (summary.atrasosCreated > 0) parts.push(`${summary.atrasosCreated} atraso(s)`)
+   334→   334→        if (summary.ausenciasCreated > 0) parts.push(`${summary.ausenciasCreated} inasistencia(s)`)
+   335→   335→        if (parts.length === 0) parts.push('0 registros nuevos')
+   336→   336→        const desc = `${parts.join(', ')} creado(s), ${summary.workersCreated} trabajador(es) nuevo(s), ${summary.skipped} existente(s) omitido(s)`
+   337→   337→        toast({
+   338→   338→          title: 'Importación completada',
+   339→   339→          description: desc,
+   340→   340→        })
+   341→   341→        fetchRecords()
+   342→   342→        fetchWorkers()
+   343→   343→      } else {
+   344→   344→        const error = await res.json()
+   345→   345→        toast({
+   346→   346→          title: 'Error de importación',
+   347→   347→          description: error.error || 'No se pudo procesar el archivo',
+   348→   348→          variant: 'destructive',
+   349→   349→        })
+   350→   350→      }
+   351→   351→    } catch {
+   352→   352→      toast({ title: 'Error', description: 'No se pudo importar el archivo', variant: 'destructive' })
+   353→   353→    } finally {
+   354→   354→      setImporting(false)
+   355→   355→      // Reset the file input so the same file can be re-imported if needed
+   356→   356→      if (fileInputRef.current) fileInputRef.current.value = ''
+   357→   357→    }
+   358→   358→  }
+   359→   359→
+   360→   360→  // ============================================================
+   361→   361→  // Clear all records for current month
+   362→   362→  // ============================================================
+   363→   363→  const handleClearRecords = async () => {
+   364→   364→    setClearing(true)
+   365→   365→    try {
+   366→   366→      const [yearStr, monthStr] = selectedMonth.split('-')
+   367→   367→      const res = await fetch(`/api/asistencias?month=${monthStr}&year=${yearStr}`, {
+   368→   368→        method: 'DELETE',
+   369→   369→      })
+   370→   370→
+   371→   371→      if (res.ok) {
+   372→   372→        const data = await res.json()
+   373→   373→        toast({
+   374→   374→          title: 'Registros eliminados',
+   375→   375→          description: `Se eliminaron ${data.deleted} registro(s) del mes seleccionado`,
+   376→   376→        })
+   377→   377→        fetchRecords()
+   378→   378→      } else {
+   379→   379→        const error = await res.json()
+   380→   380→        toast({
+   381→   381→          title: 'Error',
+   382→   382→          description: error.error || 'No se pudieron eliminar los registros',
+   383→   383→          variant: 'destructive',
+   384→   384→        })
+   385→   385→      }
+   386→   386→    } catch {
+   387→   387→      toast({ title: 'Error', description: 'No se pudieron eliminar los registros', variant: 'destructive' })
+   388→   388→    } finally {
+   389→   389→      setClearing(false)
+   390→   390→      setClearConfirmOpen(false)
+   391→   391→    }
+   392→   392→  }
+   393→   393→
+   394→   394→  // ============================================================
+   395→   395→  // Export report
+   396→   396→  // ============================================================
+   397→   397→  const generateReport = () => {
+   398→   398→    const [yearStr, monthStr] = selectedMonth.split('-')
+   399→   399→    const monthNamesReport = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+   400→   400→    const monthName = monthNamesReport[parseInt(monthStr) - 1]
+   401→   401→
+   402→   402→    const filtered = getFilteredRecords()
+   403→   403→
+   404→   404→    if (filtered.length === 0) {
+   405→   405→      toast({ title: 'Sin datos', description: 'No hay registros para generar el informe del mes seleccionado', variant: 'destructive' })
+   406→   406→      return
+   407→   407→    }
+   408→   408→
+   409→   409→    // Group records by worker
+   410→   410→    const workerMap = new Map<string, { worker: { nombre: string; rut: string }; records: typeof filtered }>()
+   411→   411→    filtered.forEach(r => {
+   412→   412→      if (!workerMap.has(r.workerId)) {
+   413→   413→        workerMap.set(r.workerId, { worker: r.worker, records: [] })
+   414→   414→      }
+   415→   415→      workerMap.get(r.workerId)!.records.push(r)
+   416→   416→    })
+   417→   417→
+   418→   418→    // Sort each worker's records by date ascending
+   419→   419→    workerMap.forEach(val => {
+   420→   420→      val.records.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+   421→   421→    })
+   422→   422→
+   423→   423→    // Sort workers alphabetically by name
+   424→   424→    const sortedWorkers = Array.from(workerMap.entries()).sort((a, b) =>
+   425→   425→      a[1].worker.nombre.localeCompare(b[1].worker.nombre)
+   426→   426→    )
+   427→   427→
+   428→   428→    // Calculate totals
+   429→   429→    const atrasos = filtered.filter(r => r.type === 'ATRASO')
+   430→   430→    const ausencias = filtered.filter(r => r.type === 'AUSENCIA')
+   431→   431→    const totalMinAtraso = atrasos.reduce((s, r) => s + r.minutesLate, 0)
+   432→   432→    const uniqueWorkers = new Set(filtered.map(r => r.workerId))
+   433→   433→
+   434→   434→    let html = `<!DOCTYPE html>
+   435→   435→<html lang="es">
+   436→   436→<head>
+   437→   437→  <meta charset="UTF-8">
+   438→   438→  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   439→   439→  <title>Informe de Atrasos - ${monthName} ${yearStr}</title>
+   440→   440→  <style>
+   441→   441→    * { box-sizing: border-box; margin: 0; padding: 0; }
+   442→   442→    body { font-family: Arial, sans-serif; margin: 20px; color: #1e293b; background: #fff; }
+   443→   443→    h1 { font-size: 22px; text-align: center; margin-bottom: 4px; color: #0f172a; }
+   444→   444→    h2 { font-size: 16px; text-align: center; color: #64748b; margin-bottom: 24px; font-weight: 400; }
+   445→   445→    .worker-section { margin-bottom: 28px; page-break-inside: avoid; }
+   446→   446→    .worker-header { background: #0f172a; color: white; padding: 10px 16px; font-size: 14px; font-weight: 700; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center; }
+   447→   447→    .worker-header .rut { font-weight: 400; font-size: 12px; opacity: 0.85; }
+   448→   448→    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+   449→   449→    th { background: #334155; color: white; padding: 8px 12px; text-align: left; font-weight: 600; font-size: 11px; }
+   450→   450→    td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
+   451→   451→    tr:nth-child(even) { background: #f8fafc; }
+   452→   452→    .atraso { background: #fffbeb; color: #92400e; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+   453→   453→    .ausencia { background: #fef2f2; color: #991b1b; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+   454→   454→    .worker-total { background: #f1f5f9; font-weight: 600; font-size: 12px; color: #0f172a; padding: 8px 16px; display: flex; justify-content: space-between; border-radius: 0 0 6px 6px; border-top: 2px solid #cbd5e1; }
+   455→   455→    .summary { margin-top: 32px; padding: 16px; background: #f1f5f9; border-radius: 8px; }
+   456→   456→    .summary h3 { margin: 0 0 8px; font-size: 14px; color: #0f172a; }
+   457→   457→    .summary-item { display: inline-block; margin-right: 24px; font-size: 13px; }
+   458→   458→    .summary-number { font-size: 20px; font-weight: 700; }
+   459→   459→    .footer { margin-top: 32px; text-align: center; font-size: 11px; color: #94a3b8; }
+   460→   460→    .date-cell { min-width: 100px; }
+   461→   461→    .time-cell { min-width: 80px; }
+   462→   462→    .no-records { text-align: center; padding: 40px; color: #94a3b8; font-size: 16px; }
+   463→   463→    @media print { body { margin: 0; } }
+   464→   464→  </style>
+   465→   465→</head>
+   466→   466→<body>
+   467→   467→  <h1>Informe de Atrasos e Inasistencias</h1>
+   468→   468→  <h2>Condominio Laguna Norte &mdash; ${monthName} ${yearStr}</h2>`
+   469→   469→
+   470→   470→    let globalIndex = 0
+   471→   471→    sortedWorkers.forEach(([, data]) => {
+   472→   472→      const workerTotalMin = data.records
+   473→   473→        .filter(r => r.type === 'ATRASO')
+   474→   474→        .reduce((s, r) => s + r.minutesLate, 0)
+   475→   475→      const workerAtrasos = data.records.filter(r => r.type === 'ATRASO').length
+   476→   476→      const workerAusencias = data.records.filter(r => r.type === 'AUSENCIA').length
+   477→   477→
+   478→   478→      html += `
+   479→   479→  <div class="worker-section">
+   480→   480→    <div class="worker-header">
+   481→   481→      <span>${data.worker.nombre}</span>
+   482→   482→      <span class="rut">${data.worker.rut}</span>
+   483→   483→    </div>
+   484→   484→    <table>
+   485→   485→      <thead>
+   486→   486→        <tr>
+   487→   487→          <th>N&deg;</th>
+   488→   488→          <th>Fecha</th>
+   489→   489→          <th>Tipo</th>
+   490→   490→          <th>Tiempo de Retraso</th>
+   491→   491→        </tr>
+   492→   492→      </thead>
+   493→   493→      <tbody>`
+   494→   494→
+   495→   495→      data.records.forEach(r => {
+   496→   496→        globalIndex++
+   497→   497→        const dateStr = new Date(r.date).toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
+   498→   498→        const typeClass = r.type === 'AUSENCIA' ? 'ausencia' : 'atraso'
+   499→   499→        const typeLabel = r.type === 'AUSENCIA' ? 'Inasistencia' : 'Atraso'
+   500→   500→
+   501→   501→        let timeDisplay = '-'
+   502→   502→        if (r.type === 'ATRASO' && r.minutesLate > 0) {
+   503→   503→          const hours = Math.floor(r.minutesLate / 60)
+   504→   504→          const mins = r.minutesLate % 60
+   505→   505→          if (hours > 0) {
+   506→   506→            timeDisplay = `${hours} hr${hours > 1 ? 's' : ''} ${mins > 0 ? mins + ' min' : ''}`.trim()
+   507→   507→          } else {
+   508→   508→            timeDisplay = `${mins} min`
+   509→   509→          }
+   510→   510→        } else if (r.type === 'AUSENCIA') {
+   511→   511→          timeDisplay = 'D&iacute;a completo'
+   512→   512→        }
+   513→   513→
+   514→   514→        html += `
+   515→   515→        <tr>
+   516→   516→          <td>${globalIndex}</td>
+   517→   517→          <td class="date-cell">${dateStr}</td>
+   518→   518→          <td><span class="${typeClass}">${typeLabel}</span></td>
+   519→   519→          <td class="time-cell">${timeDisplay}</td>
+   520→   520→        </tr>`
+   521→   521→      })
+   522→   522→
+   523→   523→      const totalHours = Math.floor(workerTotalMin / 60)
+   524→   524→      const totalMins = workerTotalMin % 60
+   525→   525→      const totalStr = totalHours > 0
+   526→   526→        ? `${totalHours} hr${totalHours !== 1 ? 's' : ''}${totalMins > 0 ? ' ' + totalMins + ' min' : ''}`
+   527→   527→        : `${totalMins} min`
+   528→   528→
+   529→   529→      html += `
+   530→   530→      </tbody>
+   531→   531→    </table>
+   532→   532→    <div class="worker-total">
+   533→   533→      <span>${workerAtrasos} atraso${workerAtrasos !== 1 ? 's' : ''}${workerAusencias > 0 ? ', ' + workerAusencias + ' inasistencia' + (workerAusencias !== 1 ? 's' : '') : ''}</span>
+   534→   534→      <span>Total retraso: ${totalStr}</span>
+   535→   535→    </div>
+   536→   536→  </div>`
+   537→   537→    })
+   538→   538→
+   539→   539→    const totalHours = Math.floor(totalMinAtraso / 60)
+   540→   540→    const totalMins = totalMinAtraso % 60
+   541→   541→    const totalStr = totalHours > 0
+   542→   542→      ? `${totalHours} hr${totalHours !== 1 ? 's' : ''}${totalMins > 0 ? ' ' + totalMins + ' min' : ''}`
+   543→   543→      : `${totalMins} min`
+   544→   544→
+   545→   545→    html += `
+   546→   546→  <div class="summary">
+   547→   547→    <h3>Resumen del Per&iacute;odo</h3>
+   548→   548→    <span class="summary-item"><span class="summary-number">${uniqueWorkers.size}</span> Trabajadores</span>
+   549→   549→    <span class="summary-item"><span class="summary-number">${atrasos.length}</span> Atrasos</span>
+   550→   550→    <span class="summary-item"><span class="summary-number">${ausencias.length}</span> Inasistencias</span>
+   551→   551→    <span class="summary-item"><span class="summary-number">${totalStr}</span> Total retraso</span>
+   552→   552→  </div>
+   553→   553→  <div class="footer">Condominio Laguna Norte &mdash; Informe generado autom&aacute;ticamente &mdash; ${new Date().toLocaleDateString('es-CL')}</div>
+   554→   554→</body>
+   555→   555→</html>`
+   556→   556→
+   557→   557→    // Use Blob URL instead of window.open to avoid popup blockers
+   558→   558→    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+   559→   559→    const url = URL.createObjectURL(blob)
+   560→   560→    const link = document.createElement('a')
+   561→   561→    link.href = url
+   562→   562→    link.download = `Informe_Atrasos_${monthName}_${yearStr}.html`
+   563→   563→    document.body.appendChild(link)
+   564→   564→    link.click()
+   565→   565→    document.body.removeChild(link)
+   566→   566→    // Revoke after a short delay to allow download to start
+   567→   567→    setTimeout(() => URL.revokeObjectURL(url), 5000)
+   568→   568→  }
+   569→   569→
+   570→   570→  // ============================================================
+   571→   571→  // Filters
+   572→   572→  // ============================================================
+   573→   573→  const getFilteredRecords = () => {
+   574→   574→    return records.filter(r => {
+   575→   575→      if (filterType !== 'all' && r.type !== filterType) return false
+   576→   576→      if (filterWorker !== 'all' && r.workerId !== filterWorker) return false
+   577→   577→      return true
+   578→   578→    })
+   579→   579→  }
+   580→   580→
+   581→   581→  const filteredRecords = getFilteredRecords()
+   582→   582→
+   583→   583→  // ============================================================
+   584→   584→  // Stats
+   585→   585→  // ============================================================
+   586→   586→  const totalAusencias = records.filter(r => r.type === 'AUSENCIA').length
+   587→   587→  const totalAtrasos = records.filter(r => r.type === 'ATRASO').length
+   588→   588→  const totalMinAtraso = records.filter(r => r.type === 'ATRASO').reduce((s, r) => s + r.minutesLate, 0)
+   589→   589→  const uniqueWorkersAffected = new Set(records.map(r => r.workerId)).size
+   590→   590→
+   591→   591→  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+   592→   592→
+   593→   593→  // ============================================================
+   594→   594→  // RENDER
+   595→   595→  // ============================================================
+   596→   596→  return (
+   597→   597→    <div className="space-y-4">
+   598→   598→      {/* Alert Banner (unified system) */}
+   599→   599→      <ModuleAlertBanner
+   600→   600→        alerts={visibleAlerts}
+   601→   601→        userRole={userRole}
+   602→   602→        onConfigure={() => setAlertConfigOpen(true)}
+   603→   603→        onDismiss={handleDismissAlert}
+   604→   604→      />
+   605→   605→
+   606→   606→      {/* Header */}
+   607→   607→      <div className="flex items-center justify-between flex-wrap gap-3">
+   608→   608→        <div>
+   609→   609→          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+   610→   610→            <CalendarDays className="h-5 w-5 text-rose-600" />
+   611→   611→            Control de Asistencias
+   612→   612→          </h2>
+   613→   613→          <p className="text-sm text-slate-500 mt-1">Registro de inasistencias y atrasos de trabajadores</p>
+   614→   614→        </div>
+   615→   615→        <div className="flex items-center gap-2">
+   616→   616→          {/* Alert config button (always visible for admin) */}
+   617→   617→          {isAdmin && (
+   618→   618→            <Button variant="outline" size="sm" className="gap-1" onClick={() => setAlertConfigOpen(true)}>
+   619→   619→              <Bell className="h-3.5 w-3.5" /> Config. Alertas
+   620→   620→            </Button>
+   621→   621→          )}
+   622→   622→          {(isSupervisor || isAdmin) && (
+   623→   623→            <Button variant="outline" size="sm" className="gap-1 border-blue-300 text-blue-700 hover:bg-blue-50" onClick={() => setReviewDialogOpen(true)}>
+   624→   624→              <Upload className="h-3.5 w-3.5" /> Enviar a Revisión
+   625→   625→            </Button>
+   626→   626→          )}
+   627→   627→          <Button
+   628→   628→            variant="outline"
+   629→   629→            size="sm"
+   630→   630→            className="gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+   631→   631→            onClick={() => fileInputRef.current?.click()}
+   632→   632→            disabled={importing}
+   633→   633→          >
+   634→   634→            {importing ? (
+   635→   635→              <><div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-emerald-600" /> Importando...</>
+   636→   636→            ) : (
+   637→   637→              <><Upload className="h-3.5 w-3.5" /> Importar XLS</>
+   638→   638→            )}
+   639→   639→          </Button>
+   640→   640→          <input
+   641→   641→            ref={fileInputRef}
+   642→   642→            type="file"
+   643→   643→            accept=".xls,.xlsx"
+   644→   644→            onChange={handleImportXls}
+   645→   645→            className="hidden"
+   646→   646→          />
+   647→   647→          <Button variant="outline" size="sm" className="gap-1" onClick={generateReport}>
+   648→   648→            <FileText className="h-3.5 w-3.5" /> Informe
+   649→   649→          </Button>
+   650→   650→          {isAdmin && (
+   651→   651→            <Button
+   652→   652→              variant="outline"
+   653→   653→              size="sm"
+   654→   654→              className="gap-1 border-red-300 text-red-700 hover:bg-red-50"
+   655→   655→              onClick={() => setClearConfirmOpen(true)}
+   656→   656→              disabled={clearing || records.length === 0}
+   657→   657→            >
+   658→   658→              {clearing ? (
+   659→   659→                <><div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-red-600" /> Limpiando...</>
+   660→   660→              ) : (
+   661→   661→                <><RotateCcw className="h-3.5 w-3.5" /> Limpiar</>
+   662→   662→              )}
+   663→   663→            </Button>
+   664→   664→          )}
+   665→   665→          {canEdit && (
+   666→   666→            <Button size="sm" className="gap-1 bg-rose-600 hover:bg-rose-700 text-white" onClick={openCreate}>
+   667→   667→              <Plus className="h-4 w-4" /> Registrar
+   668→   668→            </Button>
+   669→   669→          )}
+   670→   670→        </div>
+   671→   671→      </div>
+   672→   672→
+   673→   673→      {/* Stats Cards */}
+   674→   674→      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   675→   675→        <Card className="border-l-4 border-l-red-400">
+   676→   676→          <CardContent className="p-4">
+   677→   677→            <div className="flex items-center gap-3">
+   678→   678→              <div className="h-10 w-10 rounded-full bg-red-50 flex items-center justify-center">
+   679→   679→                <UserX className="h-5 w-5 text-red-600" />
+   680→   680→              </div>
+   681→   681→              <div>
+   682→   682→                <p className="text-2xl font-bold text-slate-900">{totalAusencias}</p>
+   683→   683→                <p className="text-xs text-slate-500">Inasistencias</p>
+   684→   684→              </div>
+   685→   685→            </div>
+   686→   686→          </CardContent>
+   687→   687→        </Card>
+   688→   688→        <Card className="border-l-4 border-l-amber-400">
+   689→   689→          <CardContent className="p-4">
+   690→   690→            <div className="flex items-center gap-3">
+   691→   691→              <div className="h-10 w-10 rounded-full bg-amber-50 flex items-center justify-center">
+   692→   692→                <Clock className="h-5 w-5 text-amber-600" />
+   693→   693→              </div>
+   694→   694→              <div>
+   695→   695→                <p className="text-2xl font-bold text-slate-900">{totalAtrasos}</p>
+   696→   696→                <p className="text-xs text-slate-500">Atrasos</p>
+   697→   697→              </div>
+   698→   698→            </div>
+   699→   699→          </CardContent>
+   700→   700→        </Card>
+   701→   701→        <Card className="border-l-4 border-l-orange-400">
+   702→   702→          <CardContent className="p-4">
+   703→   703→            <div className="flex items-center gap-3">
+   704→   704→              <div className="h-10 w-10 rounded-full bg-orange-50 flex items-center justify-center">
+   705→   705→                <Clock className="h-5 w-5 text-orange-600" />
+   706→   706→              </div>
+   707→   707→              <div>
+   708→   708→                <p className="text-2xl font-bold text-slate-900">{totalMinAtraso}</p>
+   709→   709→                <p className="text-xs text-slate-500">Min. atraso total</p>
+   710→   710→              </div>
+   711→   711→            </div>
+   712→   712→          </CardContent>
+   713→   713→        </Card>
+   714→   714→        <Card className="border-l-4 border-l-slate-400">
+   715→   715→          <CardContent className="p-4">
+   716→   716→            <div className="flex items-center gap-3">
+   717→   717→              <div className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center">
+   718→   718→                <Users className="h-5 w-5 text-slate-600" />
+   719→   719→              </div>
+   720→   720→              <div>
+   721→   721→                <p className="text-2xl font-bold text-slate-900">{uniqueWorkersAffected}</p>
+   722→   722→                <p className="text-xs text-slate-500">Trab. afectados</p>
+   723→   723→              </div>
+   724→   724→            </div>
+   725→   725→          </CardContent>
+   726→   726→        </Card>
+   727→   727→      </div>
+   728→   728→
+   729→   729→      {/* Filters + Month Selector */}
+   730→   730→      <div className="flex items-center gap-3 flex-wrap">
+   731→   731→        <div className="flex items-center gap-2">
+   732→   732→          <Label className="text-xs text-slate-500">Mes:</Label>
+   733→   733→          <Input
+   734→   734→            type="month"
+   735→   735→            value={selectedMonth}
+   736→   736→            onChange={(e) => setSelectedMonth(e.target.value)}
+   737→   737→            className="w-[170px] h-8 text-sm"
+   738→   738→          />
+   739→   739→        </div>
+   740→   740→        <Select value={filterType} onValueChange={setFilterType}>
+   741→   741→          <SelectTrigger className="w-[140px] h-8 text-xs">
+   742→   742→            <SelectValue placeholder="Tipo" />
+   743→   743→          </SelectTrigger>
+   744→   744→          <SelectContent>
+   745→   745→            <SelectItem value="all">Todos</SelectItem>
+   746→   746→            <SelectItem value="AUSENCIA">Inasistencias</SelectItem>
+   747→   747→            <SelectItem value="ATRASO">Atrasos</SelectItem>
+   748→   748→          </SelectContent>
+   749→   749→        </Select>
+   750→   750→        <Select value={filterWorker} onValueChange={setFilterWorker}>
+   751→   751→          <SelectTrigger className="w-[180px] h-8 text-xs">
+   752→   752→            <SelectValue placeholder="Trabajador" />
+   753→   753→          </SelectTrigger>
+   754→   754→          <SelectContent>
+   755→   755→            <SelectItem value="all">Todos los trabajadores</SelectItem>
+   756→   756→            {workers.map(w => (
+   757→   757→              <SelectItem key={w.id} value={w.id}>{w.nombre}</SelectItem>
+   758→   758→            ))}
+   759→   759→          </SelectContent>
+   760→   760→        </Select>
+   761→   761→      </div>
+   762→   762→
+   763→   763→      {/* Records Table */}
+   764→   764→      <Card>
+   765→   765→        <CardContent className="p-0">
+   766→   766→          {loading ? (
+   767→   767→            <div className="flex items-center justify-center py-12">
+   768→   768→              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-600"></div>
+   769→   769→            </div>
+   770→   770→          ) : filteredRecords.length === 0 ? (
+   771→   771→            <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+   772→   772→              <CalendarDays className="h-12 w-12 mb-3" />
+   773→   773→              <p className="text-sm font-medium">No hay registros de asistencia</p>
+   774→   774→              <p className="text-xs mt-1">Para el período seleccionado no se registraron inasistencias ni atrasos</p>
+   775→   775→            </div>
+   776→   776→          ) : (
+   777→   777→            <Table>
+   778→   778→              <TableHeader>
+   779→   779→                <TableRow>
+   780→   780→                  <TableHead className="w-[40px]">N°</TableHead>
+   781→   781→                  <TableHead>Trabajador</TableHead>
+   782→   782→                  <TableHead>RUT</TableHead>
+   783→   783→                  <TableHead>Fecha</TableHead>
+   784→   784→                  <TableHead>Tipo</TableHead>
+   785→   785→                  <TableHead>Min. Atraso</TableHead>
+   786→   786→                  <TableHead>Motivo</TableHead>
+   787→   787→                  <TableHead>Reportado por</TableHead>
+   788→   788→                  {canEdit && <TableHead className="w-[80px] text-right">Acciones</TableHead>}
+   789→   789→                </TableRow>
+   790→   790→              </TableHeader>
+   791→   791→              <TableBody>
+   792→   792→                {filteredRecords.map((record, idx) => {
+   793→   793→                  const tc = typeConfig[record.type]
+   794→   794→                  const dateStr = new Date(record.date).toLocaleDateString('es-CL')
+   795→   795→                  return (
+   796→   796→                    <TableRow key={record.id} className={tc?.bgColor}>
+   797→   797→                      <TableCell className="font-mono text-xs">{idx + 1}</TableCell>
+   798→   798→                      <TableCell className="font-medium">{record.worker.nombre}</TableCell>
+   799→   799→                      <TableCell className="text-sm text-slate-600">{record.worker.rut}</TableCell>
+   800→   800→                      <TableCell className="text-sm">{dateStr}</TableCell>
+   801→   801→                      <TableCell>
+   802→   802→                        <Badge variant="outline" className={`${tc?.color} ${tc?.bgColor} border-0 text-xs gap-1`}>
+   803→   803→                          {tc?.icon} {tc?.label}
+   804→   804→                        </Badge>
+   805→   805→                      </TableCell>
+   806→   806→                      <TableCell className="text-sm">
+   807→   807→                        {record.type === 'ATRASO' ? `${record.minutesLate} min` : '-'}
+   808→   808→                      </TableCell>
+   809→   809→                      <TableCell className="text-sm text-slate-600 max-w-[200px] truncate">
+   810→   810→                        {record.reason || '-'}
+   811→   811→                      </TableCell>
+   812→   812→                      <TableCell className="text-sm text-slate-500">{record.reportedBy || '-'}</TableCell>
+   813→   813→                      {canEdit && (
+   814→   814→                        <TableCell className="text-right">
+   815→   815→                          <div className="flex items-center justify-end gap-1">
+   816→   816→                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(record)}>
+   817→   817→                              <Pencil className="h-3.5 w-3.5" />
+   818→   818→                            </Button>
+   819→   819→                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-600 hover:text-red-700" onClick={() => setDeleteConfirm(record.id)}>
+   820→   820→                              <Trash2 className="h-3.5 w-3.5" />
+   821→   821→                            </Button>
+   822→   822→                          </div>
+   823→   823→                        </TableCell>
+   824→   824→                      )}
+   825→   825→                    </TableRow>
+   826→   826→                  )
+   827→   827→                })}
+   828→   828→              </TableBody>
+   829→   829→            </Table>
+   830→   830→          )}
+   831→   831→        </CardContent>
+   832→   832→      </Card>
+   833→   833→
+   834→   834→      {/* Create/Edit Dialog */}
+   835→   835→      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+   836→   836→        <DialogContent className="sm:max-w-[480px]">
+   837→   837→          <DialogHeader>
+   838→   838→            <DialogTitle className="flex items-center gap-2">
+   839→   839→              {editingRecord ? (
+   840→   840→                <><Pencil className="h-4 w-4" /> Editar Registro</>
+   841→   841→              ) : (
+   842→   842→                <><Plus className="h-4 w-4" /> Registrar Asistencia</>
+   843→   843→              )}
+   844→   844→            </DialogTitle>
+   845→   845→            <DialogDescription>
+   846→   846→              {editingRecord ? 'Modifique los datos del registro' : 'Registre una inasistencia o atraso'}
+   847→   847→            </DialogDescription>
+   848→   848→          </DialogHeader>
+   849→   849→          <div className="space-y-4">
+   850→   850→            <div>
+   851→   851→              <Label>Trabajador</Label>
+   852→   852→              <Select value={form.workerId} onValueChange={(v) => setForm(f => ({ ...f, workerId: v }))}>
+   853→   853→                <SelectTrigger>
+   854→   854→                  <SelectValue placeholder="Seleccione un trabajador" />
+   855→   855→                </SelectTrigger>
+   856→   856→                <SelectContent>
+   857→   857→                  {workers.map(w => (
+   858→   858→                    <SelectItem key={w.id} value={w.id}>{w.nombre} — {w.rut}</SelectItem>
+   859→   859→                  ))}
+   860→   860→                </SelectContent>
+   861→   861→              </Select>
+   862→   862→            </div>
+   863→   863→            <div className="grid grid-cols-2 gap-3">
+   864→   864→              <div>
+   865→   865→                <Label>Fecha</Label>
+   866→   866→                <Input
+   867→   867→                  type="date"
+   868→   868→                  value={form.date}
+   869→   869→                  onChange={(e) => setForm(f => ({ ...f, date: e.target.value }))}
+   870→   870→                />
+   871→   871→              </div>
+   872→   872→              <div>
+   873→   873→                <Label>Tipo</Label>
+   874→   874→                <Select value={form.type} onValueChange={(v) => setForm(f => ({ ...f, type: v, minutesLate: v === 'AUSENCIA' ? 0 : f.minutesLate }))}>
+   875→   875→                  <SelectTrigger>
+   876→   876→                    <SelectValue />
+   877→   877→                  </SelectTrigger>
+   878→   878→                  <SelectContent>
+   879→   879→                    <SelectItem value="AUSENCIA">Inasistencia</SelectItem>
+   880→   880→                    <SelectItem value="ATRASO">Atraso</SelectItem>
+   881→   881→                  </SelectContent>
+   882→   882→                </Select>
+   883→   883→              </div>
+   884→   884→            </div>
+   885→   885→            {form.type === 'ATRASO' && (
+   886→   886→              <div>
+   887→   887→                <Label>Minutos de atraso</Label>
+   888→   888→                <Input
+   889→   889→                  type="number"
+   890→   890→                  min={1}
+   891→   891→                  value={form.minutesLate || ''}
+   892→   892→                  onChange={(e) => setForm(f => ({ ...f, minutesLate: parseInt(e.target.value) || 0 }))}
+   893→   893→                  placeholder="Ej: 15"
+   894→   894→                />
+   895→   895→              </div>
+   896→   896→            )}
+   897→   897→            <div>
+   898→   898→              <Label>Motivo / Observación</Label>
+   899→   899→              <Textarea
+   900→   900→                value={form.reason}
+   901→   901→                onChange={(e) => setForm(f => ({ ...f, reason: e.target.value }))}
+   902→   902→                placeholder="Ej: Sin aviso, transporte, etc."
+   903→   903→                rows={2}
+   904→   904→              />
+   905→   905→            </div>
+   906→   906→          </div>
+   907→   907→          <DialogFooter>
+   908→   908→            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+   909→   909→            <Button className="bg-rose-600 hover:bg-rose-700 text-white gap-1" onClick={handleSave}>
+   910→   910→              <Save className="h-4 w-4" /> {editingRecord ? 'Actualizar' : 'Guardar'}
+   911→   911→            </Button>
+   912→   912→          </DialogFooter>
+   913→   913→        </DialogContent>
+   914→   914→      </Dialog>
+   915→   915→
+   916→   916→      {/* Delete Confirm */}
+   917→   917→      <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+   918→   918→        <AlertDialogContent>
+   919→   919→          <AlertDialogHeader>
+   920→   920→            <AlertDialogTitle>¿Eliminar registro?</AlertDialogTitle>
+   921→   921→            <AlertDialogDescription>
+   922→   922→              Esta acción no se puede deshacer. El registro de asistencia será eliminado permanentemente.
+   923→   923→            </AlertDialogDescription>
+   924→   924→          </AlertDialogHeader>
+   925→   925→          <AlertDialogFooter>
+   926→   926→            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+   927→   927→            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => deleteConfirm && handleDelete(deleteConfirm)}>
+   928→   928→              Eliminar
+   929→   929→            </AlertDialogAction>
+   930→   930→          </AlertDialogFooter>
+   931→   931→        </AlertDialogContent>
+   932→   932→      </AlertDialog>
+   933→   933→
+   934→   934→      {/* Clear All Records Confirm */}
+   935→   935→      <AlertDialog open={clearConfirmOpen} onOpenChange={setClearConfirmOpen}>
+   936→   936→        <AlertDialogContent>
+   937→   937→          <AlertDialogHeader>
+   938→   938→            <AlertDialogTitle>¿Limpiar todos los registros del mes?</AlertDialogTitle>
+   939→   939→            <AlertDialogDescription>
+   940→   940→              Esta acción eliminará <strong>todos los registros de atrasos e inasistencias</strong> del mes seleccionado. Esto le permitirá importar un archivo nuevo y generar un informe limpio. Esta acción <strong>no se puede deshacer</strong>.
+   941→   941→            </AlertDialogDescription>
+   942→   942→          </AlertDialogHeader>
+   943→   943→          <AlertDialogFooter>
+   944→   944→            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+   945→   945→            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={handleClearRecords} disabled={clearing}>
+   946→   946→              {clearing ? 'Limpiando...' : 'Sí, limpiar todo'}
+   947→   947→            </AlertDialogAction>
+   948→   948→          </AlertDialogFooter>
+   949→   949→        </AlertDialogContent>
+   950→   950→      </AlertDialog>
+   951→   951→
+   952→   952→      {/* Alert Config Dialog (unified system) */}
+   953→   953→      <AlertConfigDialog
+   954→   954→        open={alertConfigOpen}
+   955→   955→        onOpenChange={setAlertConfigOpen}
+   956→   956→        moduleName="asistencias"
+   957→   957→        moduleLabel="Asistencias"
+   958→   958→        userRole={userRole}
+   959→   959→      />
+   960→   960→      <SendToReviewDialog
+   961→   961→        open={reviewDialogOpen}
+   962→   962→        onOpenChange={setReviewDialogOpen}
+   963→   963→        module="asistencias"
+   964→   964→        moduleLabel="Asistencias"
+   965→   965→        itemId="asistencias-informe"
+   966→   966→        itemTitle="Informe de Asistencias"
+   967→   967→        submittedBy={userName || userRole}
+   968→   968→      />
+   969→   969→    </div>
+   970→   970→  )
+   971→   971→}
+   972→   972→

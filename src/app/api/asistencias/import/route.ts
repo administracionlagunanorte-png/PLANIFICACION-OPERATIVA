@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx'
 // ============================================================
 // XLS Import for Asistencias Module
 // ============================================================
-// Parses a biometric clock XLS file and creates:
+// Parses a biometric clock XLS/XLSX file and creates:
 //   - ATRASO records for workers who arrived late
 //   - AUSENCIA records for workers with no entry on work days (Mon-Sat)
 //
@@ -14,11 +14,17 @@ import * as XLSX from 'xlsx'
 //
 // Work days: Lunes a Sábado (no Sunday)
 //
-// Target departments only:
+// Target departments (if Departamento column exists):
 // - Auxiliares de Aseo
 // - Auxiliares de Servicios Generales
 // - Encargados de Laguna
 // - Mantenimiento
+//
+// If NO Departamento column exists, ALL workers are processed.
+//
+// Column matching is flexible — multiple name variations are tried
+// for each required field so that files from different biometric
+// clock brands / configurations can be read.
 // ============================================================
 
 const TARGET_DEPARTMENTS = [
@@ -28,18 +34,108 @@ const TARGET_DEPARTMENTS = [
   'Mantenimiento',
 ]
 
-// Column names expected in the XLS file
-const COL_CODIGO = 'Código'
-const COL_RUT = 'RUT'
-const COL_NOMBRE = 'Nombre'
-const COL_SUCURSAL = 'Sucursal'
-const COL_DEPARTAMENTO = 'Departamento'
-const COL_RELOJ = 'Reloj'
-const COL_FECHA_HORA = 'Fecha/Hora'
-const COL_TIPO_REGISTRO = 'Tipo registro'
-const COL_DIRECCION = 'Dirección'
-const COL_ESTADO = 'Estado'
-const COL_CHECKSUM = 'Checksum'
+// Column name variations for flexible matching
+// Each key maps to an array of possible column names (lowercased)
+const COLUMN_VARIATIONS: Record<string, string[]> = {
+  departamento: [
+    'departamento',
+    'department',
+    'depto',
+    'dept',
+    'área',
+    'area',
+    'sección',
+    'seccion',
+    'unidad',
+  ],
+  rut: [
+    'rut',
+    'r.u.t',
+    'r.u.t.',
+    'run',
+    'r.u.n',
+    'r.u.n.',
+    'cedula',
+    'cédula',
+    'ci',
+    'documento',
+    'número documento',
+    'numero documento',
+    'num documento',
+    'id',
+    'identificación',
+    'identificacion',
+  ],
+  nombre: [
+    'nombre',
+    'name',
+    'nombres',
+    'nombre completo',
+    'trabajador',
+    'empleado',
+    'colaborador',
+    'persona',
+    'funcionario',
+    'nombre y apellido',
+    'apellidos y nombres',
+    'apellido y nombre',
+    'nombre y apellidos',
+  ],
+  fechaHora: [
+    'fecha/hora',
+    'fecha / hora',
+    'fecha hora',
+    'fechahora',
+    'fecha y hora',
+    'fecha',
+    'date/time',
+    'datetime',
+    'date',
+    'fecha_registro',
+    'fecha registro',
+    'marcación',
+    'marcacion',
+    'hora',
+    'time',
+    'timestamp',
+    'fecha de marcación',
+    'fecha de marcacion',
+  ],
+  tipoRegistro: [
+    'tipo registro',
+    'tipo de registro',
+    'tipo_registro',
+    'tiporegistro',
+    'tipo',
+    'type',
+    'registro',
+    'entrada/salida',
+    'entrada / salida',
+    'direccion',
+    'dirección',
+    'direction',
+    'estado',
+    'status',
+    'marca',
+    'evento',
+  ],
+  codigo: [
+    'código',
+    'codigo',
+    'code',
+    'código empleado',
+    'codigo empleado',
+    'emp_code',
+    'empcode',
+    'número',
+    'numero',
+    'num',
+    'nº',
+    'no.',
+    'id empleado',
+    'employee id',
+  ],
+}
 
 interface ParsedRow {
   codigo: string
@@ -71,6 +167,7 @@ interface ImportSummary {
   workersCreated: number
   skipped: number
   details: ImportDetail[]
+  columnMapping: Record<string, string> // show user what was detected
 }
 
 function normalizeRut(rut: string): string {
@@ -97,6 +194,15 @@ function parseExcelDate(value: unknown): Date | null {
     if (!isNaN(parsed.getTime())) {
       return parsed
     }
+    // Try common date formats
+    const parts = value.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/)
+    if (parts) {
+      const day = parseInt(parts[1])
+      const month = parseInt(parts[2]) - 1
+      let year = parseInt(parts[3])
+      if (year < 100) year += 2000
+      return new Date(year, month, day)
+    }
   }
   return null
 }
@@ -113,6 +219,63 @@ function formatDate(date: Date): string {
   const m = String(date.getMonth() + 1).padStart(2, '0')
   const d = String(date.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
+}
+
+// Flexible column matching: find the best column name from available columns
+function findColumnMatch(
+  availableColumns: string[],
+  fieldKey: string
+): string | null {
+  const variations = COLUMN_VARIATIONS[fieldKey]
+  if (!variations) return null
+
+  // Normalize available columns for comparison
+  const normalizedColumns = availableColumns.map(c => ({
+    original: c,
+    normalized: c.trim().toLowerCase().replace(/[_\-\.]/g, ' ').replace(/\s+/g, ' ').trim(),
+  }))
+
+  for (const variant of variations) {
+    const normalizedVariant = variant.replace(/[_\-\.]/g, ' ').replace(/\s+/g, ' ').trim()
+
+    // Exact match (normalized)
+    const exactMatch = normalizedColumns.find(c => c.normalized === normalizedVariant)
+    if (exactMatch) return exactMatch.original
+
+    // Contains match
+    const containsMatch = normalizedColumns.find(c => c.normalized.includes(normalizedVariant) || normalizedVariant.includes(c.normalized))
+    if (containsMatch) return containsMatch.original
+  }
+
+  return null
+}
+
+// Determine if a tipoRegistro value means "Entrada" (entry/clock-in)
+function isEntradaType(value: string): boolean {
+  const v = value.toLowerCase().trim()
+  return v === 'entrada' ||
+    v === 'entry' ||
+    v === 'in' ||
+    v === 'entrar' ||
+    v === 'ingreso' ||
+    v === 'check in' ||
+    v === 'check-in' ||
+    v === 'e/s: entrada' ||
+    v === '0' // some clocks use 0 for entrada, 1 for salida
+}
+
+// Determine if a tipoRegistro value means "Salida" (exit/clock-out)
+function isSalidaType(value: string): boolean {
+  const v = value.toLowerCase().trim()
+  return v === 'salida' ||
+    v === 'exit' ||
+    v === 'out' ||
+    v === 'salir' ||
+    v === 'egreso' ||
+    v === 'check out' ||
+    v === 'check-out' ||
+    v === 'e/s: salida' ||
+    v === '1' // some clocks use 1 for salida
 }
 
 async function findOrCreateWorker(rut: string, nombre: string, summary: ImportSummary) {
@@ -159,16 +322,16 @@ export async function POST(req: NextRequest) {
     }
 
     const fileName = file.name.toLowerCase()
-    if (!fileName.endsWith('.xls') && !fileName.endsWith('.xlsx')) {
+    if (!fileName.endsWith('.xls') && !fileName.endsWith('.xlsx') && !fileName.endsWith('.csv')) {
       return NextResponse.json(
-        { error: 'El archivo debe ser .xls o .xlsx' },
+        { error: 'El archivo debe ser .xls, .xlsx o .csv' },
         { status: 400 }
       )
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
 
-    // Parse the XLS/XLSX file
+    // Parse the XLS/XLSX/CSV file
     const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true })
     const sheetName = workbook.SheetNames[0]
     if (!sheetName) {
@@ -177,11 +340,14 @@ export async function POST(req: NextRequest) {
     const sheet = workbook.Sheets[sheetName]
 
     // Auto-detect the header row by scanning rows for required columns
-    const REQUIRED_COLS = [COL_DEPARTAMENTO, COL_RUT, COL_NOMBRE, COL_FECHA_HORA, COL_TIPO_REGISTRO]
+    // Required: nombre + fechaHora (minimum to identify a person and a date)
+    // Optional: rut, departamento, tipoRegistro
+    const MIN_REQUIRED = ['nombre', 'fechaHora']
     let headerRowIndex = -1
     let jsonData: Record<string, unknown>[] = []
+    let columnMapping: Record<string, string> = {}
 
-    for (let rangeAttempt = 0; rangeAttempt <= 10; rangeAttempt++) {
+    for (let rangeAttempt = 0; rangeAttempt <= 15; rangeAttempt++) {
       const tryData: Record<string, unknown>[] = XLSX.utils.sheet_to_json(sheet, {
         range: rangeAttempt,
         defval: '',
@@ -190,60 +356,72 @@ export async function POST(req: NextRequest) {
       if (tryData.length === 0) continue
 
       const columns = Object.keys(tryData[0])
-      const findCol = (target: string): string | null => {
-        const normalized = target.trim().toLowerCase()
-        return columns.find(c => c.trim().toLowerCase() === normalized) || null
+
+      // Try to map each required/optional field
+      const mapping: Record<string, string | null> = {}
+      for (const fieldKey of Object.keys(COLUMN_VARIATIONS)) {
+        mapping[fieldKey] = findColumnMatch(columns, fieldKey)
       }
 
-      const allFound = REQUIRED_COLS.every(col => findCol(col) !== null)
+      // Check if minimum required fields are found
+      const minFound = MIN_REQUIRED.every(key => mapping[key] !== null)
 
-      if (allFound) {
+      if (minFound) {
         headerRowIndex = rangeAttempt
         jsonData = tryData
+        // Store the mapping (only non-null values)
+        for (const [key, val] of Object.entries(mapping)) {
+          if (val) columnMapping[key] = val
+        }
         break
       }
     }
 
     if (headerRowIndex === -1 || jsonData.length === 0) {
       return NextResponse.json({
-        error: 'El archivo no tiene las columnas requeridas. Se esperan: Departamento, RUT, Nombre, Fecha/Hora, Tipo registro',
+        error: 'No se pudieron identificar las columnas requeridas. Se necesitan al menos columnas de Nombre y Fecha/Hora. Columnas encontradas: ' + (jsonData.length > 0 ? Object.keys(jsonData[0]).join(', ') : 'ninguna'),
       }, { status: 400 })
     }
 
-    // Find column names
-    const firstRow = jsonData[0]
-    const columns = Object.keys(firstRow)
+    const colNombre = columnMapping['nombre']!
+    const colFechaHora = columnMapping['fechaHora']!
+    const colRut = columnMapping['rut'] || null
+    const colDepartamento = columnMapping['departamento'] || null
+    const colTipoRegistro = columnMapping['tipoRegistro'] || null
+    const colCodigo = columnMapping['codigo'] || null
 
-    const findColumn = (target: string): string | null => {
-      const normalized = target.trim().toLowerCase()
-      return columns.find(c => c.trim().toLowerCase() === normalized) || null
-    }
+    const hasRut = !!colRut
+    const hasDepartamento = !!colDepartamento
+    const hasTipoRegistro = !!colTipoRegistro
 
-    const colDepartamento = findColumn(COL_DEPARTAMENTO)!
-    const colRut = findColumn(COL_RUT)!
-    const colNombre = findColumn(COL_NOMBRE)!
-    const colFechaHora = findColumn(COL_FECHA_HORA)!
-    const colTipoRegistro = findColumn(COL_TIPO_REGISTRO)!
-    const colCodigo = findColumn(COL_CODIGO)
+    // If no RUT column, use Nombre as identifier
+    // If no Departamento column, process ALL workers (no department filter)
+    // If no TipoRegistro column, treat all records as potential Entrada
 
     // ============================================================
-    // STEP 1: Parse ALL rows from target departments (Entrada + Salida)
+    // STEP 1: Parse ALL rows
     // ============================================================
     const allTargetRows: ParsedRow[] = []
     for (const row of jsonData) {
-      const departamento = String(row[colDepartamento] || '').trim()
-      if (!isTargetDepartment(departamento)) continue
-
-      const rut = normalizeRut(String(row[colRut] || ''))
       const nombre = String(row[colNombre] || '').trim()
-      const tipoRegistro = String(row[colTipoRegistro] || '').trim()
-      const fechaHora = parseExcelDate(row[colFechaHora])
+      if (!nombre) continue
 
+      const fechaHora = parseExcelDate(row[colFechaHora])
       if (!fechaHora) continue
+
+      const rut = colRut ? normalizeRut(String(row[colRut] || '')) : nombre
       if (!rut) continue
 
+      const departamento = colDepartamento ? String(row[colDepartamento] || '').trim() : ''
+      const tipoRegistro = colTipoRegistro ? String(row[colTipoRegistro] || '').trim() : 'entrada'
+
+      // Filter by department only if department column exists
+      if (hasDepartamento && departamento && !isTargetDepartment(departamento)) {
+        continue
+      }
+
       allTargetRows.push({
-        codigo: String(row[colCodigo || ''] || '').trim(),
+        codigo: colCodigo ? String(row[colCodigo] || '').trim() : '',
         rut,
         nombre,
         departamento,
@@ -252,11 +430,16 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    if (allTargetRows.length === 0) {
+      return NextResponse.json({
+        error: 'No se encontraron registros para los departamentos objetivo en el archivo',
+      }, { status: 400 })
+    }
+
     // ============================================================
     // STEP 2: Build set of all dates and workers present per day
-    // Key: "RUT|YYYY-MM-DD" → Set of tipoRegistro values
     // ============================================================
-    const workerDayEntries = new Map<string, Set<string>>() // "RUT|date" → Set of "Entrada"/"Salida"
+    const workerDayEntries = new Map<string, Set<string>>() // "RUT|date" → Set of "entrada"/"salida"
     const workerInfo = new Map<string, { nombre: string; departamento: string }>() // RUT → info
     let minDate: Date | null = null
     let maxDate: Date | null = null
@@ -268,7 +451,21 @@ export async function POST(req: NextRequest) {
       if (!workerDayEntries.has(key)) {
         workerDayEntries.set(key, new Set())
       }
-      workerDayEntries.get(key)!.add(row.tipoRegistro.toLowerCase())
+
+      // Classify the type of record
+      if (hasTipoRegistro) {
+        if (isEntradaType(row.tipoRegistro)) {
+          workerDayEntries.get(key)!.add('entrada')
+        } else if (isSalidaType(row.tipoRegistro)) {
+          workerDayEntries.get(key)!.add('salida')
+        } else {
+          // Unknown type — treat as entrada if it has a time component
+          workerDayEntries.get(key)!.add('entrada')
+        }
+      } else {
+        // No tipo registro column — assume all records are entrada
+        workerDayEntries.get(key)!.add('entrada')
+      }
 
       workerInfo.set(row.rut, { nombre: row.nombre, departamento: row.departamento })
 
@@ -277,10 +474,10 @@ export async function POST(req: NextRequest) {
       if (!maxDate || row.fechaHora > maxDate) maxDate = row.fechaHora
     }
 
-    // Get unique RUTs of target department workers
+    // Get unique RUTs of target workers
     const targetRuts = new Set(allTargetRows.map(r => r.rut))
 
-    // Get unique dates where target department workers had any record
+    // Get unique dates where target workers had any record
     const allDates = new Set<string>()
     for (const row of allTargetRows) {
       allDates.add(formatDate(row.fechaHora))
@@ -289,7 +486,13 @@ export async function POST(req: NextRequest) {
     // ============================================================
     // STEP 3: Detect ATRASOS from Entrada records
     // ============================================================
-    const entradaRows = allTargetRows.filter(r => r.tipoRegistro.toLowerCase() === 'entrada')
+    const entradaRows = allTargetRows.filter(r => {
+      if (hasTipoRegistro) {
+        return isEntradaType(r.tipoRegistro)
+      }
+      // If no tipo registro, treat all records as potential entrada
+      return true
+    })
 
     // Group entries by RUT + date + shift to find first entry per shift
     const entryMap = new Map<string, ParsedRow>()
@@ -323,6 +526,7 @@ export async function POST(req: NextRequest) {
       workersCreated: 0,
       skipped: 0,
       details: [],
+      columnMapping,
     }
 
     // Process atrasos
@@ -410,10 +614,6 @@ export async function POST(req: NextRequest) {
     // ============================================================
     // STEP 4: Detect AUSENCIAS (no entry on work days Mon-Sat)
     // ============================================================
-    // For each worker in target departments and each work day in the
-    // date range, if there's NO "entrada" record, register AUSENCIA.
-    // ============================================================
-
     if (minDate && maxDate && targetRuts.size > 0) {
       // Build the list of work days (Mon-Sat) in the date range
       const workDays: string[] = []
