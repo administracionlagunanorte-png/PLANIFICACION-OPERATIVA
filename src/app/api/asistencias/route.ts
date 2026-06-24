@@ -4,6 +4,15 @@ import { db } from '@/lib/db'
 // GET /api/asistencias — List records with filters
 export async function GET(req: NextRequest) {
   try {
+    // Ensure worker columns exist (safe, idempotent)
+    try {
+      await db.$executeRawUnsafe(`ALTER TABLE workers ADD COLUMN IF NOT EXISTS "cargo" TEXT`)
+      await db.$executeRawUnsafe(`ALTER TABLE workers ADD COLUMN IF NOT EXISTS "turnoA" TEXT`)
+      await db.$executeRawUnsafe(`ALTER TABLE workers ADD COLUMN IF NOT EXISTS "turnoB" TEXT`)
+      await db.$executeRawUnsafe(`ALTER TABLE workers ADD COLUMN IF NOT EXISTS "horaEntrada" TEXT`)
+      await db.$executeRawUnsafe(`ALTER TABLE workers ADD COLUMN IF NOT EXISTS "horaSalida" TEXT`)
+    } catch {}
+
     const { searchParams } = new URL(req.url)
     const month = searchParams.get('month')   // 1-12
     const year = searchParams.get('year')     // 2026

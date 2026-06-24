@@ -455,7 +455,11 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
     const filtered = getFilteredRecords()
 
     if (filtered.length === 0) {
-      toast({ title: 'Sin datos', description: 'No hay registros para generar el informe del mes seleccionado', variant: 'destructive' })
+      toast({
+        title: 'Sin datos',
+        description: `No hay registros para ${monthName} ${yearStr}. Registros totales: ${records.length}, Filtro tipo: ${filterType}, Filtro trabajador: ${filterWorker}`,
+        variant: 'destructive',
+      })
       return
     }
 
@@ -649,25 +653,37 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
 </body>
 </html>`
 
-    // Open in new window for printing
-    const printWindow = window.open('', '_blank')
-    if (printWindow) {
-      printWindow.document.write(html)
-      printWindow.document.close()
-      printWindow.onload = () => {
-        printWindow.print()
-      }
+    // Open report in new tab using Blob URL (reliable, avoids popup blockers)
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+    const blobUrl = URL.createObjectURL(blob)
+    const newWindow = window.open(blobUrl, '_blank')
+    if (newWindow) {
+      // Auto-print once loaded
+      const checkLoaded = setInterval(() => {
+        try {
+          if (newWindow.document && newWindow.document.readyState === 'complete') {
+            clearInterval(checkLoaded)
+            setTimeout(() => newWindow.print(), 300)
+          }
+        } catch {
+          // Cross-origin restriction — just let user print manually
+          clearInterval(checkLoaded)
+        }
+      }, 200)
+      // Clean up after 60 seconds
+      setTimeout(() => {
+        clearInterval(checkLoaded)
+        URL.revokeObjectURL(blobUrl)
+      }, 60000)
     } else {
-      // Fallback: if popup blocked, use Blob URL
-      const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
-      const url = URL.createObjectURL(blob)
+      // Ultimate fallback: download as HTML file
       const link = document.createElement('a')
-      link.href = url
-      link.target = '_blank'
+      link.href = blobUrl
+      link.download = `Informe_Atrasos_${monthName}_${yearStr}.html`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
-      setTimeout(() => URL.revokeObjectURL(url), 10000)
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
     }
   }
 
