@@ -354,83 +354,138 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
   // ============================================================
   const generateReport = () => {
     const [yearStr, monthStr] = selectedMonth.split('-')
-    const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-    const monthName = monthNames[parseInt(monthStr) - 1]
-
-    let html = `
-    <html>
-    <head>
-      <title>Informe de Asistencias - ${monthName} ${yearStr}</title>
-      <style>
-        body { font-family: Arial, sans-serif; margin: 20px; color: #1e293b; }
-        h1 { font-size: 22px; text-align: center; margin-bottom: 4px; color: #0f172a; }
-        h2 { font-size: 16px; text-align: center; color: #64748b; margin-bottom: 20px; font-weight: 400; }
-        .logo { text-align: center; margin-bottom: 16px; }
-        .logo img { height: 60px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
-        th { background: #0f172a; color: white; padding: 10px 12px; text-align: left; font-weight: 600; }
-        td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
-        tr:nth-child(even) { background: #f8fafc; }
-        .ausencia { background: #fef2f2; color: #991b1b; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
-        .atraso { background: #fffbeb; color: #92400e; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
-        .summary { margin-top: 24px; padding: 16px; background: #f1f5f9; border-radius: 8px; }
-        .summary h3 { margin: 0 0 8px; font-size: 14px; color: #0f172a; }
-        .summary-item { display: inline-block; margin-right: 24px; font-size: 13px; }
-        .summary-number { font-size: 20px; font-weight: 700; }
-        .footer { margin-top: 32px; text-align: center; font-size: 11px; color: #94a3b8; }
-      </style>
-    </head>
-    <body>
-      <div class="logo"><img src="/logo-laguna-norte.jpg" alt="Laguna Norte" /></div>
-      <h1>Informe de Asistencias</h1>
-      <h2>Condominio Laguna Norte — ${monthName} ${yearStr}</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>N°</th>
-            <th>Trabajador</th>
-            <th>RUT</th>
-            <th>Fecha</th>
-            <th>Tipo</th>
-            <th>Min. Atraso</th>
-            <th>Motivo</th>
-            <th>Reportado por</th>
-          </tr>
-        </thead>
-        <tbody>`
+    const monthNamesReport = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+    const monthName = monthNamesReport[parseInt(monthStr) - 1]
 
     const filtered = getFilteredRecords()
-    filtered.forEach((r, i) => {
-      const dateStr = new Date(r.date).toLocaleDateString('es-CL')
-      const typeClass = r.type === 'AUSENCIA' ? 'ausencia' : 'atraso'
-      const typeLabel = r.type === 'AUSENCIA' ? 'Inasistencia' : 'Atraso'
-      html += `
-          <tr>
-            <td>${i + 1}</td>
-            <td>${r.worker.nombre}</td>
-            <td>${r.worker.rut}</td>
-            <td>${dateStr}</td>
-            <td><span class="${typeClass}">${typeLabel}</span></td>
-            <td>${r.type === 'ATRASO' ? r.minutesLate + ' min' : '-'}</td>
-            <td>${r.reason || '-'}</td>
-            <td>${r.reportedBy || '-'}</td>
-          </tr>`
+
+    // Group records by worker
+    const workerMap = new Map<string, { worker: { nombre: string; rut: string }; records: typeof filtered }>()
+    filtered.forEach(r => {
+      if (!workerMap.has(r.workerId)) {
+        workerMap.set(r.workerId, { worker: r.worker, records: [] })
+      }
+      workerMap.get(r.workerId)!.records.push(r)
     })
 
-    const ausencias = filtered.filter(r => r.type === 'AUSENCIA')
+    // Sort each worker's records by date ascending
+    workerMap.forEach(val => {
+      val.records.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    })
+
+    // Sort workers alphabetically by name
+    const sortedWorkers = Array.from(workerMap.entries()).sort((a, b) =>
+      a[1].worker.nombre.localeCompare(b[1].worker.nombre)
+    )
+
+    // Calculate totals
     const atrasos = filtered.filter(r => r.type === 'ATRASO')
     const totalMinAtraso = atrasos.reduce((s, r) => s + r.minutesLate, 0)
     const uniqueWorkers = new Set(filtered.map(r => r.workerId))
 
+    let html = `
+    <html>
+    <head>
+      <title>Informe de Atrasos - ${monthName} ${yearStr}</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; color: #1e293b; }
+        h1 { font-size: 22px; text-align: center; margin-bottom: 4px; color: #0f172a; }
+        h2 { font-size: 16px; text-align: center; color: #64748b; margin-bottom: 24px; font-weight: 400; }
+        .logo { text-align: center; margin-bottom: 16px; }
+        .logo img { height: 60px; }
+        .worker-section { margin-bottom: 28px; page-break-inside: avoid; }
+        .worker-header { background: #0f172a; color: white; padding: 10px 16px; font-size: 14px; font-weight: 700; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center; }
+        .worker-header .rut { font-weight: 400; font-size: 12px; opacity: 0.85; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { background: #334155; color: white; padding: 8px 12px; text-align: left; font-weight: 600; font-size: 11px; }
+        td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
+        tr:nth-child(even) { background: #f8fafc; }
+        .atraso { background: #fffbeb; color: #92400e; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        .ausencia { background: #fef2f2; color: #991b1b; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        .worker-total { background: #f1f5f9; font-weight: 600; font-size: 12px; color: #0f172a; padding: 8px 16px; display: flex; justify-content: space-between; border-radius: 0 0 6px 6px; border-top: 2px solid #cbd5e1; }
+        .summary { margin-top: 32px; padding: 16px; background: #f1f5f9; border-radius: 8px; }
+        .summary h3 { margin: 0 0 8px; font-size: 14px; color: #0f172a; }
+        .summary-item { display: inline-block; margin-right: 24px; font-size: 13px; }
+        .summary-number { font-size: 20px; font-weight: 700; }
+        .footer { margin-top: 32px; text-align: center; font-size: 11px; color: #94a3b8; }
+        .date-cell { min-width: 100px; }
+        .time-cell { min-width: 80px; }
+      </style>
+    </head>
+    <body>
+      <div class="logo"><img src="/logo-laguna-norte.jpg" alt="Laguna Norte" /></div>
+      <h1>Informe de Atrasos</h1>
+      <h2>Condominio Laguna Norte — ${monthName} ${yearStr}</h2>`
+
+    let globalIndex = 0
+    sortedWorkers.forEach(([, data]) => {
+      const workerTotalMin = data.records
+        .filter(r => r.type === 'ATRASO')
+        .reduce((s, r) => s + r.minutesLate, 0)
+      const workerAtrasos = data.records.filter(r => r.type === 'ATRASO').length
+      const workerAusencias = data.records.filter(r => r.type === 'AUSENCIA').length
+
+      html += `
+      <div class="worker-section">
+        <div class="worker-header">
+          <span>${data.worker.nombre}</span>
+          <span class="rut">${data.worker.rut}</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>N°</th>
+              <th>Fecha</th>
+              <th>Tipo</th>
+              <th>Tiempo de Retraso</th>
+            </tr>
+          </thead>
+          <tbody>`
+
+      data.records.forEach(r => {
+        globalIndex++
+        const dateStr = new Date(r.date).toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
+        const typeClass = r.type === 'AUSENCIA' ? 'ausencia' : 'atraso'
+        const typeLabel = r.type === 'AUSENCIA' ? 'Inasistencia' : 'Atraso'
+
+        let timeDisplay = '-'
+        if (r.type === 'ATRASO' && r.minutesLate > 0) {
+          const hours = Math.floor(r.minutesLate / 60)
+          const mins = r.minutesLate % 60
+          if (hours > 0) {
+            timeDisplay = `${hours} hr${hours > 1 ? 's' : ''} ${mins > 0 ? mins + ' min' : ''}`.trim()
+          } else {
+            timeDisplay = `${mins} min`
+          }
+        } else if (r.type === 'AUSENCIA') {
+          timeDisplay = 'Día completo'
+        }
+
+        html += `
+            <tr>
+              <td>${globalIndex}</td>
+              <td class="date-cell">${dateStr}</td>
+              <td><span class="${typeClass}">${typeLabel}</span></td>
+              <td class="time-cell">${timeDisplay}</td>
+            </tr>`
+      })
+
+      html += `
+          </tbody>
+        </table>
+        <div class="worker-total">
+          <span>${workerAtrasos} atraso${workerAtrasos !== 1 ? 's' : ''}${workerAusencias > 0 ? ', ' + workerAusencias + ' inasistencia' + (workerAusencias !== 1 ? 's' : '') : ''}</span>
+          <span>Total retraso: ${workerTotalMin} min (${Math.floor(workerTotalMin / 60)} hr${Math.floor(workerTotalMin / 60) !== 1 ? 's' : ''} ${workerTotalMin % 60 > 0 ? (workerTotalMin % 60) + ' min' : ''})</span>
+        </div>
+      </div>`
+    })
+
     html += `
-        </tbody>
-      </table>
       <div class="summary">
         <h3>Resumen del Período</h3>
-        <span class="summary-item"><span class="summary-number">${ausencias.length}</span> Inasistencias</span>
-        <span class="summary-item"><span class="summary-number">${atrasos.length}</span> Atrasos</span>
-        <span class="summary-item"><span class="summary-number">${totalMinAtraso}</span> Min. totales atraso</span>
-        <span class="summary-item"><span class="summary-number">${uniqueWorkers.size}</span> Trabajadores afectados</span>
+        <span class="summary-item"><span class="summary-number">${uniqueWorkers.size}</span> Trabajadores con atraso</span>
+        <span class="summary-item"><span class="summary-number">${atrasos.length}</span> Atrasos totales</span>
+        <span class="summary-item"><span class="summary-number">${totalMinAtraso}</span> Min. totales retraso</span>
       </div>
       <div class="footer">Condominio Laguna Norte — Informe generado automáticamente — ${new Date().toLocaleDateString('es-CL')}</div>
     </body>
