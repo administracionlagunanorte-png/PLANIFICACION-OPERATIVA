@@ -22,10 +22,9 @@ export const authOptions: NextAuthOptions = {
         })
 
         if (!user) {
-          const users = await db.user.findMany({
-            where: { email: { equals: credentials.email, mode: 'insensitive' } },
-          })
-          user = users[0] || null
+          // SQLite doesn't support mode: 'insensitive', try lowercase match
+          const users = await db.user.findMany()
+          user = users.find(u => u.email.toLowerCase() === credentials.email.toLowerCase()) || null
         }
 
         if (!user) return null
