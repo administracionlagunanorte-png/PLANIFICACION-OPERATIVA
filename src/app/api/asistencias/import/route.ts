@@ -93,6 +93,11 @@ interface ImportSummary {
   skipped: number
   details: ImportDetail[]
   columnMapping: Record<string, string>
+  dataRange?: {
+    minDate: string | null
+    maxDate: string | null
+    suggestedMonth: string | null  // "YYYY-MM" format for auto-selection
+  }
   diagnostics: {
     columnsFound: string[]
     columnMapping: Record<string, string>
@@ -699,6 +704,11 @@ export async function POST(req: NextRequest) {
       skipped: 0,
       details: [],
       columnMapping,
+      dataRange: {
+        minDate: minDate ? formatDate(minDate) : null,
+        maxDate: maxDate ? formatDate(maxDate) : null,
+        suggestedMonth: minDate ? `${minDate.getFullYear()}-${String(minDate.getMonth() + 1).padStart(2, '0')}` : null,
+      },
       diagnostics: {
         columnsFound: allColumnsFound,
         columnMapping,

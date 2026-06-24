@@ -23,8 +23,10 @@ export async function GET(req: NextRequest) {
     if (month && year) {
       const m = parseInt(month)
       const y = parseInt(year)
-      const start = new Date(y, m - 1, 1)
-      const end = new Date(y, m, 1)
+      // Use UTC dates to match how import stores them (T12:00:00.000Z)
+      // This prevents timezone offset issues on Vercel
+      const start = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0))
+      const end = new Date(Date.UTC(y, m, 1, 0, 0, 0))
       where.date = { gte: start, lt: end }
     }
     if (type) where.type = type
@@ -91,8 +93,8 @@ export async function DELETE(req: NextRequest) {
 
     const m = parseInt(month)
     const y = parseInt(year)
-    const start = new Date(y, m - 1, 1)
-    const end = new Date(y, m, 1)
+    const start = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0))
+    const end = new Date(Date.UTC(y, m, 1, 0, 0, 0))
 
     const result = await db.asistenciaRecord.deleteMany({
       where: {

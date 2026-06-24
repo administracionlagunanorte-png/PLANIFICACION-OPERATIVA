@@ -371,6 +371,12 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
           duration: 30000,
           variant: hasNoResults ? 'destructive' : 'default',
         })
+
+        // Auto-select the month based on imported data range
+        if (summary.dataRange?.suggestedMonth) {
+          setSelectedMonth(summary.dataRange.suggestedMonth)
+        }
+
         fetchRecords()
         fetchWorkers()
       } else {
@@ -489,14 +495,7 @@ export default function AsistenciasPanel({ userRole = 'USER', userName = '' }: A
 
     const filtered = getFilteredRecords()
 
-    if (filtered.length === 0) {
-      toast({
-        title: 'Sin datos',
-        description: `No hay registros para ${monthName} ${yearStr}. Registros totales: ${records.length}, Filtro tipo: ${filterType}, Filtro trabajador: ${filterWorker}`,
-        variant: 'destructive',
-      })
-      return
-    }
+    // Always generate the report, even if no data — show a message in the report
 
     // Group records by worker
     const workerMap = new Map<string, { worker: { nombre: string; rut: string; cargo?: string; horaEntrada?: string }; records: typeof filtered }>()
@@ -550,10 +549,16 @@ tr:nth-child(even) { background: #f8fafc; }
 .summary-number { font-size: 20px; font-weight: 700; }
 .footer { margin-top: 32px; text-align: center; font-size: 11px; color: #94a3b8; }
 .empty-section { padding: 8px 16px; color: #94a3b8; font-size: 11px; font-style: italic; background: #f8fafc; }
+.no-data-message { text-align: center; padding: 40px 20px; color: #64748b; font-size: 16px; }
+.no-data-message p { margin-top: 8px; font-size: 13px; color: #94a3b8; }
 @media print { body { margin: 0; } .worker-section { page-break-inside: avoid; } }
 </style></head><body>
 <h1>Informe de Atrasos e Inasistencias</h1>
 <h2>Condominio Laguna Norte &mdash; ${monthName} ${yearStr}</h2>`
+
+    if (filtered.length === 0) {
+      html += `<div class="no-data-message"><strong>No se encontraron registros de atrasos ni inasistencias</strong><p>Período: ${monthName} ${yearStr} — No hay datos para el mes seleccionado. Verifique que se haya importado el archivo de asistencia correctamente y que el mes seleccionado corresponda a los datos importados.</p></div>`
+    }
 
     sortedWorkers.forEach(([, data]) => {
       const workerAtrasos = data.records.filter(r => r.type === 'ATRASO').sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
