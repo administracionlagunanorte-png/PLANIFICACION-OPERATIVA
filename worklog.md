@@ -24,3 +24,27 @@ Stage Summary:
 - Local server works but container kills the process after ~10 seconds
 - Vercel should auto-deploy the latest code from GitHub
 - Admin credentials: admin@lagunanorte.cl / admin123
+
+---
+Task ID: fix-asistencia-import
+Agent: Main Agent
+Task: Fix XLS import error in Asistencia module - auto-detect header row
+
+Work Log:
+- Analyzed user's screenshot showing "Error de importación - El archivo no tiene las columnas requeridas"
+- Explored the Asistencia module codebase (AsistenciasPanel.tsx, import route, API routes)
+- Analyzed the sample XLS file structure at /home/z/my-project/upload/Registro asistencia 20260623203026.xls
+- Discovered root cause: import route used hardcoded `range: 3` but the actual header row is at index 4 (5th row)
+- The XLS file has 4 header rows before the column headers (Informe, Desde, Hasta, Compañía)
+- With range:3, row 3 ("Compañía: CONDOMINIO LAGUNA NORTE") was used as header, causing column names to be wrong
+- Implemented auto-detection: scan rows 0-10 to find the row containing all required columns (Departamento, RUT, Nombre, Fecha/Hora, Tipo registro)
+- Tested locally: 317 Entrada records processed, 85 atrasos found, 72 created, 10 new workers created
+- Tardiness detection works correctly: morning shift threshold 08:05, afternoon shift 14:05
+- Only applies to target departments: Auxiliares de Aseo, Auxiliares de Servicios Generales, Encargados de Laguna, Mantenimiento
+- Pushed fix to GitHub (commit 6dc8418)
+
+Stage Summary:
+- Fixed the XLS import by auto-detecting the header row instead of hardcoding range:3
+- Import now works correctly with biometric clock XLS exports that have variable header rows
+- All tardiness logic was already correctly implemented (08:05 morning, 14:05 afternoon) for the 4 specified departments
+- Deploy will be auto-triggered on Vercel from GitHub push
